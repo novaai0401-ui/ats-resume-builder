@@ -1,0 +1,37 @@
+# ── Git / IDE ────────────────────────────────────────────────────────
+.git
+.github
+.vscode
+*.md
+LICENSE
+
+# ── Node artefacts ───────────────────────────────────────────────────
+node_modules
+**/node_modules
+.npm
+*.tsbuildinfo
+
+# ── Build output (rebuilt inside Docker) ─────────────────────────────
+**/dist
+!packages/resume-intelligence/dist/
+.next
+out
+
+# ── Environment files (secrets must be injected at runtime) ──────────
+.env
+.env.*
+!.env.example
+
+# ── Frontend / mobile (not needed for API image) ────────────────────
+resume-builder-web
+resume-builder-mobile
+resume-builder-ai
+resume-builder-infra
+sms-gateway
+
+# ── Tests & misc ────────────────────────────────────────────────────
+**/tests
+**/coverage
+**/*.test.*
+**/*.spec.*
+*.log

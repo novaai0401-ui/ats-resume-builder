@@ -1,0 +1,51 @@
+# ═══════════════════════════════════════════════════════════════════════
+# Render Blueprint — ATS Resume Builder API
+# ═══════════════════════════════════════════════════════════════════════
+# Docs: https://docs.render.com/infrastructure-as-code
+#
+# Deploy: connect your GitHub repo on Render, it auto-detects this file.
+# Or: render blueprint apply
+# ═══════════════════════════════════════════════════════════════════════
+
+services:
+  - type: web
+    name: ats-resume-builder-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    repo: https://github.com/seemaalmas/ats-resume-builder
+    branch: main
+    plan: starter
+    region: oregon
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "3001"
+      # ── Secrets (set in Render dashboard, not committed) ──────────
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: TOKEN_ENC_KEY
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: REDIS_TOKEN
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      # ── Optional (set in dashboard if needed) ─────────────────────
+      - key: GROQ_API_KEY
+        sync: false
+      - key: ADMIN_EMAILS
+        sync: false
+      - key: SOCIAL_LOGIN_SUCCESS_URL
+        sync: false

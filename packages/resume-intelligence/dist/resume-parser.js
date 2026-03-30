@@ -1,0 +1,73 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.parseResumeText = parseResumeText;
+exports.normalizeText = normalizeText;
+const section_normalizer_js_1 = require("./section-normalizer.js");
+function parseResumeText(rawText) {
+    const text = normalizeText(rawText);
+    const lines = text.split('\n').map((line) => line.trim()).filter((line) => {
+        if (!line)
+            return false;
+        // Filter page footers like "-- 1 of 1 --", "Page 2 of 3"
+        if (/^-*\s*(?:page\s+)?\d+\s+of\s+\d+\s*-*$/i.test(line))
+            return false;
+        return true;
+    });
+    const sections = {};
+    let current = 'unmapped';
+    for (const line of lines) {
+        const heading = (0, section_normalizer_js_1.normalizeHeading)(line);
+        if (heading) {
+            // "Achievements:" / "Achievements" inside the experience section is a
+            // sub-heading within a job entry (e.g. listing accomplishments after
+            // bullet points), NOT a separate top-level section.  Keep these lines
+            // in the experience section so they stay attached to the correct role.
+            if (current === 'experience' && heading === 'projects' && /^achievements?\b/i.test(line.replace(/[:\s]+$/g, '').trim())) {
+                // Don't switch section — treat as a content line within experience
+                sections[current].push(line);
+                continue;
+            }
+            current = heading;
+            if (!sections[current])
+                sections[current] = [];
+            continue;
+        }
+        if (!sections[current])
+            sections[current] = [];
+        sections[current].push(line);
+    }
+    return { lines, sections };
+}
+function normalizeText(text) {
+    const canonical = text
+        .replace(/\u0000/g, '')
+        // Normalize Unicode ligatures commonly mangled by pdf-parse:
+        // ﬃ→ffi, ﬄ→ffl, ﬀ→ff, ﬁ→fi, ﬂ→fl (order matters: longest first)
+        .replace(/\uFB03/g, 'ffi')
+        .replace(/\uFB04/g, 'ffl')
+        .replace(/\uFB00/g, 'ff')
+        .replace(/\uFB01/g, 'fi')
+        .replace(/\uFB02/g, 'fl')
+        .replace(/[\u2013\u2014]/g, '-')
+        .replace(/â€¢|â—¦|â–ª|â—/g, '- ')
+        .replace(/[\u2022\u25e6\u25aa\u25cf\u00b7]/g, '- ')
+        .replace(/\r/g, '')
+        .split('\n')
+        .map((line) => normalizeLegacyBulletPrefix(line))
+        .join('\n');
+    return canonical
+        .replace(/\n{3,}/g, '\n\n')
+        .replace(/[ \t]{2,}/g, ' ')
+        .trim();
+}
+const LEGACY_BULLET_PREFIX_RE = /^\s*(?:[-*•·]+|\d{1,3}[.)]|[a-z][.)])?\s*(impact|achievement|result|highlights?|accomplishment)s?:\s*/i;
+function normalizeLegacyBulletPrefix(line) {
+    const raw = String(line || '');
+    if (!LEGACY_BULLET_PREFIX_RE.test(raw))
+        return raw;
+    const stripped = raw.replace(LEGACY_BULLET_PREFIX_RE, '').trim();
+    if (!stripped)
+        return '';
+    // Preserve bullet semantics so highlights continue to attach to the active role.
+    return `- ${stripped}`;
+}

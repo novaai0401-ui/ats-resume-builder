@@ -1,0 +1,248 @@
+export type User = {
+  id: string;
+  email: string;
+  fullName: string;
+};
+
+export type ContactInfo = {
+  fullName: string;
+  email?: string;
+  phone?: string;
+  location?: string;
+  links?: string[];
+};
+
+export type Resume = {
+  id: string;
+  userId: string;
+  title: string;
+  contact?: ContactInfo;
+  summary: string;
+  skills: string[];
+  technicalSkills?: string[];
+  softSkills?: string[];
+  languages?: string[];
+  experience: ExperienceItem[];
+  education: EducationItem[];
+  projects?: ProjectItem[];
+  certifications?: CertificationItem[];
+  templateId?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ResumeImportResult = {
+  title: string;
+  contact?: ContactInfo;
+  summary: string;
+  skills: string[];
+  technicalSkills?: string[];
+  softSkills?: string[];
+  languages?: string[];
+  experience: ExperienceItem[];
+  education: EducationItem[];
+  projects?: ProjectItem[];
+  certifications?: CertificationItem[];
+  roleLevel?: 'FRESHER' | 'MID' | 'SENIOR';
+  unmappedText?: string;
+  text?: string;
+  parsed?: {
+    title: string;
+    contact?: ContactInfo;
+    summary: string;
+    skills: string[];
+    technicalSkills?: string[];
+    softSkills?: string[];
+    languages?: string[];
+    experience: ExperienceItem[];
+    education: EducationItem[];
+    projects?: ProjectItem[];
+    certifications?: CertificationItem[];
+    roleLevel?: 'FRESHER' | 'MID' | 'SENIOR';
+    unmappedText?: string;
+  };
+};
+
+export type ExperienceItem = {
+  company: string;
+  role: string;
+  startDate: string;
+  endDate: string;
+  highlights: string[];
+};
+
+export type EducationItem = {
+  institution: string;
+  degree: string;
+  startDate: string;
+  endDate: string;
+  details?: string[];
+  gpa?: number | null;
+  percentage?: number | null;
+};
+
+export type ProjectItem = {
+  name: string;
+  role?: string;
+  startDate?: string;
+  endDate?: string;
+  url?: string;
+  highlights: string[];
+};
+
+export type CertificationItem = {
+  name: string;
+  issuer?: string;
+  date?: string;
+  details?: string[];
+};
+
+export type AtsIssuePointer = {
+  resumeSectionId?: string;
+  itemId?: string;
+  bulletId?: string;
+  field?: string;
+};
+
+export type AtsIssue = {
+  code: 'EXP_BULLET_ACTION_VERB' | 'JD_SUGGESTION';
+  severity: 'error' | 'warning' | 'info';
+  message: string;
+  section: 'experience' | 'projects' | 'jobDescription';
+  pointer?: AtsIssuePointer;
+};
+
+export type AtsScoreResult = {
+  resumeId: string;
+  atsScore: number;
+  roleLevel: 'FRESHER' | 'MID' | 'SENIOR';
+  roleAdjustedScore: number;
+  rejectionReasons: string[];
+  improvementSuggestions: string[];
+  details: string[];
+  missingKeywords: string[];
+  actionVerbRule?: {
+    requiredRatio: number;
+    percentage: number;
+    strongBullets: number;
+    totalBullets: number;
+    requiredStrongBullets: number;
+    remainingToPass: number;
+    passes: boolean;
+    failedBullets: Array<{
+      index: number;
+      reason: 'weak_starter' | 'not_strong_enough';
+      suggestions: string[];
+    }>;
+    message: string;
+  };
+  issues: AtsIssue[];
+  meta: {
+    jobDescriptionUsed: boolean;
+  };
+  guidance?: AtsGuidance;
+};
+
+export type AtsGuidance = {
+  roleAlignmentSummary: string;
+  matchedKeywords: string[];
+  missingKeywords: string[];
+  weakSignals: string[];
+  sectionSuggestions: {
+    summary: string[];
+    experience: string[];
+    skills: string[];
+  };
+  addOnlyIfTrue: string[];
+  topImpactActions: string[];
+  scoreExplanation: string;
+};
+
+export type DuplicateResumeResult = Resume;
+
+export type JobDescriptionSummary = {
+  skills: string[];
+  responsibilities: string[];
+  seniority: string;
+};
+
+export type ResumeScoreResult = {
+  score: number;
+  suggestions: string[];
+  matchedSkills: string[];
+  missingSkills: string[];
+};
+
+export type JdParseResult = {
+  skills: string[];
+  responsibilities: string[];
+  seniority: string;
+};
+
+export type ResumeCritiqueResult = {
+  highlights: string[];
+  weaknesses: string[];
+  rewrittenSummary: string;
+};
+
+export type SkillGapResult = {
+  missingSkills: string[];
+  recommendedKeywords: string[];
+};
+
+export type AiCritiqueRequest = {
+  summary?: string;
+  skills?: string[];
+  experience?: Array<{
+    company: string;
+    role: string;
+    startDate: string;
+    endDate: string;
+    highlights: string[];
+  }>;
+  education?: Array<{
+    institution: string;
+    degree: string;
+    startDate: string;
+    endDate: string;
+  }>;
+  jdText?: string;
+  atsWeaknesses?: string[];
+  missingKeywords?: string[];
+  currentScore?: number;
+};
+
+export type AiCritiqueSuggestion = {
+  summary: string;
+  topIssues: Array<{ type: string; severity: string; message: string }>;
+  missingKeywords: string[];
+  sectionSuggestions: {
+    summary: string[];
+    skills: string[];
+    experience: Array<{
+      expIndex: number;
+      bulletIndex: number;
+      original: string;
+      suggested: string;
+    }>;
+  };
+  atsSafetyWarnings: string[];
+  estimatedImprovementBand: {
+    current: string;
+    possibleFree: string;
+    premium: string;
+  };
+};
+
+export type AiCritiqueResult = {
+  success: boolean;
+  provider: string;
+  plan: 'free' | 'premium';
+  critique: AiCritiqueSuggestion;
+};
+
+export type Plan = 'FREE' | 'STUDENT' | 'PRO';
+
+export type DuplicateResumeDto = {
+  title?: string;
+};
