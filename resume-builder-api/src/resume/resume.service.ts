@@ -1,5 +1,5 @@
 import { BadRequestException, ForbiddenException, HttpException, HttpStatus, Injectable, NotFoundException, Optional, UnprocessableEntityException } from '@nestjs/common';
-import puppeteer, { type LaunchOptions } from 'puppeteer';
+import puppeteer, { type LaunchOptions } from 'puppeteer-core';
 import { existsSync } from 'fs';
 import { PDFParse } from 'pdf-parse';
 import mammoth from 'mammoth';
@@ -16,10 +16,39 @@ import { ACTION_VERB_REQUIRED_RATIO, analyzeActionVerbRule, normalizeBulletText,
 import { SettingsService } from '../settings/settings.service';
 
 /**
- * Resolve a Chrome/Chromium executable path for Puppeteer.
- * Priority: CHROME_EXECUTABLE_PATH env > common system paths > Puppeteer default.
+ * Detect whether we're running in a serverless environment (Vercel / AWS Lambda).
  */
-function resolveChromePath(): string | undefined {
+const IS_SERVERLESS = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+
+/**
+ * Resolve a Chrome/Chromium executable path for Puppeteer.
+ * In serverless (Vercel): uses @sparticuz/chromium which bundles a minimal Chromium.
+ * Locally: CHROME_EXECUTABLE_PATH env > common system paths > puppeteer default.
+ */
+async function resolveChromeLaunchOptions(): Promise<LaunchOptions> {
+  if (IS_SERVERLESS) {
+    try {
+      const chromium = (await import('@sparticuz/chromium')).default;
+      return {
+        args: chromium.args,
+        defaultViewport: chromium.defaultViewport,
+        executablePath: await chromium.executablePath(),
+        headless: true,
+      };
+    } catch {
+      console.warn('[pdf-export] @sparticuz/chromium not available, falling back to local Chrome');
+    }
+  }
+
+  const chromePath = resolveLocalChromePath();
+  return {
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu'],
+    ...(chromePath ? { executablePath: chromePath } : {}),
+  };
+}
+
+function resolveLocalChromePath(): string | undefined {
   const envPath = process.env.CHROME_EXECUTABLE_PATH || process.env.PUPPETEER_EXECUTABLE_PATH;
   if (envPath && existsSync(envPath)) return envPath;
 
@@ -456,19 +485,14 @@ export class ResumeService {
       data: { pdfExportsUsed: updatedUser.pdfExportsUsed + 1 },
     });
 
-    const chromePath = resolveChromePath();
-    const launchOptions: LaunchOptions = {
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu'],
-      ...(chromePath ? { executablePath: chromePath } : {}),
-    };
+    const launchOptions = await resolveChromeLaunchOptions();
 
     let browser;
     try {
       browser = await puppeteer.launch(launchOptions);
     } catch (launchError) {
-      const hint = chromePath
-        ? `Tried Chrome at: ${chromePath}`
+      const hint = launchOptions.executablePath
+        ? `Tried Chrome at: ${launchOptions.executablePath}`
         : 'No Chrome/Chromium found. Install Chrome or set CHROME_EXECUTABLE_PATH env variable.';
       console.error(`[pdf-export] Chrome launch failed. ${hint}`, launchError);
       throw new HttpException(

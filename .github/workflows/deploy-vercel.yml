@@ -5,18 +5,20 @@ on:
     branches: [main]
     paths:
       - 'resume-builder-web/**'
+      - 'resume-builder-api/**'
       - 'resume-builder-shared/**'
+      - 'packages/**'
   workflow_dispatch:
 
-env:
-  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-
 jobs:
-  deploy-production:
-    name: Deploy Production
+  # ─── Frontend (Next.js) ───
+  deploy-web:
+    name: Deploy Web (Vercel)
     runs-on: ubuntu-latest
     environment: production
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_WEB_PROJECT_ID }}
     steps:
       - uses: actions/checkout@v4
 
@@ -47,12 +49,16 @@ jobs:
         working-directory: resume-builder-web
 
       - name: Summary
-        run: echo "Deployed to ${{ steps.deploy.outputs.deployment_url }}" >> "$GITHUB_STEP_SUMMARY"
+        run: echo "### Web deployed to ${{ steps.deploy.outputs.deployment_url }}" >> "$GITHUB_STEP_SUMMARY"
 
-  deploy-preview:
-    name: Deploy Preview
-    if: github.event_name == 'pull_request'
+  # ─── Backend (NestJS API) ───
+  deploy-api:
+    name: Deploy API (Vercel)
     runs-on: ubuntu-latest
+    environment: production
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_API_PROJECT_ID }}
     steps:
       - uses: actions/checkout@v4
 
@@ -62,28 +68,74 @@ jobs:
           cache: npm
           cache-dependency-path: |
             resume-builder-shared/package-lock.json
-            resume-builder-web/package-lock.json
+            packages/resume-schemas/package-lock.json
+            packages/resume-intelligence/package-lock.json
+            resume-builder-api/package-lock.json
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+
+      - name: Pull Vercel environment
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        working-directory: resume-builder-api
+
+      - name: Build with Vercel
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        working-directory: resume-builder-api
+
+      - name: Deploy to Vercel
+        id: deploy
+        run: |
+          URL=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
+          echo "deployment_url=$URL" >> "$GITHUB_OUTPUT"
+        working-directory: resume-builder-api
+
+      - name: Summary
+        run: echo "### API deployed to ${{ steps.deploy.outputs.deployment_url }}" >> "$GITHUB_STEP_SUMMARY"
+
+  # ─── Preview Deployments (PRs) ───
+  deploy-preview:
+    name: Deploy Preview
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - app: resume-builder-web
+            project_id_secret: VERCEL_WEB_PROJECT_ID
+            label: Web
+          - app: resume-builder-api
+            project_id_secret: VERCEL_API_PROJECT_ID
+            label: API
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets[matrix.project_id_secret] }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
 
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
 
       - name: Pull Vercel environment
         run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
-        working-directory: resume-builder-web
+        working-directory: ${{ matrix.app }}
 
       - name: Build with Vercel
         run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
-        working-directory: resume-builder-web
+        working-directory: ${{ matrix.app }}
 
       - name: Deploy Preview
         id: deploy
         run: |
           URL=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
           echo "deployment_url=$URL" >> "$GITHUB_OUTPUT"
-        working-directory: resume-builder-web
+        working-directory: ${{ matrix.app }}
 
       - name: Comment PR with preview URL
-        if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
           script: |
@@ -91,5 +143,5 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `### Vercel Preview Deployment\n\n**URL:** ${{ steps.deploy.outputs.deployment_url }}`
+              body: `### ${{ matrix.label }} Preview\n\n**URL:** ${{ steps.deploy.outputs.deployment_url }}`
             })
