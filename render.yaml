@@ -22,8 +22,6 @@ services:
       # ── Public (safe to commit) ─────────────────────────────────────
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: "3001"
 
       # ── Database (PostgreSQL) ───────────────────────────────────────
       - key: DATABASE_URL

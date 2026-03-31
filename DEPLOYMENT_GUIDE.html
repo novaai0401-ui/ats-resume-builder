@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ATS Resume Builder — Deployment Guide</title>
+<style>
+  @page { margin: 20mm 18mm; size: A4; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, Helvetica, sans-serif; font-size: 11px; line-height: 1.55; color: #1a1a1a; }
+  h1 { font-size: 22px; color: #0f172a; border-bottom: 3px solid #2563eb; padding-bottom: 8px; margin-bottom: 16px; }
+  h2 { font-size: 16px; color: #1e40af; margin-top: 22px; margin-bottom: 10px; border-bottom: 1px solid #dbeafe; padding-bottom: 4px; }
+  h3 { font-size: 13px; color: #1e3a5f; margin-top: 14px; margin-bottom: 6px; }
+  p, li { margin-bottom: 4px; }
+  ul, ol { padding-left: 18px; margin-bottom: 8px; }
+  table { width: 100%; border-collapse: collapse; margin: 8px 0 12px; font-size: 10.5px; }
+  th, td { border: 1px solid #cbd5e1; padding: 5px 8px; text-align: left; }
+  th { background: #1e40af; color: #fff; font-weight: 600; }
+  tr:nth-child(even) { background: #f8fafc; }
+  code { background: #f1f5f9; padding: 1px 4px; border-radius: 3px; font-size: 10px; font-family: 'Courier New', monospace; }
+  pre { background: #0f172a; color: #e2e8f0; padding: 10px 12px; border-radius: 6px; font-size: 10px; overflow-x: auto; margin: 8px 0; font-family: 'Courier New', monospace; line-height: 1.5; }
+  .box { background: #eff6ff; border-left: 4px solid #2563eb; padding: 8px 12px; margin: 10px 0; border-radius: 0 4px 4px 0; }
+  .box-warn { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 8px 12px; margin: 10px 0; border-radius: 0 4px 4px 0; }
+  .box-green { background: #ecfdf5; border-left: 4px solid #10b981; padding: 8px 12px; margin: 10px 0; border-radius: 0 4px 4px 0; }
+  .arch-box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 6px; margin: 12px 0; text-align: center; }
+  .page-break { page-break-before: always; }
+  .badge { display: inline-block; background: #2563eb; color: #fff; font-size: 9px; padding: 2px 8px; border-radius: 10px; font-weight: 600; margin-right: 4px; }
+  .badge-green { background: #10b981; }
+  .badge-amber { background: #f59e0b; }
+  .step-num { display: inline-block; background: #1e40af; color: #fff; width: 24px; height: 24px; text-align: center; line-height: 24px; border-radius: 50%; font-weight: 700; font-size: 12px; margin-right: 6px; }
+  .footer { text-align: center; font-size: 9px; color: #94a3b8; margin-top: 30px; padding-top: 10px; border-top: 1px solid #e2e8f0; }
+</style>
+</head>
+<body>
+
+<h1>ATS Resume Builder — Deployment Guide</h1>
+<p style="color:#475569; margin-bottom:12px;">
+  <strong>Project:</strong> novaai0401-ui/ats-resume-builder &nbsp;|&nbsp;
+  <strong>Date:</strong> March 2026 &nbsp;|&nbsp;
+  <strong>Version:</strong> 0.1.0
+</p>
+
+<div class="arch-box">
+<pre style="background:transparent;color:#1a1a1a;text-align:left;font-size:10px;margin:0;">
+┌───────────────────┐          ┌────────────────────┐          ┌──────────────────────┐
+│      VERCEL       │          │      RENDER        │          │   EXTERNAL SERVICES  │
+│                   │   API    │                    │          │                      │
+│  ┌─────────────┐  │  calls   │  ┌──────────────┐  │          │  PostgreSQL (Supabase)│
+│  │    Web      │──┼─────────►│  │    API       │──┼─────────►│  Redis (Upstash)     │
+│  │  (Next.js)  │  │          │  │  (NestJS)    │  │          │  Stripe              │
+│  └─────────────┘  │          │  │  Docker      │  │          │  OAuth Providers      │
+│                   │          │  └──────────────┘  │          │  SMTP (Gmail)         │
+│  Port: 443 (SSL)  │          │  Port: 3001        │          │  Groq AI              │
+└───────────────────┘          └────────────────────┘          └──────────────────────┘
+</pre>
+</div>
+
+<h2>Monorepo Structure</h2>
+<table>
+  <tr><th>Package</th><th>Framework</th><th>Deploys To</th><th>Purpose</th></tr>
+  <tr><td><code>resume-builder-web</code></td><td>Next.js 16 (App Router)</td><td><span class="badge">Vercel</span></td><td>Frontend web application</td></tr>
+  <tr><td><code>resume-builder-api</code></td><td>NestJS + Prisma</td><td><span class="badge-green badge">Render</span></td><td>Backend REST API</td></tr>
+  <tr><td><code>resume-builder-shared</code></td><td>TypeScript + Zod</td><td>Build dependency</td><td>Shared types &amp; schemas</td></tr>
+  <tr><td><code>packages/resume-schemas</code></td><td>TypeScript + Zod</td><td>Build dependency</td><td>Resume validation schemas</td></tr>
+  <tr><td><code>packages/resume-intelligence</code></td><td>TypeScript</td><td>Build dependency</td><td>Resume parsing &amp; mapping</td></tr>
+  <tr><td><code>resume-builder-mobile</code></td><td>React Native</td><td>App Store / Play Store</td><td>Mobile app (future)</td></tr>
+</table>
+
+<!-- ================================================================= -->
+<h2><span class="step-num">1</span> External Services (Set Up FIRST)</h2>
+<p>These must be ready before deploying either the API or the Web app.</p>
+
+<h3>1A. PostgreSQL Database — Supabase</h3>
+<ol>
+  <li>Go to <strong>supabase.com</strong> → New Project</li>
+  <li>Choose region close to Render (Oregon = US West)</li>
+  <li>Set a strong database password</li>
+  <li>Go to <strong>Settings → Database</strong></li>
+  <li>Copy <strong>Connection string (URI)</strong> → <code>DATABASE_URL</code></li>
+  <li>Copy <strong>Direct connection</strong> string → <code>DIRECT_URL</code></li>
+</ol>
+<div class="box">
+  <strong>Format:</strong><br>
+  <code>DATABASE_URL = postgresql://postgres:[PASS]@db.[REF].supabase.co:6543/postgres</code><br>
+  <code>DIRECT_URL  = postgresql://postgres:[PASS]@db.[REF].supabase.co:5432/postgres</code>
+</div>
+
+<h3>1B. Redis — Upstash</h3>
+<ol>
+  <li>Go to <strong>upstash.com</strong> → Create Database → region US West</li>
+  <li>Copy <strong>UPSTASH_REDIS_REST_URL</strong> → <code>REDIS_URL</code></li>
+  <li>Copy <strong>UPSTASH_REDIS_REST_TOKEN</strong> → <code>REDIS_TOKEN</code></li>
+</ol>
+
+<h3>1C. Stripe (Billing)</h3>
+<ol>
+  <li>Go to <strong>dashboard.stripe.com</strong> → Developers → API Keys</li>
+  <li>Copy Secret Key → <code>STRIPE_SECRET_KEY</code></li>
+  <li>Create Webhook (after API deploy) → <code>STRIPE_WEBHOOK_SECRET</code></li>
+  <li>Create two Price objects → <code>STRIPE_PRICE_STUDENT</code>, <code>STRIPE_PRICE_PRO</code></li>
+</ol>
+
+<h3>1D. OAuth Providers (Social Login)</h3>
+<table>
+  <tr><th>Provider</th><th>Console URL</th><th>Secrets You Get</th></tr>
+  <tr><td>Google</td><td>console.cloud.google.com → Credentials</td><td><code>GOOGLE_LOGIN_CLIENT_ID</code>, <code>GOOGLE_LOGIN_CLIENT_SECRET</code></td></tr>
+  <tr><td>GitHub</td><td>github.com/settings/developers → OAuth Apps</td><td><code>GITHUB_CLIENT_ID</code>, <code>GITHUB_CLIENT_SECRET</code></td></tr>
+  <tr><td>LinkedIn</td><td>linkedin.com/developers → My Apps</td><td><code>LINKEDIN_CLIENT_ID</code>, <code>LINKEDIN_CLIENT_SECRET</code></td></tr>
+  <tr><td>Yahoo</td><td>developer.yahoo.com → My Apps</td><td><code>YAHOO_CLIENT_ID</code>, <code>YAHOO_CLIENT_SECRET</code></td></tr>
+</table>
+<div class="box-warn"><strong>Important:</strong> Set redirect URIs AFTER you know your Render API URL (Step 2).</div>
+
+<h3>1E. SMTP — Gmail with App Password</h3>
+<ol>
+  <li>Enable 2FA on your Google account</li>
+  <li>Go to <strong>myaccount.google.com/apppasswords</strong> → Generate password</li>
+</ol>
+<table>
+  <tr><th>Variable</th><th>Value</th></tr>
+  <tr><td><code>SMTP_HOST</code></td><td><code>smtp.gmail.com</code></td></tr>
+  <tr><td><code>SMTP_PORT</code></td><td><code>587</code></td></tr>
+  <tr><td><code>SMTP_SECURE</code></td><td><code>false</code></td></tr>
+  <tr><td><code>SMTP_USER</code></td><td><code>your-email@gmail.com</code></td></tr>
+  <tr><td><code>SMTP_PASS</code></td><td><code>your-16-char-app-password</code></td></tr>
+  <tr><td><code>SMTP_FROM</code></td><td><code>ATS Resume Builder &lt;your-email@gmail.com&gt;</code></td></tr>
+</table>
+
+<h3>1F. AI Service — Groq</h3>
+<ol>
+  <li>Go to <strong>console.groq.com</strong> → API Keys → Create key</li>
+  <li>Copy → <code>GROQ_API_KEY</code></li>
+</ol>
+
+<h3>1G. Generate Secrets (Run Locally)</h3>
+<pre>
+# JWT_SECRET (64 hex chars)
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+
+# JWT_REFRESH_SECRET (64 hex chars)
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+
+# TOKEN_ENC_KEY (64 hex chars = 256-bit key)
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+</pre>
+
+<!-- ================================================================= -->
+<div class="page-break"></div>
+<h2><span class="step-num">2</span> Deploy API on Render</h2>
+
+<h3>2A. Create Render Service</h3>
+<ol>
+  <li>Go to <strong>render.com</strong> → Dashboard → <strong>New → Web Service</strong></li>
+  <li>Connect GitHub repo: <code>novaai0401-ui/ats-resume-builder</code></li>
+  <li>Configure:
+    <ul>
+      <li><strong>Name:</strong> <code>ats-resume-builder-api</code></li>
+      <li><strong>Region:</strong> Oregon</li>
+      <li><strong>Branch:</strong> <code>main</code></li>
+      <li><strong>Root Directory:</strong> <em>(leave empty — uses repo root)</em></li>
+      <li><strong>Runtime:</strong> Docker</li>
+      <li><strong>Dockerfile Path:</strong> <code>./Dockerfile</code></li>
+      <li><strong>Plan:</strong> Starter ($7/month) or higher</li>
+    </ul>
+  </li>
+</ol>
+
+<h3>2B. Set ALL Environment Variables in Render Dashboard</h3>
+<p>Go to your Render service → <strong>Environment</strong> tab → add each variable:</p>
+
+<table>
+  <tr><th>Category</th><th>Variable</th><th>Value</th></tr>
+  <tr><td rowspan="2"><strong>Core</strong></td><td><code>NODE_ENV</code></td><td><code>production</code></td></tr>
+  <tr><td><code>PORT</code></td><td><code>3001</code></td></tr>
+  <tr><td rowspan="2"><strong>Database</strong></td><td><code>DATABASE_URL</code></td><td>From Step 1A (pooled)</td></tr>
+  <tr><td><code>DIRECT_URL</code></td><td>From Step 1A (direct)</td></tr>
+  <tr><td rowspan="3"><strong>Auth</strong></td><td><code>JWT_SECRET</code></td><td>From Step 1G</td></tr>
+  <tr><td><code>JWT_REFRESH_SECRET</code></td><td>From Step 1G</td></tr>
+  <tr><td><code>TOKEN_ENC_KEY</code></td><td>From Step 1G</td></tr>
+  <tr><td><strong>CORS</strong></td><td><code>CORS_ORIGIN</code></td><td><code>https://your-web.vercel.app</code> (update after Step 3)</td></tr>
+  <tr><td rowspan="2"><strong>Redis</strong></td><td><code>REDIS_URL</code></td><td>From Step 1B</td></tr>
+  <tr><td><code>REDIS_TOKEN</code></td><td>From Step 1B</td></tr>
+  <tr><td rowspan="6"><strong>Stripe</strong></td><td><code>STRIPE_SECRET_KEY</code></td><td>From Step 1C</td></tr>
+  <tr><td><code>STRIPE_WEBHOOK_SECRET</code></td><td>From Step 1C</td></tr>
+  <tr><td><code>STRIPE_PRICE_STUDENT</code></td><td>From Step 1C</td></tr>
+  <tr><td><code>STRIPE_PRICE_PRO</code></td><td>From Step 1C</td></tr>
+  <tr><td><code>STRIPE_SUCCESS_URL</code></td><td><code>https://your-web.vercel.app/dashboard</code></td></tr>
+  <tr><td><code>STRIPE_CANCEL_URL</code></td><td><code>https://your-web.vercel.app/dashboard</code></td></tr>
+  <tr><td rowspan="4"><strong>Google OAuth</strong></td><td><code>GOOGLE_LOGIN_CLIENT_ID</code></td><td>From Step 1D</td></tr>
+  <tr><td><code>GOOGLE_LOGIN_CLIENT_SECRET</code></td><td>From Step 1D</td></tr>
+  <tr><td><code>GOOGLE_LOGIN_REDIRECT_URI</code></td><td><code>https://your-api.onrender.com/auth/social/google/callback</code></td></tr>
+  <tr><td><code>SOCIAL_LOGIN_SUCCESS_URL</code></td><td><code>https://your-web.vercel.app/auth/callback</code></td></tr>
+  <tr><td rowspan="3"><strong>GitHub OAuth</strong></td><td><code>GITHUB_CLIENT_ID</code></td><td>From Step 1D</td></tr>
+  <tr><td><code>GITHUB_CLIENT_SECRET</code></td><td>From Step 1D</td></tr>
+  <tr><td><code>GITHUB_REDIRECT_URI</code></td><td><code>https://your-api.onrender.com/auth/social/github/callback</code></td></tr>
+  <tr><td rowspan="3"><strong>LinkedIn OAuth</strong></td><td><code>LINKEDIN_CLIENT_ID</code></td><td>From Step 1D</td></tr>
+  <tr><td><code>LINKEDIN_CLIENT_SECRET</code></td><td>From Step 1D</td></tr>
+  <tr><td><code>LINKEDIN_REDIRECT_URI</code></td><td><code>https://your-api.onrender.com/auth/social/linkedin/callback</code></td></tr>
+  <tr><td rowspan="6"><strong>SMTP</strong></td><td><code>SMTP_HOST</code></td><td>From Step 1E</td></tr>
+  <tr><td><code>SMTP_PORT</code></td><td>From Step 1E</td></tr>
+  <tr><td><code>SMTP_SECURE</code></td><td><code>false</code></td></tr>
+  <tr><td><code>SMTP_USER</code></td><td>From Step 1E</td></tr>
+  <tr><td><code>SMTP_PASS</code></td><td>From Step 1E</td></tr>
+  <tr><td><code>SMTP_FROM</code></td><td>From Step 1E</td></tr>
+  <tr><td rowspan="3"><strong>AI</strong></td><td><code>AI_PROVIDER</code></td><td><code>groq</code></td></tr>
+  <tr><td><code>GROQ_API_KEY</code></td><td>From Step 1F</td></tr>
+  <tr><td><code>GROQ_MODEL</code></td><td><code>llama-3.3-70b-versatile</code></td></tr>
+  <tr><td><strong>Admin</strong></td><td><code>ADMIN_EMAILS</code></td><td><code>novaai0401@gmail.com</code></td></tr>
+</table>
+
+<h3>2C. Run Database Migrations</h3>
+<p>After Render deploys, run from your local machine:</p>
+<pre>
+cd resume-builder-api
+DATABASE_URL="your-direct-connection-url" npx prisma migrate deploy
+</pre>
+
+<h3>2D. Verify API</h3>
+<div class="box-green">
+  Visit <code>https://your-api.onrender.com/health</code> — should return a success response.<br>
+  <strong>Note your Render API URL</strong> — you need it for the next steps.
+</div>
+
+<!-- ================================================================= -->
+<div class="page-break"></div>
+<h2><span class="step-num">3</span> Deploy Web on Vercel</h2>
+
+<h3>3A. Create Vercel Project</h3>
+<ol>
+  <li>Go to <strong>vercel.com</strong> → <strong>Add New Project</strong></li>
+  <li>Import repo: <code>novaai0401-ui/ats-resume-builder</code></li>
+  <li>Configure:
+    <ul>
+      <li><strong>Framework:</strong> Next.js (auto-detected)</li>
+      <li><strong>Root Directory:</strong> <code>resume-builder-web</code></li>
+      <li><strong>Build &amp; Install Commands:</strong> leave default (reads from <code>vercel.json</code>)</li>
+    </ul>
+  </li>
+</ol>
+
+<h3>3B. Set Environment Variables in Vercel Dashboard</h3>
+<p>Before clicking Deploy, go to <strong>Settings → Environment Variables</strong>:</p>
+<table>
+  <tr><th>Variable</th><th>Value</th><th>Environments</th></tr>
+  <tr><td><code>NEXT_PUBLIC_API_URL</code></td><td><code>https://ats-resume-builder-api.onrender.com</code></td><td>Production, Preview, Development</td></tr>
+  <tr><td><code>NEXT_PUBLIC_SESSION_IDLE_TIMEOUT_MS</code></td><td><code>1800000</code></td><td>All</td></tr>
+  <tr><td><code>NEXT_PUBLIC_ADMIN_EMAILS</code></td><td><code>novaai0401@gmail.com</code></td><td>All</td></tr>
+</table>
+
+<h3>3C. Deploy</h3>
+<p>Click <strong>Deploy</strong> — Vercel builds and deploys automatically.</p>
+
+<div class="box-green">
+  <strong>Note your Vercel URL</strong> (e.g. <code>https://ats-resume-builder.vercel.app</code>)
+</div>
+
+<!-- ================================================================= -->
+<h2><span class="step-num">4</span> Cross-Link URLs (Critical!)</h2>
+<p>Now that both services are live, update the cross-references.</p>
+
+<h3>4A. Update Render (API) Env Vars</h3>
+<table>
+  <tr><th>Variable</th><th>Update To</th></tr>
+  <tr><td><code>CORS_ORIGIN</code></td><td><code>https://ats-resume-builder.vercel.app</code></td></tr>
+  <tr><td><code>SOCIAL_LOGIN_SUCCESS_URL</code></td><td><code>https://ats-resume-builder.vercel.app/auth/callback</code></td></tr>
+  <tr><td><code>STRIPE_SUCCESS_URL</code></td><td><code>https://ats-resume-builder.vercel.app/dashboard</code></td></tr>
+  <tr><td><code>STRIPE_CANCEL_URL</code></td><td><code>https://ats-resume-builder.vercel.app/dashboard</code></td></tr>
+  <tr><td><code>GOOGLE_OAUTH_SUCCESS_REDIRECT</code></td><td><code>https://ats-resume-builder.vercel.app/dashboard</code></td></tr>
+</table>
+
+<h3>4B. Update OAuth Provider Redirect URIs</h3>
+<p>Go back to each OAuth console and set:</p>
+<table>
+  <tr><th>Provider</th><th>Redirect URI</th></tr>
+  <tr><td>Google</td><td><code>https://ats-resume-builder-api.onrender.com/auth/social/google/callback</code></td></tr>
+  <tr><td>GitHub</td><td><code>https://ats-resume-builder-api.onrender.com/auth/social/github/callback</code></td></tr>
+  <tr><td>LinkedIn</td><td><code>https://ats-resume-builder-api.onrender.com/auth/social/linkedin/callback</code></td></tr>
+  <tr><td>Yahoo</td><td><code>https://ats-resume-builder-api.onrender.com/auth/social/yahoo/callback</code></td></tr>
+</table>
+
+<h3>4C. Update Stripe Webhook</h3>
+<p>In Stripe Dashboard → Webhooks → set endpoint URL:<br>
+<code>https://ats-resume-builder-api.onrender.com/billing/webhook</code></p>
+
+<!-- ================================================================= -->
+<div class="page-break"></div>
+<h2><span class="step-num">5</span> Set Up GitHub Actions (CI/CD)</h2>
+
+<h3>5A. Get Vercel Credentials</h3>
+<pre>
+# Install Vercel CLI
+npm install -g vercel
+
+# Login
+vercel login
+
+# Link web project
+cd resume-builder-web && vercel link
+# → .vercel/project.json contains orgId + projectId
+
+# Get your API token
+# vercel.com → Settings → Tokens → Create
+</pre>
+
+<h3>5B. Add GitHub Secrets</h3>
+<p>Repo <strong>Settings → Secrets and variables → Actions → New repository secret</strong>:</p>
+<table>
+  <tr><th>Secret Name</th><th>Where to Get It</th></tr>
+  <tr><td><code>VERCEL_TOKEN</code></td><td>vercel.com → Settings → Tokens → Create</td></tr>
+  <tr><td><code>VERCEL_ORG_ID</code></td><td><code>.vercel/project.json</code> → <code>orgId</code></td></tr>
+  <tr><td><code>VERCEL_WEB_PROJECT_ID</code></td><td><code>.vercel/project.json</code> → <code>projectId</code></td></tr>
+  <tr><td><code>NEXT_PUBLIC_API_URL</code></td><td>Your Render API URL</td></tr>
+</table>
+
+<h3>5C. Create GitHub Environment</h3>
+<p>Repo Settings → Environments → New environment → name: <code>production</code></p>
+
+<!-- ================================================================= -->
+<h2><span class="step-num">6</span> Verify Everything</h2>
+
+<table>
+  <tr><th>Test</th><th>URL</th><th>Expected Result</th></tr>
+  <tr><td>API Health</td><td><code>https://your-api.onrender.com/health</code></td><td>200 OK</td></tr>
+  <tr><td>Web Home</td><td><code>https://your-web.vercel.app</code></td><td>Landing page renders</td></tr>
+  <tr><td>Login Page</td><td><code>https://your-web.vercel.app/auth/login</code></td><td>Social buttons + email/password form</td></tr>
+  <tr><td>Social Login</td><td>Click "Continue with Google"</td><td>Redirects to Google → back to dashboard</td></tr>
+  <tr><td>Register</td><td>Fill register form</td><td>Account created → dashboard</td></tr>
+  <tr><td>Create Resume</td><td>Dashboard → New resume</td><td>Resume editor loads</td></tr>
+  <tr><td>Export PDF</td><td>Click Export PDF in editor</td><td>PDF downloads</td></tr>
+</table>
+
+<!-- ================================================================= -->
+<h2>Deployment Sequence — Summary</h2>
+
+<div class="box-green" style="font-size:11px; line-height:1.8;">
+<pre style="background:transparent; color:#1a1a1a; margin:0; font-size:11px;">
+ PHASE 1 — External Services
+  ① Supabase (PostgreSQL)         → DATABASE_URL, DIRECT_URL
+  ② Upstash (Redis)               → REDIS_URL, REDIS_TOKEN
+  ③ Groq (AI)                     → GROQ_API_KEY
+  ④ Gmail App Password (SMTP)     → SMTP_* variables
+  ⑤ Generate JWT + encryption secrets locally
+
+ PHASE 2 — Deploy API (Render)
+  ⑥ Create Render Web Service (Docker)
+  ⑦ Set all environment variables
+  ⑧ Wait for build + deploy
+  ⑨ Run: prisma migrate deploy
+  ⑩ Verify: GET /health → 200 OK
+  ⑪ Note your API URL
+
+ PHASE 3 — Deploy Web (Vercel)
+  ⑫ Create Vercel project (root: resume-builder-web)
+  ⑬ Set NEXT_PUBLIC_API_URL = Render API URL
+  ⑭ Deploy
+  ⑮ Note your Web URL
+
+ PHASE 4 — Cross-Link
+  ⑯ Set CORS_ORIGIN on Render → Vercel Web URL
+  ⑰ Update OAuth redirect URIs → Render API URL
+  ⑱ Update Stripe webhook → Render API URL
+  ⑲ Update success/cancel URLs → Vercel Web URL
+
+ PHASE 5 — CI/CD
+  ⑳ Add GitHub Secrets (VERCEL_TOKEN, ORG_ID, PROJECT_ID)
+  ㉑ Create "production" environment
+
+ PHASE 6 — Verify
+  ㉒ Full end-to-end test: register → login → resume → PDF
+</pre>
+</div>
+
+<div class="box-warn" style="margin-top:14px;">
+  <strong>Key Rule:</strong> External services FIRST → API SECOND → Web THIRD → Cross-link LAST.
+</div>
+
+<div class="footer">
+  ATS Resume Builder — Deployment Guide &nbsp;|&nbsp; Generated March 2026 &nbsp;|&nbsp; novaai0401-ui/ats-resume-builder
+</div>
+
+</body>
+</html>
