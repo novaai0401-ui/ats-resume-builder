@@ -40,10 +40,12 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     try {
       await this.$connect();
       await this.ping();
+      this.logger.log(`Connected to database at ${info.host}:${info.port}`);
     } catch (error: unknown) {
       const message = buildConnectionErrorMessage(info, error);
       this.logger.error(message);
-      throw new Error(message);
+      // Do not throw — let the app start so health checks can respond.
+      // Endpoints that need DB will fail individually with clear errors.
     }
   }
 

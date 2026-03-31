@@ -20,7 +20,13 @@ export class SettingsService implements OnModuleInit {
   constructor(private readonly prisma: PrismaService) {}
 
   async onModuleInit() {
-    await this.ensureDefaults();
+    try {
+      await this.ensureDefaults();
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Settings init failed';
+      this.logger.error(`Settings initialization failed (non-fatal): ${message}`);
+      // Do not throw — let the app start so health checks can respond.
+    }
   }
 
   async ensureDefaults() {
