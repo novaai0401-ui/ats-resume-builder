@@ -22,7 +22,7 @@ async function bootstrap(): Promise<NestExpressApplication> {
         callback(null, true);
         return;
       }
-      callback(null, allowedOrigins.includes(origin));
+      callback(null, isOriginAllowed(origin, allowedOrigins));
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -53,6 +53,23 @@ function parseAllowedOrigins(value?: string) {
     .filter(Boolean);
   if (fromEnv.length) return fromEnv;
   return ['http://localhost:3000', 'http://localhost:3001'];
+}
+
+function isOriginAllowed(origin: string, allowedOrigins: string[]): boolean {
+  if (allowedOrigins.includes(origin)) return true;
+  if (allowedOrigins.some((o) => o.endsWith('.vercel.app')) && origin.endsWith('.vercel.app')) {
+    for (const allowed of allowedOrigins) {
+      try {
+        const allowedHost = new URL(allowed).hostname;
+        const originHost = new URL(origin).hostname;
+        const slug = allowedHost.replace('.vercel.app', '');
+        if (originHost === allowedHost || originHost.endsWith(`-${slug}.vercel.app`)) {
+          return true;
+        }
+      } catch { /* skip invalid URLs */ }
+    }
+  }
+  return false;
 }
 
 export default async function handler(req: Request, res: Response) {

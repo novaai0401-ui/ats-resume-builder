@@ -13,7 +13,7 @@ async function bootstrap() {
         callback(null, true);
         return;
       }
-      callback(null, allowedOrigins.includes(origin));
+      callback(null, isOriginAllowed(origin, allowedOrigins));
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -63,4 +63,25 @@ function parseAllowedOrigins(value?: string) {
     .filter(Boolean);
   if (fromEnv.length) return fromEnv;
   return ['http://localhost:3000', 'http://localhost:3001'];
+}
+
+/** Check if an origin is allowed — supports exact match and Vercel preview patterns. */
+function isOriginAllowed(origin: string, allowedOrigins: string[]): boolean {
+  if (allowedOrigins.includes(origin)) return true;
+  // Allow Vercel preview deployments matching any configured .vercel.app origin
+  if (allowedOrigins.some((o) => o.endsWith('.vercel.app')) && origin.endsWith('.vercel.app')) {
+    // Extract the project slug from configured origins and match against it
+    for (const allowed of allowedOrigins) {
+      try {
+        const allowedHost = new URL(allowed).hostname;
+        const originHost = new URL(origin).hostname;
+        // Match: <hash>-<project-slug>.vercel.app against <project-slug>.vercel.app
+        const slug = allowedHost.replace('.vercel.app', '');
+        if (originHost === allowedHost || originHost.endsWith(`-${slug}.vercel.app`)) {
+          return true;
+        }
+      } catch { /* skip invalid URLs */ }
+    }
+  }
+  return false;
 }
