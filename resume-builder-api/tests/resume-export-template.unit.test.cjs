@@ -1,6 +1,6 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const puppeteer = require('puppeteer');
+const puppeteer = require('puppeteer-core');
 const { ResumeService } = require('../dist/resume/resume.service.js');
 
 function createInMemoryPrisma(templateId = 'modern') {

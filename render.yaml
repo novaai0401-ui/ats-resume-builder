@@ -13,39 +13,112 @@ services:
     runtime: docker
     dockerfilePath: ./Dockerfile
     dockerContext: .
-    repo: https://github.com/seemaalmas/ats-resume-builder
+    repo: https://github.com/novaai0401-ui/ats-resume-builder
     branch: main
     plan: starter
     region: oregon
     healthCheckPath: /health
     envVars:
+      # ── Public (safe to commit) ─────────────────────────────────────
       - key: NODE_ENV
         value: production
       - key: PORT
         value: "3001"
-      # ── Secrets (set in Render dashboard, not committed) ──────────
+
+      # ── Database (PostgreSQL) ───────────────────────────────────────
       - key: DATABASE_URL
         sync: false
+      - key: DIRECT_URL
+        sync: false
+
+      # ── Authentication (JWT + Encryption) ───────────────────────────
       - key: JWT_SECRET
         sync: false
       - key: JWT_REFRESH_SECRET
         sync: false
       - key: TOKEN_ENC_KEY
         sync: false
+
+      # ── CORS ────────────────────────────────────────────────────────
       - key: CORS_ORIGIN
         sync: false
+
+      # ── Redis (Upstash) ─────────────────────────────────────────────
       - key: REDIS_URL
         sync: false
       - key: REDIS_TOKEN
         sync: false
+
+      # ── Stripe (Billing) ────────────────────────────────────────────
       - key: STRIPE_SECRET_KEY
         sync: false
       - key: STRIPE_WEBHOOK_SECRET
         sync: false
-      # ── Optional (set in dashboard if needed) ─────────────────────
-      - key: GROQ_API_KEY
+      - key: STRIPE_PRICE_STUDENT
         sync: false
-      - key: ADMIN_EMAILS
+      - key: STRIPE_PRICE_PRO
+        sync: false
+      - key: STRIPE_SUCCESS_URL
+        sync: false
+      - key: STRIPE_CANCEL_URL
+        sync: false
+
+      # ── Social Login OAuth ──────────────────────────────────────────
+      - key: GOOGLE_LOGIN_CLIENT_ID
+        sync: false
+      - key: GOOGLE_LOGIN_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_LOGIN_REDIRECT_URI
+        sync: false
+      - key: LINKEDIN_CLIENT_ID
+        sync: false
+      - key: LINKEDIN_CLIENT_SECRET
+        sync: false
+      - key: LINKEDIN_REDIRECT_URI
+        sync: false
+      - key: YAHOO_CLIENT_ID
+        sync: false
+      - key: YAHOO_CLIENT_SECRET
+        sync: false
+      - key: YAHOO_REDIRECT_URI
+        sync: false
+      - key: GITHUB_CLIENT_ID
+        sync: false
+      - key: GITHUB_CLIENT_SECRET
+        sync: false
+      - key: GITHUB_REDIRECT_URI
         sync: false
       - key: SOCIAL_LOGIN_SUCCESS_URL
+        sync: false
+
+      # ── Google Drive OAuth ──────────────────────────────────────────
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_REDIRECT_URI
+        sync: false
+
+      # ── Email / SMTP ────────────────────────────────────────────────
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+      - key: SMTP_SECURE
+        sync: false
+
+      # ── AI Service ──────────────────────────────────────────────────
+      - key: AI_PROVIDER
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+
+      # ── Admin ───────────────────────────────────────────────────────
+      - key: ADMIN_EMAILS
         sync: false

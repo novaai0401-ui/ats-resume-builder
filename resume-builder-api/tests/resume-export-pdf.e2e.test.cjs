@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const request = require('supertest');
-const puppeteer = require('puppeteer');
+const puppeteer = require('puppeteer-core');
 const { Test } = require('@nestjs/testing');
 const { ResumeController } = require('../dist/resume/resume.controller.js');
 const { ResumeService } = require('../dist/resume/resume.service.js');
