@@ -252,7 +252,7 @@ export default function DashboardPageView({
         data-testid="dashboard-preview-profile"
         style={{ border: '1px solid #e5e7eb', borderRadius: 10, padding: 16, background: '#fff', marginBottom: 14 }}
       >
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+        <div className="dashboard-profile-header">
           <div>
             <h2 style={{ margin: 0, fontSize: 18 }}>{profileName}</h2>
             {profileRole ? (
@@ -271,7 +271,7 @@ export default function DashboardPageView({
             ) : null}
           </div>
           {sortedResumes.length > 0 ? (
-            <label style={{ display: 'grid', gap: 6, minWidth: 260 }}>
+            <label style={{ display: 'grid', gap: 6, minWidth: 0, width: '100%', maxWidth: 320 }}>
               <span className="small">Selected resume</span>
               <select
                 className="input"

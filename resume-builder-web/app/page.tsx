@@ -1,4 +1,4 @@
-﻿import Link from 'next/link';
+import Link from 'next/link';
 
 export default function Page() {
   return (
@@ -8,26 +8,29 @@ export default function Page() {
         <p className="small">
           Clean, scannable templates. Skill matching. Smart guidance for students and professionals.
         </p>
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+        <div className="hero__actions">
           <Link className="btn" href="/auth/register">Get started</Link>
           <Link className="btn secondary" href="/resume/start">Start resume</Link>
         </div>
       </section>
 
-      <section className="grid">
-        <div className="card col-7">
+      <section className="feature-grid">
+        <div className="card feature-card">
+          <div className="feature-card__icon">&#9998;</div>
           <h3>Resume Editor</h3>
           <p className="small">
             Create ATS-safe resumes with structured sections and plain-text friendly formatting.
           </p>
         </div>
-        <div className="card col-5">
+        <div className="card feature-card">
+          <div className="feature-card__icon">&#10024;</div>
           <h3>AI Suggestions</h3>
           <p className="small">
             Get targeted improvements for impact, clarity, and keyword alignment.
           </p>
         </div>
-        <div className="card col-12">
+        <div className="card feature-card feature-card--wide">
+          <div className="feature-card__icon">&#127919;</div>
           <h3>Job Description Matching</h3>
           <p className="small">
             Upload a JD to calculate match %, skill gaps, and tailored guidance.
