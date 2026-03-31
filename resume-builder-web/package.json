@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "description": "Next.js (App Router) web client",
+  "engines": {
+    "node": ">=18.0.0 <=22.x"
+  },
   "scripts": {
     "test": "tsx --test tests/**/*.test.ts tests/**/*.test.tsx",
     "build": "next build --webpack",
