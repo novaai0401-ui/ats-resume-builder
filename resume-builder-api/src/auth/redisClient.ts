@@ -47,6 +47,9 @@ export class RedisClientService implements RedisLikeClient {
     if (this.upstash) {
       const value = await this.upstash.get(cleanKey);
       if (value === null || value === undefined) return null;
+      // Upstash auto-deserializes JSON strings into objects;
+      // re-serialize so callers always receive a plain string.
+      if (typeof value === 'object') return JSON.stringify(value);
       return String(value);
     }
     return this.memoryGet(cleanKey);
