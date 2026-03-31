@@ -39,6 +39,9 @@ FROM node:20-alpine
 WORKDIR /app
 ENV NODE_ENV=production
 
+# Install OpenSSL 1.1 compatibility library required by Prisma query engine
+RUN apk add --no-cache openssl1.1-compat
+
 # Copy API artifacts
 COPY --from=builder /build/resume-builder-api/node_modules ./node_modules
 COPY --from=builder /build/resume-builder-api/dist ./dist
