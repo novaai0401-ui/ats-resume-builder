@@ -4,7 +4,6 @@
   "private": true,
   "description": "Next.js (App Router) web client",
   "scripts": {
-    "lint": "next lint",
     "test": "tsx --test tests/**/*.test.ts tests/**/*.test.tsx",
     "build": "next build --webpack",
     "dev": "next dev --webpack",
