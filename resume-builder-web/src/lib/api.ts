@@ -120,6 +120,7 @@ type ResumePayload = {
     details?: string[];
   }[];
   templateId?: string;
+  source?: 'import' | 'manual';
 };
 
 type ResumeUpdatePayload = Partial<ResumePayload>;

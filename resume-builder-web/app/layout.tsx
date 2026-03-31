@@ -5,6 +5,7 @@ import TopNav from '@/src/components/TopNav';
 export const metadata = {
   title: 'Resume Builder',
   description: 'ATS-optimized resume builder',
+  viewport: 'width=device-width, initial-scale=1.0, maximum-scale=5.0',
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

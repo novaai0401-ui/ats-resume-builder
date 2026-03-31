@@ -510,7 +510,7 @@ export function resolveEditorUploadNavigation(currentFlow: string, template = ''
   };
 }
 
-export function buildResumePayload(resume: ResumeDraft, sections: SectionState[]) {
+export function buildResumePayload(resume: ResumeDraft, sections: SectionState[], options?: { source?: 'import' | 'manual' }) {
   const enabled = new Set(sections.filter((s) => s.enabled).map((s) => s.type));
   const trimmedContact = sanitizeContact(resume.contact);
   const skillCategories = normalizeSkillCategories({
@@ -568,6 +568,7 @@ export function buildResumePayload(resume: ResumeDraft, sections: SectionState[]
       }))
       : [],
     templateId: resume.templateId?.trim() || undefined,
+    source: options?.source,
   };
   return normalizeResumeForAts(payload) as typeof payload;
 }

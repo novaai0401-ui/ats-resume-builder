@@ -166,12 +166,14 @@ export class ResumeService {
       technicalSkills: normalized.technicalSkills,
       softSkills: normalized.softSkills,
     });
-    enforceAtsResumeRules({
-      summary: normalized.summary,
-      skills: categories.skills,
-      experience: normalized.experience,
-      education: normalized.education,
-    });
+    if (dto.source !== 'import') {
+      enforceAtsResumeRules({
+        summary: normalized.summary,
+        skills: categories.skills,
+        experience: normalized.experience,
+        education: normalized.education,
+      });
+    }
     const created = await this.prisma.resume.create({
       data: {
         userId,

@@ -15,6 +15,15 @@ import { GOOGLE_DRIVE_CLIENT, GoogleDriveHttpClient, GoogleDriveService } from '
 import { REDIS_CLIENT, RedisClientService } from './redisClient';
 import { GoogleTokenStore } from './tokenStore';
 
+function resolveJwtSecret(config: ConfigService): string {
+  const value = config.get<string>('JWT_SECRET');
+  if (value && value.length >= 16) return value;
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('JWT_SECRET must be set to a secure value (>=16 chars) in production');
+  }
+  return value || 'dev_secret';
+}
+
 @Module({
   imports: [
     ConfigModule,
@@ -23,7 +32,7 @@ import { GoogleTokenStore } from './tokenStore';
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        secret: config.get<string>('JWT_SECRET', 'dev_secret'),
+        secret: resolveJwtSecret(config),
         signOptions: {
           expiresIn: durationToSeconds(config.get<string>('JWT_EXPIRES_IN', '7d')),
         },

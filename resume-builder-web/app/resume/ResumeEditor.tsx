@@ -896,7 +896,7 @@ export default function ResumeEditor() {
     const payload = buildResumePayload({
       ...resume,
       templateId: normalizedTemplateParam || resume.templateId,
-    }, sections);
+    }, sections, { source: isImportedMode ? 'import' : undefined });
     try {
       let result: Resume;
       if (resumeId) {

@@ -59,6 +59,7 @@ export type CreateResumeDto = {
     details?: string[];
   }[];
   templateId?: string;
+  source?: 'import' | 'manual';
 };
 
 export type UpdateResumeDto = {

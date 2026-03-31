@@ -74,6 +74,7 @@ export const CreateResumeSchema = z.object({
   projects: z.array(ProjectSchema).optional(),
   certifications: z.array(CertificationSchema).optional(),
   templateId: z.string().trim().min(1).optional(),
+  source: z.enum(['import', 'manual']).optional(),
 });
 
 export const UpdateResumeSchema = z.object({

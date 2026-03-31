@@ -890,10 +890,25 @@ function buildExperienceSource(parsed: ParsedResumeText) {
     // Also collect experience-like lines from other sections (e.g. education)
     // that may contain experience entries due to PDF page breaks — but only
     // if those sections contain clear role+company patterns.
+    // Exclude well-known mapped sections (skills, summary, certifications, etc.)
+    // to avoid false positives like "Team Lead" in a skills list being treated
+    // as an experience role and pulling all section content into experience.
+    const EXCLUDED_SPILLOVER_SECTIONS = new Set([
+      'experience', 'employment', 'work', 'career', 'unmapped',
+      'skills', 'technical', 'core', 'technologies',
+      'summary', 'profile', 'objective',
+      'certifications', 'licenses',
+      'projects', 'research',
+      'accomplishments', 'achievements', 'awards',
+      'languages',
+      'interests', 'hobbies',
+    ]);
     const otherSections = Object.entries(parsed.sections)
-      .filter(([key]) => !['experience', 'employment', 'work', 'career', 'unmapped'].includes(key));
+      .filter(([key]) => !EXCLUDED_SPILLOVER_SECTIONS.has(key));
     const otherLines = otherSections.flatMap(([, lines]) => lines);
-    const hasRoleCompany = otherLines.some((l) => looksLikeRole(l) && looksLikeRoleTitle(l) && !looksLikeEducationRoleLine(l));
+    const hasRole = otherLines.some((l) => looksLikeRole(l) && looksLikeRoleTitle(l) && !looksLikeEducationRoleLine(l));
+    const hasCompany = otherLines.some((l) => looksLikeCompany(l));
+    const hasRoleCompany = hasRole && hasCompany;
     if (hasRoleCompany) {
       const spillover = collectLikelyExperienceLines(otherLines);
       if (spillover.length) return [...sectionLines, ...spillover];

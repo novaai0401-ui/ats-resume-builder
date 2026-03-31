@@ -13,6 +13,15 @@ const ACCESS_TOKEN_TYPE = 'access';
 const REFRESH_TOKEN_TYPE = 'refresh';
 const OTP_SESSION_TTL_SECONDS = 30 * 60;
 
+function resolveSecret(config: ConfigService, key: string, devFallback: string): string {
+  const value = config.get<string>(key);
+  if (value && value.length >= 16) return value;
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(`${key} must be set to a secure value (>=16 chars) in production`);
+  }
+  return value || devFallback;
+}
+
 type SessionType = 'default' | 'otp';
 
 type TokenIssueOptions = {
@@ -211,7 +220,7 @@ export class AuthService {
         adm: isAdmin,
       },
       {
-        secret: this.config.get<string>('JWT_SECRET', 'dev_secret'),
+        secret: resolveSecret(this.config, 'JWT_SECRET', 'dev_secret'),
         expiresIn: accessExpires,
       },
     );
@@ -225,7 +234,7 @@ export class AuthService {
         sess: options.sessionType,
       },
       {
-        secret: this.config.get<string>('JWT_REFRESH_SECRET', 'dev_refresh_secret'),
+        secret: resolveSecret(this.config, 'JWT_REFRESH_SECRET', 'dev_refresh_secret'),
         expiresIn: refreshExpires,
       },
     );
@@ -251,7 +260,7 @@ export class AuthService {
   private async readSessionTypeFromRefreshToken(refreshToken: string, expectedUserId: string): Promise<SessionType> {
     try {
       const payload = await this.jwt.verifyAsync(refreshToken, {
-        secret: this.config.get<string>('JWT_REFRESH_SECRET', 'dev_refresh_secret'),
+        secret: resolveSecret(this.config, 'JWT_REFRESH_SECRET', 'dev_refresh_secret'),
       }) as { sub?: string; typ?: string; sess?: string };
       if (payload?.typ !== REFRESH_TOKEN_TYPE || payload.sub !== expectedUserId) {
         throw new UnauthorizedException('Invalid refresh token');
