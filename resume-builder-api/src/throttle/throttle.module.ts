@@ -6,16 +6,25 @@ import { ThrottlerGuard } from '@nestjs/throttler';
 /**
  * Global rate limiting module.
  *
- * Default: 60 requests per 60 seconds per IP.
+ * Two tiers:
+ *   - short: 20 requests per 10 seconds (burst protection)
+ *   - long:  100 requests per 60 seconds (sustained rate limit)
+ *
  * Individual routes can override with @Throttle() decorator.
+ * File upload endpoints (parse-upload) should use a stricter limit.
  */
 @Module({
   imports: [
     ThrottlerModule.forRoot([
       {
-        name: 'default',
-        ttl: 60_000,  // 60 seconds
-        limit: 60,    // 60 requests per window
+        name: 'short',
+        ttl: 10_000,   // 10 seconds
+        limit: 20,     // 20 requests per 10s window
+      },
+      {
+        name: 'long',
+        ttl: 60_000,   // 60 seconds
+        limit: 100,    // 100 requests per 60s window
       },
     ]),
   ],

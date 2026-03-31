@@ -1,11 +1,22 @@
 ﻿import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
-import { json } from 'express';
+import { json, urlencoded } from 'express';
+import helmet from 'helmet';
+import hpp from 'hpp';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.enableShutdownHooks();
+
+  // --- Security middleware ---
+  app.use(helmet({
+    contentSecurityPolicy: false, // CSP is handled by the frontend
+    crossOriginEmbedderPolicy: false,
+    hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
+  }));
+  app.use(hpp()); // Protect against HTTP parameter pollution
+
   const allowedOrigins = parseAllowedOrigins(process.env.CORS_ORIGIN);
   app.enableCors({
     origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
@@ -18,9 +29,13 @@ async function bootstrap() {
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
+    exposedHeaders: ['X-RateLimit-Limit', 'X-RateLimit-Remaining', 'Retry-After'],
     preflightContinue: false,
     optionsSuccessStatus: 204,
+    maxAge: 86400, // Cache preflight responses for 24 hours
   });
+
+  // --- Body parsing with limits ---
   app.use(
     json({
       limit: '1mb',
@@ -31,6 +46,8 @@ async function bootstrap() {
       },
     }),
   );
+  app.use(urlencoded({ extended: true, limit: '1mb', parameterLimit: 50 }));
+
   const port = process.env.PORT ? Number(process.env.PORT) : 3001;
   if (process.env.NODE_ENV !== 'production') {
     console.log(`[bootstrap] Allowed CORS origins: ${allowedOrigins.join(', ')}`);

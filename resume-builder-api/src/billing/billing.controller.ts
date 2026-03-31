@@ -1,4 +1,5 @@
 ﻿import { BadRequestException, Body, Controller, Get, Headers, Post, Req, UseGuards } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import type { Request } from 'express';
 import { CreateCheckoutSessionSchema, type CreateCheckoutSessionDto } from 'resume-builder-shared';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -75,6 +76,7 @@ export class BillingController {
   }
 
   @Post('webhook')
+  @SkipThrottle()
   webhook(@Req() req: Request, @Headers('stripe-signature') signature: string) {
     return this.billingService.handleWebhook(req, signature);
   }

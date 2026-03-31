@@ -1,13 +1,35 @@
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   compress: true,
+  transpilePackages: ['resume-builder-shared'],
   images: {
     formats: ['image/avif', 'image/webp'],
   },
   experimental: {
     optimizePackageImports: ['zustand'],
+  },
+  turbopack: {
+    resolveAlias: {
+      'resume-builder-shared': resolve(
+        __dirname,
+        '../resume-builder-shared/dist/index.js',
+      ),
+    },
+  },
+  webpack(config) {
+    config.resolve.alias['resume-builder-shared'] = resolve(
+      __dirname,
+      '../resume-builder-shared/dist/index.js',
+    );
+    config.resolve.symlinks = true;
+    return config;
   },
   async headers() {
     return [

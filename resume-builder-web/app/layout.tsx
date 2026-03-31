@@ -1,11 +1,17 @@
 import type { ReactNode } from 'react';
+import type { Viewport } from 'next';
 import './globals.css';
 import TopNav from '@/src/components/TopNav';
 
 export const metadata = {
   title: 'Resume Builder',
   description: 'ATS-optimized resume builder',
-  viewport: 'width=device-width, initial-scale=1.0, maximum-scale=5.0',
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1.0,
+  maximumScale: 5.0,
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

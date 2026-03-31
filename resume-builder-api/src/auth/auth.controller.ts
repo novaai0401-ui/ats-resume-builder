@@ -1,4 +1,5 @@
 import { BadRequestException, Body, Controller, HttpCode, Post, Req, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import {
   RegisterSchema,
@@ -13,6 +14,7 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('register')
+  @Throttle({ short: { limit: 3, ttl: 60000 }, long: { limit: 5, ttl: 300000 } })
   register(@Body() body: RegisterDto) {
     const parsed = RegisterSchema.safeParse(body);
     if (!parsed.success) {
@@ -23,6 +25,7 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(200)
+  @Throttle({ short: { limit: 5, ttl: 60000 }, long: { limit: 10, ttl: 300000 } })
   login(@Body() body: { email: string; password: string }) {
     const email = String(body?.email || '').trim();
     const password = String(body?.password || '');
@@ -35,6 +38,7 @@ export class AuthController {
   @Post('change-password')
   @UseGuards(JwtAuthGuard)
   @HttpCode(200)
+  @Throttle({ short: { limit: 3, ttl: 60000 }, long: { limit: 5, ttl: 300000 } })
   changePassword(@Req() req: { user: { userId: string } }, @Body() body: { currentPassword: string; newPassword: string }) {
     const currentPassword = String(body?.currentPassword || '');
     const newPassword = String(body?.newPassword || '');

@@ -1,4 +1,5 @@
 import { BadRequestException, Body, Controller, Delete, Get, HttpCode, NotFoundException, Param, Patch, Post, Query, Req, Res, UploadedFile, UseFilters, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ResumeService } from './resume.service';
@@ -173,6 +174,7 @@ export class ResumeController {
 
   @Post('parse-upload')
   @HttpCode(200)
+  @Throttle({ short: { limit: 5, ttl: 60000 }, long: { limit: 15, ttl: 300000 } })
   @UseFilters(MulterUploadExceptionFilter)
   @UseInterceptors(
     FileInterceptor('file', {
