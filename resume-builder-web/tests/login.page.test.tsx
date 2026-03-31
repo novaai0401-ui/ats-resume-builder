@@ -5,12 +5,14 @@ import { JSDOM } from 'jsdom';
 
 process.env.NEXT_TEST_MOCK_ROUTER = '1';
 
-const dom = new JSDOM('<!doctype html><html><body></body></html>');
+const dom = new JSDOM('<!doctype html><html><body></body></html>', { url: 'http://localhost' });
 globalThis.window = dom.window as unknown as Window & typeof globalThis;
 globalThis.document = dom.window.document;
 globalThis.navigator = dom.window.navigator;
 globalThis.self = dom.window;
 globalThis.HTMLElement = dom.window.HTMLElement;
+globalThis.localStorage = dom.window.localStorage;
+globalThis.sessionStorage = dom.window.sessionStorage;
 globalThis.requestAnimationFrame =
   dom.window.requestAnimationFrame?.bind(dom.window) ??
   ((callback: FrameRequestCallback) => setTimeout(callback, 0) as unknown as number);
@@ -42,8 +44,7 @@ test.afterEach(async () => {
 
 function createMockApi() {
   return {
-    requestEmailOtp: async () => ({ ok: true, message: 'OTP sent', devOtp: '123456' }),
-    verifyEmailOtp: async () => ({
+    loginWithPassword: async () => ({
       user: { id: '1', email: 'a', fullName: 'b' },
       accessToken: 'a',
       refreshToken: 'r',
@@ -62,42 +63,20 @@ test('login page renders email input by default', async () => {
   const apiClient = createMockApi();
 
   const view = render(React.createElement(LoginPageView, { apiClient: apiClient as any }));
-  const emailInput = view.getByLabelText(/email address/i) as HTMLInputElement;
+  const emailInput = view.getByLabelText(/^email$/i) as HTMLInputElement;
   assert.equal(emailInput.id, 'login-email');
   assert.equal(emailInput.type, 'email');
 });
 
-test('request OTP button calls email OTP API', async () => {
+test('login with password calls API and navigates on success', async () => {
   const { render, fireEvent, waitFor } = await getTestingLib();
   const { LoginPageView } = await getLoginPageModule();
-  const requestCalls: string[] = [];
+  const loginCalls: Array<{ email: string; password: string }> = [];
   const apiClient = {
     ...createMockApi(),
-    requestEmailOtp: async (email: string) => {
-      requestCalls.push(email);
-      return { ok: true, message: 'OTP sent', devOtp: '123456' };
-    },
-  };
-
-  const view = render(React.createElement(LoginPageView, { apiClient: apiClient as any }));
-  const emailInput = view.getByLabelText(/email address/i) as HTMLInputElement;
-  fireEvent.input(emailInput, { target: { value: 'test@example.com' } });
-  fireEvent.click(view.getByRole('button', { name: /send otp/i }));
-  await waitFor(() => {
-    assert.equal(requestCalls.length, 1);
-    assert.equal(requestCalls[0], 'test@example.com');
-  });
-});
-
-test('verify OTP calls API and navigates on success', async () => {
-  const { render, fireEvent, waitFor } = await getTestingLib();
-  const { LoginPageView } = await getLoginPageModule();
-  const verifyCalls: Array<{ email: string; otp: string }> = [];
-  const apiClient = {
-    ...createMockApi(),
-    verifyEmailOtp: async (payload: { email: string; otp: string }) => {
-      verifyCalls.push(payload);
-      return { user: { id: '1', email: 'a', fullName: 'b' }, accessToken: 'a', refreshToken: 'r' };
+    loginWithPassword: async (email: string, password: string) => {
+      loginCalls.push({ email, password });
+      return { user: { id: '1', email, fullName: 'b' }, accessToken: 'a', refreshToken: 'r' };
     },
   };
   const routerHits: string[] = [];
@@ -109,15 +88,13 @@ test('verify OTP calls API and navigates on success', async () => {
   };
 
   const view = render(React.createElement(LoginPageView, { apiClient: apiClient as any, routerOverride: routerStub }));
-  fireEvent.input(view.getByLabelText(/email address/i), { target: { value: 'test@example.com' } });
-  fireEvent.click(view.getByRole('button', { name: /send otp/i }));
-  await waitFor(() => view.getByLabelText(/enter otp/i));
-  fireEvent.change(view.getByLabelText(/enter otp/i), { target: { value: '123456' } });
-  fireEvent.click(view.getByRole('button', { name: /verify & login/i }));
+  fireEvent.change(view.getByLabelText(/^email$/i), { target: { value: 'test@example.com' } });
+  fireEvent.change(view.getByLabelText(/password/i), { target: { value: 'mypassword123' } });
+  fireEvent.click(view.getByRole('button', { name: /sign in/i }));
   await waitFor(() => {
-    assert.equal(verifyCalls.length, 1);
-    assert.equal(verifyCalls[0].email, 'test@example.com');
-    assert.equal(verifyCalls[0].otp, '123456');
+    assert.equal(loginCalls.length, 1);
+    assert.equal(loginCalls[0].email, 'test@example.com');
+    assert.equal(loginCalls[0].password, 'mypassword123');
     assert.equal(routerHits[0], '/dashboard');
   });
 });
@@ -142,10 +119,11 @@ test('register form is accessible via defaultMode prop', async () => {
   };
 
   const view = render(React.createElement(LoginPageView, { apiClient: apiClient as any, routerOverride: routerStub, defaultMode: 'register' }));
-  fireEvent.input(view.getByLabelText(/full name/i), { target: { value: 'John Doe' } });
-  fireEvent.input(view.getByLabelText(/email/i), { target: { value: 'john@example.com' } });
-  fireEvent.input(view.getByLabelText(/mobile number/i), { target: { value: '+919876543210' } });
-  fireEvent.click(view.getByRole('button', { name: /register/i }));
+  fireEvent.change(view.getByLabelText(/full name/i), { target: { value: 'John Doe' } });
+  fireEvent.change(view.getByLabelText(/^email$/i), { target: { value: 'john@example.com' } });
+  fireEvent.change(view.getByLabelText(/mobile/i), { target: { value: '+919876543210' } });
+  fireEvent.change(view.getByLabelText(/password/i), { target: { value: 'secure123!' } });
+  fireEvent.click(view.getByRole('button', { name: /create account/i }));
 
   await waitFor(() => {
     assert.equal(registerCalls.length, 1);
@@ -173,21 +151,20 @@ test('register mode has link back to login page', async () => {
   const apiClient = createMockApi();
 
   const view = render(React.createElement(LoginPageView, { apiClient: apiClient as any, defaultMode: 'register' }));
-  const link = view.getByRole('link', { name: /already have an account\? login/i }) as HTMLAnchorElement;
+  const link = view.getByRole('link', { name: /already have an account/i }) as HTMLAnchorElement;
   assert.ok(link);
   assert.ok(link.getAttribute('href')?.includes('/auth/login'));
 });
 
-test('login page does not show mobile OTP or password login', async () => {
+test('login page has password input field for password-based auth', async () => {
   const { render } = await getTestingLib();
   const { LoginPageView } = await getLoginPageModule();
   const apiClient = createMockApi();
 
   const view = render(React.createElement(LoginPageView, { apiClient: apiClient as any }));
+  const passwordInputs = view.container.querySelectorAll('input[type="password"]');
+  assert.equal(passwordInputs.length, 1, 'Should have one password input field');
   const html = view.container.innerHTML;
   assert.equal(html.includes('mobile OTP'), false, 'Should not contain mobile OTP text');
   assert.equal(html.includes('Use mobile'), false, 'Should not contain Use mobile text');
-  // Ensure no password input field exists (the word "password" may appear in info text like "one-time password")
-  const passwordInputs = view.container.querySelectorAll('input[type="password"]');
-  assert.equal(passwordInputs.length, 0, 'Should not contain password input field');
 });

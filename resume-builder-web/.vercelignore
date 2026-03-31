@@ -1,0 +1,19 @@
+# Tests
+tests/
+**/*.test.ts
+**/*.test.tsx
+**/*.test.cjs
+
+# Development files
+.vscode/
+.env
+.env.local
+*.md
+
+# Other packages (handled by installCommand)
+../resume-builder-api/
+../resume-builder-ai/
+../resume-builder-mobile/
+../resume-builder-infra/
+../sms-gateway/
+../packages/

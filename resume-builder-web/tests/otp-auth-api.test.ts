@@ -7,13 +7,13 @@ test('mobile OTP functions are removed from api client', () => {
   assert.equal('verifyOtp' in api, false, 'api.verifyOtp should not exist');
 });
 
-test('email/password login function is removed from api client', () => {
-  assert.equal('login' in api, false, 'api.login should not exist — use Email OTP flow instead');
+test('email OTP functions are removed from api client', () => {
+  assert.equal('requestEmailOtp' in api, false, 'api.requestEmailOtp should not exist — use password login instead');
+  assert.equal('verifyEmailOtp' in api, false, 'api.verifyEmailOtp should not exist — use password login instead');
 });
 
-test('email OTP functions exist on api client', () => {
-  assert.equal(typeof api.requestEmailOtp, 'function');
-  assert.equal(typeof api.verifyEmailOtp, 'function');
+test('password login function exists on api client', () => {
+  assert.equal(typeof api.loginWithPassword, 'function');
 });
 
 test('register function exists on api client', () => {
