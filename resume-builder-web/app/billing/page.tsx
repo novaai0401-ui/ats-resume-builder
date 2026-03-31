@@ -1,18 +1,74 @@
-﻿'use client';
+'use client';
 
-import { useState } from 'react';
-import { api } from '@/src/lib/api';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { api, getAccessToken } from '@/src/lib/api';
+
+type PlanStatus = {
+  plan: string;
+  limits: Record<string, number>;
+  usage: Record<string, number>;
+  stripeConfigured: boolean;
+};
 
 export default function BillingPage() {
+  const router = useRouter();
   const [message, setMessage] = useState('');
+  const [success, setSuccess] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [authed, setAuthed] = useState(false);
+  const [planStatus, setPlanStatus] = useState<PlanStatus | null>(null);
+  const [upgrading, setUpgrading] = useState(false);
 
-  async function startCheckout(plan: 'STUDENT' | 'PRO') {
+  useEffect(() => {
+    const hasToken = Boolean(getAccessToken());
+    setAuthed(hasToken);
+    if (!hasToken) {
+      sessionStorage.setItem('rb_return_to', '/billing');
+      router.push('/auth/login');
+      return;
+    }
+    // Fetch current plan status
+    api.getBillingStatus()
+      .then(setPlanStatus)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [router]);
+
+  async function handleUpgrade(plan: 'STUDENT' | 'PRO') {
     setMessage('');
+    setSuccess('');
+    setUpgrading(true);
     try {
-      const { url } = await api.checkout(plan);
-      window.location.href = url;
+      if (planStatus?.stripeConfigured) {
+        // Use Stripe checkout
+        const { url } = await api.checkout(plan);
+        window.location.href = url;
+      } else {
+        // Direct upgrade (no Stripe needed)
+        const result = await api.directUpgrade(plan);
+        setSuccess(result.message || `Upgraded to ${plan}!`);
+        setPlanStatus((prev) => prev ? { ...prev, plan, limits: result.limits } : prev);
+        // Update stored plan
+        localStorage.setItem('rb_plan', plan);
+      }
     } catch (err: unknown) {
-      setMessage(err instanceof Error ? err.message : 'Checkout failed');
+      setMessage(err instanceof Error ? err.message : 'Upgrade failed. Please try again.');
+    } finally {
+      setUpgrading(false);
+    }
+  }
+
+  async function handleDowngrade() {
+    setMessage('');
+    setSuccess('');
+    try {
+      const result = await api.directDowngrade();
+      setSuccess(result.message || 'Downgraded to Free.');
+      setPlanStatus((prev) => prev ? { ...prev, plan: 'FREE', limits: result.limits } : prev);
+      localStorage.setItem('rb_plan', 'FREE');
+    } catch (err: unknown) {
+      setMessage(err instanceof Error ? err.message : 'Downgrade failed.');
     }
   }
 
@@ -22,35 +78,106 @@ export default function BillingPage() {
       const { url } = await api.portal();
       window.location.href = url;
     } catch (err: unknown) {
-      setMessage(err instanceof Error ? err.message : 'Portal failed');
+      setMessage(err instanceof Error ? err.message : 'Could not open subscription portal.');
     }
   }
+
+  if (loading || !authed) {
+    return (
+      <main className="grid">
+        <section className="card col-12"><p className="small">Loading...</p></section>
+      </main>
+    );
+  }
+
+  const currentPlan = planStatus?.plan || 'FREE';
+  const isStudent = currentPlan === 'STUDENT';
+  const isPro = currentPlan === 'PRO';
+  const isPaid = isStudent || isPro;
 
   return (
     <main className="grid">
       <section className="card col-12">
-        <h2>Plans</h2>
-        <p className="small">Upgrade to unlock higher limits and faster workflows.</p>
-        <div className="grid" style={{ marginTop: 12 }}>
-          <div className="card col-4">
-            <h3>Free</h3>
-            <p className="small">Basic ATS scoring and limited PDF exports.</p>
+        <h2>Your Plan</h2>
+        <p className="small" style={{ maxWidth: 600, marginBottom: 8 }}>
+          Core ATS scoring and resume editing are free forever. Upgrade for premium AI features.
+        </p>
+        {currentPlan !== 'FREE' && (
+          <p className="small" style={{ color: '#1e5b35', fontWeight: 600, marginBottom: 12 }}>
+            Current plan: <strong>{currentPlan}</strong>
+          </p>
+        )}
+
+        <div className="grid" style={{ marginTop: 12, gap: 16 }}>
+          {/* Free */}
+          <div className="card col-4" style={{ borderColor: currentPlan === 'FREE' ? '#1e5b35' : '#d0dbe7', borderWidth: currentPlan === 'FREE' ? 2 : 1 }}>
+            <h3 style={{ color: '#1a3a5c' }}>Free</h3>
+            <p style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1a3a5c', margin: '8px 0' }}>$0</p>
+            <ul className="small" style={{ margin: 0, paddingLeft: 16, lineHeight: 2 }}>
+              <li>ATS scoring (up to 90)</li>
+              <li>Resume editing & templates</li>
+              <li>Standard JD parsing</li>
+              <li>2 ATS scans / month</li>
+              <li>5 PDF exports / month</li>
+            </ul>
+            {currentPlan === 'FREE' && <p className="small" style={{ marginTop: 12, color: '#1e5b35', fontWeight: 600 }}>Your current plan</p>}
+            {isPaid && <button className="btn ghost" onClick={handleDowngrade} style={{ marginTop: 12, fontSize: '0.8rem' }}>Downgrade to Free</button>}
           </div>
-          <div className="card col-4">
-            <h3>Student</h3>
-            <p className="small">Higher AI limits and more exports for internships.</p>
-            <button className="btn" onClick={() => startCheckout('STUDENT')}>Choose Student</button>
+
+          {/* Student */}
+          <div className="card col-4" style={{ borderColor: isStudent ? '#1e5b35' : '#5b9bd5', borderWidth: 2 }}>
+            <h3 style={{ color: '#1a3a5c' }}>Student</h3>
+            <p style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1a3a5c', margin: '8px 0' }}>$4.99<span className="small" style={{ fontWeight: 400 }}>/mo</span></p>
+            <ul className="small" style={{ margin: 0, paddingLeft: 16, lineHeight: 2 }}>
+              <li><strong>ATS optimization to 95+</strong></li>
+              <li>AI-powered resume critique</li>
+              <li>Technology gap analysis</li>
+              <li>50 ATS scans / month</li>
+              <li>25 PDF exports / month</li>
+              <li>10 saved resumes</li>
+            </ul>
+            {isStudent ? (
+              <p className="small" style={{ marginTop: 12, color: '#1e5b35', fontWeight: 600 }}>Your current plan</p>
+            ) : (
+              <button className="btn" onClick={() => handleUpgrade('STUDENT')} disabled={upgrading} style={{ marginTop: 12, width: '100%' }}>
+                {upgrading ? 'Upgrading...' : isPro ? 'Switch to Student' : 'Upgrade to Student'}
+              </button>
+            )}
           </div>
-          <div className="card col-4">
-            <h3>Pro</h3>
-            <p className="small">High usage limits for active job seekers.</p>
-            <button className="btn" onClick={() => startCheckout('PRO')}>Choose Pro</button>
+
+          {/* Pro */}
+          <div className="card col-4" style={{ borderColor: isPro ? '#1e5b35' : '#2f5f8f', borderWidth: 2 }}>
+            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#fff', background: '#2f5f8f', padding: '2px 8px', borderRadius: 4, display: 'inline-block', marginBottom: 4 }}>BEST VALUE</span>
+            <h3 style={{ color: '#1a3a5c' }}>Pro</h3>
+            <p style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1a3a5c', margin: '8px 0' }}>$9.99<span className="small" style={{ fontWeight: 400 }}>/mo</span></p>
+            <ul className="small" style={{ margin: 0, paddingLeft: 16, lineHeight: 2 }}>
+              <li><strong>ATS optimization to 100</strong></li>
+              <li>Premium AI career guidance</li>
+              <li>Premium course recommendations</li>
+              <li>Advanced job suggestions</li>
+              <li>300 ATS scans / month</li>
+              <li>200 PDF exports / month</li>
+              <li>100 saved resumes</li>
+            </ul>
+            {isPro ? (
+              <p className="small" style={{ marginTop: 12, color: '#1e5b35', fontWeight: 600 }}>Your current plan</p>
+            ) : (
+              <button className="btn" onClick={() => handleUpgrade('PRO')} disabled={upgrading} style={{ marginTop: 12, width: '100%' }}>
+                {upgrading ? 'Upgrading...' : 'Upgrade to Pro'}
+              </button>
+            )}
           </div>
         </div>
-        <div style={{ marginTop: 16 }}>
-          <button className="btn secondary" onClick={openPortal}>Manage Subscription</button>
+
+        <div style={{ marginTop: 20, display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+          {planStatus?.stripeConfigured && isPaid && (
+            <button className="btn secondary" onClick={openPortal}>Manage Subscription</button>
+          )}
+          <button className="btn ghost" onClick={() => router.push('/dashboard')}>Back to Dashboard</button>
         </div>
-        {message && <p className="small" style={{ marginTop: 12 }}>{message}</p>}
+
+        {success && <div style={{ marginTop: 12, background: '#e8f5ec', border: '1px solid #9fd0ad', borderRadius: 10, padding: 12 }}><p className="small" style={{ color: '#1e5b35', margin: 0 }}>{success}</p></div>}
+        {message && <div className="message-banner" style={{ marginTop: 12 }}><p className="small">{message}</p></div>}
       </section>
     </main>
   );

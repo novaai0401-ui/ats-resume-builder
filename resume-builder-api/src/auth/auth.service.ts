@@ -168,11 +168,15 @@ export class AuthService {
     const accessExpires = durationToSeconds(this.config.get<string>('JWT_EXPIRES_IN', '7d'), 7 * 24 * 60 * 60);
     const refreshExpires = durationToSeconds(this.config.get<string>('JWT_REFRESH_EXPIRES_IN', '30d'), 30 * 24 * 60 * 60);
     const isAdmin = this.checkIsAdmin(user.email);
-    return this.issueTokens(user.id, user.email, user.fullName, user.mobile ?? undefined, isAdmin, {
+    // Look up user plan for the auth response
+    const dbUser = await this.prisma.user.findUnique({ where: { id: user.id }, select: { plan: true } });
+    const plan = dbUser?.plan || 'FREE';
+    const result = await this.issueTokens(user.id, user.email, user.fullName, user.mobile ?? undefined, isAdmin, {
       accessExpiresSeconds: accessExpires,
       refreshExpiresSeconds: refreshExpires,
       sessionType: 'default',
     });
+    return { ...result, plan };
   }
 
   async issueOtpSessionForUser(user: { id: string; email: string; fullName: string; mobile?: string | null }) {
@@ -207,7 +211,7 @@ export class AuthService {
         adm: isAdmin,
       },
       {
-        secret: this.config.get<string>('JWT_SECRET') || 'dev_secret',
+        secret: this.config.get<string>('JWT_SECRET', 'dev_secret'),
         expiresIn: accessExpires,
       },
     );
@@ -221,7 +225,7 @@ export class AuthService {
         sess: options.sessionType,
       },
       {
-        secret: this.config.get<string>('JWT_REFRESH_SECRET') || 'dev_refresh_secret',
+        secret: this.config.get<string>('JWT_REFRESH_SECRET', 'dev_refresh_secret'),
         expiresIn: refreshExpires,
       },
     );
@@ -247,7 +251,7 @@ export class AuthService {
   private async readSessionTypeFromRefreshToken(refreshToken: string, expectedUserId: string): Promise<SessionType> {
     try {
       const payload = await this.jwt.verifyAsync(refreshToken, {
-        secret: this.config.get<string>('JWT_REFRESH_SECRET') || 'dev_refresh_secret',
+        secret: this.config.get<string>('JWT_REFRESH_SECRET', 'dev_refresh_secret'),
       }) as { sub?: string; typ?: string; sess?: string };
       if (payload?.typ !== REFRESH_TOKEN_TYPE || payload.sub !== expectedUserId) {
         throw new UnauthorizedException('Invalid refresh token');

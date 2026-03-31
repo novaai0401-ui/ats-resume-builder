@@ -23,7 +23,7 @@ import { GoogleTokenStore } from './tokenStore';
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        secret: config.get<string>('JWT_SECRET') || 'dev_secret',
+        secret: config.get<string>('JWT_SECRET', 'dev_secret'),
         signOptions: {
           expiresIn: durationToSeconds(config.get<string>('JWT_EXPIRES_IN', '7d')),
         },

@@ -1,26 +1,11 @@
 ﻿import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { json } from 'express';
-import type { Request, Response, NextFunction } from 'express';
 import { AppModule } from './app.module';
-import { validateProductionEnv } from './env-validation';
 
 async function bootstrap() {
-  // Validate secrets before the app even starts wiring modules
-  validateProductionEnv();
-
   const app = await NestFactory.create(AppModule);
   app.enableShutdownHooks();
-
-  const isProduction = process.env.NODE_ENV === 'production';
-
-  // ── Trusted proxy (Railway / Vercel / Cloudflare) ─────────────────────
-  if (isProduction) {
-    const expressApp = app.getHttpAdapter().getInstance();
-    expressApp.set('trust proxy', 1);
-  }
-
-  // ── CORS ──────────────────────────────────────────────────────────────
   const allowedOrigins = parseAllowedOrigins(process.env.CORS_ORIGIN);
   app.enableCors({
     origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
@@ -36,25 +21,6 @@ async function bootstrap() {
     preflightContinue: false,
     optionsSuccessStatus: 204,
   });
-
-  // ── Security headers ─────────────────────────────────────────────────
-  app.use((_req: Request, res: Response, next: NextFunction) => {
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('X-Frame-Options', 'DENY');
-    res.setHeader('X-XSS-Protection', '0'); // modern browsers — rely on CSP
-    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
-    if (isProduction) {
-      res.setHeader('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
-      res.setHeader(
-        'Content-Security-Policy',
-        "default-src 'none'; frame-ancestors 'none'",
-      );
-    }
-    next();
-  });
-
-  // ── Body parsing ──────────────────────────────────────────────────────
   app.use(
     json({
       limit: '1mb',
@@ -66,7 +32,7 @@ async function bootstrap() {
     }),
   );
   const port = process.env.PORT ? Number(process.env.PORT) : 3001;
-  if (!isProduction) {
+  if (process.env.NODE_ENV !== 'production') {
     console.log(`[bootstrap] Allowed CORS origins: ${allowedOrigins.join(', ')}`);
   }
   try {

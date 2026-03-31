@@ -1432,6 +1432,25 @@ body.resume-embed-body .main-shell {
   border-color: #f2a2a2;
 }
 
+/* ─── Premium Gate ──────────────────────────────────────────────────────── */
+.premium-gate {
+  border: 1px solid #c4d5e0;
+  border-radius: 14px;
+  padding: 24px;
+  background: linear-gradient(135deg, #f8fbff 0%, #f0f4fa 100%);
+  text-align: center;
+  margin: 12px 0;
+}
+.premium-gate__icon {
+  font-size: 2rem;
+  margin-bottom: 8px;
+}
+.premium-gate__title {
+  margin: 0 0 6px;
+  color: #1a3a5c;
+  font-size: 1rem;
+}
+
 /* ─── Bullet Status Badges ──────────────────────────────────────────────── */
 .bullet-status-badge {
   display: inline-flex;

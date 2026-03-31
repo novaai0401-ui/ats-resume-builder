@@ -1,80 +1,44 @@
-# resume-builder-web
+﻿# resume-builder-web
 
-Next.js (App Router) web client for the ATS Resume Builder SaaS.
+Next.js (App Router) web client for the Resume Builder SaaS.
 
-## Local Development
+## Setup
+1. Install dependencies
+2. Create `.env.local` based on `.env.example`
 
-```bash
-npm install
-cp .env.example .env.local     # fill in values
-npm run dev
-```
-
-Runs at `http://localhost:3000`.
-
-## Production Deployment (Vercel)
-
-1. Create a new project on [Vercel](https://vercel.com).
-2. Connect your GitHub repo (`seemaalmas/ats-resume-builder`).
-3. Configure:
-   - **Root Directory:** `resume-builder-web`
-   - **Framework Preset:** Next.js (auto-detected)
-   - Vercel will use `vercel.json` for install/build commands
-4. Add environment variables:
-   - `NEXT_PUBLIC_API_URL` — your Render API URL (e.g. `https://ats-resume-builder-api.onrender.com`)
-5. Deploy.
-
-> `vercel.json` handles building `resume-builder-shared` before Next.js
-> via a custom `installCommand`.
-
-### Security Headers
-
-Security headers are configured in both `next.config.mjs` and `vercel.json`:
-- X-Content-Type-Options: nosniff
-- X-Frame-Options: DENY
-- Referrer-Policy: strict-origin-when-cross-origin
-- Permissions-Policy: camera=(), microphone=(), geolocation=()
-- Content-Security-Policy (restricts script/style/connect sources)
-- Strict-Transport-Security (via Vercel)
-
-### Cloudflare DNS
-
-Point your domain to Vercel via CNAME. Enable:
-- Proxied (orange cloud) for Cloudflare WAF
-- SSL: Full (Strict)
-- Always Use HTTPS: On
-
-## Environment Variables
-
-| Variable | Description |
-|----------|-------------|
-| `NEXT_PUBLIC_API_URL` | Backend API URL (default: `http://localhost:3001`) |
-| `NEXT_PUBLIC_SESSION_IDLE_TIMEOUT_MS` | Session idle timeout in ms |
-| `NEXT_PUBLIC_ADMIN_EMAILS` | Admin emails for UI visibility |
-| `NEXT_PUBLIC_ADMIN_USER_IDS` | Admin user IDs for UI visibility |
-| `NEXT_PUBLIC_ADMIN_MOBILES` | Admin mobiles for UI visibility |
-
-> **Note**: Admin visibility in the frontend is cosmetic only.
-> All admin actions are enforced by backend guards (JWT + AdminAuthGuard).
+## Environment
+- `NEXT_PUBLIC_API_URL` (default: http://localhost:3000)
+- `NEXT_PUBLIC_ADMIN_EMAILS` (comma-separated admin emails for UI visibility)
+- `NEXT_PUBLIC_ADMIN_USER_IDS` (comma-separated admin user ids for UI visibility)
+- `NEXT_PUBLIC_ADMIN_MOBILES` (comma-separated normalized mobile numbers for UI visibility)
 
 ## Commands
+- `npm run dev`
+- `npm run build`
+- `npm run start`
+- `npm test`
 
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Development server |
-| `npm run build` | Production build |
-| `npm run start` | Start production server |
-| `npm run lint` | ESLint |
-| `npm test` | Run tests |
+## Test Notes
+- Frontend tests run with the Node test runner:
+  - `npm test`
 
 ## Routes
+- `/auth/login`
+- `/auth/register`
+- `/dashboard`
+- `/resume`
+- `/billing`
+- `/admin/settings` (admin-only UI visibility + backend-enforced access)
 
-- `/auth/login` — Login page
-- `/auth/register` — Registration
-- `/auth/callback` — OAuth callback handler
-- `/dashboard` — User dashboard
-- `/resume` — Resume editor
-- `/resume/ats` — ATS scoring
-- `/billing` — Subscription management
-- `/admin/settings` — Admin panel (backend-enforced)
-- `/templates/preview` — Template browser
+## Dev Lock Recovery
+If Next.js fails with `Unable to acquire lock at .next/dev/lock`:
+1. Stop any running `next dev` process.
+2. Delete `.next/dev/lock`.
+3. Run `npm run dev` again.
+
+Windows quick fix:
+```bat
+for /f "tokens=2" %a in ('tasklist ^| findstr node.exe') do taskkill /F /PID %a
+if exist .next\dev\lock del /f /q .next\dev\lock
+npm run dev
+```

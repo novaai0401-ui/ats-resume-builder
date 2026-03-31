@@ -1,12 +1,10 @@
 import { BadRequestException, Body, Controller, Get, Patch, Put, UseGuards } from '@nestjs/common';
-import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminAuthGuard } from '../auth/admin-auth.guard';
 import { RateLimitSettingState, SettingsService } from '../settings/settings.service';
 
 @Controller('admin/settings')
 @UseGuards(JwtAuthGuard, AdminAuthGuard)
-@Throttle({ default: { ttl: 60_000, limit: 30 } })
 export class AdminController {
   constructor(private readonly settingsService: SettingsService) {}
 

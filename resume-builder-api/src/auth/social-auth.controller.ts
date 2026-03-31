@@ -1,5 +1,4 @@
 import { BadRequestException, Controller, Get, HttpCode, Inject, Logger, Post, Body, Query, Res } from '@nestjs/common';
-import { Throttle } from '@nestjs/throttler';
 import type { Response } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { randomBytes } from 'node:crypto';
@@ -61,7 +60,6 @@ const PROVIDER_CONFIGS: Record<string, ProviderConfig> = {
 };
 
 @Controller('auth/social')
-@Throttle({ default: { ttl: 60_000, limit: 15 } })
 export class SocialAuthController {
   private readonly logger = new Logger(SocialAuthController.name);
 

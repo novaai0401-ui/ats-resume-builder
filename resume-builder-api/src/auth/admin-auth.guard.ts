@@ -1,4 +1,4 @@
-import { CanActivate, ExecutionContext, Injectable, Logger } from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 type AuthUser = {
@@ -9,8 +9,6 @@ type AuthUser = {
 
 @Injectable()
 export class AdminAuthGuard implements CanActivate {
-  private readonly logger = new Logger(AdminAuthGuard.name);
-
   constructor(private readonly prisma: PrismaService) {}
 
   async canActivate(context: ExecutionContext) {
@@ -18,36 +16,30 @@ export class AdminAuthGuard implements CanActivate {
     const userId = String(req.user?.userId || '').trim();
     if (!userId) return false;
 
-    // Always load user from DB for authoritative check
+    const adminUserIds = parseCsvSet(process.env.ADMIN_USER_IDS);
+    if (adminUserIds.has(userId)) return true;
+
+    const adminEmails = parseCsvSet(process.env.ADMIN_EMAILS);
+    if (adminEmails.size) {
+      const userEmail = String(req.user?.email || '').trim().toLowerCase();
+      if (userEmail && adminEmails.has(userEmail)) return true;
+    }
+
+    const adminMobiles = parseMobileSet(process.env.ADMIN_MOBILES);
+
     const row = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { email: true, mobile: true, isAdmin: true },
+      select: { email: true, mobile: true },
     });
     if (!row) return false;
 
-    // DB-level isAdmin flag (set during registration / admin promotion)
-    if (row.isAdmin) return true;
-
-    // Env-based allow-lists (defense in depth)
-    const adminUserIds = parseCsvSet(process.env.ADMIN_USER_IDS);
-    if (adminUserIds.has(userId)) return this.grantAndLog(userId, 'ADMIN_USER_IDS');
-
-    const adminEmails = parseCsvSet(process.env.ADMIN_EMAILS);
     const userEmail = String(row.email || '').trim().toLowerCase();
-    if (userEmail && adminEmails.has(userEmail)) return this.grantAndLog(userId, 'ADMIN_EMAILS');
+    if (userEmail && adminEmails.has(userEmail)) return true;
 
-    const adminMobiles = parseMobileSet(process.env.ADMIN_MOBILES);
     if (!adminMobiles.size) return false;
 
     const userMobile = normalizeMobile(row.mobile ?? undefined);
-    if (userMobile && adminMobiles.has(userMobile)) return this.grantAndLog(userId, 'ADMIN_MOBILES');
-
-    return false;
-  }
-
-  private grantAndLog(userId: string, source: string): true {
-    this.logger.log(`Admin access granted to ${userId} via ${source}`);
-    return true;
+    return Boolean(userMobile && adminMobiles.has(userMobile));
   }
 }
 

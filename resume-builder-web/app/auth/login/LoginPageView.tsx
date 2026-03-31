@@ -58,7 +58,9 @@ export function LoginPageView({ apiClient = api, routerOverride, defaultMode = '
     setLoading(true);
     try {
       await apiClient.loginWithPassword(email.trim(), password);
-      await router.push('/dashboard');
+      const returnTo = typeof window !== 'undefined' ? sessionStorage.getItem('rb_return_to') : null;
+      if (returnTo) { sessionStorage.removeItem('rb_return_to'); await router.push(returnTo); }
+      else { await router.push('/dashboard'); }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Login failed');
     } finally {

@@ -23,7 +23,6 @@
     "@nestjs/jwt": "latest",
     "@nestjs/passport": "latest",
     "@nestjs/platform-express": "latest",
-    "@nestjs/throttler": "^6.5.0",
     "@prisma/client": "5.22.0",
     "@upstash/redis": "^1.36.3",
     "bcryptjs": "latest",

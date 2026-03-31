@@ -30,6 +30,7 @@ model User {
   usagePeriodStart DateTime?
   usagePeriodEnd DateTime?
   plan          String @default("FREE")
+  premiumCredits Int @default(0)
   stripeCustomerId String?
   stripeSubscriptionId String?
   stripeCurrentPeriodEnd DateTime?

@@ -46,7 +46,6 @@ export default function TopNav() {
         <>
           <Link href="/dashboard">Dashboard</Link>
           <Link href="/resume/start">Resume</Link>
-          <Link href="/billing">Billing</Link>
         </>
       )}
       {authed && admin ? <Link href="/admin/settings">Admin</Link> : null}

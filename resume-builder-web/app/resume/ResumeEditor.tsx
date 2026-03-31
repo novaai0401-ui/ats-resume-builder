@@ -283,6 +283,8 @@ export default function ResumeEditor() {
   const [aiCritiqueError, setAiCritiqueError] = useState('');
   const [techGapResult, setTechGapResult] = useState<import('@/src/lib/api').TechGapResult | null>(null);
   const [techGapLoading, setTechGapLoading] = useState(false);
+  const [showPremiumModal, setShowPremiumModal] = useState(false);
+  const [premiumOptimizing, setPremiumOptimizing] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [lastValidationCode, setLastValidationCode] = useState('');
   const [actionVerbRule, setActionVerbRule] = useState<ActionVerbRuleState>(() => createActionVerbRuleState([]));
@@ -1177,6 +1179,68 @@ export default function ResumeEditor() {
       showSnackbar('error', err instanceof Error ? err.message : 'Technology gap analysis failed.');
     } finally {
       setTechGapLoading(false);
+    }
+  }
+
+  async function handlePremiumOptimization() {
+    // Case A: Not logged in → redirect to login with return intent
+    if (!getAccessToken()) {
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('rb_return_to', window.location.pathname + window.location.search);
+        sessionStorage.setItem('rb_premium_intent', 'PREMIUM_OPTIMIZE');
+      }
+      showSnackbar('error', 'Sign in to unlock premium optimization.');
+      return;
+    }
+    // Case D: Missing required data
+    if (!resumeId || !aiCritiqueResult) {
+      showSnackbar('error', 'Run AI Critique first to get optimization suggestions.');
+      return;
+    }
+    // Check entitlement
+    try {
+      const access = await api.checkPremiumAccess();
+      if (access.allowed) {
+        // Case C: Has entitlement → run premium optimization
+        if (access.reason === 'credits') {
+          await api.consumePremiumCredit('PREMIUM_OPTIMIZE');
+        }
+        await runPremiumOptimization();
+      } else {
+        // Case B: No entitlement → show upgrade modal
+        setShowPremiumModal(true);
+      }
+    } catch {
+      setShowPremiumModal(true);
+    }
+  }
+
+  async function runPremiumOptimization() {
+    setPremiumOptimizing(true);
+    try {
+      const result = await api.aiCritique({
+        summary: resume.summary,
+        skills: allSkills,
+        experience: resume.experience.map((e) => ({
+          company: e.company || '', role: e.role || '',
+          startDate: e.startDate || '', endDate: e.endDate || '',
+          highlights: (e.highlights || []).filter(Boolean),
+        })),
+        education: resume.education.map((e) => ({
+          institution: e.institution || '', degree: e.degree || '',
+          startDate: e.startDate || '', endDate: e.endDate || '',
+        })),
+        jdText: jdText || undefined,
+        atsWeaknesses: atsReview.result?.improvementSuggestions,
+        missingKeywords: atsReview.result?.missingKeywords,
+        currentScore: atsReview.result?.atsScore,
+      });
+      setAiCritiqueResult(result as any);
+      showSnackbar('success', 'Premium optimization complete. Review and apply suggestions.');
+    } catch (err: unknown) {
+      showSnackbar('error', err instanceof Error ? err.message : 'Premium optimization failed.');
+    } finally {
+      setPremiumOptimizing(false);
     }
   }
 
@@ -3066,9 +3130,27 @@ export default function ResumeEditor() {
               >
                 Apply All Free Suggestions
               </button>
-              <button className="btn secondary" style={{ fontSize: '0.8rem', opacity: 0.6, cursor: 'not-allowed' }} disabled title="Coming soon with premium subscription">
-                Unlock Premium Optimization
-              </button>
+              {(() => {
+                const isLoggedIn = Boolean(getAccessToken());
+                const plan = typeof window !== 'undefined' ? localStorage.getItem('rb_plan') || 'FREE' : 'FREE';
+                const isPaid = plan === 'STUDENT' || plan === 'PRO';
+                const missingData = !resumeId || !aiCritiqueResult;
+                const label = !isLoggedIn
+                  ? 'Sign in to Unlock Premium'
+                  : isPaid
+                    ? 'Run Premium Optimization'
+                    : 'Unlock Premium Optimization';
+                return (
+                  <button
+                    className="btn"
+                    style={{ fontSize: '0.8rem', background: '#2f5f8f' }}
+                    disabled={premiumOptimizing || (isLoggedIn && isPaid && missingData)}
+                    onClick={handlePremiumOptimization}
+                  >
+                    {premiumOptimizing ? 'Optimizing...' : label}
+                  </button>
+                );
+              })()}
             </div>
           </div>
         )}
@@ -3153,6 +3235,38 @@ export default function ResumeEditor() {
                 </div>
               </div>
             )}
+          </div>
+        )}
+        {/* ─── Premium Upgrade Modal ─── */}
+        {showPremiumModal && (
+          <div className="session-warning-overlay" onClick={() => setShowPremiumModal(false)}>
+            <div className="session-warning-modal" onClick={(e) => e.stopPropagation()} style={{ textAlign: 'left', maxWidth: 460 }}>
+              <h3 style={{ marginBottom: 8 }}>Unlock Premium Optimization</h3>
+              <p className="small" style={{ color: '#555', marginBottom: 14 }}>
+                Take your resume from good to exceptional with AI-powered premium optimization.
+              </p>
+              <ul className="small" style={{ margin: '0 0 16px', paddingLeft: 18, lineHeight: 2 }}>
+                <li><strong>ATS score boost from 90 to 100</strong></li>
+                <li>Job gap & technology gap insights</li>
+                <li>Premium career guidance & best courses</li>
+                <li>Advanced job materials & role matching</li>
+              </ul>
+              <div style={{ display: 'grid', gap: 10 }}>
+                <button
+                  className="btn"
+                  style={{ width: '100%', background: '#2f5f8f' }}
+                  onClick={() => {
+                    setShowPremiumModal(false);
+                    window.location.href = '/billing';
+                  }}
+                >
+                  View Plans & Upgrade
+                </button>
+                <button className="btn ghost" style={{ width: '100%', fontSize: '0.8rem' }} onClick={() => setShowPremiumModal(false)}>
+                  Continue with free features
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </section>

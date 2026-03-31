@@ -84,10 +84,15 @@ function CallbackHandler() {
 
           setStatus('Sign-in successful! Redirecting...');
 
-          // Admin goes to admin dashboard, everyone else to main dashboard
-          const isAdmin = auth.isAdmin === 'true';
-          const destination = isAdmin ? '/admin/settings' : '/dashboard';
-          router.replace(destination);
+          // Check for saved return destination (e.g., user clicked premium feature before login)
+          const returnTo = typeof window !== 'undefined' ? sessionStorage.getItem('rb_return_to') : null;
+          if (returnTo) {
+            sessionStorage.removeItem('rb_return_to');
+            router.replace(returnTo);
+          } else {
+            const isAdmin = auth.isAdmin === 'true';
+            router.replace(isAdmin ? '/admin/settings' : '/dashboard');
+          }
         })
         .catch((err: unknown) => {
           setError(err instanceof Error ? err.message : 'Failed to complete sign-in. Please try again.');

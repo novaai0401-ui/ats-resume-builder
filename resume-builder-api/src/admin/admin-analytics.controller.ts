@@ -1,12 +1,10 @@
 import { Controller, Get, UseGuards } from '@nestjs/common';
-import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminAuthGuard } from '../auth/admin-auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Controller('admin/analytics')
 @UseGuards(JwtAuthGuard, AdminAuthGuard)
-@Throttle({ default: { ttl: 60_000, limit: 30 } })
 export class AdminAnalyticsController {
   constructor(private readonly prisma: PrismaService) {}
 

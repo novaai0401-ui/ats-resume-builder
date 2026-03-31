@@ -1,5 +1,4 @@
 ﻿import { BadRequestException, Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
-import { Throttle } from '@nestjs/throttler';
 import {
   AiCritiqueSchema,
   AiParseJdSchema,
@@ -15,7 +14,6 @@ import { TechGapService, type TechGapInput } from './tech-gap.service';
 
 @Controller('ai')
 @UseGuards(JwtAuthGuard)
-@Throttle({ default: { ttl: 60_000, limit: 10 } })
 export class AiController {
   constructor(
     private readonly aiService: AiService,

@@ -1,5 +1,4 @@
 import { BadRequestException, Body, Controller, Delete, Get, HttpCode, NotFoundException, Param, Patch, Post, Query, Req, Res, UploadedFile, UseFilters, UseGuards, UseInterceptors } from '@nestjs/common';
-import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ResumeService } from './resume.service';
@@ -107,7 +106,6 @@ export class ResumeController {
   }
 
   @Post(':id/ats-score')
-  @Throttle({ default: { ttl: 60_000, limit: 15 } })
   atsScore(
     @Req() req: { user: { userId: string } },
     @Param('id') id: string,
@@ -121,7 +119,6 @@ export class ResumeController {
   }
 
   @Get(':id/pdf')
-  @Throttle({ default: { ttl: 60_000, limit: 10 } })
   async pdf(
     @Req() req: { user: { userId: string } },
     @Param('id') id: string,
@@ -176,7 +173,6 @@ export class ResumeController {
 
   @Post('parse-upload')
   @HttpCode(200)
-  @Throttle({ default: { ttl: 60_000, limit: 10 } })
   @UseFilters(MulterUploadExceptionFilter)
   @UseInterceptors(
     FileInterceptor('file', {

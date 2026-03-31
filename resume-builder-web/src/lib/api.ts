@@ -301,11 +301,16 @@ export function setAuthTokens(auth: AuthResponse) {
   localStorage.setItem(storageKeys.refreshToken, auth.refreshToken);
   localStorage.setItem(storageKeys.userId, auth.user.id);
   localStorage.setItem(storageKeys.userEmail, auth.user.email);
-  // Store isAdmin flag from auth response (for social login where JWT may not have adm claim yet)
+  // Store isAdmin flag from auth response
   if ((auth.user as Record<string, unknown>).isAdmin) {
     localStorage.setItem('rb_isAdmin', 'true');
   } else {
     localStorage.removeItem('rb_isAdmin');
+  }
+  // Store plan for premium feature gating
+  const plan = (auth as Record<string, unknown>).plan;
+  if (typeof plan === 'string') {
+    localStorage.setItem('rb_plan', plan);
   }
   persistSessionExpiry(auth);
   markSessionActivity(true);
@@ -321,6 +326,7 @@ export function clearAuthTokens() {
   localStorage.removeItem(storageKeys.sessionExpiresAt);
   localStorage.removeItem(storageKeys.sessionLastActivityAt);
   localStorage.removeItem('rb_isAdmin');
+  localStorage.removeItem('rb_plan');
   try {
     window.sessionStorage.removeItem('resume-builder.active-resume-id.v1');
     window.sessionStorage.removeItem('dashboard.imported-resume.v1');
@@ -895,14 +901,43 @@ export const api = {
       body: JSON.stringify({ currentPassword, newPassword }),
     }),
 
+  getBillingStatus: () =>
+    request<{ plan: string; premiumCredits: number; limits: Record<string, number>; usage: Record<string, number>; stripeConfigured: boolean }>('/billing/status'),
+
+  checkPremiumAccess: () =>
+    request<{ allowed: boolean; plan: string; premiumCredits: number; reason: string }>('/billing/premium-access'),
+
+  consumePremiumCredit: (feature: string) =>
+    request<{ consumed: boolean; reason: string; premiumCredits: number }>('/billing/consume-credit', {
+      method: 'POST',
+      body: JSON.stringify({ feature }),
+    }),
+
+  addPremiumCredits: (count: number) =>
+    request<{ premiumCredits: number }>('/billing/add-credits', {
+      method: 'POST',
+      body: JSON.stringify({ count }),
+    }),
+
+  directUpgrade: (plan: 'STUDENT' | 'PRO') =>
+    request<{ ok: boolean; plan: string; limits: Record<string, number>; message: string }>('/billing/upgrade', {
+      method: 'POST',
+      body: JSON.stringify({ plan }),
+    }),
+
+  directDowngrade: () =>
+    request<{ ok: boolean; plan: string; limits: Record<string, number>; message: string }>('/billing/downgrade', {
+      method: 'POST',
+    }),
+
   checkout: (plan: 'STUDENT' | 'PRO') =>
-    request<{ url: string }>(`/billing/checkout`, {
+    request<{ url: string }>('/billing/checkout', {
       method: 'POST',
       body: JSON.stringify({ plan }),
     }),
 
   portal: () =>
-    request<{ url: string }>(`/billing/portal`, {
+    request<{ url: string }>('/billing/portal', {
       method: 'POST',
     }),
 
