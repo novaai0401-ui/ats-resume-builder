@@ -39,6 +39,9 @@ FROM node:20-alpine
 WORKDIR /app
 ENV NODE_ENV=production
 
+# Install OpenSSL 3 — required by Prisma query engine (linux-musl-openssl-3.0.x)
+RUN apk add --no-cache openssl
+
 # Copy API artifacts
 COPY --from=builder /build/resume-builder-api/node_modules ./node_modules
 COPY --from=builder /build/resume-builder-api/dist ./dist

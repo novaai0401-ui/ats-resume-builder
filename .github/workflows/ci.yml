@@ -88,7 +88,7 @@ jobs:
         run: |
           cd ../resume-builder-shared && npm ci && npm run build
           cd ../packages/resume-schemas && npm ci && npm run build
-          cd ../packages/resume-intelligence && npm ci && npm run build
+          cd ../resume-intelligence && npm ci && npm run build
 
       - name: Install API dependencies
         run: npm ci --ignore-scripts
