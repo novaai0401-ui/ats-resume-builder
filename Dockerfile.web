@@ -1,0 +1,64 @@
+# ═══════════════════════════════════════════════════════════════════════
+# ATS Resume Builder Web — Production Dockerfile
+# ═══════════════════════════════════════════════════════════════════════
+# Build context: monorepo root.
+#
+# Render:  Root Directory = (repo root), Dockerfile Path = ./Dockerfile.web
+# Local:   docker build -t ats-web -f Dockerfile.web \
+#            --build-arg NEXT_PUBLIC_API_URL=https://your-api.onrender.com .
+# ═══════════════════════════════════════════════════════════════════════
+
+# ── Build stage ──────────────────────────────────────────────────────
+FROM node:20-alpine AS builder
+WORKDIR /build
+
+# 1. Copy shared packages (cache layer)
+COPY packages/ ./packages/
+COPY resume-builder-shared/ ./resume-builder-shared/
+
+# 2. Install & build shared packages
+RUN cd resume-builder-shared && npm ci && npm run build
+RUN cd packages/resume-schemas && npm ci && npm run build
+
+# 3. Install web app deps
+WORKDIR /build/resume-builder-web
+COPY resume-builder-web/package*.json ./
+RUN npm ci
+
+# 4. Copy source
+COPY resume-builder-web/ ./
+
+# NEXT_PUBLIC_ env vars must be present at build time for Next.js
+# to inline them into the client JS bundle.
+# On Render, set NEXT_PUBLIC_API_URL in the Environment tab.
+ARG NEXT_PUBLIC_API_URL=http://localhost:3001
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+
+# 5. Build Next.js (standalone output)
+RUN npm run build
+
+# ── Runtime stage ────────────────────────────────────────────────────
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+
+# Copy standalone server (includes only required node_modules)
+COPY --from=builder /build/resume-builder-web/.next/standalone/resume-builder-web/ ./
+# Copy static assets and public files
+COPY --from=builder /build/resume-builder-web/.next/static ./.next/static
+COPY --from=builder /build/resume-builder-web/public ./public
+
+# The standalone build expects shared packages at relative paths
+COPY --from=builder /build/resume-builder-shared ../resume-builder-shared
+COPY --from=builder /build/packages ../packages
+
+# Run as non-root
+RUN addgroup -g 1001 -S appgroup && \
+    adduser -S appuser -u 1001 -G appgroup
+USER appuser
+
+EXPOSE 3000
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+CMD ["node", "server.js"]
