@@ -4,11 +4,28 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, getAccessToken } from '@/src/lib/api';
 
+type PlanPricing = {
+  priceUsd: number;
+  priceInr: number;
+  priceInrWithGst: number;
+  gstRate: number;
+  gstAmount: number;
+  displayPriceInr: string;
+  displayPriceUsd: string;
+};
+
 type PlanStatus = {
   plan: string;
   limits: Record<string, number>;
   usage: Record<string, number>;
   stripeConfigured: boolean;
+  currency?: 'USD' | 'INR';
+  pricing?: {
+    free: PlanPricing;
+    student: PlanPricing;
+    pro: PlanPricing;
+  };
+  region?: 'IN' | 'GLOBAL';
 };
 
 export default function BillingPage() {
@@ -94,6 +111,24 @@ export default function BillingPage() {
   const isStudent = currentPlan === 'STUDENT';
   const isPro = currentPlan === 'PRO';
   const isPaid = isStudent || isPro;
+  const isIndia = planStatus?.region === 'IN' || planStatus?.currency === 'INR';
+  const pricing = planStatus?.pricing;
+
+  const formatPrice = (plan: 'free' | 'student' | 'pro') => {
+    if (!pricing) {
+      const fallback: Record<string, string> = { free: '$0', student: '$4.99', pro: '$9.99' };
+      return fallback[plan];
+    }
+    const p = pricing[plan];
+    return isIndia ? p.displayPriceInr : p.displayPriceUsd;
+  };
+
+  const formatGst = (plan: 'student' | 'pro') => {
+    if (!pricing || !isIndia) return null;
+    const p = pricing[plan];
+    if (!p.gstAmount) return null;
+    return `+ ₹${p.gstAmount} GST (${Math.round(p.gstRate * 100)}%)`;
+  };
 
   return (
     <main className="grid">
@@ -112,7 +147,7 @@ export default function BillingPage() {
           {/* Free */}
           <div className="card col-4" style={{ borderColor: currentPlan === 'FREE' ? '#1e5b35' : '#d0dbe7', borderWidth: currentPlan === 'FREE' ? 2 : 1 }}>
             <h3 style={{ color: '#1a3a5c' }}>Free</h3>
-            <p style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1a3a5c', margin: '8px 0' }}>$0</p>
+            <p style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1a3a5c', margin: '8px 0' }}>{formatPrice('free')}</p>
             <ul className="small" style={{ margin: 0, paddingLeft: 16, lineHeight: 2 }}>
               <li>ATS scoring (up to 90)</li>
               <li>Resume editing & templates</li>
@@ -127,7 +162,8 @@ export default function BillingPage() {
           {/* Student */}
           <div className="card col-4" style={{ borderColor: isStudent ? '#1e5b35' : '#5b9bd5', borderWidth: 2 }}>
             <h3 style={{ color: '#1a3a5c' }}>Student</h3>
-            <p style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1a3a5c', margin: '8px 0' }}>$4.99<span className="small" style={{ fontWeight: 400 }}>/mo</span></p>
+            <p style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1a3a5c', margin: '8px 0' }}>{formatPrice('student')}<span className="small" style={{ fontWeight: 400 }}>/mo</span></p>
+            {formatGst('student') && <p className="small" style={{ color: '#666', margin: '-4px 0 4px', fontSize: '0.75rem' }}>{formatGst('student')}</p>}
             <ul className="small" style={{ margin: 0, paddingLeft: 16, lineHeight: 2 }}>
               <li><strong>ATS optimization to 95+</strong></li>
               <li>AI-powered resume critique</li>
@@ -149,7 +185,8 @@ export default function BillingPage() {
           <div className="card col-4" style={{ borderColor: isPro ? '#1e5b35' : '#2f5f8f', borderWidth: 2 }}>
             <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#fff', background: '#2f5f8f', padding: '2px 8px', borderRadius: 4, display: 'inline-block', marginBottom: 4 }}>BEST VALUE</span>
             <h3 style={{ color: '#1a3a5c' }}>Pro</h3>
-            <p style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1a3a5c', margin: '8px 0' }}>$9.99<span className="small" style={{ fontWeight: 400 }}>/mo</span></p>
+            <p style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1a3a5c', margin: '8px 0' }}>{formatPrice('pro')}<span className="small" style={{ fontWeight: 400 }}>/mo</span></p>
+            {formatGst('pro') && <p className="small" style={{ color: '#666', margin: '-4px 0 4px', fontSize: '0.75rem' }}>{formatGst('pro')}</p>}
             <ul className="small" style={{ margin: 0, paddingLeft: 16, lineHeight: 2 }}>
               <li><strong>ATS optimization to 100</strong></li>
               <li>Premium AI career guidance</li>

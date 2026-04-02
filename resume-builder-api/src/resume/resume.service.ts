@@ -670,7 +670,7 @@ export class ResumeService {
         projects: mapped.projects,
         certifications: mapped.certifications,
         unmappedText: mapped.unmappedText,
-      }, { mode: 'upload' });
+      }, { mode: 'upload', sourceText: normalized });
       const finalizedExperience = finalizeExperience({
         experience: sanitized.experience,
         parsed,
@@ -1719,8 +1719,13 @@ async function extractTextFromFile(file: { originalname: string; mimetype: strin
       errors: ['Legacy .doc format is not supported. Please save the file as .docx or .pdf and re-upload.'],
     });
   }
+  const IMAGE_MIME_TYPES = new Set(['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/bmp', 'image/tiff']);
+  const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'webp', 'bmp', 'tiff']);
+  if (IMAGE_MIME_TYPES.has(file.mimetype) || IMAGE_EXTENSIONS.has(ext)) {
+    return extractImageText(file.buffer);
+  }
   throw new BadRequestException({
-    errors: [`unsupported mimetype: ${file.mimetype || 'unknown'}; allowed types are PDF, DOCX, TXT, HTML, RTF.`],
+    errors: [`unsupported mimetype: ${file.mimetype || 'unknown'}; allowed types are PDF, DOCX, TXT, HTML, RTF, PNG, JPG, WEBP.`],
   });
 }
 
@@ -1728,14 +1733,169 @@ async function extractPdfText(buffer: Buffer) {
   const parser = new PDFParse({ data: buffer });
   try {
     const parsed = await parser.getText();
-    return parsed.text || '';
-  } catch {
+    const text = parsed.text || '';
+    // Detect scanned/image PDFs with little or no extractable text
+    const cleanedText = text.replace(/\s+/g, ' ').trim();
+    if (cleanedText.length < 30) {
+      // Attempt OCR-style extraction for image-based PDFs
+      const ocrText = await extractImageText(buffer);
+      if (ocrText && ocrText.replace(/\s+/g, ' ').trim().length > cleanedText.length) {
+        return ocrText;
+      }
+      if (cleanedText.length < 10) {
+        throw new BadRequestException({
+          errors: ['This appears to be a scanned/image PDF with no extractable text. Please upload a text-based PDF, DOCX, or a clear image (PNG/JPG) of your resume.'],
+        });
+      }
+    }
+    // Fix two-column PDF garbling: detect and reorder interleaved columns
+    return repairTwoColumnPdfText(text);
+  } catch (err) {
+    if (err instanceof BadRequestException) throw err;
     throw new BadRequestException({
       errors: ['Unable to extract readable text from PDF. Please upload a text-based PDF or DOCX.'],
     });
   } finally {
     await parser.destroy();
   }
+}
+
+/**
+ * Repair two-column PDF text extraction.
+ * pdf-parse reads left-to-right across both columns, interleaving them.
+ * Detect this by checking if short lines (sidebar items) alternate with
+ * long lines (main content) and attempt to separate them.
+ */
+function repairTwoColumnPdfText(text: string): string {
+  const lines = text.split('\n');
+  if (lines.length < 10) return text;
+
+  // Heuristic: count lines < 25 chars vs > 50 chars in first 30 lines
+  const sample = lines.slice(0, 30).filter((l) => l.trim());
+  const shortLines = sample.filter((l) => l.trim().length > 0 && l.trim().length < 25);
+  const longLines = sample.filter((l) => l.trim().length > 50);
+
+  // If there's a high ratio of short to long lines interleaved, likely two-column
+  if (shortLines.length < 5 || longLines.length < 3) return text;
+
+  // Check for alternating pattern: short, long, short, long
+  let alternating = 0;
+  for (let i = 1; i < Math.min(sample.length, 20); i++) {
+    const prevShort = sample[i - 1].trim().length < 25;
+    const currShort = sample[i].trim().length < 25;
+    if (prevShort !== currShort) alternating++;
+  }
+
+  // If less than 40% alternating, not a two-column layout
+  if (alternating < Math.min(sample.length, 20) * 0.4) return text;
+
+  // Separate into sidebar (short) and main (long) content
+  const sidebar: string[] = [];
+  const main: string[] = [];
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      main.push('');
+      continue;
+    }
+    // Short lines that look like skill items go to sidebar
+    if (trimmed.length < 25 && !/\b(20\d{2}|19\d{2})\b/.test(trimmed) && !/[@.]\S+\.\S+/.test(trimmed)) {
+      sidebar.push(trimmed);
+    } else {
+      main.push(trimmed);
+    }
+  }
+
+  // Reconstruct: main content first, then sidebar skills
+  if (sidebar.length > 3) {
+    return [...main, '', 'SKILLS', sidebar.join(', '), ''].join('\n');
+  }
+  return text;
+}
+
+/**
+ * Extract text from image files using basic pattern recognition.
+ * This provides a best-effort extraction for image resumes.
+ * For production OCR, an external service (Google Vision, AWS Textract) should be used.
+ */
+async function extractImageText(buffer: Buffer): string {
+  // Check if we have access to an AI provider for OCR-like extraction
+  const aiProvider = process.env.AI_PROVIDER || '';
+  const groqKey = process.env.GROQ_API_KEY || '';
+  const xaiKey = process.env.XAI_API_KEY || '';
+
+  if (aiProvider === 'groq' && groqKey) {
+    return extractTextViaVisionApi(buffer, 'groq', groqKey);
+  }
+  if (aiProvider === 'xai' && xaiKey) {
+    return extractTextViaVisionApi(buffer, 'xai', xaiKey);
+  }
+  if (groqKey) {
+    return extractTextViaVisionApi(buffer, 'groq', groqKey);
+  }
+
+  // No AI provider available - return empty to trigger fallback error
+  return '';
+}
+
+/**
+ * Use a vision-capable AI model to extract text from an image resume.
+ * Sends the image as base64 and asks the model to extract resume text.
+ */
+async function extractTextViaVisionApi(buffer: Buffer, provider: string, apiKey: string): Promise<string> {
+  const base64 = buffer.toString('base64');
+  const mimeType = detectImageMime(buffer);
+
+  const endpoint = provider === 'xai'
+    ? 'https://api.x.ai/v1/chat/completions'
+    : 'https://api.groq.com/openai/v1/chat/completions';
+  const model = provider === 'xai'
+    ? (process.env.XAI_MODEL || 'grok-2-vision-1212')
+    : (process.env.GROQ_MODEL || 'llama-3.2-90b-vision-preview');
+
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a resume text extractor. Extract ALL text from the resume image exactly as it appears. Preserve section headings, dates, company names, roles, bullet points, and formatting structure. Do NOT add, modify, infer, or hallucinate any information. Output ONLY the extracted text, nothing else.',
+          },
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: 'Extract all text from this resume image exactly as written. Preserve the structure with section headings on their own lines.' },
+              { type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64}` } },
+            ],
+          },
+        ],
+        temperature: 0.0,
+        max_tokens: 4000,
+      }),
+      signal: AbortSignal.timeout(60000),
+    });
+
+    if (!response.ok) return '';
+    const data = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
+    return data.choices?.[0]?.message?.content?.trim() || '';
+  } catch {
+    return '';
+  }
+}
+
+function detectImageMime(buffer: Buffer): string {
+  if (buffer[0] === 0x89 && buffer[1] === 0x50) return 'image/png';
+  if (buffer[0] === 0xFF && buffer[1] === 0xD8) return 'image/jpeg';
+  if (buffer[0] === 0x52 && buffer[1] === 0x49) return 'image/webp';
+  if (buffer[0] === 0x42 && buffer[1] === 0x4D) return 'image/bmp';
+  return 'image/png';
 }
 
 async function extractDocxText(buffer: Buffer) {
@@ -1987,6 +2147,30 @@ function extractRtfText(buffer: Buffer): string {
   return text;
 }
 
+/**
+ * Sanitize extracted text to prevent XSS, script injection, and
+ * remove potentially malicious content from uploaded documents.
+ */
+function sanitizeExtractedText(text: string): string {
+  return text
+    // Remove null bytes
+    .replace(/\u0000/g, '')
+    // Strip HTML script tags and event handlers
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/\bon\w+\s*=\s*["'][^"']*["']/gi, '')
+    // Remove javascript: and data: URI schemes
+    .replace(/javascript\s*:/gi, '')
+    .replace(/data\s*:\s*text\/html/gi, '')
+    .replace(/vbscript\s*:/gi, '')
+    // Strip remaining HTML tags (text only)
+    .replace(/<[^>]*>/g, '')
+    // Remove excessive Unicode control characters (keep common ones)
+    .replace(/[\u0001-\u0008\u000B\u000E-\u001F\u007F-\u009F]/g, '')
+    // Limit total text length to prevent memory issues (500KB)
+    .slice(0, 512 * 1024);
+}
+
 function normalizeText(text: string) {
   return text
     .replace(/\u0000/g, '')
@@ -2001,7 +2185,9 @@ function normalizeText(text: string) {
 const LEGACY_BULLET_PREFIX_RE = /^\s*(?:[-*•·]+|\d{1,3}[.)]|[a-z][.)])?\s*(impact|achievement|result|highlights?|accomplishment)s?:\s*/i;
 
 export function normalizeUploadText(text: string) {
-  const basic = normalizeText(text)
+  // Security: sanitize extracted text to prevent XSS and injection
+  const sanitized = sanitizeExtractedText(text);
+  const basic = normalizeText(sanitized)
     .split('\n')
     .map((line) => normalizeLegacyBulletPrefix(line))
     .join('\n')

@@ -524,7 +524,28 @@ function mapEducation(sections: Record<string, string[]>) {
     }
   }
   if (current && (current.institution || current.degree)) blocks.push(current);
-  return blocks;
+  return deduplicateEducation(blocks);
+}
+
+function deduplicateEducation(items: EducationItem[]): EducationItem[] {
+  const seen = new Map<string, EducationItem>();
+  for (const item of items) {
+    const instKey = (item.institution || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const degKey = (item.degree || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const key = `${instKey}|${degKey}`;
+    if (!seen.has(key)) {
+      seen.set(key, item);
+      continue;
+    }
+    // Merge: keep the one with more details
+    const existing = seen.get(key)!;
+    existing.institution = existing.institution || item.institution;
+    existing.degree = existing.degree || item.degree;
+    existing.startDate = existing.startDate || item.startDate;
+    existing.endDate = existing.endDate || item.endDate;
+    existing.details = uniqueLines([...existing.details, ...item.details]);
+  }
+  return Array.from(seen.values());
 }
 
 function mapProjects(sections: Record<string, string[]>) {
@@ -1214,16 +1235,37 @@ function mergeExperienceByCompany(experience: ExperienceItem[]) {
     const role = cleanLooseText(item.role);
     const startDate = normalizeDateToken(cleanLooseText(item.startDate));
     const endDate = normalizeDateToken(cleanLooseText(item.endDate));
-    const key = `${normalizeCompany(company)}|${role.toLowerCase().replace(/[^a-z0-9]/g, '')}|${startDate}|${endDate}`;
+    // Use normalized keys for fuzzy matching: strip suffixes like "Inc", "Ltd", etc.
+    const companyKey = normalizeCompany(company);
+    const roleKey = role.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const key = `${companyKey}|${roleKey}|${startDate}|${endDate}`;
+    // Also check for near-duplicate: same company+role but different dates (merge highlights)
+    const fuzzyKey = `${companyKey}|${roleKey}`;
     if (!map.has(key)) {
-      map.set(key, {
-        ...item,
-        company,
-        role,
-        startDate,
-        endDate,
-        highlights: uniqueLines(item.highlights.map((line: string) => cleanLooseText(line)).filter(Boolean)),
-      });
+      // Check for fuzzy duplicate (same company+role, overlapping or adjacent dates)
+      let merged = false;
+      for (const [existingKey, existing] of map.entries()) {
+        if (existingKey.startsWith(fuzzyKey + '|')) {
+          // Same company and role - check if dates overlap or are adjacent
+          if (datesOverlapOrAdjacent(existing.startDate, existing.endDate, startDate, endDate)) {
+            existing.startDate = pickEarlierDate(existing.startDate, startDate);
+            existing.endDate = pickLaterDate(existing.endDate, endDate);
+            existing.highlights = uniqueLines([...existing.highlights, ...item.highlights.map((line: string) => cleanLooseText(line)).filter(Boolean)]);
+            merged = true;
+            break;
+          }
+        }
+      }
+      if (!merged) {
+        map.set(key, {
+          ...item,
+          company,
+          role,
+          startDate,
+          endDate,
+          highlights: uniqueLines(item.highlights.map((line: string) => cleanLooseText(line)).filter(Boolean)),
+        });
+      }
       continue;
     }
     const current = map.get(key)!;
@@ -1235,6 +1277,17 @@ function mergeExperienceByCompany(experience: ExperienceItem[]) {
     map.set(key, current);
   }
   return Array.from(map.values());
+}
+
+function datesOverlapOrAdjacent(start1: string, end1: string, start2: string, end2: string): boolean {
+  const s1 = toSortValue(start1, false);
+  const e1 = toSortValue(end1 || start1, true);
+  const s2 = toSortValue(start2, false);
+  const e2 = toSortValue(end2 || start2, true);
+  if (!s1 && !e1 && !s2 && !e2) return true; // Both undated = likely same
+  if ((!s1 && !e1) || (!s2 && !e2)) return false; // One undated, one dated
+  // Check overlap or adjacency (within 2 months)
+  return !(e1 + 2 < s2 || e2 + 2 < s1);
 }
 
 function sortExperienceChronological(experience: ExperienceItem[]) {

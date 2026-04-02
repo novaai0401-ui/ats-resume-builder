@@ -26,6 +26,13 @@ const SUPPORTED_UPLOAD_MIME_TYPES = new Set([
   'text/html',
   'application/rtf',
   'text/rtf',
+  // Image types for OCR-based resume extraction
+  'image/png',
+  'image/jpeg',
+  'image/jpg',
+  'image/webp',
+  'image/bmp',
+  'image/tiff',
 ]);
 
 const optionalTrimmedString = () =>
@@ -181,7 +188,7 @@ export class ResumeController {
       fileFilter: (req: Request & { fileValidationError?: string }, file: UploadedResumeFile, cb: (error: Error | null, acceptFile: boolean) => void) => {
         const ext = extensionFromName(file.originalname);
         const mime = String(file.mimetype || '').toLowerCase();
-        const SUPPORTED_EXTENSIONS = new Set(['pdf', 'docx', 'doc', 'txt', 'html', 'htm', 'rtf']);
+        const SUPPORTED_EXTENSIONS = new Set(['pdf', 'docx', 'doc', 'txt', 'html', 'htm', 'rtf', 'png', 'jpg', 'jpeg', 'webp', 'bmp', 'tiff']);
         const isSupported = SUPPORTED_UPLOAD_MIME_TYPES.has(mime) || SUPPORTED_EXTENSIONS.has(ext);
         if (isSupported) {
           cb(null, true);
@@ -220,8 +227,17 @@ export class ResumeController {
       logUploadReason(reason);
       throw new BadRequestException({ errors: [{ path: 'file', message: reason }] });
     }
+    // Security: validate magic bytes match claimed MIME type
+    const magicMime = detectMimeFromMagicBytes(file.buffer);
+    if (magicMime && !SUPPORTED_UPLOAD_MIME_TYPES.has(magicMime)) {
+      const reason = `File content does not match a supported format. Detected: ${magicMime}`;
+      logUploadReason(reason);
+      throw new BadRequestException({ errors: [{ path: 'file', message: reason }] });
+    }
+    // Security: sanitize filename to prevent path traversal
+    const sanitizedName = sanitizeFileName(file.originalname);
     return this.resumeService.parseResumeUpload({
-      originalname: file.originalname,
+      originalname: sanitizedName,
       mimetype: file.mimetype,
       size: file.size,
       buffer: file.buffer,
@@ -232,6 +248,54 @@ export class ResumeController {
 function extensionFromName(name: string) {
   const parts = String(name || '').toLowerCase().split('.');
   return parts.length > 1 ? parts.pop() || '' : '';
+}
+
+/**
+ * Detect MIME type from file magic bytes for content-type verification.
+ * Returns null if the format is not recognized.
+ */
+function detectMimeFromMagicBytes(buffer: Buffer): string | null {
+  if (buffer.length < 4) return null;
+  // PDF: starts with %PDF
+  if (buffer[0] === 0x25 && buffer[1] === 0x50 && buffer[2] === 0x44 && buffer[3] === 0x46) {
+    return 'application/pdf';
+  }
+  // ZIP (DOCX is a ZIP archive): starts with PK
+  if (buffer[0] === 0x50 && buffer[1] === 0x4B) {
+    return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  }
+  // PNG: starts with 0x89504E47
+  if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47) {
+    return 'image/png';
+  }
+  // JPEG: starts with 0xFFD8FF
+  if (buffer[0] === 0xFF && buffer[1] === 0xD8 && buffer[2] === 0xFF) {
+    return 'image/jpeg';
+  }
+  // BMP: starts with BM
+  if (buffer[0] === 0x42 && buffer[1] === 0x4D) {
+    return 'image/bmp';
+  }
+  // RTF: starts with {\rtf
+  if (buffer[0] === 0x7B && buffer[1] === 0x5C && buffer[2] === 0x72 && buffer[3] === 0x74) {
+    return 'application/rtf';
+  }
+  // HTML: starts with < (loose check)
+  if (buffer[0] === 0x3C) {
+    return 'text/html';
+  }
+  return null; // Unknown - let through for text files, etc.
+}
+
+/**
+ * Sanitize uploaded filename to prevent path traversal and injection attacks.
+ */
+function sanitizeFileName(name: string): string {
+  return String(name || 'upload')
+    .replace(/[/\\]/g, '_') // Remove path separators
+    .replace(/\.\./g, '_')  // Remove directory traversal
+    .replace(/[<>:"|?*\x00-\x1F]/g, '_') // Remove unsafe chars
+    .slice(0, 255); // Limit filename length
 }
 
 function logUploadReason(message: string) {
