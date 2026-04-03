@@ -1819,7 +1819,7 @@ function repairTwoColumnPdfText(text: string): string {
  * This provides a best-effort extraction for image resumes.
  * For production OCR, an external service (Google Vision, AWS Textract) should be used.
  */
-async function extractImageText(buffer: Buffer): string {
+async function extractImageText(buffer: Buffer): Promise<string> {
   // Check if we have access to an AI provider for OCR-like extraction
   const aiProvider = process.env.AI_PROVIDER || '';
   const groqKey = process.env.GROQ_API_KEY || '';
