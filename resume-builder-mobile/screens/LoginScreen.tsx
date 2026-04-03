@@ -11,8 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-
-const API_BASE = 'http://10.0.2.2:3001'; // Android emulator → localhost
+import { getApiBase } from '../lib/api';
 
 type AuthResult = {
   accessToken: string;
@@ -27,7 +26,7 @@ type Props = {
   apiBase?: string;
 };
 
-export default function LoginScreen({ onLoginSuccess, apiBase = API_BASE }: Props) {
+export default function LoginScreen({ onLoginSuccess, apiBase = getApiBase() }: Props) {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
