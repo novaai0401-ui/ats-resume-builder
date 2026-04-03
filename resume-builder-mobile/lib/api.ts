@@ -1,7 +1,17 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const AUTH_KEY = 'rb_auth';
-let API_BASE = 'http://10.0.2.2:5000'; // Android emulator → localhost
+
+// ── API Base URL ────────────────────────────────────────────────────
+// Android emulator: 10.0.2.2 maps to host machine's localhost
+// iOS simulator:    localhost works directly
+// Physical device:  use your machine's LAN IP (e.g., 192.168.1.x)
+// Staging/Prod:     set via setApiBase() at app startup
+let API_BASE = 'http://10.0.2.2:4001';
+
+export function getApiBase(): string {
+  return API_BASE;
+}
 
 export function setApiBase(url: string) {
   API_BASE = url;

@@ -49,7 +49,7 @@
 │  │  (Next.js)  │  │          │  │  (NestJS)    │  │          │  Stripe              │
 │  └─────────────┘  │          │  │  Docker      │  │          │  OAuth Providers      │
 │                   │          │  └──────────────┘  │          │  SMTP (Gmail)         │
-│  Port: 443 (SSL)  │          │  Port: 3001        │          │  Groq AI              │
+│  Port: 443 (SSL)  │          │  Port: 4001        │          │  Groq AI              │
 └───────────────────┘          └────────────────────┘          └──────────────────────┘
 </pre>
 </div>
@@ -169,7 +169,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 <table>
   <tr><th>Category</th><th>Variable</th><th>Value</th></tr>
   <tr><td rowspan="2"><strong>Core</strong></td><td><code>NODE_ENV</code></td><td><code>production</code></td></tr>
-  <tr><td><code>PORT</code></td><td><code>3001</code></td></tr>
+  <tr><td><code>PORT</code></td><td><code>4001</code></td></tr>
   <tr><td rowspan="2"><strong>Database</strong></td><td><code>DATABASE_URL</code></td><td>From Step 1A (pooled)</td></tr>
   <tr><td><code>DIRECT_URL</code></td><td>From Step 1A (direct)</td></tr>
   <tr><td rowspan="3"><strong>Auth</strong></td><td><code>JWT_SECRET</code></td><td>From Step 1G</td></tr>

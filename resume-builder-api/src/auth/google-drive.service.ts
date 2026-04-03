@@ -124,7 +124,7 @@ export class GoogleDriveService {
     });
     this.driveSessions.attachSessionCookie(res, session.id);
 
-    return appendConnectedQuery(this.config.get<string>('GOOGLE_OAUTH_SUCCESS_REDIRECT', 'http://localhost:3000/dashboard'));
+    return appendConnectedQuery(this.config.get<string>('GOOGLE_OAUTH_SUCCESS_REDIRECT', 'http://localhost:4000/dashboard'));
   }
 
   async listDriveFiles(req: Request, res: ExpressResponse, userId: string) {
@@ -375,7 +375,7 @@ function buildGoogleAuthUrl(input: { clientId: string; redirectUri: string; stat
 }
 
 function appendConnectedQuery(raw: string) {
-  const fallback = 'http://localhost:3000/dashboard';
+  const fallback = 'http://localhost:4000/dashboard';
   const base = String(raw || '').trim() || fallback;
   try {
     const url = new URL(base);

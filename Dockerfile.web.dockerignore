@@ -1,0 +1,40 @@
+# ── .dockerignore for Dockerfile.web (Next.js frontend build) ────────
+# Git / IDE
+.git
+.github
+.vscode
+*.md
+LICENSE
+
+# Node artefacts
+node_modules
+**/node_modules
+.npm
+*.tsbuildinfo
+
+# Build output (rebuilt inside Docker)
+**/dist
+!packages/resume-intelligence/dist/
+!packages/resume-schemas/dist/
+!resume-builder-shared/dist/
+.next
+out
+
+# Environment files (secrets must be injected at runtime)
+.env
+.env.*
+!.env.example
+
+# Services not needed for frontend image
+resume-builder-api
+resume-builder-mobile
+resume-builder-ai
+resume-builder-infra
+sms-gateway
+
+# Tests & misc
+**/tests
+**/coverage
+**/*.test.*
+**/*.spec.*
+*.log

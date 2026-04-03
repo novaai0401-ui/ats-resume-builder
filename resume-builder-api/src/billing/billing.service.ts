@@ -2,7 +2,7 @@
 import { ConfigService } from '@nestjs/config';
 import Stripe from 'stripe';
 import { PrismaService } from '../prisma/prisma.service';
-import { getPlanConfig, type PlanName } from './plan-limits';
+import { getPlanConfig, getPlanPricing, isIndianUser, type PlanName } from './plan-limits';
 import { resetUsageForPlan } from './usage';
 
 function isValidStripeKey(key: string): boolean {
@@ -37,11 +37,16 @@ export class BillingService {
 
   // ─── Direct Plan Management (no Stripe required) ─────────────────────────
 
-  async getPlanStatus(userId: string) {
+  async getPlanStatus(userId: string, options?: { locale?: string; timezone?: string }) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new ForbiddenException('User not found');
     const config = getPlanConfig(user.plan as PlanName);
     const credits = (user as any).premiumCredits ?? 0;
+    const isIndia = isIndianUser({
+      locale: options?.locale,
+      timezone: options?.timezone,
+      phone: user.mobile || undefined,
+    });
     return {
       plan: user.plan,
       premiumCredits: credits,
@@ -52,6 +57,13 @@ export class BillingService {
         atsScansUsed: user.atsScansUsed,
       },
       stripeConfigured: Boolean(this.stripe),
+      currency: isIndia ? 'INR' : 'USD',
+      pricing: {
+        free: getPlanPricing('FREE'),
+        student: getPlanPricing('STUDENT'),
+        pro: getPlanPricing('PRO'),
+      },
+      region: isIndia ? 'IN' : 'GLOBAL',
     };
   }
 
@@ -148,15 +160,24 @@ export class BillingService {
 
   // ─── Stripe-based Plan Management ────────────────────────────────────────
 
-  async createCheckoutSession(userId: string, plan: PlanName) {
+  async createCheckoutSession(userId: string, plan: PlanName, options?: { locale?: string; timezone?: string }) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
       throw new ForbiddenException('User not found');
     }
 
-    const priceId = plan === 'STUDENT'
-      ? this.config.get<string>('STRIPE_PRICE_STUDENT', '')
-      : this.config.get<string>('STRIPE_PRICE_PRO', '');
+    const isIndia = isIndianUser({
+      locale: options?.locale,
+      timezone: options?.timezone,
+      phone: user.mobile || undefined,
+    });
+
+    // Use INR price IDs for Indian users if configured
+    const priceIdKey = isIndia
+      ? (plan === 'STUDENT' ? 'STRIPE_PRICE_STUDENT_INR' : 'STRIPE_PRICE_PRO_INR')
+      : (plan === 'STUDENT' ? 'STRIPE_PRICE_STUDENT' : 'STRIPE_PRICE_PRO');
+    const fallbackKey = plan === 'STUDENT' ? 'STRIPE_PRICE_STUDENT' : 'STRIPE_PRICE_PRO';
+    const priceId = this.config.get<string>(priceIdKey, '') || this.config.get<string>(fallbackKey, '');
 
     if (!priceId) {
       throw new ForbiddenException('Stripe price not configured');
@@ -164,16 +185,29 @@ export class BillingService {
 
     const customerId = user.stripeCustomerId || (await this.createCustomer(user));
 
-    const session = await this.requireStripe().checkout.sessions.create({
+    const pricing = getPlanPricing(plan);
+    const sessionConfig: Stripe.Checkout.SessionCreateParams = {
       mode: 'subscription',
       customer: customerId,
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: this.config.get<string>('STRIPE_SUCCESS_URL', 'http://localhost:3000/dashboard'),
-      cancel_url: this.config.get<string>('STRIPE_CANCEL_URL', 'http://localhost:3000/dashboard'),
-      metadata: { userId, plan },
-    });
+      success_url: this.config.get<string>('STRIPE_SUCCESS_URL', 'http://localhost:4000/dashboard'),
+      cancel_url: this.config.get<string>('STRIPE_CANCEL_URL', 'http://localhost:4000/dashboard'),
+      metadata: { userId, plan, currency: isIndia ? 'INR' : 'USD' },
+    };
 
-    return { url: session.url };
+    // Add tax ID collection for Indian users (GST compliance)
+    if (isIndia) {
+      sessionConfig.tax_id_collection = { enabled: true };
+      sessionConfig.metadata!.gstRate = String(pricing.gstRate);
+    }
+
+    const session = await this.requireStripe().checkout.sessions.create(sessionConfig);
+
+    return {
+      url: session.url,
+      currency: isIndia ? 'INR' : 'USD',
+      pricing,
+    };
   }
 
   async createPortalSession(userId: string) {
@@ -184,7 +218,7 @@ export class BillingService {
 
     const session = await this.requireStripe().billingPortal.sessions.create({
       customer: user.stripeCustomerId,
-      return_url: this.config.get<string>('STRIPE_SUCCESS_URL', 'http://localhost:3000/dashboard'),
+      return_url: this.config.get<string>('STRIPE_SUCCESS_URL', 'http://localhost:4000/dashboard'),
     });
 
     return { url: session.url };

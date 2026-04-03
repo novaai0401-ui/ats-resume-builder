@@ -2,7 +2,7 @@
 const fs = require('node:fs/promises');
 const path = require('node:path');
 
-const apiBase = process.env.SMOKE_API_URL || 'http://localhost:5000';
+const apiBase = process.env.SMOKE_API_URL || 'http://localhost:4001';
 const email = `parse.upload.${Date.now()}@example.com`;
 const password = 'UploadVerify@1234';
 

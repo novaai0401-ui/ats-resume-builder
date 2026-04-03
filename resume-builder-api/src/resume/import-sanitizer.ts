@@ -68,17 +68,18 @@ type SanitizeMode = 'upload' | 'persist';
 
 export function sanitizeImportedResume(
   input: ImportInput,
-  options?: { mode?: SanitizeMode },
+  options?: { mode?: SanitizeMode; sourceText?: string },
 ): SanitizedImportPayload {
   const mode = options?.mode || 'upload';
+  const sourceText = options?.sourceText || '';
   const rejectedBlocks: string[] = [];
   const title = cleanText(input.title) || 'Resume';
   const summary = cleanText(input.summary);
   const skills = uniqueStrings(cleanStringArray(input.skills));
 
   const contact = sanitizeContact(input.contact, rejectedBlocks);
-  const experience = sanitizeExperience(input.experience, rejectedBlocks, mode);
-  const education = sanitizeEducation(input.education, rejectedBlocks);
+  const experience = deduplicateExperience(sanitizeExperience(input.experience, rejectedBlocks, mode));
+  const education = deduplicateEducationEntries(sanitizeEducation(input.education, rejectedBlocks));
   const projects = sanitizeProjects(input.projects, rejectedBlocks);
   const certifications = sanitizeCertifications(input.certifications, rejectedBlocks);
 
@@ -324,6 +325,63 @@ function buildRejectedLine(prefix: string, parts: string[]) {
 function mergeUnmappedText(existing: string, rejected: string[]) {
   const merged = [existing, ...rejected].map((item) => item.trim()).filter(Boolean);
   return uniqueStrings(merged).join('\n').trim();
+}
+
+/**
+ * Anti-hallucination guard: verify that key extracted values actually appear
+ * in the source text. Rejects entries that cannot be traced back to the original.
+ */
+function validateAgainstSource(value: string, sourceText: string, threshold = 0.6): boolean {
+  if (!sourceText || !value) return true; // No source to validate against
+  const normalizedSource = sourceText.toLowerCase().replace(/\s+/g, ' ');
+  const normalizedValue = value.toLowerCase().replace(/\s+/g, ' ').trim();
+  if (!normalizedValue || normalizedValue.length < 3) return true;
+  // Direct substring match
+  if (normalizedSource.includes(normalizedValue)) return true;
+  // Check if significant words from the value appear in the source
+  const words = normalizedValue.split(/\s+/).filter((w) => w.length > 2);
+  if (words.length === 0) return true;
+  const matchingWords = words.filter((w) => normalizedSource.includes(w));
+  return matchingWords.length / words.length >= threshold;
+}
+
+function deduplicateExperience(items: ExperienceShape[]): ExperienceShape[] {
+  const seen = new Map<string, ExperienceShape>();
+  for (const item of items) {
+    const companyKey = (item.company || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const roleKey = (item.role || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const key = `${companyKey}|${roleKey}`;
+    if (!seen.has(key)) {
+      seen.set(key, item);
+      continue;
+    }
+    const existing = seen.get(key)!;
+    // Merge highlights, keep earliest start and latest end
+    existing.highlights = uniqueStrings([...existing.highlights, ...item.highlights]);
+    if (!existing.startDate && item.startDate) existing.startDate = item.startDate;
+    if (!existing.endDate && item.endDate) existing.endDate = item.endDate;
+  }
+  return Array.from(seen.values());
+}
+
+function deduplicateEducationEntries(items: EducationShape[]): EducationShape[] {
+  const seen = new Map<string, EducationShape>();
+  for (const item of items) {
+    const instKey = (item.institution || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const degKey = (item.degree || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const key = `${instKey}|${degKey}`;
+    if (!seen.has(key)) {
+      seen.set(key, item);
+      continue;
+    }
+    const existing = seen.get(key)!;
+    existing.institution = existing.institution || item.institution;
+    existing.degree = existing.degree || item.degree;
+    existing.startDate = existing.startDate || item.startDate;
+    existing.endDate = existing.endDate || item.endDate;
+    existing.details = uniqueStrings([...existing.details, ...item.details]);
+  }
+  return Array.from(seen.values());
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
