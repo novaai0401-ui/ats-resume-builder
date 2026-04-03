@@ -59,15 +59,15 @@ The API base URL is configured in `lib/api.ts`:
 
 | Platform         | URL                                | Why                                        |
 | ---------------- | ---------------------------------- | ------------------------------------------ |
-| Android emulator | `http://10.0.2.2:3001`            | `10.0.2.2` maps to host machine localhost  |
-| iOS simulator    | `http://localhost:3001`            | iOS simulator shares host network          |
-| Physical device  | `http://<your-lan-ip>:3001`       | Use your machine's LAN IP (e.g., 192.168.x.x) |
+| Android emulator | `http://10.0.2.2:4001`            | `10.0.2.2` maps to host machine localhost  |
+| iOS simulator    | `http://localhost:4001`            | iOS simulator shares host network          |
+| Physical device  | `http://<your-lan-ip>:4001`       | Use your machine's LAN IP (e.g., 192.168.x.x) |
 
 To change the API URL at runtime:
 
 ```typescript
 import { setApiBase } from './lib/api';
-setApiBase('http://192.168.1.100:3001');
+setApiBase('http://192.168.1.100:4001');
 ```
 
 ### 1.5 Start the app
@@ -83,7 +83,7 @@ npm run ios       # iOS simulator (macOS only)
 
 ### 1.6 Verify
 
-1. Ensure the API is running at `http://localhost:3001`
+1. Ensure the API is running at `http://localhost:4001`
 2. Open the app — the login screen should appear
 3. Register a new account or login with existing credentials
 4. If you see network errors, check the API URL configuration (step 1.4)
@@ -283,7 +283,7 @@ The mobile app communicates with the same backend API used by the web app. All A
 
 | Issue                                       | Fix                                                                                          |
 | ------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `Network request failed` on Android emulator | Use `http://10.0.2.2:3001` (not `localhost`)                                                |
+| `Network request failed` on Android emulator | Use `http://10.0.2.2:4001` (not `localhost`)                                                |
 | `Network request failed` on physical device  | Use your machine's LAN IP; ensure device is on same WiFi                                    |
 | Metro bundler port conflict                 | Kill existing Metro process or use `npm run start -- --port 8082`                            |
 | iOS build fails with signing error          | Open Xcode → Signing & Capabilities → select your team                                      |

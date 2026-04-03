@@ -81,7 +81,7 @@ export class SocialAuthController {
     }
     const successUrl = this.config.get('SOCIAL_LOGIN_SUCCESS_URL');
     if (!successUrl) {
-      this.logger.warn('SOCIAL_LOGIN_SUCCESS_URL not set — defaulting to http://localhost:3000/auth/callback');
+      this.logger.warn('SOCIAL_LOGIN_SUCCESS_URL not set — defaulting to http://localhost:4000/auth/callback');
     }
   }
 
@@ -93,7 +93,7 @@ export class SocialAuthController {
   }
 
   private getFrontendCallbackUrl(): string {
-    return this.config.get<string>('SOCIAL_LOGIN_SUCCESS_URL', 'http://localhost:3000/auth/callback');
+    return this.config.get<string>('SOCIAL_LOGIN_SUCCESS_URL', 'http://localhost:4000/auth/callback');
   }
 
   // ─── State Management ─────────────────────────────────────────────────────

@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { setAuthTokens, isCurrentUserAdmin } from '@/src/lib/api';
 import { Suspense } from 'react';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001';
 
 function CallbackHandler() {
   const router = useRouter();

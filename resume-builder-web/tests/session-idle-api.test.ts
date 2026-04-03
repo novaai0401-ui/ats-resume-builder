@@ -67,8 +67,8 @@ test('authenticated request refreshes session first when token is near expiry', 
   const resumes = await api.listResumes();
   assert.deepEqual(resumes, []);
   assert.equal(calls.length, 2);
-  assert.equal(calls[0].url, 'http://localhost:3001/auth/refresh');
-  assert.equal(calls[1].url, 'http://localhost:3001/resumes');
+  assert.equal(calls[0].url, 'http://localhost:4001/auth/refresh');
+  assert.equal(calls[1].url, 'http://localhost:4001/resumes');
   const headers = calls[1].init?.headers as Record<string, string>;
   assert.equal(headers.Authorization, `Bearer ${newAccess}`);
   assert.equal(window.localStorage.getItem('refreshToken'), 'refresh-new');

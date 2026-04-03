@@ -51,9 +51,9 @@ Edit `.env` with your values:
 
 ```env
 # ── Core ──
-PORT=3001
+PORT=4001
 NODE_ENV=development
-CORS_ORIGIN=http://localhost:3000
+CORS_ORIGIN=http://localhost:4000
 
 # ── Database ──
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/resume_builder?schema=public
@@ -82,8 +82,8 @@ STRIPE_SECRET_KEY=sk_test_xxx
 STRIPE_WEBHOOK_SECRET=whsec_xxx
 STRIPE_PRICE_STUDENT=price_xxx
 STRIPE_PRICE_PRO=price_xxx
-STRIPE_SUCCESS_URL=http://localhost:3000/dashboard
-STRIPE_CANCEL_URL=http://localhost:3000/dashboard
+STRIPE_SUCCESS_URL=http://localhost:4000/dashboard
+STRIPE_CANCEL_URL=http://localhost:4000/dashboard
 ```
 
 ### 1.3 Set up database
@@ -105,15 +105,15 @@ npx prisma studio
 npm run start:dev
 ```
 
-API runs at `http://localhost:3001`. The `prestart:dev` script auto-builds shared packages.
+API runs at `http://localhost:4001`. The `prestart:dev` script auto-builds shared packages.
 
 ### 1.5 Verify
 
 ```bash
-curl http://localhost:3001/health
+curl http://localhost:4001/health
 # → {"status":"ok"}
 
-curl http://localhost:3001/health/db
+curl http://localhost:4001/health/db
 # → {"status":"ok","database":"connected"}
 ```
 
@@ -140,7 +140,7 @@ Set these in the Render dashboard (or your staging host):
 
 ```env
 NODE_ENV=production
-PORT=3001
+PORT=4001
 CORS_ORIGIN=https://ats-rb-web-staging.onrender.com
 
 # Database — use Supabase pooler URL
@@ -238,7 +238,7 @@ Same as staging but with **live** credentials:
 
 ```env
 NODE_ENV=production
-PORT=3001
+PORT=4001
 CORS_ORIGIN=https://your-domain.com
 
 DATABASE_URL=postgresql://user:pass@host:6543/postgres?schema=public&sslmode=require&connection_limit=10
@@ -288,7 +288,7 @@ Build and run the API Docker image locally:
 ```bash
 # From monorepo root
 docker build -t ats-api -f Dockerfile .
-docker run -p 3001:3001 --env-file resume-builder-api/.env ats-api
+docker run -p 4001:4001 --env-file resume-builder-api/.env ats-api
 ```
 
 **Deploy to Render via Blueprint:**
@@ -390,7 +390,7 @@ See `.env.example` for the complete list with documentation.
 
 | Variable                    | Default                  | Description                          |
 | --------------------------- | ------------------------ | ------------------------------------ |
-| `PORT`                      | `3001`                   | Server port                          |
+| `PORT`                      | `4001`                   | Server port                          |
 | `NODE_ENV`                  | —                        | `development` or `production`        |
 | `STRIPE_PRICE_STUDENT_INR`  | —                        | INR pricing for Indian users         |
 | `STRIPE_PRICE_PRO_INR`      | —                        | INR pricing for Indian users         |

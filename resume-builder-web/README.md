@@ -44,7 +44,7 @@ cp .env.example .env.local
 Edit `.env.local`:
 
 ```env
-NEXT_PUBLIC_API_URL=http://localhost:3001
+NEXT_PUBLIC_API_URL=http://localhost:4001
 NEXT_PUBLIC_SESSION_IDLE_TIMEOUT_MS=1800000
 NEXT_PUBLIC_ADMIN_EMAILS=your-email@example.com
 NEXT_PUBLIC_ADMIN_USER_IDS=
@@ -59,11 +59,11 @@ NEXT_PUBLIC_ADMIN_MOBILES=
 npm run dev
 ```
 
-Web app runs at `http://localhost:3000`.
+Web app runs at `http://localhost:4000`.
 
 ### 1.4 Verify
 
-Open `http://localhost:3000` in your browser. Ensure the API is running at `http://localhost:3001`.
+Open `http://localhost:4000` in your browser. Ensure the API is running at `http://localhost:4001`.
 
 ---
 
@@ -82,7 +82,7 @@ Set in the Render dashboard:
 
 ```env
 NODE_ENV=production
-PORT=3000
+PORT=4000
 
 # ── API URL (CRITICAL — baked into JS bundle at build time) ──
 NEXT_PUBLIC_API_URL=https://ats-rb-api-staging.onrender.com
@@ -121,7 +121,7 @@ npm run build
 
 # Start (standalone mode)
 cd .next/standalone/resume-builder-web
-NODE_ENV=production PORT=3000 node server.js
+NODE_ENV=production PORT=4000 node server.js
 ```
 
 > The `output: 'standalone'` config in `next.config.mjs` produces a self-contained `server.js` with only the required `node_modules`.
@@ -130,7 +130,7 @@ NODE_ENV=production PORT=3000 node server.js
 
 ```env
 NODE_ENV=production
-PORT=3000
+PORT=4000
 
 NEXT_PUBLIC_API_URL=https://api.your-domain.com
 NEXT_PUBLIC_SESSION_IDLE_TIMEOUT_MS=1800000
@@ -159,7 +159,7 @@ Build and run the Web Docker image locally:
 docker build -t ats-web -f Dockerfile.web \
   --build-arg NEXT_PUBLIC_API_URL=https://api.your-domain.com .
 
-docker run -p 3000:3000 ats-web
+docker run -p 4000:4000 ats-web
 ```
 
 **Deploy to Render via Blueprint:**
@@ -179,7 +179,7 @@ docker run -p 3000:3000 ats-web
 
 | Script          | Description                                     |
 | --------------- | ----------------------------------------------- |
-| `npm run dev`   | Start dev server with hot-reload (port 3000)    |
+| `npm run dev`   | Start dev server with hot-reload (port 4000)    |
 | `npm run build` | Production build (standalone output)            |
 | `npm run start` | Start production server (requires build first)  |
 | `npm test`      | Run test suite with Node test runner + tsx       |
@@ -195,7 +195,7 @@ docker run -p 3000:3000 ats-web
 | `NEXT_PUBLIC_ADMIN_EMAILS`            | No       | Yes        | Comma-separated admin emails         |
 | `NEXT_PUBLIC_ADMIN_USER_IDS`          | No       | Yes        | Comma-separated admin user IDs       |
 | `NEXT_PUBLIC_ADMIN_MOBILES`           | No       | Yes        | Comma-separated admin phone numbers  |
-| `PORT`                                | No       | No         | Server port (default: 3000)          |
+| `PORT`                                | No       | No         | Server port (default: 4000)          |
 | `NODE_ENV`                            | No       | No         | `development` or `production`        |
 
 > **Build-time = Yes** means the variable is embedded into the JS bundle during `next build`. Changing it requires a rebuild/redeploy.

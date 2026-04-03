@@ -190,8 +190,8 @@ export class BillingService {
       mode: 'subscription',
       customer: customerId,
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: this.config.get<string>('STRIPE_SUCCESS_URL', 'http://localhost:3000/dashboard'),
-      cancel_url: this.config.get<string>('STRIPE_CANCEL_URL', 'http://localhost:3000/dashboard'),
+      success_url: this.config.get<string>('STRIPE_SUCCESS_URL', 'http://localhost:4000/dashboard'),
+      cancel_url: this.config.get<string>('STRIPE_CANCEL_URL', 'http://localhost:4000/dashboard'),
       metadata: { userId, plan, currency: isIndia ? 'INR' : 'USD' },
     };
 
@@ -218,7 +218,7 @@ export class BillingService {
 
     const session = await this.requireStripe().billingPortal.sessions.create({
       customer: user.stripeCustomerId,
-      return_url: this.config.get<string>('STRIPE_SUCCESS_URL', 'http://localhost:3000/dashboard'),
+      return_url: this.config.get<string>('STRIPE_SUCCESS_URL', 'http://localhost:4000/dashboard'),
     });
 
     return { url: session.url };

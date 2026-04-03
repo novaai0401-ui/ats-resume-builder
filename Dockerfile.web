@@ -31,7 +31,7 @@ COPY resume-builder-web/ ./
 # NEXT_PUBLIC_ env vars are inlined into the JS bundle at build time.
 # On Render, set NEXT_PUBLIC_API_URL in the service Environment tab;
 # Render passes it as a Docker build arg automatically.
-ARG NEXT_PUBLIC_API_URL=http://localhost:3001
+ARG NEXT_PUBLIC_API_URL=http://localhost:4001
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
 ARG NEXT_PUBLIC_ADMIN_EMAILS=""
@@ -51,7 +51,7 @@ FROM node:20-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
-ENV PORT=3000
+ENV PORT=4000
 ENV HOSTNAME="0.0.0.0"
 
 # Standalone output is at .next/standalone/<relative-workdir-path>/
@@ -76,7 +76,7 @@ RUN addgroup -g 1001 -S appgroup && \
     chown -R appuser:appgroup /app
 USER appuser
 
-EXPOSE 3000
+EXPOSE 4000
 
 # The standalone server.js is inside the resume-builder-web subdirectory
 WORKDIR /app/resume-builder-web

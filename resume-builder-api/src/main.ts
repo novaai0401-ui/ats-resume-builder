@@ -31,7 +31,7 @@ async function bootstrap() {
       },
     }),
   );
-  const port = process.env.PORT ? Number(process.env.PORT) : 3001;
+  const port = process.env.PORT ? Number(process.env.PORT) : 4001;
   if (process.env.NODE_ENV !== 'production') {
     console.log(`[bootstrap] Allowed CORS origins: ${allowedOrigins.join(', ')}`);
   }
@@ -62,7 +62,7 @@ function parseAllowedOrigins(value?: string) {
     .map((origin) => origin.trim())
     .filter(Boolean);
   if (fromEnv.length) return fromEnv;
-  return ['http://localhost:3000', 'http://localhost:3001'];
+  return ['http://localhost:4000', 'http://localhost:4001'];
 }
 
 /** Check if an origin is allowed — supports exact match, Vercel preview, and Render patterns. */

@@ -7,7 +7,7 @@ const AUTH_KEY = 'rb_auth';
 // iOS simulator:    localhost works directly
 // Physical device:  use your machine's LAN IP (e.g., 192.168.1.x)
 // Staging/Prod:     set via setApiBase() at app startup
-let API_BASE = 'http://10.0.2.2:3001';
+let API_BASE = 'http://10.0.2.2:4001';
 
 export function getApiBase(): string {
   return API_BASE;

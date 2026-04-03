@@ -43,7 +43,7 @@ FROM node:20-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
-ENV PORT=3001
+ENV PORT=4001
 
 # Prisma query engine needs OpenSSL 3 on Alpine (linux-musl-openssl-3.0.x)
 RUN apk add --no-cache openssl
@@ -63,5 +63,5 @@ RUN addgroup -g 1001 -S appgroup && \
     chown -R appuser:appgroup /app
 USER appuser
 
-EXPOSE 3001
+EXPOSE 4001
 CMD ["node", "dist/main.js"]
