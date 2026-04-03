@@ -1,64 +1,83 @@
 # ═══════════════════════════════════════════════════════════════════════
 # ATS Resume Builder Web — Production Dockerfile
 # ═══════════════════════════════════════════════════════════════════════
-# Build context: monorepo root.
+# Build context: monorepo root (.)
 #
-# Render:  Root Directory = (repo root), Dockerfile Path = ./Dockerfile.web
+# Render:  Dockerfile Path = ./Dockerfile.web, Docker Context = .
 # Local:   docker build -t ats-web -f Dockerfile.web \
 #            --build-arg NEXT_PUBLIC_API_URL=https://your-api.onrender.com .
 # ═══════════════════════════════════════════════════════════════════════
 
-# ── Build stage ──────────────────────────────────────────────────────
+# ── Stage 1: Build shared packages & Next.js app ────────────────────
 FROM node:20-alpine AS builder
 WORKDIR /build
 
-# 1. Copy shared packages (cache layer)
-COPY packages/ ./packages/
+# 1. Install & build resume-builder-shared
 COPY resume-builder-shared/ ./resume-builder-shared/
-
-# 2. Install & build shared packages
 RUN cd resume-builder-shared && npm ci && npm run build
+
+# 2. Install & build packages/resume-schemas (needed by shared types)
+COPY packages/resume-schemas/ ./packages/resume-schemas/
 RUN cd packages/resume-schemas && npm ci && npm run build
 
-# 3. Install web app deps
+# 3. Install web dependencies
+COPY resume-builder-web/package.json resume-builder-web/package-lock.json ./resume-builder-web/
 WORKDIR /build/resume-builder-web
-COPY resume-builder-web/package*.json ./
 RUN npm ci
 
-# 4. Copy source
+# 4. Copy web source
 COPY resume-builder-web/ ./
 
-# NEXT_PUBLIC_ env vars must be present at build time for Next.js
-# to inline them into the client JS bundle.
-# On Render, set NEXT_PUBLIC_API_URL in the Environment tab.
+# NEXT_PUBLIC_ env vars are inlined into the JS bundle at build time.
+# On Render, set NEXT_PUBLIC_API_URL in the service Environment tab;
+# Render passes it as a Docker build arg automatically.
 ARG NEXT_PUBLIC_API_URL=http://localhost:3001
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
-# 5. Build Next.js (standalone output)
+ARG NEXT_PUBLIC_ADMIN_EMAILS=""
+ENV NEXT_PUBLIC_ADMIN_EMAILS=$NEXT_PUBLIC_ADMIN_EMAILS
+
+ARG NEXT_PUBLIC_ADMIN_MOBILES=""
+ENV NEXT_PUBLIC_ADMIN_MOBILES=$NEXT_PUBLIC_ADMIN_MOBILES
+
+ARG NEXT_PUBLIC_SESSION_IDLE_TIMEOUT_MS="1800000"
+ENV NEXT_PUBLIC_SESSION_IDLE_TIMEOUT_MS=$NEXT_PUBLIC_SESSION_IDLE_TIMEOUT_MS
+
+# 5. Build Next.js (standalone output mode)
 RUN npm run build
 
-# ── Runtime stage ────────────────────────────────────────────────────
+# ── Stage 2: Minimal production runtime ─────────────────────────────
 FROM node:20-alpine AS runner
 WORKDIR /app
+
 ENV NODE_ENV=production
-
-# Copy standalone server (includes only required node_modules)
-COPY --from=builder /build/resume-builder-web/.next/standalone/resume-builder-web/ ./
-# Copy static assets and public files
-COPY --from=builder /build/resume-builder-web/.next/static ./.next/static
-COPY --from=builder /build/resume-builder-web/public ./public
-
-# The standalone build expects shared packages at relative paths
-COPY --from=builder /build/resume-builder-shared ../resume-builder-shared
-COPY --from=builder /build/packages ../packages
-
-# Run as non-root
-RUN addgroup -g 1001 -S appgroup && \
-    adduser -S appuser -u 1001 -G appgroup
-USER appuser
-
-EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
+# Standalone output is at .next/standalone/<relative-workdir-path>/
+# Since we built in /build/resume-builder-web, the standalone server
+# ends up at /build/resume-builder-web/.next/standalone/resume-builder-web/
+# BUT standalone output ALSO needs node_modules from parent dirs for
+# monorepo symlinks. We copy the entire standalone tree and run from
+# the correct subdirectory.
+
+# Copy the entire standalone output (includes node_modules + server.js)
+COPY --from=builder /build/resume-builder-web/.next/standalone/ ./
+
+# Copy static assets (not included in standalone output)
+COPY --from=builder /build/resume-builder-web/.next/static ./resume-builder-web/.next/static
+
+# Copy public directory (favicon, images, etc.)
+COPY --from=builder /build/resume-builder-web/public ./resume-builder-web/public
+
+# Run as non-root for security
+RUN addgroup -g 1001 -S appgroup && \
+    adduser -S appuser -u 1001 -G appgroup && \
+    chown -R appuser:appgroup /app
+USER appuser
+
+EXPOSE 3000
+
+# The standalone server.js is inside the resume-builder-web subdirectory
+WORKDIR /app/resume-builder-web
 CMD ["node", "server.js"]
