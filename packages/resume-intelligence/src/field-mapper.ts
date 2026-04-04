@@ -11,6 +11,10 @@ import type { ParsedResumeText } from './resume-parser.js';
 import { computeExperienceLevel } from './experience-level.js';
 import { normalizeHeading } from './section-normalizer.js';
 import { enhanceExperienceExtraction } from './experience-enhancer.js';
+import { detectLayout, deinterleaveColumns } from './layout-detector.js';
+import { runDeduplicationPipeline } from './deduplication-engine.js';
+import { getExtractionConfig } from './extraction-config.js';
+import { parseResumeText as reParseText } from './resume-parser.js';
 
 export type MappedResumeResult = ParsedResume & {
   signals: {
@@ -61,49 +65,79 @@ type HeaderMapping = {
 };
 
 export function mapParsedResume(parsed: ParsedResumeText): MappedResumeResult {
-  const summary = mapSummary(parsed.sections);
-  const skills = mapSkills(parsed.sections);
+  const config = getExtractionConfig();
+
+  // Phase 2: Layout detection — detect multi-column resumes and re-order if needed
+  let effectiveParsed = parsed;
+  if (config.layoutDetection) {
+    const rawText = parsed.lines.join('\n');
+    const layout = detectLayout(rawText);
+    if (layout.type !== 'single-column' && layout.columnWiseExtraction) {
+      // Re-order interleaved text and re-parse
+      const reordered = deinterleaveColumns(rawText, layout);
+      if (reordered !== rawText) {
+        effectiveParsed = reParseText(reordered);
+      }
+    }
+  }
+
+  const summary = mapSummary(effectiveParsed.sections);
+  const skillsRaw = mapSkills(effectiveParsed.sections);
   const experienceRaw = sortExperienceChronological(
-    mergeExperienceByCompany(mapExperience(parsed)),
+    mergeExperienceByCompany(mapExperience(effectiveParsed)),
   );
-  const educationRaw = mapEducation(parsed.sections);
-  const projects = mapProjects(parsed.sections);
-  const certifications = mapCertifications(parsed.sections);
-  const header = mapHeader(parsed.lines);
+  const educationRaw = mapEducation(effectiveParsed.sections);
+  const projects = mapProjects(effectiveParsed.sections);
+  const certifications = mapCertifications(effectiveParsed.sections);
+  const header = mapHeader(effectiveParsed.lines);
   const contact = header.contact;
-  const title = guessTitle(parsed.lines, header);
-  const mappedUnsorted = getUnmappedText(parsed.sections);
+  const title = guessTitle(effectiveParsed.lines, header);
+  const mappedUnsorted = getUnmappedText(effectiveParsed.sections);
   const experienceSanitized = sanitizeExperienceForStrictSave(experienceRaw);
   const educationSanitized = sanitizeEducationForStrictSave(educationRaw);
   const shouldEnhanceExperience = experienceSanitized.items.length < 1
     || experienceSanitized.items.some((item) => !item.company || !item.role);
   const experienceAfterEnhancement = shouldEnhanceExperience
     ? enhanceExperienceExtraction({
-      rawText: parsed.lines.join('\n'),
-      parsed,
+      rawText: effectiveParsed.lines.join('\n'),
+      parsed: effectiveParsed,
       currentExperience: experienceSanitized.items,
     })
     : experienceSanitized.items;
   const finalExperienceSanitized = shouldEnhanceExperience
     ? sanitizeExperienceForStrictSave(experienceAfterEnhancement)
     : experienceSanitized;
+
+  // Phase 2: Enhanced multi-layer deduplication
+  let finalSkills = skillsRaw;
+  let finalExperience = finalExperienceSanitized.items;
+  if (config.enhancedDedup) {
+    const dedupResult = runDeduplicationPipeline({
+      skills: skillsRaw,
+      experience: finalExperienceSanitized.items,
+      highlights: finalExperienceSanitized.items.flatMap((e) => e.highlights),
+    });
+    finalSkills = dedupResult.skills;
+    finalExperience = dedupResult.experience;
+  }
+
   const unmappedText = mergeUnmappedText(
     mappedUnsorted,
     [...finalExperienceSanitized.rejected, ...educationSanitized.rejected],
   );
   const resumeText = [
     summary,
-    skills.join(' '),
-    finalExperienceSanitized.items.map((item) => `${item.role} ${item.company}`).join(' '),
+    finalSkills.join(' '),
+    finalExperience.map((item) => `${item.role} ${item.company}`).join(' '),
   ].join(' ');
-  const levelResult = computeExperienceLevel({ resumeText, experience: finalExperienceSanitized.items });
+  const levelResult = computeExperienceLevel({ resumeText, experience: finalExperience });
 
   const validated = ParsedResumeSchema.parse({
     title,
     contact,
     summary,
-    skills,
-    experience: finalExperienceSanitized.items,
+    skills: finalSkills,
+    experience: finalExperience,
     education: educationSanitized.items,
     projects,
     certifications,

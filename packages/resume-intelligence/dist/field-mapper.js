@@ -5,6 +5,10 @@ const resume_schemas_1 = require("resume-schemas");
 const experience_level_js_1 = require("./experience-level.js");
 const section_normalizer_js_1 = require("./section-normalizer.js");
 const experience_enhancer_js_1 = require("./experience-enhancer.js");
+const layout_detector_js_1 = require("./layout-detector.js");
+const deduplication_engine_js_1 = require("./deduplication-engine.js");
+const extraction_config_js_1 = require("./extraction-config.js");
+const resume_parser_js_1 = require("./resume-parser.js");
 const ROLE_HINT_RE = /\b(engineer|developer|manager|designer|analyst|intern|lead|architect|specialist|consultant|director|head|officer|administrator|coordinator|principal|staff|qa|devops|product|owner|founder|avp|assistant vice president|vice president|scientist|researcher|professor|instructor|trainer|executive|president|cto|ceo|cfo|coo|cio|vp|svp|evp|partner|fellow|technologist|programmer|tester|strategist|planner|advisor|auditor|accountant|recruiter|editor|writer|nurse|physician|therapist|pharmacist|attorney|paralegal|clerk|secretary|receptionist|assistant|supervisor|foreman|mechanic|technician|operator|dispatcher|pilot|captain|chef|baker|bartender|waiter|teacher)\b/i;
 // "Associate" is ambiguous — it can mean a job role ("Associate Engineer") or an education degree ("Associate of Science").
 // Only match "associate" as a role when NOT followed by "of" or "degree".
@@ -37,43 +41,69 @@ const COMPANY_SUFFIX_RE = /\b(inc|llc|ltd|corp|company|technologies|systems|labs
 const HEADLINE_FRAGMENT_RE = /\b(system design|software design|web development|frontend|backend|full stack|machine learning|data science|cloud computing|devops|product management|project management|artificial intelligence|digital marketing|user experience|user interface|mobile development|database|networking|cybersecurity|blockchain|deep learning)\b/i;
 const LEGACY_BULLET_PREFIX_RE = /^\s*(?:[-*•·]+|\d{1,3}[.)]|[a-z][.)])?\s*(impact|achievement|result|highlights?|accomplishment)s?:\s*/i;
 function mapParsedResume(parsed) {
-    const summary = mapSummary(parsed.sections);
-    const skills = mapSkills(parsed.sections);
-    const experienceRaw = sortExperienceChronological(mergeExperienceByCompany(mapExperience(parsed)));
-    const educationRaw = mapEducation(parsed.sections);
-    const projects = mapProjects(parsed.sections);
-    const certifications = mapCertifications(parsed.sections);
-    const header = mapHeader(parsed.lines);
+    const config = (0, extraction_config_js_1.getExtractionConfig)();
+    // Phase 2: Layout detection — detect multi-column resumes and re-order if needed
+    let effectiveParsed = parsed;
+    if (config.layoutDetection) {
+        const rawText = parsed.lines.join('\n');
+        const layout = (0, layout_detector_js_1.detectLayout)(rawText);
+        if (layout.type !== 'single-column' && layout.columnWiseExtraction) {
+            // Re-order interleaved text and re-parse
+            const reordered = (0, layout_detector_js_1.deinterleaveColumns)(rawText, layout);
+            if (reordered !== rawText) {
+                effectiveParsed = (0, resume_parser_js_1.parseResumeText)(reordered);
+            }
+        }
+    }
+    const summary = mapSummary(effectiveParsed.sections);
+    const skillsRaw = mapSkills(effectiveParsed.sections);
+    const experienceRaw = sortExperienceChronological(mergeExperienceByCompany(mapExperience(effectiveParsed)));
+    const educationRaw = mapEducation(effectiveParsed.sections);
+    const projects = mapProjects(effectiveParsed.sections);
+    const certifications = mapCertifications(effectiveParsed.sections);
+    const header = mapHeader(effectiveParsed.lines);
     const contact = header.contact;
-    const title = guessTitle(parsed.lines, header);
-    const mappedUnsorted = getUnmappedText(parsed.sections);
+    const title = guessTitle(effectiveParsed.lines, header);
+    const mappedUnsorted = getUnmappedText(effectiveParsed.sections);
     const experienceSanitized = sanitizeExperienceForStrictSave(experienceRaw);
     const educationSanitized = sanitizeEducationForStrictSave(educationRaw);
     const shouldEnhanceExperience = experienceSanitized.items.length < 1
         || experienceSanitized.items.some((item) => !item.company || !item.role);
     const experienceAfterEnhancement = shouldEnhanceExperience
         ? (0, experience_enhancer_js_1.enhanceExperienceExtraction)({
-            rawText: parsed.lines.join('\n'),
-            parsed,
+            rawText: effectiveParsed.lines.join('\n'),
+            parsed: effectiveParsed,
             currentExperience: experienceSanitized.items,
         })
         : experienceSanitized.items;
     const finalExperienceSanitized = shouldEnhanceExperience
         ? sanitizeExperienceForStrictSave(experienceAfterEnhancement)
         : experienceSanitized;
+    // Phase 2: Enhanced multi-layer deduplication
+    let finalSkills = skillsRaw;
+    let finalExperience = finalExperienceSanitized.items;
+    if (config.enhancedDedup) {
+        const dedupResult = (0, deduplication_engine_js_1.runDeduplicationPipeline)({
+            skills: skillsRaw,
+            experience: finalExperienceSanitized.items,
+            highlights: finalExperienceSanitized.items.flatMap((e) => e.highlights),
+        });
+        finalSkills = dedupResult.skills;
+        finalExperience = dedupResult.experience;
+    }
     const unmappedText = mergeUnmappedText(mappedUnsorted, [...finalExperienceSanitized.rejected, ...educationSanitized.rejected]);
     const resumeText = [
         summary,
-        skills.join(' '),
-        finalExperienceSanitized.items.map((item) => `${item.role} ${item.company}`).join(' '),
+        finalSkills.join(' '),
+        finalExperience.map((item) => `${item.role} ${item.company}`).join(' '),
     ].join(' ');
-    const levelResult = (0, experience_level_js_1.computeExperienceLevel)({ resumeText, experience: finalExperienceSanitized.items });
+    const levelResult = (0, experience_level_js_1.computeExperienceLevel)({ resumeText, experience: finalExperience });
     const validated = resume_schemas_1.ParsedResumeSchema.parse({
         title,
         contact,
         summary,
-        skills,
-        experience: finalExperienceSanitized.items,
+        skills: finalSkills,
+        experience: finalExperience,
         education: educationSanitized.items,
         projects,
         certifications,
