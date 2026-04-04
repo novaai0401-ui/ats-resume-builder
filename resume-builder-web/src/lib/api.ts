@@ -902,7 +902,7 @@ export const api = {
     }),
 
   getBillingStatus: () =>
-    request<{ plan: string; premiumCredits: number; limits: Record<string, number>; usage: Record<string, number>; stripeConfigured: boolean }>('/billing/status'),
+    request<{ plan: string; premiumCredits: number; limits: Record<string, number>; usage: Record<string, number>; stripeConfigured: boolean; razorpayConfigured: boolean; periodEnd: string | null }>('/billing/status'),
 
   checkPremiumAccess: () =>
     request<{ allowed: boolean; plan: string; premiumCredits: number; reason: string }>('/billing/premium-access'),
@@ -940,6 +940,54 @@ export const api = {
     request<{ url: string }>('/billing/portal', {
       method: 'POST',
     }),
+
+  // ─── Razorpay Billing ──────────────────────────────────────────────────
+
+  createRazorpayOrder: (plan: 'STUDENT' | 'PRO', interval: 'monthly' | 'annual' = 'monthly') =>
+    request<{
+      orderId: string;
+      amount: number;
+      currency: string;
+      keyId: string;
+      plan: string;
+      interval: string;
+      userEmail: string;
+      userName: string;
+    }>('/billing/razorpay/create-order', {
+      method: 'POST',
+      body: JSON.stringify({ plan, interval }),
+    }),
+
+  verifyRazorpayPayment: (data: {
+    razorpay_order_id: string;
+    razorpay_payment_id: string;
+    razorpay_signature: string;
+    plan: 'STUDENT' | 'PRO';
+    interval?: 'monthly' | 'annual';
+  }) =>
+    request<{
+      ok: boolean;
+      plan: string;
+      interval: string;
+      limits: Record<string, number>;
+      periodEnd: string;
+      message: string;
+    }>('/billing/razorpay/verify-payment', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  getPaymentHistory: () =>
+    request<Array<{
+      id: string;
+      amount: number;
+      currency: string;
+      status: string;
+      plan: string;
+      provider: string;
+      paymentMethod: string;
+      date: string;
+    }>>('/billing/payment-history'),
 
   getAdminSettings: () =>
     request<AdminSettingsResponse>('/admin/settings'),

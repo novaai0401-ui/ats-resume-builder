@@ -37,7 +37,7 @@ export class BillingService {
 
   // ─── Direct Plan Management (no Stripe required) ─────────────────────────
 
-  async getPlanStatus(userId: string) {
+  async getPlanStatus(userId: string, razorpayConfigured = false) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new ForbiddenException('User not found');
     const config = getPlanConfig(user.plan as PlanName);
@@ -48,10 +48,15 @@ export class BillingService {
       limits: config,
       usage: {
         aiTokensUsed: user.aiTokensUsed,
+        aiTokensLimit: user.aiTokensLimit,
         pdfExportsUsed: user.pdfExportsUsed,
+        pdfExportsLimit: user.pdfExportsLimit,
         atsScansUsed: user.atsScansUsed,
+        atsScansLimit: user.atsScansLimit,
       },
+      periodEnd: user.stripeCurrentPeriodEnd?.toISOString() || null,
       stripeConfigured: Boolean(this.stripe),
+      razorpayConfigured,
     };
   }
 
