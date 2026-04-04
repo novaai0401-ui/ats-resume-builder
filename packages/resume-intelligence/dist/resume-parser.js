@@ -27,6 +27,12 @@ function parseResumeText(rawText) {
                 sections[current].push(line);
                 continue;
             }
+            // "Innovation & POCs" or similar sub-headings inside experience are
+            // descriptions of work done, not separate top-level sections.
+            if (current === 'experience' && heading === 'hobbies' && /innovation/i.test(line)) {
+                sections[current].push(line);
+                continue;
+            }
             current = heading;
             if (!sections[current])
                 sections[current] = [];

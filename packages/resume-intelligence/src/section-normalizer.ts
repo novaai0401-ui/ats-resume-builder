@@ -5,6 +5,8 @@ export type CanonicalSection =
   | 'education'
   | 'projects'
   | 'certifications'
+  | 'languages'
+  | 'hobbies'
   | 'unmapped';
 
 const SECTION_SYNONYMS: Record<CanonicalSection, string[]> = {
@@ -20,7 +22,6 @@ const SECTION_SYNONYMS: Record<CanonicalSection, string[]> = {
     'key competencies',
     'technologies',
     'soft skills',
-    'languages',
     'tools and technologies',
     'technical competencies',
     'areas of expertise',
@@ -48,6 +49,25 @@ const SECTION_SYNONYMS: Record<CanonicalSection, string[]> = {
   education: ['education', 'academics', 'academic background', 'education history', 'qualifications', 'quali cations', 'educational qualifications', 'academic qualifications', 'academic details'],
   projects: ['projects', 'notable projects', 'research', 'achievements', 'accomplishments', 'key projects', 'project experience', 'key achievements'],
   certifications: ['certifications', 'certi cations', 'licenses', 'certificates', 'professional certifications', 'pro essional certi cations', 'training', 'training and certifications', 'courses'],
+  languages: ['languages', 'language proficiency', 'language skills', 'known languages'],
+  hobbies: [
+    'hobbies',
+    'interests',
+    'hobbies and interests',
+    'hobbies interests',
+    'personal interests',
+    'activities',
+    'extracurricular activities',
+    'extra curricular activities',
+    'volunteer experience',
+    'volunteering',
+    'volunteer work',
+    'leisure',
+    'pastimes',
+    'innovation',
+    'ai ml innovation',
+    'ai innovation',
+  ],
   unmapped: [],
 };
 
@@ -151,13 +171,33 @@ const KNOWN_HEADING_PHRASES = new Set([
   'skill set',
   'functional skills',
   'domain expertise',
+  'languages',
+  'language proficiency',
+  'language skills',
+  'known languages',
+  'hobbies',
+  'interests',
+  'hobbies and interests',
+  'hobbies interests',
+  'personal interests',
+  'activities',
+  'extracurricular activities',
+  'extra curricular activities',
+  'volunteer experience',
+  'volunteering',
+  'volunteer work',
+  'leisure',
+  'pastimes',
+  'innovation',
+  'ai ml innovation',
+  'ai innovation',
 ]);
 
 function isHeadingLike(rawLine: string, normalized: string) {
   const raw = String(rawLine || '').trim();
   if (!raw || raw.length > 80) return false;
   if (/^[\-*•·]/.test(raw)) return false;
-  if (/[.,;!?]/.test(raw) && !/:\s*$/.test(raw)) return false;
+  if (/[.,;!?]/.test(raw) && !/:\s*$/.test(raw) && !KNOWN_HEADING_PHRASES.has(normalized)) return false;
   if (/\d{2,}/.test(raw) && !/--\s*\d+\s*of\s*\d+\s*--/.test(raw)) return false;
   if (/:\s*$/.test(raw)) return true;
 
