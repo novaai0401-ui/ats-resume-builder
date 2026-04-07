@@ -10,6 +10,9 @@ const SECTION_SYNONYMS = {
         'professional profile', 'personal profile', 'career profile', 'overview', 'professional overview',
         'career overview', 'professional objective', 'job objective', 'headline',
         'professional headline', 'bio', 'biography', 'about the candidate',
+        // Modern AI / LinkedIn / European CV variants
+        'professional snapshot', 'snapshot', 'value proposition', 'elevator pitch',
+        'who i am', 'my mission', 'my story', 'background',
     ],
     skills: [
         'skills',
@@ -58,6 +61,11 @@ const SECTION_SYNONYMS = {
         'databases',
         'cloud technologies',
         'devops tools',
+        // Modern AI/data variants
+        'machine learning', 'ml skills', 'ai skills', 'data skills',
+        'libraries', 'libraries and frameworks', 'libraries frameworks',
+        'methodologies', 'methods and tools', 'specializations', 'specialisation',
+        'specializations and tools',
     ],
     experience: [
         'experience',
@@ -88,6 +96,8 @@ const SECTION_SYNONYMS = {
         'previous employment',
         'past experience',
         'job experience',
+        'apprenticeship', 'apprenticeships', 'practical experience', 'industrial training',
+        'engagements', 'client engagements', 'project assignments', 'assignments',
     ],
     education: [
         'education', 'academics', 'academic background', 'education history', 'qualifications',

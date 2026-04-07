@@ -11,6 +11,7 @@ import type { ParsedResumeText } from './resume-parser.js';
 import { computeExperienceLevel } from './experience-level.js';
 import { normalizeHeading } from './section-normalizer.js';
 import { enhanceExperienceExtraction } from './experience-enhancer.js';
+import { ADDITIONAL_TECH_SKILLS, hardenString } from './extraction-enhancements.js';
 
 export type MappedResumeResult = ParsedResume & {
   signals: {
@@ -204,6 +205,7 @@ const KNOWN_TECH_SKILLS = [
   'Kafka', 'RabbitMQ', 'gRPC', 'WebSocket',
   'TDD', 'BDD', 'OOP', 'MVC', 'MVVM',
   'Sass', 'Material UI', 'Ant Design', 'Chakra UI',
+  ...ADDITIONAL_TECH_SKILLS,
 ];
 
 function extractTechSkillsFromText(text: string): string[] {
