@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { TkxButton, TkxCard, TkxCardBody, TkxAlert, TkxBadge, TkxFileUpload } from 'tekivex-ui';
 import {
   buildReviewAtsRoute,
   canContinueToReview,
@@ -58,7 +59,8 @@ export default function ResumeStartClient() {
     return session.uploadSummary.sectionsPopulated.map((type) => SECTION_LABELS[type]).join(', ');
   }, [session]);
 
-  async function onUpload(file?: File) {
+  async function onUpload(files: File[]) {
+    const file = files[0];
     if (!file) return;
     setPendingFileName(file.name);
     setLoadingUpload(true);
@@ -87,110 +89,104 @@ export default function ResumeStartClient() {
 
   return (
     <main className="grid">
-      <section className="card col-12 start-shell">
-        <div className="start-shell__head">
-          <h2>Start your resume</h2>
-          <p className="small">Are you uploading an existing resume?</p>
-        </div>
-
-        <div className="start-shell__choices">
-          <div className="start-choice start-choice--upload">
-            <div className="badge-row">
-              <span className="pill">Recommended</span>
-            </div>
-            <h3>Upload existing resume</h3>
-            <p className="small">
-              We will parse and pre-fill your sections so you can review and polish quickly.
-            </p>
-            <label className="btn" style={{ cursor: 'pointer' }}>
-              {uploadButtonLabel}
-              <input
-                type="file"
-                accept=".pdf,.docx,.doc,.txt,.html,.htm,.rtf"
-                onChange={(e) => onUpload(e.target.files?.[0])}
-                disabled={loadingUpload}
-                style={{ display: 'none' }}
-              />
-            </label>
+      <TkxCard as="section" className="col-12 start-shell" padding="lg">
+        <TkxCardBody>
+          <div className="start-shell__head">
+            <h2>Start your resume</h2>
+            <p style={{ fontSize: '0.9rem' }}>Are you uploading an existing resume?</p>
           </div>
 
-          <div className="start-choice">
-            <h3>Start from scratch</h3>
-            <p className="small">
-              Open a blank resume and complete sections step-by-step in guided mode.
-            </p>
-            <button
-              className="btn secondary"
-              onClick={() => {
-                clearPendingUploadSession();
-                router.push(scratchEditorHref);
-              }}
-            >
-              Start from scratch
-            </button>
-          </div>
-        </div>
-
-        {session && (
-          <div className="upload-summary-panel" style={{ marginTop: 20 }}>
-            <div>
-              <strong>Upload processed</strong>
-              <p className="small">Detected experience level: {formatRoleLevel(session.uploadSummary.roleLevel)}.</p>
-              <p className="small">Companies found: {session.uploadSummary.companyCount}. Experience entries: {session.uploadSummary.experienceCount}.</p>
-              <p className="small">
-                Signals: roles {session.uploadSummary.experienceSignals?.roleCount ?? 0}, dated roles {session.uploadSummary.experienceSignals?.rolesWithDateCount ?? 0}, estimated months {session.uploadSummary.experienceSignals?.estimatedTotalMonths ?? 0}.
+          <div className="start-shell__choices">
+            <div className="start-choice start-choice--upload">
+              <div className="badge-row" style={{ marginBottom: 8 }}>
+                <TkxBadge variant="success">Recommended</TkxBadge>
+              </div>
+              <h3>Upload existing resume</h3>
+              <p style={{ fontSize: '0.9rem' }}>
+                We will parse and pre-fill your sections so you can review and polish quickly.
               </p>
-              <p className="small">Sections populated: {populatedLabel}.</p>
+              <TkxFileUpload
+                accept=".pdf,.docx,.doc,.txt,.html,.htm,.rtf"
+                variant="button"
+                label={uploadButtonLabel}
+                isDisabled={loadingUpload}
+                onChange={onUpload}
+              />
             </div>
-            <div className="upload-summary-panel__actions">
-              <button
-                className="btn"
-                onClick={() => {
-                  const navigation = continueToReviewFromStart({
-                    session,
-                    template,
-                    setResume: setResumeStore,
-                    setUploadedFileName,
-                  });
-                  if (!navigation.enabled) return;
-                  if (!navigation.cached) {
-                    setError('Continuing without browser session cache. Keep this tab open while reviewing.');
-                  }
-                  router.push(navigation.href || uploadEditorHref);
-                }}
-                disabled={!canContinueToReview(session) || loadingUpload}
-              >
-                Continue to Review
-              </button>
-              <button
-                className="btn secondary"
-                onClick={() => {
-                  const navigation = continueToReviewAtsFromStart({
-                    session,
-                    template,
-                    setResume: setResumeStore,
-                    setUploadedFileName,
-                  });
-                  if (!navigation.enabled) return;
-                  if (!navigation.cached) {
-                    setError('Continuing without browser session cache. Keep this tab open while reviewing.');
-                  }
-                  router.push(navigation.href || reviewAtsHref);
-                }}
-                disabled={!canContinueToReview(session) || loadingUpload}
-              >
-                Review & ATS
-              </button>
-            </div>
-          </div>
-        )}
 
-        {error && (
-          <div className="message-banner" style={{ marginTop: 16 }}>
-            <p className="small">{error}</p>
+            <div className="start-choice">
+              <h3>Start from scratch</h3>
+              <p style={{ fontSize: '0.9rem' }}>
+                Open a blank resume and complete sections step-by-step in guided mode.
+              </p>
+              <TkxButton
+                variant="outline"
+                onClick={() => {
+                  clearPendingUploadSession();
+                  router.push(scratchEditorHref);
+                }}
+              >
+                Start from scratch
+              </TkxButton>
+            </div>
           </div>
-        )}
-      </section>
+
+          {session && (
+            <div className="upload-summary-panel" style={{ marginTop: 20 }}>
+              <div>
+                <strong>Upload processed</strong>
+                <p style={{ fontSize: '0.9rem' }}>Detected experience level: {formatRoleLevel(session.uploadSummary.roleLevel)}.</p>
+                <p style={{ fontSize: '0.9rem' }}>Companies found: {session.uploadSummary.companyCount}. Experience entries: {session.uploadSummary.experienceCount}.</p>
+                <p style={{ fontSize: '0.9rem' }}>
+                  Signals: roles {session.uploadSummary.experienceSignals?.roleCount ?? 0}, dated roles {session.uploadSummary.experienceSignals?.rolesWithDateCount ?? 0}, estimated months {session.uploadSummary.experienceSignals?.estimatedTotalMonths ?? 0}.
+                </p>
+                <p style={{ fontSize: '0.9rem' }}>Sections populated: {populatedLabel}.</p>
+              </div>
+              <div className="upload-summary-panel__actions" style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                <TkxButton
+                  onClick={() => {
+                    const navigation = continueToReviewFromStart({
+                      session,
+                      template,
+                      setResume: setResumeStore,
+                      setUploadedFileName,
+                    });
+                    if (!navigation.enabled) return;
+                    if (!navigation.cached) {
+                      setError('Continuing without browser session cache. Keep this tab open while reviewing.');
+                    }
+                    router.push(navigation.href || uploadEditorHref);
+                  }}
+                  disabled={!canContinueToReview(session) || loadingUpload}
+                >
+                  Continue to Review
+                </TkxButton>
+                <TkxButton
+                  variant="outline"
+                  onClick={() => {
+                    const navigation = continueToReviewAtsFromStart({
+                      session,
+                      template,
+                      setResume: setResumeStore,
+                      setUploadedFileName,
+                    });
+                    if (!navigation.enabled) return;
+                    if (!navigation.cached) {
+                      setError('Continuing without browser session cache. Keep this tab open while reviewing.');
+                    }
+                    router.push(navigation.href || reviewAtsHref);
+                  }}
+                  disabled={!canContinueToReview(session) || loadingUpload}
+                >
+                  Review & ATS
+                </TkxButton>
+              </div>
+            </div>
+          )}
+
+          {error && <TkxAlert variant="warning" style={{ marginTop: 16 }}>{error}</TkxAlert>}
+        </TkxCardBody>
+      </TkxCard>
     </main>
   );
 }

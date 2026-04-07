@@ -2240,19 +2240,19 @@ h2 {
 @media (max-width: 600px) {
   .grid {
     grid-template-columns: repeat(1, 1fr);
+    gap: 12px;
   }
-  .col-7, .col-5 {
-    grid-column: span 1;
-  }
-  .col-4 {
-    grid-column: span 1;
-  }
-  .col-6 {
+  .col-7, .col-5, .col-4, .col-6, .col-12 {
     grid-column: span 1;
   }
   .topbar {
     flex-direction: column;
     align-items: flex-start;
+    gap: 10px;
+  }
+  .nav {
+    flex-wrap: wrap;
+    gap: 8px;
   }
   .review-ats-panel__score strong {
     font-size: 40px;
@@ -2260,6 +2260,93 @@ h2 {
   .review-grid,
   .template-grid-layout {
     grid-template-columns: repeat(1, 1fr);
+  }
+  .section-navigator {
+    position: static;
+    max-height: none;
+    overflow: visible;
+  }
+  .template-live__canvas {
+    min-height: 280px;
+    padding: 10px;
+  }
+  .editor-header {
+    gap: 10px;
+  }
+  .editor-actions {
+    gap: 8px;
+  }
+  .step-nav__steps {
+    gap: 6px;
+  }
+}
+
+/* ─── Mobile base styles ─────────────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .main-shell {
+    width: 100%;
+    padding: 12px;
+  }
+  .brand {
+    font-size: 17px;
+  }
+  .nav a {
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+  .section-actions {
+    gap: 6px;
+  }
+  .template-card__actions {
+    flex-direction: column;
+  }
+  .template-card__action {
+    flex: 1 1 auto;
+  }
+  .start-shell__choices {
+    grid-template-columns: 1fr;
+  }
+  .step-chip {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+  .dashboard-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .resume-title-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .guidance-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* ─── Touch target minimums ──────────────────────────────────────────────── */
+@media (pointer: coarse) {
+  .nav a {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+  .step-chip {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+  .section-navigator__item {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+  .skill-chip {
+    min-height: 36px;
+    padding: 8px 12px;
+  }
+  .template-card__preview-overlay {
+    opacity: 1;
   }
 }
 

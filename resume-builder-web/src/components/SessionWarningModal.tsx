@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { TkxButton, TkxModal } from 'tekivex-ui';
 import { api, getAccessToken, clearAuthTokens, refresh, setAuthTokens } from '@/src/lib/api';
 
 /** Session duration in ms (30 minutes). */
@@ -133,28 +134,31 @@ export default function SessionWarningModal() {
     }
   }
 
-  if (!visible) return null;
-
   const minutes = Math.floor(secondsLeft / 60);
   const seconds = secondsLeft % 60;
   const timeDisplay = `${minutes}:${String(seconds).padStart(2, '0')}`;
 
   return (
-    <div className="session-warning-overlay" role="alertdialog" aria-label="Session expiry warning">
-      <div className="session-warning-modal">
-        <h3>Session Expiring Soon</h3>
-        <p className="small">Your session will expire in:</p>
-        <div className="session-warning-modal__countdown">{timeDisplay}</div>
-        <p className="small">Would you like to continue your session?</p>
-        <div className="session-warning-modal__actions">
-          <button className="btn" onClick={handleContinue} disabled={extending}>
-            {extending ? 'Extending...' : 'Continue Session'}
-          </button>
-          <button className="btn secondary" onClick={doLogout}>
+    <TkxModal
+      isOpen={visible}
+      onClose={doLogout}
+      title="Session Expiring Soon"
+      size="sm"
+      closeOnOverlayClick={false}
+      footer={
+        <div style={{ display: 'flex', gap: 8 }}>
+          <TkxButton onClick={handleContinue} isLoading={extending} loadingText="Extending...">
+            Continue Session
+          </TkxButton>
+          <TkxButton variant="outline" onClick={doLogout}>
             Logout
-          </button>
+          </TkxButton>
         </div>
-      </div>
-    </div>
+      }
+    >
+      <p style={{ margin: 0 }}>Your session will expire in:</p>
+      <div style={{ fontSize: '2rem', fontWeight: 700, textAlign: 'center', margin: '12px 0' }}>{timeDisplay}</div>
+      <p style={{ margin: 0 }}>Would you like to continue your session?</p>
+    </TkxModal>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+import { TkxButton, TkxInput, TkxCard, TkxCardBody, TkxAlert, TkxDivider } from 'tekivex-ui';
 import { api } from '@/src/lib/api';
 
 type RouterLike = {
@@ -19,10 +19,6 @@ export type LoginPageProps = {
   defaultMode?: 'login' | 'register';
 };
 
-/**
- * Social login providers — always visible.
- * Each links to a backend OAuth start route that redirects to the provider.
- */
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001';
 
 const SOCIAL_PROVIDERS = [
@@ -37,17 +33,12 @@ export function LoginPageView({ apiClient = api, routerOverride, defaultMode = '
   const router = routerOverride ?? nextRouter ?? fallbackRouter;
 
   const [mode, setMode] = useState<'login' | 'register'>(defaultMode);
-
-  // Login state
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-
-  // Register state
   const [regName, setRegName] = useState('');
   const [regEmail, setRegEmail] = useState('');
   const [regMobile, setRegMobile] = useState('');
   const [regPassword, setRegPassword] = useState('');
-
   const [error, setError] = useState('');
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(false);
@@ -91,89 +82,142 @@ export function LoginPageView({ apiClient = api, routerOverride, defaultMode = '
 
   return (
     <main className="grid">
-      <section className="card col-5">
-        <h2 style={{ marginBottom: 4 }}>{mode === 'login' ? 'Sign In' : 'Create Account'}</h2>
-        <p className="small" style={{ marginBottom: 16, color: 'var(--fg-muted, #666)' }}>
-          {mode === 'login' ? 'Choose your preferred sign-in method.' : 'Get started with your free account.'}
-        </p>
+      <TkxCard as="section" className="col-5" padding="lg">
+        <TkxCardBody>
+          <h2 style={{ marginBottom: 4 }}>{mode === 'login' ? 'Sign In' : 'Create Account'}</h2>
+          <p style={{ marginBottom: 16, fontSize: '0.9rem', color: '#666' }}>
+            {mode === 'login' ? 'Choose your preferred sign-in method.' : 'Get started with your free account.'}
+          </p>
 
-        {/* ─── Social Provider Buttons (always visible) ─── */}
-        <div style={{ display: 'grid', gap: 10, marginBottom: 16 }}>
-          {SOCIAL_PROVIDERS.map((provider) => (
-            <a
-              key={provider.id}
-              href={provider.url}
-              className="btn secondary"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8,
-                textDecoration: 'none',
-                padding: '12px 16px',
-                fontSize: '0.95rem',
-              }}
-            >
-              Continue with {provider.name}
-            </a>
-          ))}
-        </div>
+          <div style={{ display: 'grid', gap: 10, marginBottom: 16 }}>
+            {SOCIAL_PROVIDERS.map((provider) => (
+              <a
+                key={provider.id}
+                href={provider.url}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  textDecoration: 'none',
+                  padding: '12px 16px',
+                  fontSize: '0.95rem',
+                  border: '1px solid #d9e3ec',
+                  borderRadius: 8,
+                  background: '#fff',
+                  color: 'inherit',
+                  fontWeight: 500,
+                }}
+              >
+                Continue with {provider.name}
+              </a>
+            ))}
+          </div>
 
-        {/* ─── Divider ─── */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '8px 0 16px' }}>
-          <div style={{ flex: 1, height: 1, background: 'var(--border, #ddd)' }} />
-          <span className="small" style={{ color: 'var(--fg-muted, #888)' }}>or use email</span>
-          <div style={{ flex: 1, height: 1, background: 'var(--border, #ddd)' }} />
-        </div>
+          <TkxDivider style={{ margin: '8px 0 16px' }}>or use email</TkxDivider>
 
-        {/* ─── Email/Password Form ─── */}
-        <div style={{ display: 'grid', gap: 12 }}>
-          {mode === 'login' ? (
-            <form onSubmit={handlePasswordLogin} style={{ display: 'grid', gap: 12 }}>
-              <label className="label" htmlFor="login-email">Email</label>
-              <input id="login-email" className="input" type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
-              <label className="label" htmlFor="login-password">Password</label>
-              <input id="login-password" className="input" type="password" placeholder="Enter password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} />
-              <button className="btn" type="submit" disabled={loading}>{loading ? 'Signing in...' : 'Sign In'}</button>
-            </form>
-          ) : (
-            <form onSubmit={handleRegister} style={{ display: 'grid', gap: 12 }}>
-              <label className="label" htmlFor="reg-name">Full Name</label>
-              <input id="reg-name" className="input" type="text" placeholder="John Doe" value={regName} onChange={(e) => setRegName(e.target.value)} required minLength={2} />
-              <label className="label" htmlFor="reg-email">Email</label>
-              <input id="reg-email" className="input" type="email" placeholder="you@example.com" value={regEmail} onChange={(e) => setRegEmail(e.target.value)} required />
-              <label className="label" htmlFor="reg-mobile">Mobile</label>
-              <input id="reg-mobile" className="input" type="tel" inputMode="numeric" placeholder="+919XXXXXXXXX" value={regMobile} onChange={(e) => setRegMobile(e.target.value)} required minLength={10} />
-              <label className="label" htmlFor="reg-password">Password</label>
-              <input id="reg-password" className="input" type="password" placeholder="Min 8 characters" value={regPassword} onChange={(e) => setRegPassword(e.target.value)} required minLength={8} />
-              <button className="btn" type="submit" disabled={loading}>{loading ? 'Creating account...' : 'Create Account'}</button>
-            </form>
-          )}
+          <div style={{ display: 'grid', gap: 12 }}>
+            {mode === 'login' ? (
+              <form onSubmit={handlePasswordLogin} style={{ display: 'grid', gap: 12 }}>
+                <TkxInput
+                  label="Email"
+                  id="login-email"
+                  type="email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+                <TkxInput
+                  label="Password"
+                  id="login-password"
+                  type="password"
+                  placeholder="Enter password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={8}
+                />
+                <TkxButton type="submit" isFullWidth isLoading={loading} loadingText="Signing in...">
+                  Sign In
+                </TkxButton>
+              </form>
+            ) : (
+              <form onSubmit={handleRegister} style={{ display: 'grid', gap: 12 }}>
+                <TkxInput
+                  label="Full Name"
+                  id="reg-name"
+                  type="text"
+                  placeholder="John Doe"
+                  value={regName}
+                  onChange={(e) => setRegName(e.target.value)}
+                  required
+                  minLength={2}
+                />
+                <TkxInput
+                  label="Email"
+                  id="reg-email"
+                  type="email"
+                  placeholder="you@example.com"
+                  value={regEmail}
+                  onChange={(e) => setRegEmail(e.target.value)}
+                  required
+                />
+                <TkxInput
+                  label="Mobile"
+                  id="reg-mobile"
+                  type="tel"
+                  inputMode="numeric"
+                  placeholder="+919XXXXXXXXX"
+                  value={regMobile}
+                  onChange={(e) => setRegMobile(e.target.value)}
+                  required
+                  minLength={10}
+                />
+                <TkxInput
+                  label="Password"
+                  id="reg-password"
+                  type="password"
+                  placeholder="Min 8 characters"
+                  value={regPassword}
+                  onChange={(e) => setRegPassword(e.target.value)}
+                  required
+                  minLength={8}
+                />
+                <TkxButton type="submit" isFullWidth isLoading={loading} loadingText="Creating account...">
+                  Create Account
+                </TkxButton>
+              </form>
+            )}
 
-          {status ? <p className="small" style={{ color: '#1e5b35' }}>{status}</p> : null}
-          {error ? <div className="message-banner"><p className="small">{error}</p></div> : null}
+            {status ? <p style={{ fontSize: '0.85rem', color: '#1e5b35' }}>{status}</p> : null}
+            {error ? <TkxAlert variant="danger">{error}</TkxAlert> : null}
 
-          {mode === 'login' ? (
-            <Link href="/auth/register" className="btn ghost" style={{ justifySelf: 'start', fontSize: '0.85rem' }}>
-              New here? Create account
-            </Link>
-          ) : (
-            <Link href="/auth/login" className="btn ghost" style={{ justifySelf: 'start', fontSize: '0.85rem' }}>
-              Already have an account? Sign in
-            </Link>
-          )}
-        </div>
-      </section>
-      <section className="card col-7">
-        <h3>Why sign in?</h3>
-        <ul className="small" style={{ margin: 0, paddingLeft: 16, lineHeight: 1.8 }}>
-          <li>Save and manage multiple resumes</li>
-          <li>Get AI-powered ATS optimization</li>
-          <li>Identify technology and skill gaps</li>
-          <li>Export professional PDF templates</li>
-          <li>Sync across all your devices</li>
-        </ul>
-      </section>
+            {mode === 'login' ? (
+              <TkxButton variant="ghost" size="sm" type="button" onClick={() => setMode('register')}>
+                New here? Create account
+              </TkxButton>
+            ) : (
+              <TkxButton variant="ghost" size="sm" type="button" onClick={() => setMode('login')}>
+                Already have an account? Sign in
+              </TkxButton>
+            )}
+          </div>
+        </TkxCardBody>
+      </TkxCard>
+
+      <TkxCard as="section" className="col-7" padding="lg">
+        <TkxCardBody>
+          <h3>Why sign in?</h3>
+          <ul style={{ margin: 0, paddingLeft: 16, lineHeight: 1.8, fontSize: '0.9rem' }}>
+            <li>Save and manage multiple resumes</li>
+            <li>Get AI-powered ATS optimization</li>
+            <li>Identify technology and skill gaps</li>
+            <li>Export professional PDF templates</li>
+            <li>Sync across all your devices</li>
+          </ul>
+        </TkxCardBody>
+      </TkxCard>
     </main>
   );
 }

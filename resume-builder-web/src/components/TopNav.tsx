@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { TkxButton } from 'tekivex-ui';
 import { api, getAccessToken, isCurrentUserAdmin, startSessionHeartbeat } from '@/src/lib/api';
 import SessionWarningModal from './SessionWarningModal';
 
@@ -50,7 +51,7 @@ export default function TopNav() {
       )}
       {authed && admin ? <Link href="/admin/settings">Admin</Link> : null}
       {authed ? (
-        <button className="btn secondary" type="button" onClick={onLogout}>Logout</button>
+        <TkxButton variant="outline" size="sm" type="button" onClick={onLogout}>Logout</TkxButton>
       ) : (
         <>
           <Link href="/auth/login">Login</Link>

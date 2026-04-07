@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { TkxButton, TkxCard, TkxCardBody, TkxSelect, TkxModal, TkxAlert } from 'tekivex-ui';
 import { TEMPLATE_CATALOG } from 'resume-builder-shared';
 import { api, getAccessToken, type DriveSessionResponse, type Resume } from '@/src/lib/api';
 import TemplateCatalogGrid from '@/src/components/templates/TemplateCatalogGrid';
@@ -243,157 +244,130 @@ export default function DashboardPageView({
     <main style={{ width: 'min(1400px, 94vw)', margin: '0 auto', padding: 24 }}>
       <header style={{ marginBottom: 14 }}>
         <h1 style={{ marginBottom: 4 }}>Dashboard</h1>
-        <p className="small" style={{ margin: 0 }}>
-          Choose a resume, then browse ATS-safe templates.
-        </p>
+        <p style={{ margin: 0, fontSize: '0.9rem' }}>Choose a resume, then browse ATS-safe templates.</p>
       </header>
 
-      <section
-        data-testid="dashboard-preview-profile"
-        style={{ border: '1px solid #e5e7eb', borderRadius: 10, padding: 16, background: '#fff', marginBottom: 14 }}
-      >
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-          <div>
-            <h2 style={{ margin: 0, fontSize: 18 }}>{profileName}</h2>
-            {profileRole ? (
-              <p className="small" style={{ margin: '6px 0 0' }}>
-                {profileRole}
-              </p>
-            ) : (
-              <p className="small" style={{ margin: '6px 0 0' }}>
-                Select a saved resume or upload a new one to preview templates.
-              </p>
-            )}
-            {activeResumeUpdatedAt ? (
-              <p className="small" style={{ margin: '6px 0 0' }}>
-                Last updated: {activeResumeUpdatedAt}
-              </p>
+      <TkxCard as="section" data-testid="dashboard-preview-profile" style={{ marginBottom: 14 }} padding="md">
+        <TkxCardBody>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+            <div>
+              <h2 style={{ margin: 0, fontSize: 18 }}>{profileName}</h2>
+              {profileRole ? (
+                <p style={{ margin: '6px 0 0', fontSize: '0.9rem' }}>{profileRole}</p>
+              ) : (
+                <p style={{ margin: '6px 0 0', fontSize: '0.9rem' }}>
+                  Select a saved resume or upload a new one to preview templates.
+                </p>
+              )}
+              {activeResumeUpdatedAt ? (
+                <p style={{ margin: '6px 0 0', fontSize: '0.9rem' }}>Last updated: {activeResumeUpdatedAt}</p>
+              ) : null}
+            </div>
+            {sortedResumes.length > 0 ? (
+              <div style={{ minWidth: 260 }}>
+                <TkxSelect
+                  label="Selected resume"
+                  id="dashboard-resume-select"
+                  value={selectedResumeId}
+                  options={[
+                    { value: '', label: 'Select a saved resume' },
+                    ...sortedResumes.map((resume) => ({ value: resume.id, label: resume.title })),
+                  ]}
+                  onChange={(v) => {
+                    const nextResumeId = String(v || '').trim();
+                    setSelectedResumeId(nextResumeId);
+                    setStatus('');
+                    setError('');
+                    if (nextResumeId) {
+                      persistActiveResumeSelection(nextResumeId);
+                      return;
+                    }
+                    clearActiveResumeSelection();
+                  }}
+                />
+              </div>
             ) : null}
           </div>
-          {sortedResumes.length > 0 ? (
-            <label style={{ display: 'grid', gap: 6, minWidth: 260 }}>
-              <span className="small">Selected resume</span>
-              <select
-                className="input"
-                value={selectedResumeId}
-                onChange={(event) => {
-                  const nextResumeId = String(event.target.value || '').trim();
-                  setSelectedResumeId(nextResumeId);
-                  setStatus('');
-                  setError('');
-                  if (nextResumeId) {
-                    persistActiveResumeSelection(nextResumeId);
+        </TkxCardBody>
+      </TkxCard>
+
+      <TkxCard as="section" data-testid="dashboard-template-section" padding="md">
+        <TkxCardBody>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+            <div>
+              <h2 style={{ margin: 0 }}>Choose a template</h2>
+              <p style={{ margin: '6px 0 0', fontSize: '0.9rem' }}>
+                Same catalog as template selection, optimized for ATS-safe export.
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <Link href="/resume/start">
+                <TkxButton variant="outline" as="span">Create Resume</TkxButton>
+              </Link>
+              <TkxButton
+                type="button"
+                onClick={() => {
+                  if (activeResume?.id) {
+                    router.push(buildTemplateSelectionRoute(activeResume.id));
                     return;
                   }
-                  clearActiveResumeSelection();
+                  router.push('/resume/start');
                 }}
-                data-testid="dashboard-resume-select"
               >
-                <option value="">Select a saved resume</option>
-                {sortedResumes.map((resume) => (
-                  <option key={resume.id} value={resume.id}>
-                    {resume.title}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : null}
-        </div>
-      </section>
+                Start from Template
+              </TkxButton>
+            </div>
+          </div>
 
-      <section className="card" data-testid="dashboard-template-section">
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-          <div>
-            <h2 style={{ margin: 0 }}>Choose a template</h2>
-            <p className="small" style={{ margin: '6px 0 0' }}>
-              Same catalog as template selection, optimized for ATS-safe export.
+          {resumesLoading ? <p style={{ marginTop: 12, fontSize: '0.9rem' }}>Loading resumes...</p> : null}
+          {!activeResume?.id ? (
+            <p style={{ marginTop: 12, fontSize: '0.9rem' }} className="template-empty">
+              Select a saved resume or upload a new one to preview templates.
             </p>
+          ) : null}
+
+          <div style={{ marginTop: 12 }}>
+            <TemplateCatalogGrid
+              templates={DASHBOARD_TEMPLATE_OPTIONS}
+              previewResume={effectivePreviewResume}
+              selectedTemplate={selectedTemplate}
+              recommendation={recommendation}
+              hoveredTemplate={hoveredTemplate}
+              onHoverTemplate={(templateId) => setHoveredTemplate(templateId)}
+              onPreviewTemplate={handleTemplatePreview}
+              onSelectTemplate={handleTemplateSelect}
+              primaryActionLabel="Use Template"
+              layoutVariant="gallery"
+              disabled={templateSaving || resumesLoading}
+              previewLoading={resumesLoading}
+              dataTestId="dashboard-template-grid"
+            />
           </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <Link className="btn secondary" href="/resume/start">
-              Create Resume
-            </Link>
-            <button
-              className="btn"
-              type="button"
-              onClick={() => {
-                if (activeResume?.id) {
-                  router.push(buildTemplateSelectionRoute(activeResume.id));
-                  return;
-                }
-                router.push('/resume/start');
-              }}
-            >
-              Start from Template
-            </button>
-          </div>
-        </div>
+        </TkxCardBody>
+      </TkxCard>
 
-        {resumesLoading ? <p className="small" style={{ marginTop: 12 }}>Loading resumes...</p> : null}
-        {!activeResume?.id ? (
-          <p className="small template-empty" style={{ marginTop: 12 }}>
-            Select a saved resume or upload a new one to preview templates.
-          </p>
-        ) : null}
+      {status && <p style={{ marginTop: 12, fontSize: '0.9rem' }}>{status}</p>}
+      {error && <TkxAlert variant="danger" style={{ marginTop: 12 }}>{error}</TkxAlert>}
 
-        <div style={{ marginTop: 12 }}>
-          <TemplateCatalogGrid
-            templates={DASHBOARD_TEMPLATE_OPTIONS}
-            previewResume={effectivePreviewResume}
-            selectedTemplate={selectedTemplate}
-            recommendation={recommendation}
-            hoveredTemplate={hoveredTemplate}
-            onHoverTemplate={(templateId) => setHoveredTemplate(templateId)}
-            onPreviewTemplate={handleTemplatePreview}
-            onSelectTemplate={handleTemplateSelect}
-            primaryActionLabel="Use Template"
-            layoutVariant="gallery"
-            disabled={templateSaving || resumesLoading}
-            previewLoading={resumesLoading}
-            dataTestId="dashboard-template-grid"
-          />
-        </div>
-      </section>
-
-      {status && (
-        <p className="small" style={{ marginTop: 12 }}>
-          {status}
-        </p>
-      )}
-
-      {error && (
-        <p className="small" style={{ marginTop: 12, color: '#b91c1c' }}>
-          {error}
-        </p>
-      )}
-
-      {showDriveConsentModal && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          data-testid="drive-consent-modal"
-          style={{
-            marginTop: 20,
-            border: '1px solid #d1d5db',
-            borderRadius: 12,
-            padding: 16,
-            background: '#fafafa',
-          }}
-        >
-          <h3 style={{ marginTop: 0 }}>Connect Google Drive?</h3>
-          <p className="small" style={{ marginTop: 8 }}>
-            Import resumes from Drive to speed up setup.
-          </p>
-          <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
-            <button className="btn secondary" type="button" onClick={handleLater} disabled={consentLoading}>
+      <TkxModal
+        isOpen={showDriveConsentModal}
+        onClose={handleLater}
+        title="Connect Google Drive?"
+        size="sm"
+        data-testid="drive-consent-modal"
+        footer={
+          <div style={{ display: 'flex', gap: 8 }}>
+            <TkxButton variant="outline" type="button" onClick={handleLater} disabled={consentLoading}>
               Later
-            </button>
-            <button className="btn" type="button" onClick={handleConnect} disabled={consentLoading}>
+            </TkxButton>
+            <TkxButton type="button" onClick={handleConnect} isLoading={consentLoading} loadingText="Connecting...">
               Connect
-            </button>
+            </TkxButton>
           </div>
-        </div>
-      )}
+        }
+      >
+        <p style={{ margin: 0 }}>Import resumes from Drive to speed up setup.</p>
+      </TkxModal>
     </main>
   );
 }

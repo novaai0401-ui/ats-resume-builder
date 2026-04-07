@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { TkxButton, TkxCard, TkxCardBody, TkxAlert } from 'tekivex-ui';
 import { api, getAccessToken, type Resume } from '@/src/lib/api';
 import { templates, type TemplateId } from '@/src/components/TemplatePreview';
 import ResumeTemplateRender from '@/src/components/ResumeTemplateRender';
@@ -110,62 +111,61 @@ export default function TemplatePreviewPageClient() {
   if (!activeResumeId && !loading) {
     return (
       <main className="grid">
-        <section className="card col-12">
-          <h2>Template Preview</h2>
-          <p className="small">Select a saved resume or upload a new one to preview templates.</p>
-        </section>
+        <TkxCard as="section" className="col-12" padding="lg">
+          <TkxCardBody>
+            <h2>Template Preview</h2>
+            <p style={{ fontSize: '0.9rem' }}>Select a saved resume or upload a new one to preview templates.</p>
+          </TkxCardBody>
+        </TkxCard>
       </main>
     );
   }
 
   return (
     <main className="grid template-grid-layout">
-      <section className="card col-7">
-        <h2>Template Preview</h2>
-        <p className="small">
-          {loading ? 'Loading preview...' : `Viewing ${selectedTemplate?.name || 'template'} for your resume.`}
-        </p>
-        <div className="template-live__canvas" style={{ marginTop: 12 }}>
-          {previewResume ? (
-            <ResumeTemplateRender
-              templateId={templateId}
-              resumeData={previewResume}
-              mode="full"
-            />
-          ) : (
-            <p className="small">Preview unavailable.</p>
-          )}
-        </div>
-      </section>
-      <section className="card col-5">
-        <h3 style={{ marginTop: 0 }}>Actions</h3>
-        <p className="small">{selectedTemplate?.description || 'Select a template from dashboard preview cards.'}</p>
-        <div style={{ display: 'grid', gap: 8, marginTop: 12 }}>
-          <button className="btn" onClick={handleApplyTemplate} disabled={!resume || !activeResumeId || saving || loading}>
-            {saving ? 'Applying...' : 'Apply Template'}
-          </button>
-          <button
-            className="btn secondary"
-            onClick={() => router.push(activeResumeId ? `/resume?id=${encodeURIComponent(activeResumeId)}&template=${encodeURIComponent(templateId)}` : '/resume')}
-            disabled={!activeResumeId}
-          >
-            Edit Resume
-          </button>
-          <button className="btn secondary" onClick={() => router.push('/dashboard')}>
-            Back to Dashboard
-          </button>
-        </div>
-        {message ? (
-          <div className="message-banner" style={{ marginTop: 12 }}>
-            <p className="small">{message}</p>
+      <TkxCard as="section" className="col-7" padding="lg">
+        <TkxCardBody>
+          <h2>Template Preview</h2>
+          <p style={{ fontSize: '0.9rem' }}>
+            {loading ? 'Loading preview...' : `Viewing ${selectedTemplate?.name || 'template'} for your resume.`}
+          </p>
+          <div className="template-live__canvas" style={{ marginTop: 12 }}>
+            {previewResume ? (
+              <ResumeTemplateRender
+                templateId={templateId}
+                resumeData={previewResume}
+                mode="full"
+              />
+            ) : (
+              <p style={{ fontSize: '0.9rem' }}>Preview unavailable.</p>
+            )}
           </div>
-        ) : null}
-        {error ? (
-          <div className="message-banner" style={{ marginTop: 12 }}>
-            <p className="small">{error}</p>
+        </TkxCardBody>
+      </TkxCard>
+      <TkxCard as="section" className="col-5" padding="lg">
+        <TkxCardBody>
+          <h3 style={{ marginTop: 0 }}>Actions</h3>
+          <p style={{ fontSize: '0.9rem' }}>{selectedTemplate?.description || 'Select a template from dashboard preview cards.'}</p>
+          <div style={{ display: 'grid', gap: 8, marginTop: 12 }}>
+            <TkxButton isFullWidth onClick={handleApplyTemplate} disabled={!resume || !activeResumeId || saving || loading} isLoading={saving} loadingText="Applying...">
+              Apply Template
+            </TkxButton>
+            <TkxButton
+              variant="outline"
+              isFullWidth
+              onClick={() => router.push(activeResumeId ? `/resume?id=${encodeURIComponent(activeResumeId)}&template=${encodeURIComponent(templateId)}` : '/resume')}
+              disabled={!activeResumeId}
+            >
+              Edit Resume
+            </TkxButton>
+            <TkxButton variant="outline" isFullWidth onClick={() => router.push('/dashboard')}>
+              Back to Dashboard
+            </TkxButton>
           </div>
-        ) : null}
-      </section>
+          {message ? <TkxAlert variant="success" style={{ marginTop: 12 }}>{message}</TkxAlert> : null}
+          {error ? <TkxAlert variant="danger" style={{ marginTop: 12 }}>{error}</TkxAlert> : null}
+        </TkxCardBody>
+      </TkxCard>
     </main>
   );
 }

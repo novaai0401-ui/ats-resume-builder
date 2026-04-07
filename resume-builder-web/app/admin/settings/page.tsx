@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { TkxButton, TkxCard, TkxCardBody, TkxAlert } from 'tekivex-ui';
 import {
   api,
   getAccessToken,
@@ -104,81 +105,75 @@ export default function AdminSettingsPage() {
 
   return (
     <main className="grid">
-      <section className="card col-7">
-        <h2>Admin Settings</h2>
-        <p className="small">Control runtime feature flags for backend behavior.</p>
-        {loading ? (
-          <p className="small">Loading settings...</p>
-        ) : null}
-        {!loading && !hasAccess ? (
-          <div className="message-banner" style={{ marginTop: 12 }}>
-            <p className="small">{error || 'Admin access required.'}</p>
-          </div>
-        ) : null}
-        {!loading && hasAccess ? (
-          <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
-            <div style={{ display: 'grid', gap: 8 }}>
-              <label className="label" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <input
-                  type="checkbox"
-                  checked={rateLimitEnabled}
-                  onChange={(event) => setRateLimitEnabled(event.target.checked)}
-                  disabled={savingRateLimit}
-                />
-                <span>Enable Resume Creation Rate Limit</span>
-              </label>
-              <p className="small">Current state: <strong>{rateLimitStatusText}</strong></p>
-              <p className="small">
-                Last updated: {updatedAt ? new Date(updatedAt).toLocaleString() : 'Not set'}
-              </p>
-            </div>
-            <div style={{ display: 'grid', gap: 8 }}>
-              <label className="label" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <input
-                  type="checkbox"
-                  checked={paymentEnabled}
-                  onChange={(event) => setPaymentEnabled(event.target.checked)}
-                  disabled={savingPayment}
-                />
-                <span>Enable Payment Feature Enforcement</span>
-              </label>
-              <p className="small">Current state: <strong>{paymentStatusText}</strong></p>
-            </div>
-            {forcedDisabled ? (
-              <div className="message-banner">
-                <p className="small">`FORCE_DISABLE_RATE_LIMIT=true` is active. Rate limit is currently forced OFF.</p>
+      <TkxCard as="section" className="col-7" padding="lg">
+        <TkxCardBody>
+          <h2>Admin Settings</h2>
+          <p style={{ fontSize: '0.9rem' }}>Control runtime feature flags for backend behavior.</p>
+          {loading ? <p style={{ fontSize: '0.9rem' }}>Loading settings...</p> : null}
+          {!loading && !hasAccess ? (
+            <TkxAlert variant="danger" style={{ marginTop: 12 }}>{error || 'Admin access required.'}</TkxAlert>
+          ) : null}
+          {!loading && hasAccess ? (
+            <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
+              <div style={{ display: 'grid', gap: 8 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontWeight: 500 }}>
+                  <input
+                    type="checkbox"
+                    checked={rateLimitEnabled}
+                    onChange={(event) => setRateLimitEnabled(event.target.checked)}
+                    disabled={savingRateLimit}
+                  />
+                  <span>Enable Resume Creation Rate Limit</span>
+                </label>
+                <p style={{ fontSize: '0.9rem' }}>Current state: <strong>{rateLimitStatusText}</strong></p>
+                <p style={{ fontSize: '0.9rem' }}>
+                  Last updated: {updatedAt ? new Date(updatedAt).toLocaleString() : 'Not set'}
+                </p>
               </div>
-            ) : null}
-            {error ? (
-              <div className="message-banner">
-                <p className="small">{error}</p>
+              <div style={{ display: 'grid', gap: 8 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontWeight: 500 }}>
+                  <input
+                    type="checkbox"
+                    checked={paymentEnabled}
+                    onChange={(event) => setPaymentEnabled(event.target.checked)}
+                    disabled={savingPayment}
+                  />
+                  <span>Enable Payment Feature Enforcement</span>
+                </label>
+                <p style={{ fontSize: '0.9rem' }}>Current state: <strong>{paymentStatusText}</strong></p>
               </div>
-            ) : null}
-            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 4 }}>
-              <button className="btn" onClick={onSaveRateLimit} disabled={savingRateLimit}>
-                {savingRateLimit ? 'Saving...' : 'Save Rate Limit'}
-              </button>
-              <button className="btn" onClick={onSavePayment} disabled={savingPayment}>
-                {savingPayment ? 'Saving...' : 'Save Payment Flag'}
-              </button>
+              {forcedDisabled ? (
+                <TkxAlert variant="warning">`FORCE_DISABLE_RATE_LIMIT=true` is active. Rate limit is currently forced OFF.</TkxAlert>
+              ) : null}
+              {error ? <TkxAlert variant="danger">{error}</TkxAlert> : null}
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 4 }}>
+                <TkxButton onClick={onSaveRateLimit} isLoading={savingRateLimit} loadingText="Saving...">
+                  Save Rate Limit
+                </TkxButton>
+                <TkxButton onClick={onSavePayment} isLoading={savingPayment} loadingText="Saving...">
+                  Save Payment Flag
+                </TkxButton>
+              </div>
             </div>
-          </div>
-        ) : null}
-        {toast ? (
-          <div className={`snackbar ${toast.type}`} role="status" aria-live="polite">
-            {toast.text}
-          </div>
-        ) : null}
-      </section>
-      <section className="card col-5">
-        <h3>Rollout Guidance</h3>
-        <p className="small">
-          Keep this flag disabled in pre-launch/testing. Enable it when rollout starts.
-        </p>
-        <p className="small">
-          For emergencies, set `FORCE_DISABLE_RATE_LIMIT=true` and restart the API to hard-disable it.
-        </p>
-      </section>
+          ) : null}
+          {toast ? (
+            <div className={`snackbar ${toast.type}`} role="status" aria-live="polite">
+              {toast.text}
+            </div>
+          ) : null}
+        </TkxCardBody>
+      </TkxCard>
+      <TkxCard as="section" className="col-5" padding="lg">
+        <TkxCardBody>
+          <h3>Rollout Guidance</h3>
+          <p style={{ fontSize: '0.9rem' }}>
+            Keep this flag disabled in pre-launch/testing. Enable it when rollout starts.
+          </p>
+          <p style={{ fontSize: '0.9rem' }}>
+            For emergencies, set `FORCE_DISABLE_RATE_LIMIT=true` and restart the API to hard-disable it.
+          </p>
+        </TkxCardBody>
+      </TkxCard>
     </main>
   );
 }

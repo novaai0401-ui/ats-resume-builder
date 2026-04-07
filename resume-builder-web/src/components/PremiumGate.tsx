@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { TkxButton, TkxModal } from 'tekivex-ui';
 import { getAccessToken, api } from '@/src/lib/api';
 
 export type PremiumFeature =
@@ -88,60 +89,54 @@ export default function PremiumGate({ feature, children }: PremiumGateProps) {
   // Upgrade modal
   if (showModal) {
     return (
-      <div className="premium-gate">
-        <div className="premium-gate__icon">⭐</div>
-        <h4 className="premium-gate__title">{featureInfo.title}</h4>
-        <p className="small" style={{ marginBottom: 12 }}>{featureInfo.description}</p>
-
-        <div style={{ display: 'grid', gap: 10, maxWidth: 340, margin: '0 auto' }}>
-          {/* Cheapest option first */}
-          <button
-            className="btn"
+      <TkxModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        title={featureInfo.title}
+        size="sm"
+        footer={
+          <TkxButton variant="ghost" size="sm" onClick={() => setShowModal(false)}>
+            Continue with free features
+          </TkxButton>
+        }
+      >
+        <p style={{ margin: '0 0 16px' }}>{featureInfo.description}</p>
+        <div style={{ display: 'grid', gap: 10 }}>
+          <TkxButton
+            isFullWidth
             onClick={async () => {
               try {
                 await api.addPremiumCredits(5);
                 setCredits(5);
                 setShowModal(false);
                 setAccessGranted(true);
-              } catch (e: unknown) {
-                // fallback: redirect to billing
+              } catch {
                 router.push('/billing');
               }
             }}
-            style={{ background: '#2f5f8f' }}
           >
             Get Boost Pack (5 credits) — Free Trial
-          </button>
-
-          <button className="btn secondary" onClick={() => router.push('/billing')}>
+          </TkxButton>
+          <TkxButton variant="outline" isFullWidth onClick={() => router.push('/billing')}>
             View All Plans
-          </button>
-
-          <button
-            className="btn ghost"
-            onClick={() => setShowModal(false)}
-            style={{ fontSize: '0.8rem' }}
-          >
-            Continue with free features
-          </button>
+          </TkxButton>
         </div>
-
         {credits > 0 && (
-          <p className="small" style={{ marginTop: 8, color: '#5a6778' }}>
+          <p style={{ marginTop: 12, fontSize: '0.85rem', color: '#5a6778' }}>
             You have {credits} premium credit{credits !== 1 ? 's' : ''} remaining.
           </p>
         )}
-      </div>
+      </TkxModal>
     );
   }
 
   // Trigger button (replaces children until access is checked)
   return (
     <div style={{ textAlign: 'center', padding: 16 }}>
-      <button className="btn" onClick={checkAccess} disabled={checking}>
-        {checking ? 'Checking access...' : `Unlock ${featureInfo.title}`}
-      </button>
-      <p className="small" style={{ marginTop: 6, color: '#5a6778' }}>Premium feature — requires upgrade or credits</p>
+      <TkxButton onClick={checkAccess} isLoading={checking} loadingText="Checking access...">
+        Unlock {featureInfo.title}
+      </TkxButton>
+      <p style={{ marginTop: 6, fontSize: '0.85rem', color: '#5a6778' }}>Premium feature — requires upgrade or credits</p>
     </div>
   );
 }

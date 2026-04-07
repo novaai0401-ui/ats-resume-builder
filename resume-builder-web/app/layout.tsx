@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 import './globals.css';
+import 'tekivex-ui/dist/style.css';
 import TopNav from '@/src/components/TopNav';
+import { TekivexProvider } from '@/src/components/TekivexProvider';
 
 export const metadata = {
   title: 'Resume Builder',
@@ -17,13 +19,15 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         />
       </head>
       <body>
-        <div className="main-shell">
-          <header className="topbar">
-            <div className="brand">Resume Builder</div>
-            <TopNav />
-          </header>
-          {children}
-        </div>
+        <TekivexProvider>
+          <div className="main-shell">
+            <header className="topbar">
+              <div className="brand">Resume Builder</div>
+              <TopNav />
+            </header>
+            {children}
+          </div>
+        </TekivexProvider>
       </body>
     </html>
   );

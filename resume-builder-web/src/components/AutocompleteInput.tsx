@@ -9,7 +9,6 @@ type AutocompleteInputProps = {
   fetchSuggestions?: (query: string) => Promise<string[]>;
   localSuggestions?: string[];
   placeholder?: string;
-  className?: string;
   disabled?: boolean;
   allowCustom?: boolean;
   debounceMs?: number;
@@ -23,7 +22,6 @@ export function AutocompleteInput({
   fetchSuggestions,
   localSuggestions = [],
   placeholder = '',
-  className = 'input',
   disabled = false,
   allowCustom = true,
   debounceMs = 250,
@@ -82,7 +80,7 @@ export function AutocompleteInput({
   return (
     <div className="autocomplete-input" data-testid={testId}>
       <input
-        className={className}
+        style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid #d9e3ec', fontSize: '0.9rem', fontFamily: 'inherit', boxSizing: 'border-box', background: '#fff' }}
         value={value}
         placeholder={placeholder}
         disabled={disabled}

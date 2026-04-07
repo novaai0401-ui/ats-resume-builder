@@ -15,6 +15,7 @@ import { recommendTemplates } from '@/src/lib/template-recommendation';
 import { useResumeStore, type ResumeDraft } from '@/src/lib/resume-store';
 import { TemplatePreviewFrame } from '@/src/components/TemplatePreviewFrame';
 import { resolveTemplateId, templateRegistry, type TemplateId } from '@/shared/templateRegistry';
+import { TkxButton, TkxCard, TkxCardBody, TkxAlert, TkxBadge, TkxFileUpload, TkxSkeleton } from 'tekivex-ui';
 
 const TEMPLATE_OPTIONS = TEMPLATE_CATALOG.map((template) => templateRegistry[template.id]);
 
@@ -239,124 +240,124 @@ export default function TemplateSelectionView({
   if (!resumeId && !loading) {
     return (
       <main className="grid">
-        <section className="card col-12">
-          <h2>Select a resume to preview</h2>
-          <p className="small">Select a saved resume or upload a new one to preview templates.</p>
-        </section>
+        <TkxCard as="section" className="col-12" padding="lg">
+          <TkxCardBody>
+            <h2>Select a resume to preview</h2>
+            <p style={{ fontSize: '0.9rem' }}>Select a saved resume or upload a new one to preview templates.</p>
+          </TkxCardBody>
+        </TkxCard>
       </main>
     );
   }
 
   return (
     <main className="grid template-grid-layout">
-      <section className="card col-7">
-        <div>
-          <h2>Choose a template</h2>
-          <p className="small">Pick the layout you want before exporting.</p>
-        </div>
-        {loading && (
-          <div style={{ marginTop: 12 }}>
-            <div className="skeleton-text skeleton skeleton-text--medium" />
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16, marginTop: 12 }}>
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="skeleton-card">
-                  <div className="skeleton skeleton-card__preview" />
-                  <div>
-                    <div className="skeleton skeleton-card__line" style={{ width: '60%' }} />
-                    <div className="skeleton skeleton-card__line" style={{ width: '80%' }} />
-                    <div className="skeleton skeleton-card__line" style={{ width: '40%' }} />
+      <TkxCard as="section" className="col-7" padding="lg">
+        <TkxCardBody>
+          <div>
+            <h2>Choose a template</h2>
+            <p style={{ fontSize: '0.9rem' }}>Pick the layout you want before exporting.</p>
+          </div>
+          {loading && (
+            <div style={{ marginTop: 12 }}>
+              <TkxSkeleton variant="text" width="60%" animation="wave" />
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16, marginTop: 12 }}>
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} style={{ display: 'grid', gridTemplateRows: 'auto 1fr', gap: 10, border: '1px solid var(--border)', borderRadius: 16, padding: 12 }}>
+                    <TkxSkeleton variant="rectangular" width="100%" height="auto" animation="wave" style={{ aspectRatio: '794 / 1123', borderRadius: 12 }} />
+                    <div>
+                      <TkxSkeleton variant="text" width="60%" animation="wave" style={{ marginBottom: 6 }} />
+                      <TkxSkeleton variant="text" width="80%" animation="wave" style={{ marginBottom: 6 }} />
+                      <TkxSkeleton variant="text" width="40%" animation="wave" />
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-        )}
-        {error && (
-          <div className="message-banner" style={{ marginTop: 12 }}>
-            <p className="small">{error}</p>
-          </div>
-        )}
-        {previewReady || loading ? (
-          <div style={{ marginTop: 12 }}>
-            <TemplateCatalogGrid
-              templates={TEMPLATE_OPTIONS}
-              previewResume={previewReady ? previewResume : null}
-              selectedTemplate={selectedTemplate}
-              recommendation={recommendation}
-              onSelectTemplate={handlePreviewTemplate}
-              primaryActionLabel="Preview"
-              disabled={loading || uploading}
-              previewLoading={loading}
-              dataTestId="template-selection-grid"
-            />
-          </div>
-        ) : null}
-      </section>
+          )}
+          {error && <TkxAlert variant="danger" style={{ marginTop: 12 }}>{error}</TkxAlert>}
+          {previewReady || loading ? (
+            <div style={{ marginTop: 12 }}>
+              <TemplateCatalogGrid
+                templates={TEMPLATE_OPTIONS}
+                previewResume={previewReady ? previewResume : null}
+                selectedTemplate={selectedTemplate}
+                recommendation={recommendation}
+                onSelectTemplate={handlePreviewTemplate}
+                primaryActionLabel="Preview"
+                disabled={loading || uploading}
+                previewLoading={loading}
+                dataTestId="template-selection-grid"
+              />
+            </div>
+          ) : null}
+        </TkxCardBody>
+      </TkxCard>
 
-      <section className="card col-5 preview-pane" data-testid="template-selection-preview" data-active-template={selectedTemplate}>
-        <div className="template-live">
-          <div className="template-live__header">
-            <div>
-              <h4 style={{ margin: 0 }}>Live preview</h4>
-              <p className="small">Now viewing {activeTemplateMeta?.name}</p>
-              {recommendation && (
-                <p className="small template-live__recommendation">
-                  Recommended: {TEMPLATE_OPTIONS.find((item) => item.id === recommendation.primaryTemplateId)?.name}.{' '}
-                  {recommendation.reasons[0]}
-                </p>
+      <TkxCard as="section" className="col-5 preview-pane" padding="lg" data-testid="template-selection-preview" data-active-template={selectedTemplate}>
+        <TkxCardBody>
+          <div className="template-live">
+            <div className="template-live__header">
+              <div>
+                <h4 style={{ margin: 0 }}>Live preview</h4>
+                <p style={{ fontSize: '0.9rem' }}>Now viewing {activeTemplateMeta?.name}</p>
+                {recommendation && (
+                  <p style={{ fontSize: '0.9rem' }} className="template-live__recommendation">
+                    Recommended: {TEMPLATE_OPTIONS.find((item) => item.id === recommendation.primaryTemplateId)?.name}.{' '}
+                    {recommendation.reasons[0]}
+                  </p>
+                )}
+              </div>
+              <TkxBadge variant={resumeData?.templateId === selectedTemplate ? 'success' : 'secondary'}>
+                {resumeData?.templateId === selectedTemplate ? 'Applied' : 'Previewing'}
+              </TkxBadge>
+            </div>
+            <div className="template-live__canvas">
+              {previewResume ? (
+                <TemplatePreviewFrame>
+                  <div
+                    data-template-id={selectedTemplate}
+                    data-render-context="preview"
+                    data-css-bundle="globals.css#ats-template"
+                  >
+                    <span style={{ display: 'none' }}>{`TEMPLATE_FINGERPRINT:${selectedTemplate}`}</span>
+                    <ActiveTemplateComponent resumeData={previewResume} />
+                  </div>
+                </TemplatePreviewFrame>
+              ) : (
+                <TkxSkeleton variant="rectangular" width="100%" animation="wave" style={{ aspectRatio: '794 / 1123', borderRadius: 12, minHeight: 300 }} />
               )}
             </div>
-            <span className="pill">{resumeData?.templateId === selectedTemplate ? 'Applied' : 'Previewing'}</span>
           </div>
-          <div className="template-live__canvas">
-            {previewResume ? (
-              <TemplatePreviewFrame>
-                <div
-                  data-template-id={selectedTemplate}
-                  data-render-context="preview"
-                  data-css-bundle="globals.css#ats-template"
-                >
-                  <span style={{ display: 'none' }}>{`TEMPLATE_FINGERPRINT:${selectedTemplate}`}</span>
-                  <ActiveTemplateComponent resumeData={previewResume} />
-                </div>
-              </TemplatePreviewFrame>
-            ) : (
-              <div className="skeleton skeleton-preview-pane" />
-            )}
-          </div>
-        </div>
 
-        <div style={{ marginTop: 16, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-          <label className="btn secondary" style={{ cursor: uploading || !resumeId ? 'not-allowed' : 'pointer' }}>
-            {uploading ? `Uploading ${pendingUploadFileName || 'resume'}...` : 'Upload / Replace Resume'}
-            <input
-              type="file"
+          <div style={{ marginTop: 16, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <TkxFileUpload
               accept=".pdf,.docx,.doc,.txt,.html,.htm,.rtf"
-              style={{ display: 'none' }}
-              disabled={uploading || loading || !resumeId}
-              data-testid="template-upload-input"
-              onChange={(event) => handleUpload(event.target.files?.[0])}
+              variant="button"
+              label={uploading ? `Uploading ${pendingUploadFileName || 'resume'}...` : 'Upload / Replace Resume'}
+              isDisabled={uploading || loading || !resumeId}
+              onChange={(files) => handleUpload(files[0])}
             />
-          </label>
-          <button className="btn" onClick={handleSaveTemplate} disabled={!resumeDraft || saving}>
-            {saving ? 'Applying...' : 'Use Template'}
-          </button>
-          <button
-            className="btn secondary"
-            onClick={() => router.push(resumeId ? `/resume?id=${encodeURIComponent(resumeId)}&template=${encodeURIComponent(selectedTemplate)}` : '/resume')}
-            disabled={!resumeId}
-          >
-            Edit Resume
-          </button>
-          <button className="btn secondary" onClick={handleDownload} disabled={!resumeId || downloading}>
-            {downloading ? 'Preparing PDF...' : 'Download PDF'}
-          </button>
-          <button className="btn secondary" onClick={() => router.push('/dashboard')}>
-            Back to Dashboard
-          </button>
-          {toast && <span className="small" style={{ marginLeft: 'auto' }}>{toast}</span>}
-        </div>
-      </section>
+            <TkxButton onClick={handleSaveTemplate} disabled={!resumeDraft || saving} isLoading={saving} loadingText="Applying...">
+              Use Template
+            </TkxButton>
+            <TkxButton
+              variant="outline"
+              onClick={() => router.push(resumeId ? `/resume?id=${encodeURIComponent(resumeId)}&template=${encodeURIComponent(selectedTemplate)}` : '/resume')}
+              disabled={!resumeId}
+            >
+              Edit Resume
+            </TkxButton>
+            <TkxButton variant="outline" onClick={handleDownload} disabled={!resumeId || downloading} isLoading={downloading} loadingText="Preparing PDF...">
+              Download PDF
+            </TkxButton>
+            <TkxButton variant="outline" onClick={() => router.push('/dashboard')}>
+              Back to Dashboard
+            </TkxButton>
+            {toast && <span style={{ marginLeft: 'auto', fontSize: '0.9rem' }}>{toast}</span>}
+          </div>
+        </TkxCardBody>
+      </TkxCard>
     </main>
   );
 }

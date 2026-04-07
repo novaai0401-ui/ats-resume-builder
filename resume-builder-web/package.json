@@ -17,6 +17,7 @@
     "react": "latest",
     "react-dom": "latest",
     "resume-builder-shared": "../resume-builder-shared",
+    "tekivex-ui": "^2.3.0",
     "zustand": "latest"
   },
   "devDependencies": {

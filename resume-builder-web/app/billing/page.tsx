@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { TkxButton, TkxCard, TkxCardBody, TkxAlert } from 'tekivex-ui';
 import { api, getAccessToken } from '@/src/lib/api';
 
 type PlanPricing = {
@@ -102,7 +103,7 @@ export default function BillingPage() {
   if (loading || !authed) {
     return (
       <main className="grid">
-        <section className="card col-12"><p className="small">Loading...</p></section>
+        <TkxCard as="section" className="col-12" padding="md"><TkxCardBody><p style={{ fontSize: '0.9rem' }}>Loading...</p></TkxCardBody></TkxCard>
       </main>
     );
   }
@@ -132,90 +133,98 @@ export default function BillingPage() {
 
   return (
     <main className="grid">
-      <section className="card col-12">
-        <h2>Your Plan</h2>
-        <p className="small" style={{ maxWidth: 600, marginBottom: 8 }}>
-          Core ATS scoring and resume editing are free forever. Upgrade for premium AI features.
-        </p>
-        {currentPlan !== 'FREE' && (
-          <p className="small" style={{ color: '#1e5b35', fontWeight: 600, marginBottom: 12 }}>
-            Current plan: <strong>{currentPlan}</strong>
+      <TkxCard as="section" className="col-12" padding="lg">
+        <TkxCardBody>
+          <h2>Your Plan</h2>
+          <p style={{ fontSize: '0.9rem', maxWidth: 600, marginBottom: 8 }}>
+            Core ATS scoring and resume editing are free forever. Upgrade for premium AI features.
           </p>
-        )}
-
-        <div className="grid" style={{ marginTop: 12, gap: 16 }}>
-          {/* Free */}
-          <div className="card col-4" style={{ borderColor: currentPlan === 'FREE' ? '#1e5b35' : '#d0dbe7', borderWidth: currentPlan === 'FREE' ? 2 : 1 }}>
-            <h3 style={{ color: '#1a3a5c' }}>Free</h3>
-            <p style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1a3a5c', margin: '8px 0' }}>{formatPrice('free')}</p>
-            <ul className="small" style={{ margin: 0, paddingLeft: 16, lineHeight: 2 }}>
-              <li>ATS scoring (up to 90)</li>
-              <li>Resume editing & templates</li>
-              <li>Standard JD parsing</li>
-              <li>2 ATS scans / month</li>
-              <li>5 PDF exports / month</li>
-            </ul>
-            {currentPlan === 'FREE' && <p className="small" style={{ marginTop: 12, color: '#1e5b35', fontWeight: 600 }}>Your current plan</p>}
-            {isPaid && <button className="btn ghost" onClick={handleDowngrade} style={{ marginTop: 12, fontSize: '0.8rem' }}>Downgrade to Free</button>}
-          </div>
-
-          {/* Student */}
-          <div className="card col-4" style={{ borderColor: isStudent ? '#1e5b35' : '#5b9bd5', borderWidth: 2 }}>
-            <h3 style={{ color: '#1a3a5c' }}>Student</h3>
-            <p style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1a3a5c', margin: '8px 0' }}>{formatPrice('student')}<span className="small" style={{ fontWeight: 400 }}>/mo</span></p>
-            {formatGst('student') && <p className="small" style={{ color: '#666', margin: '-4px 0 4px', fontSize: '0.75rem' }}>{formatGst('student')}</p>}
-            <ul className="small" style={{ margin: 0, paddingLeft: 16, lineHeight: 2 }}>
-              <li><strong>ATS optimization to 95+</strong></li>
-              <li>AI-powered resume critique</li>
-              <li>Technology gap analysis</li>
-              <li>50 ATS scans / month</li>
-              <li>25 PDF exports / month</li>
-              <li>10 saved resumes</li>
-            </ul>
-            {isStudent ? (
-              <p className="small" style={{ marginTop: 12, color: '#1e5b35', fontWeight: 600 }}>Your current plan</p>
-            ) : (
-              <button className="btn" onClick={() => handleUpgrade('STUDENT')} disabled={upgrading} style={{ marginTop: 12, width: '100%' }}>
-                {upgrading ? 'Upgrading...' : isPro ? 'Switch to Student' : 'Upgrade to Student'}
-              </button>
-            )}
-          </div>
-
-          {/* Pro */}
-          <div className="card col-4" style={{ borderColor: isPro ? '#1e5b35' : '#2f5f8f', borderWidth: 2 }}>
-            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#fff', background: '#2f5f8f', padding: '2px 8px', borderRadius: 4, display: 'inline-block', marginBottom: 4 }}>BEST VALUE</span>
-            <h3 style={{ color: '#1a3a5c' }}>Pro</h3>
-            <p style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1a3a5c', margin: '8px 0' }}>{formatPrice('pro')}<span className="small" style={{ fontWeight: 400 }}>/mo</span></p>
-            {formatGst('pro') && <p className="small" style={{ color: '#666', margin: '-4px 0 4px', fontSize: '0.75rem' }}>{formatGst('pro')}</p>}
-            <ul className="small" style={{ margin: 0, paddingLeft: 16, lineHeight: 2 }}>
-              <li><strong>ATS optimization to 100</strong></li>
-              <li>Premium AI career guidance</li>
-              <li>Premium course recommendations</li>
-              <li>Advanced job suggestions</li>
-              <li>300 ATS scans / month</li>
-              <li>200 PDF exports / month</li>
-              <li>100 saved resumes</li>
-            </ul>
-            {isPro ? (
-              <p className="small" style={{ marginTop: 12, color: '#1e5b35', fontWeight: 600 }}>Your current plan</p>
-            ) : (
-              <button className="btn" onClick={() => handleUpgrade('PRO')} disabled={upgrading} style={{ marginTop: 12, width: '100%' }}>
-                {upgrading ? 'Upgrading...' : 'Upgrade to Pro'}
-              </button>
-            )}
-          </div>
-        </div>
-
-        <div style={{ marginTop: 20, display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-          {planStatus?.stripeConfigured && isPaid && (
-            <button className="btn secondary" onClick={openPortal}>Manage Subscription</button>
+          {currentPlan !== 'FREE' && (
+            <p style={{ fontSize: '0.9rem', color: '#1e5b35', fontWeight: 600, marginBottom: 12 }}>
+              Current plan: <strong>{currentPlan}</strong>
+            </p>
           )}
-          <button className="btn ghost" onClick={() => router.push('/dashboard')}>Back to Dashboard</button>
-        </div>
 
-        {success && <div style={{ marginTop: 12, background: '#e8f5ec', border: '1px solid #9fd0ad', borderRadius: 10, padding: 12 }}><p className="small" style={{ color: '#1e5b35', margin: 0 }}>{success}</p></div>}
-        {message && <div className="message-banner" style={{ marginTop: 12 }}><p className="small">{message}</p></div>}
-      </section>
+          <div className="grid" style={{ marginTop: 12, gap: 16 }}>
+            {/* Free */}
+            <TkxCard className="col-4" padding="md" style={{ borderColor: currentPlan === 'FREE' ? '#1e5b35' : '#d0dbe7', borderWidth: currentPlan === 'FREE' ? 2 : 1 }}>
+              <TkxCardBody>
+                <h3 style={{ color: '#1a3a5c' }}>Free</h3>
+                <p style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1a3a5c', margin: '8px 0' }}>{formatPrice('free')}</p>
+                <ul style={{ fontSize: '0.9rem', margin: 0, paddingLeft: 16, lineHeight: 2 }}>
+                  <li>ATS scoring (up to 90)</li>
+                  <li>Resume editing & templates</li>
+                  <li>Standard JD parsing</li>
+                  <li>2 ATS scans / month</li>
+                  <li>5 PDF exports / month</li>
+                </ul>
+                {currentPlan === 'FREE' && <p style={{ fontSize: '0.9rem', marginTop: 12, color: '#1e5b35', fontWeight: 600 }}>Your current plan</p>}
+                {isPaid && <TkxButton variant="ghost" size="sm" onClick={handleDowngrade} style={{ marginTop: 12 }}>Downgrade to Free</TkxButton>}
+              </TkxCardBody>
+            </TkxCard>
+
+            {/* Student */}
+            <TkxCard className="col-4" padding="md" style={{ borderColor: isStudent ? '#1e5b35' : '#5b9bd5', borderWidth: 2 }}>
+              <TkxCardBody>
+                <h3 style={{ color: '#1a3a5c' }}>Student</h3>
+                <p style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1a3a5c', margin: '8px 0' }}>{formatPrice('student')}<span style={{ fontWeight: 400, fontSize: '0.9rem' }}>/mo</span></p>
+                {formatGst('student') && <p style={{ fontSize: '0.75rem', color: '#666', margin: '-4px 0 4px' }}>{formatGst('student')}</p>}
+                <ul style={{ fontSize: '0.9rem', margin: 0, paddingLeft: 16, lineHeight: 2 }}>
+                  <li><strong>ATS optimization to 95+</strong></li>
+                  <li>AI-powered resume critique</li>
+                  <li>Technology gap analysis</li>
+                  <li>50 ATS scans / month</li>
+                  <li>25 PDF exports / month</li>
+                  <li>10 saved resumes</li>
+                </ul>
+                {isStudent ? (
+                  <p style={{ fontSize: '0.9rem', marginTop: 12, color: '#1e5b35', fontWeight: 600 }}>Your current plan</p>
+                ) : (
+                  <TkxButton isFullWidth isLoading={upgrading} loadingText="Upgrading..." onClick={() => handleUpgrade('STUDENT')} style={{ marginTop: 12 }}>
+                    {isPro ? 'Switch to Student' : 'Upgrade to Student'}
+                  </TkxButton>
+                )}
+              </TkxCardBody>
+            </TkxCard>
+
+            {/* Pro */}
+            <TkxCard className="col-4" padding="md" style={{ borderColor: isPro ? '#1e5b35' : '#2f5f8f', borderWidth: 2 }}>
+              <TkxCardBody>
+                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#fff', background: '#2f5f8f', padding: '2px 8px', borderRadius: 4, display: 'inline-block', marginBottom: 4 }}>BEST VALUE</span>
+                <h3 style={{ color: '#1a3a5c' }}>Pro</h3>
+                <p style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1a3a5c', margin: '8px 0' }}>{formatPrice('pro')}<span style={{ fontWeight: 400, fontSize: '0.9rem' }}>/mo</span></p>
+                {formatGst('pro') && <p style={{ fontSize: '0.75rem', color: '#666', margin: '-4px 0 4px' }}>{formatGst('pro')}</p>}
+                <ul style={{ fontSize: '0.9rem', margin: 0, paddingLeft: 16, lineHeight: 2 }}>
+                  <li><strong>ATS optimization to 100</strong></li>
+                  <li>Premium AI career guidance</li>
+                  <li>Premium course recommendations</li>
+                  <li>Advanced job suggestions</li>
+                  <li>300 ATS scans / month</li>
+                  <li>200 PDF exports / month</li>
+                  <li>100 saved resumes</li>
+                </ul>
+                {isPro ? (
+                  <p style={{ fontSize: '0.9rem', marginTop: 12, color: '#1e5b35', fontWeight: 600 }}>Your current plan</p>
+                ) : (
+                  <TkxButton isFullWidth isLoading={upgrading} loadingText="Upgrading..." onClick={() => handleUpgrade('PRO')} style={{ marginTop: 12 }}>
+                    Upgrade to Pro
+                  </TkxButton>
+                )}
+              </TkxCardBody>
+            </TkxCard>
+          </div>
+
+          <div style={{ marginTop: 20, display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+            {planStatus?.stripeConfigured && isPaid && (
+              <TkxButton variant="outline" onClick={openPortal}>Manage Subscription</TkxButton>
+            )}
+            <TkxButton variant="ghost" onClick={() => router.push('/dashboard')}>Back to Dashboard</TkxButton>
+          </div>
+
+          {success && <TkxAlert variant="success" style={{ marginTop: 12 }}>{success}</TkxAlert>}
+          {message && <TkxAlert variant="warning" style={{ marginTop: 12 }}>{message}</TkxAlert>}
+        </TkxCardBody>
+      </TkxCard>
     </main>
   );
 }

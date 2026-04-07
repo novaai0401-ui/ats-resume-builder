@@ -1,6 +1,7 @@
 'use client';
 
 import { memo } from 'react';
+import { TkxButton, TkxSkeleton } from 'tekivex-ui';
 import type { ResumeImportResult } from 'resume-builder-shared';
 import ResumeTemplateRender from '@/src/components/ResumeTemplateRender';
 import type { TemplateRecommendation } from '@/src/lib/template-recommendation';
@@ -20,7 +21,7 @@ const TemplateCardThumbnailLoading = memo(function TemplateCardThumbnailLoading(
       data-thumbnail-state="loading"
       data-thumbnail-component="TemplateCardThumbnailLoading"
     >
-      <div className="skeleton" style={{ width: '100%', height: '100%', borderRadius: 8 }} />
+      <TkxSkeleton variant="rectangular" width="100%" height="100%" animation="wave" style={{ borderRadius: 8 }} />
     </div>
   );
 });
@@ -167,9 +168,11 @@ export default function TemplateCatalogGrid({
               </div>
               <div className="template-card__actions">
                 {showPreviewAction && (
-                  <button
+                  <TkxButton
                     type="button"
-                    className="btn secondary template-card__action"
+                    variant="outline"
+                    size="sm"
+                    className="template-card__action"
                     onClick={(event) => {
                       event.stopPropagation();
                       handlePreview();
@@ -177,11 +180,12 @@ export default function TemplateCatalogGrid({
                     disabled={disabled}
                   >
                     Preview
-                  </button>
+                  </TkxButton>
                 )}
-                <button
+                <TkxButton
                   type="button"
-                  className="btn template-card__action"
+                  size="sm"
+                  className="template-card__action"
                   onClick={(event) => {
                     event.stopPropagation();
                     handlePrimaryAction();
@@ -189,7 +193,7 @@ export default function TemplateCatalogGrid({
                   disabled={disabled}
                 >
                   {primaryActionLabel}
-                </button>
+                </TkxButton>
               </div>
             </div>
           </article>

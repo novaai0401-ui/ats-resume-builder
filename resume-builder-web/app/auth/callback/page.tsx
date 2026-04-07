@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { TkxButton, TkxCard, TkxCardBody, TkxAlert, TkxSkeleton } from 'tekivex-ui';
 import { setAuthTokens, isCurrentUserAdmin } from '@/src/lib/api';
 import { Suspense } from 'react';
 
@@ -108,30 +109,32 @@ function CallbackHandler() {
 
   return (
     <main className="grid">
-      <section className="card col-5">
-        <h2>{error ? 'Sign-In Issue' : 'Signing In'}</h2>
-        {status && (
-          <div style={{ textAlign: 'center', padding: 24 }}>
-            <div className="skeleton" style={{ width: 40, height: 40, borderRadius: '50%', margin: '0 auto 12px' }} />
-            <p className="small">{status}</p>
-          </div>
-        )}
-        {error && (
-          <div className="message-banner" style={{ marginTop: 12 }}>
-            <p className="small">{error}</p>
-            <button className="btn" onClick={() => router.push('/auth/login')} style={{ marginTop: 8 }}>
-              Back to Login
-            </button>
-          </div>
-        )}
-      </section>
+      <TkxCard as="section" className="col-5" padding="lg">
+        <TkxCardBody>
+          <h2>{error ? 'Sign-In Issue' : 'Signing In'}</h2>
+          {status && (
+            <div style={{ textAlign: 'center', padding: 24 }}>
+              <TkxSkeleton variant="circular" width={40} height={40} animation="wave" style={{ margin: '0 auto 12px' }} />
+              <p style={{ fontSize: '0.9rem' }}>{status}</p>
+            </div>
+          )}
+          {error && (
+            <TkxAlert variant="danger" style={{ marginTop: 12 }}>
+              <p style={{ margin: '0 0 8px' }}>{error}</p>
+              <TkxButton size="sm" onClick={() => router.push('/auth/login')}>
+                Back to Login
+              </TkxButton>
+            </TkxAlert>
+          )}
+        </TkxCardBody>
+      </TkxCard>
     </main>
   );
 }
 
 export default function CallbackPage() {
   return (
-    <Suspense fallback={<main className="grid"><section className="card col-5"><p className="small">Processing...</p></section></main>}>
+    <Suspense fallback={<main className="grid"><TkxCard as="section" className="col-5" padding="lg"><TkxCardBody><p style={{ fontSize: '0.9rem' }}>Processing...</p></TkxCardBody></TkxCard></main>}>
       <CallbackHandler />
     </Suspense>
   );
