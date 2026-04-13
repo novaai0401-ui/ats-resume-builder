@@ -2,15 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.normalizeHeading = normalizeHeading;
 const SECTION_SYNONYMS = {
-    summary: [
-        'summary', 'professional summary', 'pro essional summary', 'profile', 'profile summary',
-        'pro le summary', 'about', 'about me', 'objective', 'career summary', 'career objective',
-        'executive summary', 'personal statement', 'introduction',
-        // LinkedIn / Indeed / Naukri / Glassdoor resume formats
-        'professional profile', 'personal profile', 'career profile', 'overview', 'professional overview',
-        'career overview', 'professional objective', 'job objective', 'headline',
-        'professional headline', 'bio', 'biography', 'about the candidate',
-    ],
+    summary: ['summary', 'professional summary', 'pro essional summary', 'profile', 'profile summary', 'pro le summary', 'about', 'about me', 'objective', 'career summary', 'career objective', 'executive summary', 'personal statement', 'introduction', 'professional profile', 'career profile', 'personal profile', 'overview', 'professional overview', 'career overview', 'bio', 'brief', 'professional brief', 'who i am', 'highlight of qualifications', 'qualifications summary'],
     skills: [
         'skills',
         'technical skills',
@@ -22,7 +14,6 @@ const SECTION_SYNONYMS = {
         'key competencies',
         'technologies',
         'soft skills',
-        'languages',
         'tools and technologies',
         'technical competencies',
         'areas of expertise',
@@ -33,31 +24,25 @@ const SECTION_SYNONYMS = {
         'skill set',
         'functional skills',
         'domain expertise',
-        // Additional formats from popular resume builders
-        'tools',
-        'tech stack',
-        'technology stack',
-        'programming languages',
-        'frameworks',
-        'tools technologies',
-        'technical proficiency',
-        'it skills',
-        'computer skills',
-        'software skills',
-        'hard skills',
         'professional skills',
         'relevant skills',
         'additional skills',
-        'other skills',
-        'skills and tools',
-        'skills and competencies',
+        'primary skills',
+        'secondary skills',
+        'it skills',
+        'computer skills',
+        'programming skills',
+        'programming languages',
+        'tools',
+        'frameworks',
+        'tech stack',
+        'technology stack',
+        'technical summary',
         'skills and abilities',
-        'tools frameworks',
-        'platforms',
-        'operating systems',
-        'databases',
-        'cloud technologies',
-        'devops tools',
+        'abilities',
+        'strengths',
+        'core strengths',
+        'key strengths',
     ],
     experience: [
         'experience',
@@ -71,53 +56,39 @@ const SECTION_SYNONYMS = {
         'professional background',
         'relevant experience',
         'industry experience',
-        // Additional formats from LinkedIn, Naukri, Indeed
-        'employment details',
-        'job history',
-        'positions held',
-        'professional history',
-        'work details',
-        'career experience',
-        'professional work experience',
-        'relevant work experience',
-        'internship experience',
         'internships',
-        'freelance experience',
-        'consulting experience',
-        'contract experience',
-        'previous employment',
-        'past experience',
+        'internship experience',
+        'relevant work experience',
+        'professional work history',
+        'positions held',
+        'career experience',
+        'work',
+        'professional history',
+        'job history',
         'job experience',
+        'professional positions',
     ],
-    education: [
-        'education', 'academics', 'academic background', 'education history', 'qualifications',
-        'quali cations', 'educational qualifications', 'academic qualifications', 'academic details',
-        // Additional formats
-        'educational background', 'education details', 'academic record',
-        'educational details', 'academic credentials', 'degrees',
-        'academic history', 'scholastic record', 'university education',
-        'college education', 'educational history', 'schooling',
-    ],
-    projects: [
-        'projects', 'notable projects', 'research', 'achievements', 'accomplishments',
-        'key projects', 'project experience', 'key achievements',
-        // Additional formats
-        'personal projects', 'side projects', 'academic projects',
-        'professional projects', 'project details', 'portfolio',
-        'research projects', 'open source contributions', 'open source',
-        'contributions', 'publications', 'papers',
-        'awards', 'honors', 'honors and awards', 'awards and achievements',
-        'extracurricular activities', 'volunteer experience', 'volunteering',
-    ],
-    certifications: [
-        'certifications', 'certi cations', 'licenses', 'certificates', 'professional certifications',
-        'pro essional certi cations', 'training', 'training and certifications', 'courses',
-        // Additional formats
-        'professional development', 'continuing education', 'credentials',
-        'accreditations', 'certification details', 'online courses',
-        'moocs', 'workshops', 'seminars', 'professional training',
-        'licenses and certifications', 'certifications and courses',
-        'certifications and licenses', 'certification and training',
+    education: ['education', 'academics', 'academic background', 'education history', 'qualifications', 'quali cations', 'educational qualifications', 'academic qualifications', 'academic details', 'educational background', 'degrees', 'academic record', 'academic credentials', 'schooling', 'college education', 'university education', 'studies', 'educational details', 'academic experience'],
+    projects: ['projects', 'notable projects', 'research', 'achievements', 'accomplishments', 'key projects', 'project experience', 'key achievements', 'personal projects', 'side projects', 'portfolio', 'portfolio projects', 'academic projects', 'research projects', 'open source', 'open source contributions', 'contributions', 'selected projects', 'major achievements', 'awards', 'awards and achievements', 'honors', 'honors and awards', 'publications', 'papers'],
+    certifications: ['certifications', 'certi cations', 'licenses', 'certificates', 'professional certifications', 'pro essional certi cations', 'training', 'training and certifications', 'courses', 'professional development', 'continuing education', 'credentials', 'professional credentials', 'licensure', 'accreditations', 'professional training', 'courses and certifications', 'certifications and training', 'certifications and licenses'],
+    languages: ['languages', 'language proficiency', 'language skills', 'known languages'],
+    hobbies: [
+        'hobbies',
+        'interests',
+        'hobbies and interests',
+        'hobbies interests',
+        'personal interests',
+        'activities',
+        'extracurricular activities',
+        'extra curricular activities',
+        'volunteer experience',
+        'volunteering',
+        'volunteer work',
+        'leisure',
+        'pastimes',
+        'innovation',
+        'ai ml innovation',
+        'ai innovation',
     ],
     unmapped: [],
 };
@@ -151,15 +122,23 @@ function normalizeHeading(line) {
     }
     return /:\s*$/.test(line) ? 'unmapped' : '';
 }
-// Build KNOWN_HEADING_PHRASES from all SECTION_SYNONYMS values
-const KNOWN_HEADING_PHRASES = new Set(Object.values(SECTION_SYNONYMS).flat().filter(Boolean));
+// Build KNOWN_HEADING_PHRASES from SECTION_SYNONYMS to stay in sync automatically,
+// plus any additional phrases that should be recognized as headings.
+const KNOWN_HEADING_PHRASES = (() => {
+    const set = new Set();
+    for (const synonyms of Object.values(SECTION_SYNONYMS)) {
+        for (const s of synonyms)
+            set.add(s);
+    }
+    return set;
+})();
 function isHeadingLike(rawLine, normalized) {
     const raw = String(rawLine || '').trim();
     if (!raw || raw.length > 80)
         return false;
     if (/^[\-*•·]/.test(raw))
         return false;
-    if (/[.,;!?]/.test(raw) && !/:\s*$/.test(raw))
+    if (/[.,;!?]/.test(raw) && !/:\s*$/.test(raw) && !KNOWN_HEADING_PHRASES.has(normalized))
         return false;
     if (/\d{2,}/.test(raw) && !/--\s*\d+\s*of\s*\d+\s*--/.test(raw))
         return false;

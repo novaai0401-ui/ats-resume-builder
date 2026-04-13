@@ -18,3 +18,6 @@ __exportStar(require("./section-normalizer.js"), exports);
 __exportStar(require("./resume-parser.js"), exports);
 __exportStar(require("./field-mapper.js"), exports);
 __exportStar(require("./experience-level.js"), exports);
+__exportStar(require("./layout-detector.js"), exports);
+__exportStar(require("./deduplication-engine.js"), exports);
+__exportStar(require("./extraction-config.js"), exports);
