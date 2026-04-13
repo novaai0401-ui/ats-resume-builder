@@ -2,7 +2,18 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.normalizeHeading = normalizeHeading;
 const SECTION_SYNONYMS = {
-    summary: ['summary', 'professional summary', 'pro essional summary', 'profile', 'profile summary', 'pro le summary', 'about', 'about me', 'objective', 'career summary', 'career objective', 'executive summary', 'personal statement', 'introduction', 'professional profile', 'career profile', 'personal profile', 'overview', 'professional overview', 'career overview', 'bio', 'brief', 'professional brief', 'who i am', 'highlight of qualifications', 'qualifications summary'],
+    summary: [
+        'summary', 'professional summary', 'pro essional summary', 'profile', 'profile summary',
+        'pro le summary', 'about', 'about me', 'objective', 'career summary', 'career objective',
+        'executive summary', 'personal statement', 'introduction',
+        // LinkedIn / Indeed / Naukri / Glassdoor resume formats
+        'professional profile', 'personal profile', 'career profile', 'overview', 'professional overview',
+        'career overview', 'professional objective', 'job objective', 'headline',
+        'professional headline', 'bio', 'biography', 'about the candidate',
+        // Modern AI / LinkedIn / European CV variants
+        'professional snapshot', 'snapshot', 'value proposition', 'elevator pitch',
+        'who i am', 'my mission', 'my story', 'background',
+    ],
     skills: [
         'skills',
         'technical skills',
@@ -39,10 +50,17 @@ const SECTION_SYNONYMS = {
         'technology stack',
         'technical summary',
         'skills and abilities',
-        'abilities',
-        'strengths',
-        'core strengths',
-        'key strengths',
+        'tools frameworks',
+        'platforms',
+        'operating systems',
+        'databases',
+        'cloud technologies',
+        'devops tools',
+        // Modern AI/data variants
+        'machine learning', 'ml skills', 'ai skills', 'data skills',
+        'libraries', 'libraries and frameworks', 'libraries frameworks',
+        'methodologies', 'methods and tools', 'specializations', 'specialisation',
+        'specializations and tools',
     ],
     experience: [
         'experience',
@@ -66,7 +84,8 @@ const SECTION_SYNONYMS = {
         'professional history',
         'job history',
         'job experience',
-        'professional positions',
+        'apprenticeship', 'apprenticeships', 'practical experience', 'industrial training',
+        'engagements', 'client engagements', 'project assignments', 'assignments',
     ],
     education: ['education', 'academics', 'academic background', 'education history', 'qualifications', 'quali cations', 'educational qualifications', 'academic qualifications', 'academic details', 'educational background', 'degrees', 'academic record', 'academic credentials', 'schooling', 'college education', 'university education', 'studies', 'educational details', 'academic experience'],
     projects: ['projects', 'notable projects', 'research', 'achievements', 'accomplishments', 'key projects', 'project experience', 'key achievements', 'personal projects', 'side projects', 'portfolio', 'portfolio projects', 'academic projects', 'research projects', 'open source', 'open source contributions', 'contributions', 'selected projects', 'major achievements', 'awards', 'awards and achievements', 'honors', 'honors and awards', 'publications', 'papers'],

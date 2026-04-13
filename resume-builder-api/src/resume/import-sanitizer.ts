@@ -64,6 +64,36 @@ type ImportInput = {
 
 const PLACEHOLDER_ONLY_RE = /^[-–—_*•·|/\\]+$/;
 
+// Defense-in-depth: strip HTML/script/control characters and dangerous URL
+// schemes from any string that flows into the resume from an uploaded file.
+// Extracted PDF/DOCX text should never contain HTML, but a hostile upload
+// (e.g. SVG, RTF, HTML or a crafted DOCX) could, and we never want such
+// content to round-trip into a rendered template or PDF export.
+const SCRIPT_TAG_RE = /<script[\s\S]*?<\/script>/gi;
+const STYLE_TAG_RE = /<style[\s\S]*?<\/style>/gi;
+const HTML_TAG_RE = /<\/?[a-z][^>]*>/gi;
+const JS_PROTOCOL_RE = /javascript\s*:/gi;
+const DATA_URL_HTML_RE = /data:text\/html[^,]*,/gi;
+const CONTROL_CHARS_RE = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g;
+
+function hardenString(value: string): string {
+  if (typeof value !== 'string') return '';
+  return value
+    .replace(SCRIPT_TAG_RE, ' ')
+    .replace(STYLE_TAG_RE, ' ')
+    .replace(HTML_TAG_RE, ' ')
+    .replace(JS_PROTOCOL_RE, ' ')
+    .replace(DATA_URL_HTML_RE, ' ')
+    .replace(CONTROL_CHARS_RE, '');
+}
+
+function isSafeLink(value: string): boolean {
+  if (typeof value !== 'string' || !value) return false;
+  if (JS_PROTOCOL_RE.test(value)) return false;
+  if (DATA_URL_HTML_RE.test(value)) return false;
+  return /^(https?:\/\/|mailto:|tel:|[A-Za-z0-9][A-Za-z0-9.-]*\.[A-Za-z]{2,})/i.test(value);
+}
+
 type SanitizeMode = 'upload' | 'persist';
 
 export function sanitizeImportedResume(
@@ -105,7 +135,9 @@ function sanitizeContact(input: unknown, rejectedBlocks: string[]) {
   const email = cleanText(input.email);
   const phone = cleanText(input.phone);
   const location = cleanText(input.location);
-  const links = cleanStringArray(input.links).filter((link) => link.length >= 3);
+  const links = cleanStringArray(input.links)
+    .filter((link) => link.length >= 3)
+    .filter((link) => isSafeLink(link));
 
   // Even without a recognized fullName, preserve email/phone/location/links
   // so that ATS round-trip PDFs (which may have a title in h1 instead of name)
@@ -275,7 +307,8 @@ function cleanStringArray(input: unknown) {
 
 function cleanText(input: unknown) {
   if (typeof input !== 'string') return '';
-  const normalized = input.replace(/\s+/g, ' ').trim();
+  const hardened = hardenString(input);
+  const normalized = hardened.replace(/\s+/g, ' ').trim();
   if (!normalized || PLACEHOLDER_ONLY_RE.test(normalized)) return '';
   return normalized;
 }

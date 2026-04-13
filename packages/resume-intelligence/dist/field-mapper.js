@@ -5,14 +5,8 @@ const resume_schemas_1 = require("resume-schemas");
 const experience_level_js_1 = require("./experience-level.js");
 const section_normalizer_js_1 = require("./section-normalizer.js");
 const experience_enhancer_js_1 = require("./experience-enhancer.js");
-const layout_detector_js_1 = require("./layout-detector.js");
-const deduplication_engine_js_1 = require("./deduplication-engine.js");
-const extraction_config_js_1 = require("./extraction-config.js");
-const resume_parser_js_1 = require("./resume-parser.js");
-const ROLE_HINT_RE = /\b(engineer|developer|manager|designer|analyst|intern|lead|architect|specialist|consultant|director|head|officer|administrator|coordinator|principal|staff|qa|devops|product|owner|founder|avp|assistant vice president|vice president|scientist|researcher|professor|instructor|trainer|executive|president|cto|ceo|cfo|coo|cio|vp|svp|evp|partner|fellow|technologist|programmer|tester|strategist|planner|advisor|auditor|accountant|recruiter|editor|writer|nurse|physician|therapist|pharmacist|attorney|paralegal|clerk|secretary|receptionist|assistant|supervisor|foreman|mechanic|technician|operator|dispatcher|pilot|captain|chef|baker|bartender|waiter|teacher)\b/i;
-// "Associate" is ambiguous — it can mean a job role ("Associate Engineer") or an education degree ("Associate of Science").
-// Only match "associate" as a role when NOT followed by "of" or "degree".
-const ASSOCIATE_ROLE_RE = /\bassociate\b(?!\s+(?:of|degree))/i;
+const extraction_enhancements_js_1 = require("./extraction-enhancements.js");
+const ROLE_HINT_RE = /\b(engineer|developer|manager|designer|analyst|intern|lead|architect|specialist|consultant|director|head|officer|administrator|coordinator|principal|staff|qa|devops|product|owner|founder|avp|assistant vice president|vice president)\b/i;
 const PLACEHOLDER_ONLY_RE = /^(?:-|n\/a|na|null|none|not available)$/i;
 const TITLE_BLOCKLIST = new Set([
     'skills',
@@ -236,6 +230,7 @@ const KNOWN_TECH_SKILLS = [
     'Kafka', 'RabbitMQ', 'gRPC', 'WebSocket',
     'TDD', 'BDD', 'OOP', 'MVC', 'MVVM',
     'Sass', 'Material UI', 'Ant Design', 'Chakra UI',
+    ...extraction_enhancements_js_1.ADDITIONAL_TECH_SKILLS,
 ];
 function extractTechSkillsFromText(text) {
     const found = [];
