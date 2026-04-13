@@ -196,7 +196,7 @@ export function isApiRequestError(error: unknown): error is ApiRequestError {
   return error instanceof ApiRequestError;
 }
 
-const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001';
 const AUTH_STATE_CHANGED_EVENT = 'auth-state-changed';
 export const RESUME_CREATE_RATE_LIMIT_CODE = 'RESUME_CREATE_RATE_LIMITED';
 

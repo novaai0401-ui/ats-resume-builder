@@ -93,7 +93,7 @@ test('updateResume sends templateId in PATCH payload for template persistence', 
   await api.updateResume('resume-42', { templateId: 'modern' });
 
   assert.equal(fetchCalls.length, 1);
-  assert.equal(fetchCalls[0].url, 'http://localhost:3001/resumes/resume-42');
+  assert.equal(fetchCalls[0].url, 'http://localhost:4001/resumes/resume-42');
   assert.equal(String(fetchCalls[0].init?.method || ''), 'PATCH');
   const payload = JSON.parse(String(fetchCalls[0].init?.body || '{}'));
   assert.equal(payload.templateId, 'modern');
@@ -139,7 +139,7 @@ test('downloadPdf calls /resumes/:id/pdf endpoint and triggers browser download 
   }
 
   assert.equal(fetchCalls.length, 1);
-  assert.equal(fetchCalls[0].url, 'http://localhost:3001/resumes/resume-77/pdf');
+  assert.equal(fetchCalls[0].url, 'http://localhost:4001/resumes/resume-77/pdf');
   assert.equal(String(fetchCalls[0].init?.method || ''), 'GET');
   const headers = (fetchCalls[0].init?.headers || {}) as Record<string, string>;
   assert.equal(headers.Authorization, 'Bearer token-123');
@@ -176,6 +176,6 @@ test('downloadPdf includes templateId query when provided', async () => {
   }
 
   assert.equal(fetchCalls.length, 1);
-  assert.equal(fetchCalls[0].url, 'http://localhost:3001/resumes/resume-77/pdf?templateId=executive');
+  assert.equal(fetchCalls[0].url, 'http://localhost:4001/resumes/resume-77/pdf?templateId=executive');
   assert.equal(String(fetchCalls[0].init?.method || ''), 'GET');
 });

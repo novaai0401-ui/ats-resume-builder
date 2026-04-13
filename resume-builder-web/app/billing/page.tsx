@@ -294,6 +294,24 @@ export default function BillingPage() {
   const isStudent = currentPlan === 'STUDENT';
   const isPro = currentPlan === 'PRO';
   const isPaid = isStudent || isPro;
+  const isIndia = planStatus?.region === 'IN' || planStatus?.currency === 'INR';
+  const pricing = planStatus?.pricing;
+
+  const formatPrice = (plan: 'free' | 'student' | 'pro') => {
+    if (!pricing) {
+      const fallback: Record<string, string> = { free: '$0', student: '$4.99', pro: '$9.99' };
+      return fallback[plan];
+    }
+    const p = pricing[plan];
+    return isIndia ? p.displayPriceInr : p.displayPriceUsd;
+  };
+
+  const formatGst = (plan: 'student' | 'pro') => {
+    if (!pricing || !isIndia) return null;
+    const p = pricing[plan];
+    if (!p.gstAmount) return null;
+    return `+ ₹${p.gstAmount} GST (${Math.round(p.gstRate * 100)}%)`;
+  };
 
   const usage = planStatus?.usage || {};
 

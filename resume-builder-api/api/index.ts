@@ -52,7 +52,7 @@ function parseAllowedOrigins(value?: string) {
     .map((origin) => origin.trim())
     .filter(Boolean);
   if (fromEnv.length) return fromEnv;
-  return ['http://localhost:3000', 'http://localhost:3001'];
+  return ['http://localhost:4000', 'http://localhost:4001'];
 }
 
 function isOriginAllowed(origin: string, allowedOrigins: string[]): boolean {

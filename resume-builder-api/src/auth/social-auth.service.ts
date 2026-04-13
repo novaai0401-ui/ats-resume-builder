@@ -272,7 +272,7 @@ export class SocialAuthService {
     // Auto-construct from the server's port — ensures the URI always matches
     // the /auth/social/google/callback route, even if the user only set
     // GOOGLE_REDIRECT_URI for the old Drive integration.
-    const port = this.config.get<string>('PORT', '3001');
+    const port = this.config.get<string>('PORT', '4001');
     return `http://localhost:${port}/auth/social/google/callback`;
   }
 

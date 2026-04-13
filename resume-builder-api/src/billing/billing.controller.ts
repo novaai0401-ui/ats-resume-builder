@@ -63,12 +63,17 @@ export class BillingController {
   /** Stripe checkout (requires valid STRIPE_SECRET_KEY). */
   @Post('checkout')
   @UseGuards(JwtAuthGuard)
-  checkout(@Req() req: { user: { userId: string } }, @Body() body: CreateCheckoutSessionDto) {
+  checkout(
+    @Req() req: { user: { userId: string } },
+    @Body() body: CreateCheckoutSessionDto,
+    @Headers('x-user-locale') locale?: string,
+    @Headers('x-user-timezone') timezone?: string,
+  ) {
     const parsed = CreateCheckoutSessionSchema.safeParse(body);
     if (!parsed.success) {
       throw new BadRequestException(parsed.error.flatten());
     }
-    return this.billingService.createCheckoutSession(req.user.userId, parsed.data.plan);
+    return this.billingService.createCheckoutSession(req.user.userId, parsed.data.plan, { locale, timezone });
   }
 
   /** Stripe portal (requires valid STRIPE_SECRET_KEY). */

@@ -17,7 +17,7 @@ async function bootstrap() {
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-user-locale', 'x-user-timezone'],
     preflightContinue: false,
     optionsSuccessStatus: 204,
   });
@@ -31,7 +31,7 @@ async function bootstrap() {
       },
     }),
   );
-  const port = process.env.PORT ? Number(process.env.PORT) : 3001;
+  const port = process.env.PORT ? Number(process.env.PORT) : 4001;
   if (process.env.NODE_ENV !== 'production') {
     console.log(`[bootstrap] Allowed CORS origins: ${allowedOrigins.join(', ')}`);
   }
@@ -62,20 +62,19 @@ function parseAllowedOrigins(value?: string) {
     .map((origin) => origin.trim())
     .filter(Boolean);
   if (fromEnv.length) return fromEnv;
-  return ['http://localhost:3000', 'http://localhost:3001'];
+  return ['http://localhost:4000', 'http://localhost:4001'];
 }
 
-/** Check if an origin is allowed — supports exact match and Vercel preview patterns. */
+/** Check if an origin is allowed — supports exact match, Vercel preview, and Render patterns. */
 function isOriginAllowed(origin: string, allowedOrigins: string[]): boolean {
   if (allowedOrigins.includes(origin)) return true;
+
   // Allow Vercel preview deployments matching any configured .vercel.app origin
   if (allowedOrigins.some((o) => o.endsWith('.vercel.app')) && origin.endsWith('.vercel.app')) {
-    // Extract the project slug from configured origins and match against it
     for (const allowed of allowedOrigins) {
       try {
         const allowedHost = new URL(allowed).hostname;
         const originHost = new URL(origin).hostname;
-        // Match: <hash>-<project-slug>.vercel.app against <project-slug>.vercel.app
         const slug = allowedHost.replace('.vercel.app', '');
         if (originHost === allowedHost || originHost.endsWith(`-${slug}.vercel.app`)) {
           return true;
@@ -83,5 +82,21 @@ function isOriginAllowed(origin: string, allowedOrigins: string[]): boolean {
       } catch { /* skip invalid URLs */ }
     }
   }
+
+  // Allow Render preview/PR deployments matching any configured .onrender.com origin
+  // Pattern: <service-name>-<pr-id>.onrender.com or <service-name>-<hash>.onrender.com
+  if (allowedOrigins.some((o) => o.endsWith('.onrender.com')) && origin.endsWith('.onrender.com')) {
+    for (const allowed of allowedOrigins) {
+      try {
+        const allowedHost = new URL(allowed).hostname;
+        const originHost = new URL(origin).hostname;
+        const slug = allowedHost.replace('.onrender.com', '');
+        if (originHost === allowedHost || originHost.startsWith(`${slug}-`)) {
+          return true;
+        }
+      } catch { /* skip invalid URLs */ }
+    }
+  }
+
   return false;
 }

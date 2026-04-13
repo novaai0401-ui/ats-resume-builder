@@ -23,7 +23,7 @@ export type LoginPageProps = {
  * Social login providers — always visible.
  * Each links to a backend OAuth start route that redirects to the provider.
  */
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001';
 
 const SOCIAL_PROVIDERS = [
   { id: 'google',   name: 'Google',   url: `${API_BASE}/auth/social/google/start` },

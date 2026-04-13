@@ -1,37 +1,39 @@
-# ── Git / IDE ────────────────────────────────────────────────────────
+# ── Root .dockerignore (shared fallback) ─────────────────────────────
+# Per-Dockerfile ignore files take precedence when supported:
+#   Dockerfile.dockerignore      → used by API build
+#   Dockerfile.web.dockerignore  → used by Web build
+#
+# This file is the fallback — it must NOT exclude either service.
+
+# Git / IDE
 .git
 .github
 .vscode
 *.md
 LICENSE
 
-# ── Node artefacts ───────────────────────────────────────────────────
+# Node artefacts (rebuilt inside Docker)
 node_modules
 **/node_modules
 .npm
 *.tsbuildinfo
 
-# ── Build output (rebuilt inside Docker) ─────────────────────────────
-**/dist
-!packages/resume-intelligence/dist/
+# Build output (rebuilt inside Docker)
 .next
 out
 
-# ── Environment files (secrets must be injected at runtime) ──────────
+# Environment files (secrets injected at runtime)
 .env
-.env.*
-!.env.example
+.env.local
+.env.development
+.env.production
 
-# ── Frontend / mobile (not needed for API image) ────────────────────
-resume-builder-web
+# Services not needed for either frontend or backend
 resume-builder-mobile
 resume-builder-ai
 resume-builder-infra
 sms-gateway
 
-# ── Tests & misc ────────────────────────────────────────────────────
-**/tests
+# Tests & misc
 **/coverage
-**/*.test.*
-**/*.spec.*
 *.log

@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 const { PrismaClient } = require('@prisma/client');
 
-const apiBase = process.env.SMOKE_API_URL || 'http://localhost:5000';
+const apiBase = process.env.SMOKE_API_URL || 'http://localhost:4001';
 const email = `smoke.${Date.now()}@example.com`;
 const password = 'SmokeTest@1234';
 const shouldCleanup = process.env.SMOKE_CLEANUP === '1';

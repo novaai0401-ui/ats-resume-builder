@@ -202,6 +202,14 @@ function parseBlockToExperience(block) {
     };
     if (!entry.role && !entry.company)
         return null;
+    // Anti-hallucination: reject entries where both company and role look like
+    // generic placeholders or are suspiciously short single characters
+    if (entry.company.length === 1 || entry.role.length === 1)
+        return null;
+    if (/^(company|role|title|position|employer|organization)$/i.test(entry.company))
+        return null;
+    if (/^(role|title|position|job)$/i.test(entry.role))
+        return null;
     return entry;
 }
 function shouldUseWorkExperienceFallback(current, rawText) {

@@ -96,11 +96,11 @@ async function createApp(overrides = {}) {
         provide: ConfigService,
         useValue: new StubConfigService({
           NODE_ENV: 'test',
-          CORS_ORIGIN: 'http://localhost:3000',
+          CORS_ORIGIN: 'http://localhost:4000',
           GOOGLE_CLIENT_ID: 'google-client-id',
           GOOGLE_CLIENT_SECRET: 'google-client-secret',
-          GOOGLE_REDIRECT_URI: 'http://localhost:5000/auth/google/callback',
-          GOOGLE_OAUTH_SUCCESS_REDIRECT: 'http://localhost:3000/dashboard',
+          GOOGLE_REDIRECT_URI: 'http://localhost:4001/auth/google/callback',
+          GOOGLE_OAUTH_SUCCESS_REDIRECT: 'http://localhost:4000/dashboard',
           TOKEN_ENC_KEY: '00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff',
         }),
       },
@@ -138,7 +138,7 @@ test('Google OAuth callback sets secure session cookie and marks session connect
 
   const callbackCookies = callbackResponse.headers['set-cookie'];
   assert.ok(Array.isArray(callbackCookies) && callbackCookies.some((value) => value.includes('rb_drive_session=')));
-  assert.equal(callbackResponse.headers.location, 'http://localhost:3000/dashboard?drive=connected');
+  assert.equal(callbackResponse.headers.location, 'http://localhost:4000/dashboard?drive=connected');
 
   await app.close();
 });
