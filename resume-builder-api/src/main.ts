@@ -25,7 +25,7 @@ async function bootstrap() {
     json({
       limit: '1mb',
       verify: (req: any, _res, buf) => {
-        if (req.originalUrl === '/billing/webhook') {
+        if (req.originalUrl === '/billing/webhook' || req.originalUrl === '/billing/razorpay/webhook') {
           req.rawBody = buf;
         }
       },

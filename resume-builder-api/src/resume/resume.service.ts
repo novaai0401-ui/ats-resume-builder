@@ -3449,7 +3449,6 @@ const ATS_TEMPLATE_EXPORT_CSS = `
       }
       .ats-item {
         margin-top: 8px;
-        page-break-inside: avoid;
       }
       .ats-item h3 {
         margin: 0;
@@ -3457,6 +3456,8 @@ const ATS_TEMPLATE_EXPORT_CSS = `
         font-weight: 700;
         overflow-wrap: anywhere;
         word-break: break-word;
+        break-after: avoid;
+        page-break-after: avoid;
       }
       .ats-item p {
         margin: 2px 0 0;
@@ -3466,15 +3467,23 @@ const ATS_TEMPLATE_EXPORT_CSS = `
       .ats-item__meta {
         color: #4b5d74;
         font-size: 10.4px;
+        break-after: avoid;
+        page-break-after: avoid;
       }
       .ats-item ul {
         margin: 5px 0 0 18px;
         padding: 0;
+        orphans: 2;
+        widows: 2;
       }
       .ats-item li {
         margin: 2px 0;
         overflow-wrap: anywhere;
         word-break: break-word;
+      }
+      .ats-item li:first-child {
+        break-before: avoid;
+        page-break-before: avoid;
       }
 `;
 

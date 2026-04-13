@@ -32,45 +32,72 @@ const TITLE_BLOCKLIST = new Set([
 const CONTACT_LABEL_RE = /\b(email|mobile|phone|contact|linkedin|github|portfolio|address|location)\b/i;
 const NAME_BLOCKLIST_RE = /\b(skills?|technical|soft|experience|employment|education|communication|teamwork|leadership|problem[-\s]?solving|languages|achievements?|summary|profile|objective)\b/i;
 const COMPANY_SUFFIX_RE = /\b(inc|llc|ltd|corp|company|technologies|systems|labs|solutions|group|studio|partners|bank|consulting|digital)\b/i;
+const HEADLINE_FRAGMENT_RE = /\b(system design|software design|web development|frontend|backend|full stack|machine learning|data science|cloud computing|devops|product management|project management|artificial intelligence|digital marketing|user experience|user interface|mobile development|database|networking|cybersecurity|blockchain|deep learning)\b/i;
 const LEGACY_BULLET_PREFIX_RE = /^\s*(?:[-*•·]+|\d{1,3}[.)]|[a-z][.)])?\s*(impact|achievement|result|highlights?|accomplishment)s?:\s*/i;
 function mapParsedResume(parsed) {
-    const summary = mapSummary(parsed.sections);
-    const skills = mapSkills(parsed.sections);
-    const experienceRaw = sortExperienceChronological(mergeExperienceByCompany(mapExperience(parsed)));
-    const educationRaw = mapEducation(parsed.sections);
-    const projects = mapProjects(parsed.sections);
-    const certifications = mapCertifications(parsed.sections);
-    const header = mapHeader(parsed.lines);
+    const config = (0, extraction_config_js_1.getExtractionConfig)();
+    // Phase 2: Layout detection — detect multi-column resumes and re-order if needed
+    let effectiveParsed = parsed;
+    if (config.layoutDetection) {
+        const rawText = parsed.lines.join('\n');
+        const layout = (0, layout_detector_js_1.detectLayout)(rawText);
+        if (layout.type !== 'single-column' && layout.columnWiseExtraction) {
+            // Re-order interleaved text and re-parse
+            const reordered = (0, layout_detector_js_1.deinterleaveColumns)(rawText, layout);
+            if (reordered !== rawText) {
+                effectiveParsed = (0, resume_parser_js_1.parseResumeText)(reordered);
+            }
+        }
+    }
+    const summary = mapSummary(effectiveParsed.sections);
+    const skillsRaw = mapSkills(effectiveParsed.sections);
+    const experienceRaw = sortExperienceChronological(mergeExperienceByCompany(mapExperience(effectiveParsed)));
+    const educationRaw = mapEducation(effectiveParsed.sections);
+    const projects = mapProjects(effectiveParsed.sections);
+    const certifications = mapCertifications(effectiveParsed.sections);
+    const header = mapHeader(effectiveParsed.lines);
     const contact = header.contact;
-    const title = guessTitle(parsed.lines, header);
-    const mappedUnsorted = getUnmappedText(parsed.sections);
+    const title = guessTitle(effectiveParsed.lines, header);
+    const mappedUnsorted = getUnmappedText(effectiveParsed.sections);
     const experienceSanitized = sanitizeExperienceForStrictSave(experienceRaw);
     const educationSanitized = sanitizeEducationForStrictSave(educationRaw);
     const shouldEnhanceExperience = experienceSanitized.items.length < 1
         || experienceSanitized.items.some((item) => !item.company || !item.role);
     const experienceAfterEnhancement = shouldEnhanceExperience
         ? (0, experience_enhancer_js_1.enhanceExperienceExtraction)({
-            rawText: parsed.lines.join('\n'),
-            parsed,
+            rawText: effectiveParsed.lines.join('\n'),
+            parsed: effectiveParsed,
             currentExperience: experienceSanitized.items,
         })
         : experienceSanitized.items;
     const finalExperienceSanitized = shouldEnhanceExperience
         ? sanitizeExperienceForStrictSave(experienceAfterEnhancement)
         : experienceSanitized;
+    // Phase 2: Enhanced multi-layer deduplication
+    let finalSkills = skillsRaw;
+    let finalExperience = finalExperienceSanitized.items;
+    if (config.enhancedDedup) {
+        const dedupResult = (0, deduplication_engine_js_1.runDeduplicationPipeline)({
+            skills: skillsRaw,
+            experience: finalExperienceSanitized.items,
+            highlights: finalExperienceSanitized.items.flatMap((e) => e.highlights),
+        });
+        finalSkills = dedupResult.skills;
+        finalExperience = dedupResult.experience;
+    }
     const unmappedText = mergeUnmappedText(mappedUnsorted, [...finalExperienceSanitized.rejected, ...educationSanitized.rejected]);
     const resumeText = [
         summary,
-        skills.join(' '),
-        finalExperienceSanitized.items.map((item) => `${item.role} ${item.company}`).join(' '),
+        finalSkills.join(' '),
+        finalExperience.map((item) => `${item.role} ${item.company}`).join(' '),
     ].join(' ');
-    const levelResult = (0, experience_level_js_1.computeExperienceLevel)({ resumeText, experience: finalExperienceSanitized.items });
+    const levelResult = (0, experience_level_js_1.computeExperienceLevel)({ resumeText, experience: finalExperience });
     const validated = resume_schemas_1.ParsedResumeSchema.parse({
         title,
         contact,
         summary,
-        skills,
-        experience: finalExperienceSanitized.items,
+        skills: finalSkills,
+        experience: finalExperience,
         education: educationSanitized.items,
         projects,
         certifications,
@@ -89,15 +116,31 @@ function mapSummary(sections) {
         ...(sections.objective || []),
     ];
     const fallback = lines.length ? lines : (sections.unmapped || []).slice(0, 2);
-    const joined = fallback
+    const raw = fallback
         .map((line) => line.replace(/^\s*[-•*·]\s*/, '').trim())
         .filter(Boolean)
         .join(' ')
         .replace(/\s+/g, ' ')
-        .slice(0, 400)
         .trim();
-    return joined;
+    if (raw.length <= 600)
+        return raw;
+    // Truncate at word boundary to avoid cutting mid-word
+    const truncated = raw.slice(0, 600);
+    const lastSpace = truncated.lastIndexOf(' ');
+    return lastSpace > 400 ? truncated.slice(0, lastSpace).trim() : truncated.trim();
 }
+const HUMAN_LANGUAGES = new Set([
+    'english', 'hindi', 'spanish', 'french', 'german', 'italian', 'portuguese',
+    'chinese', 'mandarin', 'cantonese', 'japanese', 'korean', 'arabic', 'russian',
+    'dutch', 'swedish', 'norwegian', 'danish', 'finnish', 'polish', 'turkish',
+    'thai', 'vietnamese', 'indonesian', 'malay', 'tagalog', 'tamil', 'telugu',
+    'kannada', 'malayalam', 'bengali', 'gujarati', 'marathi', 'punjabi', 'urdu',
+    'nepali', 'sinhalese', 'burmese', 'khmer', 'lao', 'greek', 'hebrew',
+    'persian', 'farsi', 'swahili', 'amharic', 'yoruba', 'igbo', 'hausa',
+    'zulu', 'afrikaans', 'romanian', 'hungarian', 'czech', 'slovak', 'croatian',
+    'serbian', 'bulgarian', 'ukrainian', 'catalan', 'galician', 'basque',
+    'esperanto', 'latin', 'sanskrit',
+]);
 function mapSkills(sections) {
     const lines = [
         ...(sections.skills || []),
@@ -141,6 +184,9 @@ function mapSkills(sections) {
         if (/\b\d+\s+of\s+\d+\b/i.test(token))
             return false;
         if (/\d{3,}/.test(token))
+            return false;
+        // Filter out human language names (e.g. English, Hindi) that belong in Languages section
+        if (HUMAN_LANGUAGES.has(token.toLowerCase()))
             return false;
         return /[a-z]/i.test(token);
     });
@@ -328,6 +374,28 @@ function mapExperience(parsed) {
                 assignDatesToCurrentOrRecent(dates.start, dates.end);
             }
             continue;
+        }
+        // Handle “Role DateRange” pattern — e.g. “AVP Dec 2022 - Present”, “Senior Engineer Jan 2020 - Dec 2022”
+        // The line has a date range AND contains a role hint, but the role is the non-date part.
+        // Only match when the non-date part is a standalone role (no @ | “at” or company indicators).
+        if (isDateLine(normalizedLine) && !isStandaloneDateLine(normalizedLine) &&
+            !/@|\sat\s|\s\|\s/i.test(normalizedLine)) {
+            const strippedRole = cleanLooseText(stripDates(normalizedLine));
+            if (strippedRole && looksLikeRole(strippedRole) && looksLikeRoleTitle(strippedRole) &&
+                !looksLikeCompany(strippedRole) && !looksLikeEducationRoleLine(strippedRole) &&
+                strippedRole.split(/\s+/).length <= 6) {
+                const dates = extractDates(normalizedLine);
+                if (current)
+                    pushCurrent();
+                if (pendingRole && (pendingStartDate || pendingEndDate)) {
+                    startCurrent({ company: currentCompany, role: pendingRole, startDate: pendingStartDate, endDate: pendingEndDate });
+                    pushCurrent();
+                }
+                pendingRole = strippedRole;
+                pendingStartDate = dates.start;
+                pendingEndDate = dates.end;
+                continue;
+            }
         }
         if (looksLikeRole(normalizedLine) &&
             looksLikeRoleTitle(normalizedLine) &&
@@ -556,9 +624,18 @@ function mapCertifications(sections) {
     ];
     const items = [];
     for (const line of lines) {
+        // Stop if we hit a sub-section heading that was not split by the section normalizer
+        const heading = (0, section_normalizer_js_1.normalizeHeading)(line);
+        if (heading && heading !== 'certifications')
+            break;
         const dateMatch = line.match(/\b(20\d{2}|19\d{2})\b/);
         const cleaned = line.replace(/[()]/g, '').replace(/\b(20\d{2}|19\d{2})\b/g, '').trim();
         if (!cleaned)
+            continue;
+        // Skip lines that are clearly not certifications (hobby descriptions, long sentences)
+        if (cleaned.length > 100)
+            continue;
+        if (/^(exploring|writing|playing|engaging|mentoring|reading|traveling|cooking|running|swimming|hiking|yoga)\b/i.test(cleaned))
             continue;
         items.push({ name: cleaned, date: dateMatch ? dateMatch[1] : undefined, details: [] });
     }
@@ -580,7 +657,7 @@ function mapHeader(lines) {
     let bestNameScore = Number.NEGATIVE_INFINITY;
     for (const index of candidateIndexes) {
         const candidate = cleanLines[index];
-        const score = scoreNameCandidate(candidate, index, anchorIndex);
+        const score = scoreNameCandidate(candidate, index, anchorIndex, cleanLines);
         if (score <= bestNameScore)
             continue;
         bestNameScore = score;
@@ -590,6 +667,10 @@ function mapHeader(lines) {
     if (bestNameScore < 0) {
         bestName = '';
         bestNameIndex = -1;
+    }
+    // Normalize ALL-CAPS names to Title Case (e.g. "JOHN DOE" → "John Doe")
+    if (bestName && /^[A-Z\s.'-]+$/.test(bestName) && bestName.length > 1) {
+        bestName = bestName.replace(/\b([A-Z])([A-Z]+)\b/g, (_, first, rest) => first + rest.toLowerCase());
     }
     const headline = extractHeadline(cleanLines, bestNameIndex);
     const emailMatch = allText.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
@@ -659,7 +740,7 @@ function guessTitle(lines, header) {
 function findContactAnchorIndex(lines) {
     return lines.findIndex((line) => /@|linkedin\.com|github\.com|mobile|phone|contact|email/i.test(line));
 }
-function scoreNameCandidate(line, index, anchorIndex) {
+function scoreNameCandidate(line, index, anchorIndex, lines) {
     if (!isLikelyNameLine(line))
         return Number.NEGATIVE_INFINITY;
     const words = line.split(/\s+/).filter(Boolean);
@@ -680,6 +761,19 @@ function scoreNameCandidate(line, index, anchorIndex) {
     }
     if (ROLE_HINT_RE.test(line))
         score -= 6;
+    // Strong bonus for the very first non-empty line — resumes almost always start with the name
+    if (index === 0)
+        score += 5;
+    // Penalize lines that appear immediately after a headline-like line (pipe/dash delimiters)
+    // — they are likely a continuation of the headline, not the candidate's name
+    if (lines && index > 0) {
+        const prevLine = lines[index - 1] || '';
+        if (/[|/]/.test(prevLine) || /\s[-–—]\s/.test(prevLine))
+            score -= 8;
+    }
+    // Penalize common professional/technical terms that look like names but aren't
+    if (HEADLINE_FRAGMENT_RE.test(line))
+        score -= 10;
     return score;
 }
 function isLikelyNameLine(line) {
@@ -809,6 +903,7 @@ function getUnmappedText(sections) {
         'education', 'academics',
         'projects', 'research',
         'certifications', 'licenses',
+        'languages', 'hobbies',
     ]);
     return Object.entries(sections)
         .filter(([key]) => !mappedKeys.has(key))
@@ -912,8 +1007,11 @@ function buildExperienceSource(parsed) {
         // Also collect experience-like lines from other sections (e.g. education)
         // that may contain experience entries due to PDF page breaks — but only
         // if those sections contain clear role+company patterns.
+        // Exclude sections that should never contain experience entries.
+        const nonExperienceSections = new Set(['hobbies', 'languages', 'certifications', 'skills', 'summary', 'profile', 'objective']);
         const otherSections = Object.entries(parsed.sections)
-            .filter(([key]) => !['experience', 'employment', 'work', 'career', 'unmapped'].includes(key));
+            .filter(([key]) => !['experience', 'employment', 'work', 'career', 'unmapped'].includes(key))
+            .filter(([key]) => !nonExperienceSections.has(key));
         const otherLines = otherSections.flatMap(([, lines]) => lines);
         const hasRoleCompany = otherLines.some((l) => looksLikeRole(l) && looksLikeRoleTitle(l) && !looksLikeEducationRoleLine(l));
         if (hasRoleCompany) {
@@ -928,7 +1026,15 @@ function buildExperienceSource(parsed) {
         const tail = parsed.lines.slice(firstExperienceHeading + 1);
         return tail.length ? tail : sectionLines;
     }
-    // No explicit experience section — collect role-like lines from all sections
+    // No explicit experience section — only fall back to collecting from all lines
+    // when there are no well-defined sections at all (i.e. unstructured resume).
+    // If other sections exist (education, projects, skills), the resume is structured
+    // but simply has no experience; don't misinterpret project/education content.
+    const definedSections = Object.keys(parsed.sections).filter((k) => k !== 'unmapped');
+    if (definedSections.length > 0) {
+        // Structured resume with no experience section — return empty to avoid false positives
+        return [];
+    }
     const allLines = Object.values(parsed.sections).flat();
     return collectLikelyExperienceLines(allLines.length ? allLines : parsed.lines);
 }
@@ -1058,6 +1164,8 @@ function cleanCompanyName(value) {
     const noTrailingDelimiter = normalized
         .replace(/[|@-]\s*$/g, '')
         .replace(/\(([^)]+)\)\s*$/g, '')
+        // Normalize trailing period after company abbreviations: "Inc." → "Inc"
+        .replace(/\b(inc|ltd|corp|co|pvt|llc)\.\s*$/i, '$1')
         .trim();
     const parts = noTrailingDelimiter.split(',').map((part) => cleanLooseText(part)).filter(Boolean);
     if (parts.length >= 2 && looksLikeLocationFragment(parts.slice(1).join(' ')) && looksLikeCompany(parts[0])) {
@@ -1146,7 +1254,7 @@ function normalizeLegacyBulletPrefix(line) {
     return `- ${stripped}`;
 }
 function looksLikeRole(line) {
-    return ROLE_HINT_RE.test(line);
+    return ROLE_HINT_RE.test(line) || ASSOCIATE_ROLE_RE.test(line);
 }
 function looksLikeRoleTitle(line) {
     const cleaned = cleanLooseText(line);
@@ -1176,10 +1284,14 @@ function looksLikeEducationRoleLine(line) {
     // a role hint (e.g. "engineer"), it's a job title, not a degree.
     if (ROLE_HINT_RE.test(cleaned))
         return false;
+    // "Research Associate" is a job role — if it matches our associate-as-role pattern,
+    // treat it as a role, not an education degree.
+    if (ASSOCIATE_ROLE_RE.test(cleaned))
+        return false;
     return true;
 }
 function looksLikeEducationDegreeLine(line) {
-    return /\b(b\.?e\.?|b\.?a\.?|b\.?s\.?|b\.?sc|bb\.?a|b\.?com|b\.?tech|m\.?e\.?|m\.?a\.?|m\.?s\.?|m\.?sc|m\.?tech|m\.?b\.?a|m\.?com|m\.?phil|bachelor|master|associate|diploma|phd|doctorate|b\.?c\.?a|m\.?c\.?a|b\.?b\.?a?|ll\.?b)\b/i.test(line);
+    return /\b(b\.?e\.?|b\.?a\.?|b\.?s\.?|b\.?sc|bb\.?a|b\.?com|b\.?tech|m\.?e\.?|m\.?a\.?|m\.?s\.?|m\.?sc|m\.?tech|m\.?b\.?a|m\.?com|m\.?phil|bachelor|master|associate|diploma|ph\.?d\.?|phd|doctorate|d\.?b\.?a|b\.?c\.?a|m\.?c\.?a|b\.?b\.?a?|ll\.?b|ll\.?m|j\.?d\.?|d\.?o\.?|m\.?d\.?|ed\.?d|psych\.?d)\b/i.test(line);
 }
 function looksLikeEducationInstitutionLine(line) {
     const cleaned = cleanLooseText(line);
@@ -1223,7 +1335,8 @@ function looksLikeCompany(line) {
     if (!cleaned)
         return false;
     // Lines ending with a period are sentence-like descriptions, not company names
-    if (/\.\s*$/.test(cleaned))
+    // Exception: company abbreviations like "Inc.", "Ltd.", "Corp.", "Pvt.", "Co."
+    if (/\.\s*$/.test(cleaned) && !/\b(inc|ltd|corp|co|pvt|llc)\.\s*$/i.test(cleaned))
         return false;
     // "Technologies - HTML, CSS, ..." or "Technologies: ..." is NOT a company
     if (/^Technologies\s*[-:]/i.test(cleaned))
@@ -1245,6 +1358,10 @@ function looksLikeCompany(line) {
         if (wordCount <= 6)
             return true;
     }
+    // Short ALL-CAPS abbreviations (2-6 chars) are common company names
+    // e.g. TCS, IBM, SAP, HCL, KPMG, EY — but not role abbreviations like AVP, CTO, CEO
+    if (/^[A-Z]{2,6}$/.test(cleaned) && !ROLE_HINT_RE.test(cleaned) && !ASSOCIATE_ROLE_RE.test(cleaned))
+        return true;
     // Handle "Company, Location" pattern (e.g. "Ernst & Young, Pune")
     const commaParts = cleaned.split(',').map((part) => part.trim()).filter(Boolean);
     const mainPart = commaParts.length >= 2 ? commaParts[0] : cleaned;
@@ -1357,7 +1474,7 @@ function isStandaloneDateLine(line) {
     return !/[a-z0-9]/i.test(stripped);
 }
 function isCrossSectionBoundary(line) {
-    return /--\s*\d+\s*of\s*\d+\s*--\s*(education|projects?|certifications?|licenses?|skills?)\b/i.test(line);
+    return /--\s*\d+\s*of\s*\d+\s*--\s*(education|projects?|certifications?|licenses?|skills?|hobbies|languages?|achievements?)\b/i.test(line);
 }
 function extractDates(line) {
     const dateToken = '(?:' +

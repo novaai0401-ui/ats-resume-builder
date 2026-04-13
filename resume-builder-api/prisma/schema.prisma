@@ -116,3 +116,33 @@ model AiCritiqueLog {
 
   @@index([userId, createdAt])
 }
+
+model PaymentHistory {
+  id                String   @id @default(uuid())
+  userId            String
+  amountPaise       Int                                // Amount in smallest currency unit (paise for INR)
+  currency          String   @default("INR")
+  status            String   @default("pending")       // pending | captured | failed | refunded
+  planType          String                             // STUDENT | PRO
+  paymentProvider   String   @default("razorpay")      // razorpay | stripe
+  providerPaymentId String?                            // Razorpay payment_id or Stripe payment intent
+  providerOrderId   String?                            // Razorpay order_id or Stripe session ID
+  paymentMethod     String?                            // card | upi | netbanking | wallet
+  receiptUrl        String?
+  createdAt         DateTime @default(now())
+
+  @@index([userId])
+  @@index([providerOrderId])
+}
+
+model AiTokenUsage {
+  id           String   @id @default(uuid())
+  userId       String
+  featureType  String                                  // ats_scan | resume_critique | career_chat | gap_analysis etc.
+  tokensUsed   Int
+  modelUsed    String?                                 // groq-llama-3.3-70b, etc.
+  costMicroCents Int?                                  // Cost tracking in micro-cents
+  createdAt    DateTime @default(now())
+
+  @@index([userId, createdAt])
+}

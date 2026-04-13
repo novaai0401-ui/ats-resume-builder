@@ -34,6 +34,7 @@
     "passport-jwt": "latest",
     "pdf-parse": "^2.4.5",
     "puppeteer-core": "^24.39.1",
+    "razorpay": "^2.9.6",
     "reflect-metadata": "latest",
     "resume-builder-shared": "../resume-builder-shared",
     "resume-intelligence": "../packages/resume-intelligence",
