@@ -2273,4 +2273,101 @@ h2 {
   }
 }
 
+/* -------------------------------------------------------------------------
+ * Mobile-first shell + navigation (tekivex-ui integration)
+ *
+ * Goals:
+ *   - Shell padding/width scales down on phones (was hard-coded 24px / 90vw).
+ *   - Topbar stays row-aligned with brand on the left + burger on the right.
+ *   - Desktop .nav hidden below 768px, replaced by a burger that opens a
+ *     TkxDrawer rendering the same link list.
+ *   - Existing desktop layout unchanged at >=768px.
+ * ------------------------------------------------------------------------- */
+
+/* Burger is desktop-hidden by default. */
+.nav-burger {
+  display: none;
+  width: 44px;  /* 44px = WCAG minimum touch target */
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  flex-direction: column;
+}
+
+.nav-burger:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.nav-burger__bar {
+  display: block;
+  width: 20px;
+  height: 2px;
+  background: var(--ink);
+  border-radius: 2px;
+}
+
+.nav--mobile {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 0;
+}
+
+.nav--mobile a,
+.nav--mobile .btn {
+  width: 100%;
+  text-align: left;
+  padding: 12px 14px;
+  font-size: 16px;
+  min-height: 44px; /* touch target */
+}
+
+@media (max-width: 767px) {
+  .main-shell {
+    width: 100%;
+    padding: 12px;
+  }
+
+  .topbar {
+    /* Override the max-width:600px column-stack rule further up so the
+     * burger sits next to the brand on mobile. */
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  .nav--desktop {
+    display: none;
+  }
+
+  .nav-burger {
+    display: inline-flex;
+  }
+
+  .brand {
+    font-size: 18px;
+  }
+
+  /* Any element using `.btn` becomes a 44px touch target on phones. */
+  .btn {
+    min-height: 44px;
+  }
+}
+
+/* Prevent accidental horizontal scroll on small screens when a descendant
+ * overflows (common with wide tables / <pre> blocks). */
+@media (max-width: 767px) {
+  html, body {
+    overflow-x: hidden;
+  }
+}
+
 

@@ -1,10 +1,23 @@
 import type { ReactNode } from 'react';
+import type { Viewport } from 'next';
+import 'tekivex-ui/styles';
 import './globals.css';
 import TopNav from '@/src/components/TopNav';
+import Providers from '@/src/components/Providers';
 
 export const metadata = {
   title: 'Resume Builder',
   description: 'ATS-optimized resume builder',
+};
+
+// Mobile-first viewport. Without this, phones render the site at desktop
+// width and zoom out — the single biggest mobile bug. `viewportFit: 'cover'`
+// lets content sit under notches on iOS when we opt in per-element.
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+  themeColor: '#f2f5f8',
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
@@ -17,13 +30,15 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         />
       </head>
       <body>
-        <div className="main-shell">
-          <header className="topbar">
-            <div className="brand">Resume Builder</div>
-            <TopNav />
-          </header>
-          {children}
-        </div>
+        <Providers>
+          <div className="main-shell">
+            <header className="topbar">
+              <div className="brand">Resume Builder</div>
+              <TopNav />
+            </header>
+            {children}
+          </div>
+        </Providers>
       </body>
     </html>
   );
