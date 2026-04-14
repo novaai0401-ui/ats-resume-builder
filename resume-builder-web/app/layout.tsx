@@ -8,6 +8,17 @@ import Providers from '@/src/components/Providers';
 export const metadata = {
   title: 'Resume Builder',
   description: 'ATS-optimized resume builder',
+  manifest: '/manifest.json',
+  applicationName: 'Resume Builder',
+  appleWebApp: {
+    capable: true,
+    title: 'Resume',
+    statusBarStyle: 'default' as const,
+  },
+  icons: {
+    icon: [{ url: '/icons/icon.svg', type: 'image/svg+xml' }],
+    apple: [{ url: '/icons/icon.svg' }],
+  },
 };
 
 // Mobile-first viewport. Without this, phones render the site at desktop

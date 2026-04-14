@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Resume Builder app icon. Solid background + stylized document mark.
+     Uses the app theme accent (#2f5f8f) so the maskable safe zone renders
+     consistently on Android (which can crop the outer 10%). -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Resume Builder">
+  <rect width="512" height="512" rx="96" fill="#2f5f8f"/>
+  <g fill="#ffffff">
+    <!-- Document outline -->
+    <path d="M144 112h180l60 60v212c0 13.3-10.7 24-24 24H144c-13.3 0-24-10.7-24-24V136c0-13.3 10.7-24 24-24z" opacity="0.98"/>
+    <!-- Folded corner -->
+    <path d="M324 112v36c0 13.3 10.7 24 24 24h36z" fill="#c8d6e6"/>
+  </g>
+  <!-- Resume lines -->
+  <g fill="#2f5f8f">
+    <rect x="156" y="212" width="140" height="14" rx="4"/>
+    <rect x="156" y="244" width="200" height="10" rx="3"/>
+    <rect x="156" y="268" width="200" height="10" rx="3"/>
+    <rect x="156" y="292" width="160" height="10" rx="3"/>
+    <rect x="156" y="328" width="120" height="14" rx="4"/>
+    <rect x="156" y="360" width="200" height="10" rx="3"/>
+    <rect x="156" y="384" width="180" height="10" rx="3"/>
+  </g>
+</svg>

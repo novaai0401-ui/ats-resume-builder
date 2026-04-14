@@ -2370,4 +2370,35 @@ h2 {
   }
 }
 
+/* Dashboard shell — replaces the hard-coded 24px padding / 94vw width
+ * with a mobile-first scale so the template grid and preview profile
+ * aren't cramped on phones. */
+.dashboard-shell {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 12px;
+}
+
+@media (min-width: 768px) {
+  .dashboard-shell {
+    padding: 24px;
+    width: min(1400px, 94vw);
+  }
+}
+
+/* On mobile, make the save/autosave status pill stick to the bottom of
+ * the viewport so users don't lose sight of it while scrolling a long
+ * resume form. Desktop keeps it inline in the editor header. */
+@media (max-width: 767px) {
+  .status-pill {
+    position: sticky;
+    bottom: 12px;
+    z-index: 50;
+    margin: 8px auto 0;
+    width: fit-content;
+    box-shadow: 0 4px 12px rgba(23, 35, 50, 0.15);
+  }
+}
+
 
