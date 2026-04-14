@@ -285,6 +285,10 @@ export default function ResumeEditor() {
   const [techGapLoading, setTechGapLoading] = useState(false);
   const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [premiumOptimizing, setPremiumOptimizing] = useState(false);
+  const [currentPlan, setCurrentPlan] = useState<string>(() => {
+    if (typeof window === 'undefined') return 'FREE';
+    return localStorage.getItem('rb_plan') || 'FREE';
+  });
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [lastValidationCode, setLastValidationCode] = useState('');
   const [actionVerbRule, setActionVerbRule] = useState<ActionVerbRuleState>(() => createActionVerbRuleState([]));
@@ -793,6 +797,22 @@ export default function ResumeEditor() {
     }, 900);
     return () => clearTimeout(timer);
   }, [resume, resumeId]);
+
+  // Sync the user's actual plan from the server so the "Unlock Premium"
+  // button label reflects real entitlement (localStorage.rb_plan can go
+  // stale after admin-side upgrades, subscription webhooks, etc.).
+  useEffect(() => {
+    if (!getAccessToken()) return;
+    api.getBillingStatus()
+      .then((status) => {
+        const plan = String(status?.plan || 'FREE');
+        setCurrentPlan(plan);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('rb_plan', plan);
+        }
+      })
+      .catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     if (!isReviewAtsPage) {
@@ -3132,8 +3152,7 @@ export default function ResumeEditor() {
               </button>
               {(() => {
                 const isLoggedIn = Boolean(getAccessToken());
-                const plan = typeof window !== 'undefined' ? localStorage.getItem('rb_plan') || 'FREE' : 'FREE';
-                const isPaid = plan === 'STUDENT' || plan === 'PRO';
+                const isPaid = currentPlan === 'STUDENT' || currentPlan === 'PRO';
                 const missingData = !resumeId || !aiCritiqueResult;
                 const label = !isLoggedIn
                   ? 'Sign in to Unlock Premium'

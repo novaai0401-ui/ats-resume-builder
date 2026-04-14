@@ -2,10 +2,14 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.mapParsedResume = mapParsedResume;
 const resume_schemas_1 = require("resume-schemas");
+const resume_parser_js_1 = require("./resume-parser.js");
 const experience_level_js_1 = require("./experience-level.js");
 const section_normalizer_js_1 = require("./section-normalizer.js");
 const experience_enhancer_js_1 = require("./experience-enhancer.js");
 const extraction_enhancements_js_1 = require("./extraction-enhancements.js");
+const extraction_config_js_1 = require("./extraction-config.js");
+const layout_detector_js_1 = require("./layout-detector.js");
+const deduplication_engine_js_1 = require("./deduplication-engine.js");
 const ROLE_HINT_RE = /\b(engineer|developer|manager|designer|analyst|intern|lead|architect|specialist|consultant|director|head|officer|administrator|coordinator|principal|staff|qa|devops|product|owner|founder|avp|assistant vice president|vice president)\b/i;
 const PLACEHOLDER_ONLY_RE = /^(?:-|n\/a|na|null|none|not available)$/i;
 const TITLE_BLOCKLIST = new Set([
