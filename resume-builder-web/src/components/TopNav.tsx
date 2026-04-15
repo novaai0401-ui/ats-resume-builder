@@ -12,6 +12,15 @@ export default function TopNav() {
   const [authed, setAuthed] = useState(false);
   const [admin, setAdmin] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  // TkxDrawer renders through a portal and touches `document` on mount —
+  // rendering it during SSR produces markup the client can't match,
+  // triggering a React hydration error. Wait for the first client-side
+  // effect before rendering it. The burger button is still present in
+  // SSR so there's no visual flash.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     startSessionHeartbeat();
@@ -88,15 +97,17 @@ export default function TopNav() {
         <span className="nav-burger__bar" />
       </button>
 
-      <TkxDrawer
-        isOpen={drawerOpen}
-        onClose={closeDrawer}
-        placement="right"
-        size="sm"
-        title="Menu"
-      >
-        <nav className="nav nav--mobile" id="mobile-nav-drawer">{links}</nav>
-      </TkxDrawer>
+      {mounted ? (
+        <TkxDrawer
+          isOpen={drawerOpen}
+          onClose={closeDrawer}
+          placement="right"
+          size="sm"
+          title="Menu"
+        >
+          <nav className="nav nav--mobile" id="mobile-nav-drawer">{links}</nav>
+        </TkxDrawer>
+      ) : null}
     </>
   );
 }

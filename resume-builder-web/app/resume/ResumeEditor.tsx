@@ -258,6 +258,14 @@ export default function ResumeEditor() {
   // top-of-form action strip to save / export / navigate to ATS.
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
   const mobileUploadInputRef = useRef<HTMLInputElement | null>(null);
+  // TkxBottomNav + TkxDrawer render through portals / touch `document`
+  // on mount. Rendering them during SSR produces markup the client
+  // can't match → React hydration error. Gate them behind a mounted
+  // flag so they only appear after the first client effect.
+  const [mobileUiMounted, setMobileUiMounted] = useState(false);
+  useEffect(() => {
+    setMobileUiMounted(true);
+  }, []);
 
   const [sections, setSections] = useState<SectionState[]>(() => getDefaultSections());
   const [jdText, setJdText] = useState('');
@@ -3447,6 +3455,7 @@ export default function ResumeEditor() {
         role="toolbar"
         aria-label="Editor actions"
       >
+        {mobileUiMounted ? (
         <TkxBottomNav
           items={[
             {
@@ -3493,7 +3502,9 @@ export default function ResumeEditor() {
           }}
           showLabels
         />
+        ) : null}
       </div>
+      {mobileUiMounted ? (
       <TkxDrawer
         isOpen={mobileMoreOpen}
         onClose={() => setMobileMoreOpen(false)}
@@ -3550,6 +3561,7 @@ export default function ResumeEditor() {
           </button>
         </div>
       </TkxDrawer>
+      ) : null}
     </main>
   );
 }
