@@ -6,6 +6,13 @@ import { api, getAccessToken } from '@/src/lib/api';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
+type PlanPricing = {
+  displayPriceUsd: string;
+  displayPriceInr: string;
+  gstAmount?: number;
+  gstRate: number;
+};
+
 type PlanStatus = {
   plan: string;
   limits: Record<string, number>;
@@ -13,6 +20,13 @@ type PlanStatus = {
   stripeConfigured: boolean;
   razorpayConfigured: boolean;
   periodEnd: string | null;
+  region?: string;
+  currency?: string;
+  pricing?: {
+    free: PlanPricing;
+    student: PlanPricing;
+    pro: PlanPricing;
+  };
 };
 
 type PaymentRecord = {
