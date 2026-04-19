@@ -16,14 +16,14 @@ import { ACTION_VERB_REQUIRED_RATIO, analyzeActionVerbRule, normalizeBulletText,
 import { SettingsService } from '../settings/settings.service';
 
 /**
- * Detect whether we're running in a serverless environment (Vercel / AWS Lambda).
+ * Detect whether we're running in a serverless environment (AWS Lambda).
  */
-const IS_SERVERLESS = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+const IS_SERVERLESS = Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME);
 
 /**
  * Resolve a Chrome/Chromium executable path for Puppeteer.
- * In serverless (Vercel): uses @sparticuz/chromium which bundles a minimal Chromium.
- * Locally: CHROME_EXECUTABLE_PATH env > common system paths > puppeteer default.
+ * In serverless: uses @sparticuz/chromium which bundles a minimal Chromium.
+ * Locally / Docker (Render): CHROME_EXECUTABLE_PATH env > common system paths > puppeteer default.
  */
 async function resolveChromeLaunchOptions(): Promise<LaunchOptions> {
   if (IS_SERVERLESS) {

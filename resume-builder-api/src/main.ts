@@ -65,23 +65,9 @@ function parseAllowedOrigins(value?: string) {
   return ['http://localhost:4000', 'http://localhost:4001'];
 }
 
-/** Check if an origin is allowed — supports exact match, Vercel preview, and Render patterns. */
+/** Check if an origin is allowed — supports exact match and Render preview patterns. */
 function isOriginAllowed(origin: string, allowedOrigins: string[]): boolean {
   if (allowedOrigins.includes(origin)) return true;
-
-  // Allow Vercel preview deployments matching any configured .vercel.app origin
-  if (allowedOrigins.some((o) => o.endsWith('.vercel.app')) && origin.endsWith('.vercel.app')) {
-    for (const allowed of allowedOrigins) {
-      try {
-        const allowedHost = new URL(allowed).hostname;
-        const originHost = new URL(origin).hostname;
-        const slug = allowedHost.replace('.vercel.app', '');
-        if (originHost === allowedHost || originHost.endsWith(`-${slug}.vercel.app`)) {
-          return true;
-        }
-      } catch { /* skip invalid URLs */ }
-    }
-  }
 
   // Allow Render preview/PR deployments matching any configured .onrender.com origin
   // Pattern: <service-name>-<pr-id>.onrender.com or <service-name>-<hash>.onrender.com

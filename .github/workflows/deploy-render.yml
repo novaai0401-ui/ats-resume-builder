@@ -1,0 +1,44 @@
+name: Deploy to Render
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'resume-builder-web/**'
+      - 'resume-builder-api/**'
+      - 'resume-builder-shared/**'
+      - 'packages/**'
+      - 'Dockerfile'
+      - 'Dockerfile.web'
+      - 'render.yaml'
+  workflow_dispatch:
+
+jobs:
+  deploy-api:
+    name: Deploy API (Render)
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Trigger Render API deploy
+        id: deploy
+        run: |
+          RESPONSE=$(curl -fsS -X POST "${{ secrets.RENDER_API_DEPLOY_HOOK }}")
+          echo "response=$RESPONSE" >> "$GITHUB_OUTPUT"
+
+      - name: Summary
+        run: echo "### API deploy triggered on Render" >> "$GITHUB_STEP_SUMMARY"
+
+  deploy-web:
+    name: Deploy Web (Render)
+    runs-on: ubuntu-latest
+    environment: production
+    needs: deploy-api
+    steps:
+      - name: Trigger Render Web deploy
+        id: deploy
+        run: |
+          RESPONSE=$(curl -fsS -X POST "${{ secrets.RENDER_WEB_DEPLOY_HOOK }}")
+          echo "response=$RESPONSE" >> "$GITHUB_OUTPUT"
+
+      - name: Summary
+        run: echo "### Web deploy triggered on Render" >> "$GITHUB_STEP_SUMMARY"
