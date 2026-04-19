@@ -131,21 +131,95 @@ export function LoginPageView({ apiClient = api, routerOverride, defaultMode = '
           {mode === 'login' ? (
             <form onSubmit={handlePasswordLogin} style={{ display: 'grid', gap: 12 }}>
               <label className="label" htmlFor="login-email">Email</label>
-              <input id="login-email" className="input" type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
+              <input
+                id="login-email"
+                className="input"
+                type="email"
+                inputMode="email"
+                autoComplete="username"
+                autoCapitalize="off"
+                autoCorrect="off"
+                spellCheck={false}
+                enterKeyHint="next"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
               <label className="label" htmlFor="login-password">Password</label>
-              <input id="login-password" className="input" type="password" placeholder="Enter password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} />
+              <input
+                id="login-password"
+                className="input"
+                type="password"
+                autoComplete="current-password"
+                enterKeyHint="go"
+                placeholder="Enter password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={8}
+              />
               <button className="btn" type="submit" disabled={loading}>{loading ? 'Signing in...' : 'Sign In'}</button>
             </form>
           ) : (
             <form onSubmit={handleRegister} style={{ display: 'grid', gap: 12 }}>
               <label className="label" htmlFor="reg-name">Full Name</label>
-              <input id="reg-name" className="input" type="text" placeholder="John Doe" value={regName} onChange={(e) => setRegName(e.target.value)} required minLength={2} />
+              <input
+                id="reg-name"
+                className="input"
+                type="text"
+                autoComplete="name"
+                autoCapitalize="words"
+                enterKeyHint="next"
+                placeholder="John Doe"
+                value={regName}
+                onChange={(e) => setRegName(e.target.value)}
+                required
+                minLength={2}
+              />
               <label className="label" htmlFor="reg-email">Email</label>
-              <input id="reg-email" className="input" type="email" placeholder="you@example.com" value={regEmail} onChange={(e) => setRegEmail(e.target.value)} required />
+              <input
+                id="reg-email"
+                className="input"
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                autoCapitalize="off"
+                autoCorrect="off"
+                spellCheck={false}
+                enterKeyHint="next"
+                placeholder="you@example.com"
+                value={regEmail}
+                onChange={(e) => setRegEmail(e.target.value)}
+                required
+              />
               <label className="label" htmlFor="reg-mobile">Mobile</label>
-              <input id="reg-mobile" className="input" type="tel" inputMode="numeric" placeholder="+919XXXXXXXXX" value={regMobile} onChange={(e) => setRegMobile(e.target.value)} required minLength={10} />
+              <input
+                id="reg-mobile"
+                className="input"
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
+                enterKeyHint="next"
+                placeholder="+919XXXXXXXXX"
+                value={regMobile}
+                onChange={(e) => setRegMobile(e.target.value)}
+                required
+                minLength={10}
+              />
               <label className="label" htmlFor="reg-password">Password</label>
-              <input id="reg-password" className="input" type="password" placeholder="Min 8 characters" value={regPassword} onChange={(e) => setRegPassword(e.target.value)} required minLength={8} />
+              <input
+                id="reg-password"
+                className="input"
+                type="password"
+                autoComplete="new-password"
+                enterKeyHint="go"
+                placeholder="Min 8 characters"
+                value={regPassword}
+                onChange={(e) => setRegPassword(e.target.value)}
+                required
+                minLength={8}
+              />
               <button className="btn" type="submit" disabled={loading}>{loading ? 'Creating account...' : 'Create Account'}</button>
             </form>
           )}

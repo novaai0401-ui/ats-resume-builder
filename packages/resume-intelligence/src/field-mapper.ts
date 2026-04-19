@@ -8,10 +8,14 @@
 } from 'resume-schemas';
 import { ParsedResumeSchema } from 'resume-schemas';
 import type { ParsedResumeText } from './resume-parser.js';
+import { parseResumeText } from './resume-parser.js';
 import { computeExperienceLevel } from './experience-level.js';
 import { normalizeHeading } from './section-normalizer.js';
 import { enhanceExperienceExtraction } from './experience-enhancer.js';
 import { ADDITIONAL_TECH_SKILLS, hardenString } from './extraction-enhancements.js';
+import { getExtractionConfig } from './extraction-config.js';
+import { detectLayout, deinterleaveColumns } from './layout-detector.js';
+import { runDeduplicationPipeline } from './deduplication-engine.js';
 
 export type MappedResumeResult = ParsedResume & {
   signals: {
@@ -73,7 +77,7 @@ export function mapParsedResume(parsed: ParsedResumeText): MappedResumeResult {
       // Re-order interleaved text and re-parse
       const reordered = deinterleaveColumns(rawText, layout);
       if (reordered !== rawText) {
-        effectiveParsed = reParseText(reordered);
+        effectiveParsed = parseResumeText(reordered);
       }
     }
   }

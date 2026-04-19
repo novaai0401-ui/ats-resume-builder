@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { TEMPLATE_CATALOG } from 'resume-builder-shared';
+import { TkxEmpty, TkxSkeleton } from 'tekivex-ui';
 import { api, getAccessToken, type DriveSessionResponse, type Resume } from '@/src/lib/api';
 import TemplateCatalogGrid from '@/src/components/templates/TemplateCatalogGrid';
 import {
@@ -124,10 +125,28 @@ export default function DashboardPageView({
     };
   }, [apiClient]);
 
+  // Search query is only surfaced in the UI when the user has enough
+  // resumes to make it useful. On mobile, typing uses the soft keyboard
+  // and costs screen real estate, so we keep it hidden for small lists.
+  const [searchQuery, setSearchQuery] = useState('');
+
   const sortedResumes = useMemo(
     () => [...resumes].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()),
     [resumes],
   );
+
+  const filteredResumes = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return sortedResumes;
+    return sortedResumes.filter((r) => {
+      const title = (r.title || '').toLowerCase();
+      const name = (r.contact?.fullName || '').toLowerCase();
+      const role = (r.experience?.[0]?.role || '').toLowerCase();
+      return title.includes(q) || name.includes(q) || role.includes(q);
+    });
+  }, [sortedResumes, searchQuery]);
+
+  const shouldShowSearch = sortedResumes.length > 3;
 
   useEffect(() => {
     if (!sortedResumes.length) {
@@ -240,7 +259,7 @@ export default function DashboardPageView({
   }
 
   return (
-    <main style={{ width: 'min(1400px, 94vw)', margin: '0 auto', padding: 24 }}>
+    <main className="dashboard-shell">
       <header style={{ marginBottom: 14 }}>
         <h1 style={{ marginBottom: 4 }}>Dashboard</h1>
         <p className="small" style={{ margin: 0 }}>
@@ -271,32 +290,54 @@ export default function DashboardPageView({
             ) : null}
           </div>
           {sortedResumes.length > 0 ? (
-            <label style={{ display: 'grid', gap: 6, minWidth: 260 }}>
-              <span className="small">Selected resume</span>
-              <select
-                className="input"
-                value={selectedResumeId}
-                onChange={(event) => {
-                  const nextResumeId = String(event.target.value || '').trim();
-                  setSelectedResumeId(nextResumeId);
-                  setStatus('');
-                  setError('');
-                  if (nextResumeId) {
-                    persistActiveResumeSelection(nextResumeId);
-                    return;
-                  }
-                  clearActiveResumeSelection();
-                }}
-                data-testid="dashboard-resume-select"
-              >
-                <option value="">Select a saved resume</option>
-                {sortedResumes.map((resume) => (
-                  <option key={resume.id} value={resume.id}>
-                    {resume.title}
+            <div style={{ display: 'grid', gap: 8, minWidth: 260, flex: '1 1 260px' }}>
+              {shouldShowSearch ? (
+                <label style={{ display: 'grid', gap: 6 }}>
+                  <span className="small">Search resumes</span>
+                  <input
+                    className="input"
+                    type="search"
+                    inputMode="search"
+                    enterKeyHint="search"
+                    autoComplete="off"
+                    placeholder="Search by title, name, or role"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    data-testid="dashboard-resume-search"
+                  />
+                </label>
+              ) : null}
+              <label style={{ display: 'grid', gap: 6 }}>
+                <span className="small">Selected resume</span>
+                <select
+                  className="input"
+                  value={selectedResumeId}
+                  onChange={(event) => {
+                    const nextResumeId = String(event.target.value || '').trim();
+                    setSelectedResumeId(nextResumeId);
+                    setStatus('');
+                    setError('');
+                    if (nextResumeId) {
+                      persistActiveResumeSelection(nextResumeId);
+                      return;
+                    }
+                    clearActiveResumeSelection();
+                  }}
+                  data-testid="dashboard-resume-select"
+                >
+                  <option value="">
+                    {filteredResumes.length === 0 && searchQuery
+                      ? 'No resumes match your search'
+                      : 'Select a saved resume'}
                   </option>
-                ))}
-              </select>
-            </label>
+                  {filteredResumes.map((resume) => (
+                    <option key={resume.id} value={resume.id}>
+                      {resume.title}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
           ) : null}
         </div>
       </section>
@@ -329,8 +370,25 @@ export default function DashboardPageView({
           </div>
         </div>
 
-        {resumesLoading ? <p className="small" style={{ marginTop: 12 }}>Loading resumes...</p> : null}
-        {!activeResume?.id ? (
+        {resumesLoading ? (
+          <div style={{ marginTop: 12, display: 'grid', gap: 8 }} aria-busy="true" aria-label="Loading resumes">
+            <TkxSkeleton variant="text" lines={2} />
+            <TkxSkeleton variant="rectangular" height={120} />
+          </div>
+        ) : null}
+        {!resumesLoading && sortedResumes.length === 0 ? (
+          <div style={{ marginTop: 12 }} data-testid="dashboard-empty-state">
+            <TkxEmpty
+              image="default"
+              description="You don't have any resumes yet. Create one to unlock ATS-safe templates."
+            >
+              <Link className="btn" href="/resume/start">
+                Create your first resume
+              </Link>
+            </TkxEmpty>
+          </div>
+        ) : null}
+        {!resumesLoading && sortedResumes.length > 0 && !activeResume?.id ? (
           <p className="small template-empty" style={{ marginTop: 12 }}>
             Select a saved resume or upload a new one to preview templates.
           </p>

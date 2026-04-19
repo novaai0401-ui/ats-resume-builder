@@ -1,0 +1,36 @@
+{
+  "name": "Resume Builder",
+  "short_name": "Resume",
+  "description": "ATS-optimized resume builder — create, edit, and export resumes that get past applicant tracking systems.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#2f5f8f",
+  "background_color": "#f2f5f8",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["productivity", "business"],
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "View your saved resumes",
+      "url": "/dashboard"
+    },
+    {
+      "name": "New Resume",
+      "short_name": "New",
+      "description": "Start a new resume",
+      "url": "/resume/start"
+    }
+  ]
+}

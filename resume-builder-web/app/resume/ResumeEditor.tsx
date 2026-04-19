@@ -3,6 +3,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { TkxBottomNav, TkxDrawer } from 'tekivex-ui';
 import useFeatureFlags from '@/src/hooks/use-feature-flags';
 import { RESUME_CREATE_RATE_LIMIT_CODE, api, Resume, ResumeImportResult, UploadResumeResponse, getAccessToken, isApiRequestError } from '@/src/lib/api';
 import { useResumeStore } from '@/src/lib/resume-store';
@@ -252,6 +253,20 @@ export default function ResumeEditor() {
   const setResume = (updater: ResumeDraft | ((prev: ResumeDraft) => ResumeDraft)) => {
     setResumeStore(updater as any);
   };
+  // Mobile-only action bar: controls the bottom drawer for the "More"
+  // menu on small screens so users don't have to scroll back to the
+  // top-of-form action strip to save / export / navigate to ATS.
+  const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
+  const mobileUploadInputRef = useRef<HTMLInputElement | null>(null);
+  // TkxBottomNav + TkxDrawer render through portals / touch `document`
+  // on mount. Rendering them during SSR produces markup the client
+  // can't match → React hydration error. Gate them behind a mounted
+  // flag so they only appear after the first client effect.
+  const [mobileUiMounted, setMobileUiMounted] = useState(false);
+  useEffect(() => {
+    setMobileUiMounted(true);
+  }, []);
+
   const [sections, setSections] = useState<SectionState[]>(() => getDefaultSections());
   const [jdText, setJdText] = useState('');
   const [message, setMessage] = useState('');
@@ -285,6 +300,10 @@ export default function ResumeEditor() {
   const [techGapLoading, setTechGapLoading] = useState(false);
   const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [premiumOptimizing, setPremiumOptimizing] = useState(false);
+  const [currentPlan, setCurrentPlan] = useState<string>(() => {
+    if (typeof window === 'undefined') return 'FREE';
+    return localStorage.getItem('rb_plan') || 'FREE';
+  });
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [lastValidationCode, setLastValidationCode] = useState('');
   const [actionVerbRule, setActionVerbRule] = useState<ActionVerbRuleState>(() => createActionVerbRuleState([]));
@@ -793,6 +812,22 @@ export default function ResumeEditor() {
     }, 900);
     return () => clearTimeout(timer);
   }, [resume, resumeId]);
+
+  // Sync the user's actual plan from the server so the "Unlock Premium"
+  // button label reflects real entitlement (localStorage.rb_plan can go
+  // stale after admin-side upgrades, subscription webhooks, etc.).
+  useEffect(() => {
+    if (!getAccessToken()) return;
+    api.getBillingStatus()
+      .then((status) => {
+        const plan = String(status?.plan || 'FREE');
+        setCurrentPlan(plan);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('rb_plan', plan);
+        }
+      })
+      .catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     if (!isReviewAtsPage) {
@@ -3132,8 +3167,7 @@ export default function ResumeEditor() {
               </button>
               {(() => {
                 const isLoggedIn = Boolean(getAccessToken());
-                const plan = typeof window !== 'undefined' ? localStorage.getItem('rb_plan') || 'FREE' : 'FREE';
-                const isPaid = plan === 'STUDENT' || plan === 'PRO';
+                const isPaid = currentPlan === 'STUDENT' || currentPlan === 'PRO';
                 const missingData = !resumeId || !aiCritiqueResult;
                 const label = !isLoggedIn
                   ? 'Sign in to Unlock Premium'
@@ -3397,7 +3431,160 @@ export default function ResumeEditor() {
           </div>
         </div>
       )}
+
+      {/* ── Mobile sticky action bar ───────────────────────────────────
+       * Renders as fixed-bottom on <768px (via .mobile-action-bar in
+       * globals.css) so the editor's primary actions are always one
+       * tap away while editing a long form. Hidden on desktop.
+       * ──────────────────────────────────────────────────────────── */}
+      <input
+        ref={mobileUploadInputRef}
+        type="file"
+        accept=".pdf,.docx,.doc,.txt,.html,.htm,.rtf"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.currentTarget.value = '';
+          if (file) void onUpload(file);
+        }}
+        style={{ display: 'none' }}
+        aria-hidden="true"
+        tabIndex={-1}
+      />
+      <div
+        className="mobile-action-bar"
+        role="toolbar"
+        aria-label="Editor actions"
+      >
+        {mobileUiMounted ? (
+        <TkxBottomNav
+          items={[
+            {
+              id: 'save',
+              label: status === 'saving' ? 'Saving' : 'Save',
+              icon: <MobileNavIcon path={ICON_SAVE} />,
+            },
+            {
+              id: 'ats',
+              label: 'ATS',
+              icon: <MobileNavIcon path={ICON_CHECK_CIRCLE} />,
+            },
+            {
+              id: 'export',
+              label: 'Export',
+              icon: <MobileNavIcon path={ICON_DOWNLOAD} />,
+            },
+            {
+              id: 'more',
+              label: 'More',
+              icon: <MobileNavIcon path={ICON_MORE} />,
+            },
+          ]}
+          onChange={(id) => {
+            if (id === 'save') {
+              if (!validation.canAutoSave || status === 'saving' || (resumeQuotaBlocked && !resumeId)) return;
+              saveDraft(false).catch(() => undefined);
+              return;
+            }
+            if (id === 'ats') {
+              if (!requiredSectionsValid || atsQuotaBlocked) return;
+              void score();
+              return;
+            }
+            if (id === 'export') {
+              if (!requiredSectionsValid) return;
+              void exportPdf();
+              return;
+            }
+            if (id === 'more') {
+              setMobileMoreOpen(true);
+              return;
+            }
+          }}
+          showLabels
+        />
+        ) : null}
+      </div>
+      {mobileUiMounted ? (
+      <TkxDrawer
+        isOpen={mobileMoreOpen}
+        onClose={() => setMobileMoreOpen(false)}
+        placement="bottom"
+        size="md"
+        title="More actions"
+      >
+        <div className="mobile-action-drawer">
+          <button
+            type="button"
+            className="btn secondary"
+            onClick={() => {
+              setMobileMoreOpen(false);
+              mobileUploadInputRef.current?.click();
+            }}
+            disabled={loadingUpload}
+          >
+            {editorUploadLabel}
+          </button>
+          {!isReviewAtsPage ? (
+            <button
+              type="button"
+              className="btn secondary"
+              onClick={() => {
+                setMobileMoreOpen(false);
+                goToReviewAts();
+              }}
+            >
+              Review &amp; ATS
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className="btn"
+            onClick={() => {
+              setMobileMoreOpen(false);
+              if (requiredSectionsValid && !loadingAtsNavigation && !atsQuotaBlocked) {
+                void continueToAts();
+              }
+            }}
+            disabled={!requiredSectionsValid || loadingAtsNavigation || atsQuotaBlocked}
+          >
+            {loadingAtsNavigation ? 'Preparing ATS...' : 'Continue to ATS'}
+          </button>
+          <button
+            type="button"
+            className="btn ghost"
+            onClick={() => {
+              setMobileMoreOpen(false);
+              if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+          >
+            Scroll to top
+          </button>
+        </div>
+      </TkxDrawer>
+      ) : null}
     </main>
+  );
+}
+
+// Material-style icons rendered inline so the editor doesn't need an
+// icon-set dependency. Paths pulled from Material Symbols filled set.
+const ICON_SAVE = 'M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z';
+const ICON_CHECK_CIRCLE = 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z';
+const ICON_DOWNLOAD = 'M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z';
+const ICON_MORE = 'M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z';
+
+function MobileNavIcon({ path }: { path: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      focusable="false"
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+    >
+      <path d={path} />
+    </svg>
   );
 }
 

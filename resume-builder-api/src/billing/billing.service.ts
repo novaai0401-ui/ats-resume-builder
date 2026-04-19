@@ -42,11 +42,6 @@ export class BillingService {
     if (!user) throw new ForbiddenException('User not found');
     const config = getPlanConfig(user.plan as PlanName);
     const credits = (user as any).premiumCredits ?? 0;
-    const isIndia = isIndianUser({
-      locale: options?.locale,
-      timezone: options?.timezone,
-      phone: user.mobile || undefined,
-    });
     return {
       plan: user.plan,
       premiumCredits: credits,

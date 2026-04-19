@@ -2273,4 +2273,178 @@ h2 {
   }
 }
 
+/* -------------------------------------------------------------------------
+ * Mobile-first shell + navigation (tekivex-ui integration)
+ *
+ * Goals:
+ *   - Shell padding/width scales down on phones (was hard-coded 24px / 90vw).
+ *   - Topbar stays row-aligned with brand on the left + burger on the right.
+ *   - Desktop .nav hidden below 768px, replaced by a burger that opens a
+ *     TkxDrawer rendering the same link list.
+ *   - Existing desktop layout unchanged at >=768px.
+ * ------------------------------------------------------------------------- */
+
+/* Burger is desktop-hidden by default. */
+.nav-burger {
+  display: none;
+  width: 44px;  /* 44px = WCAG minimum touch target */
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  flex-direction: column;
+}
+
+.nav-burger:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.nav-burger__bar {
+  display: block;
+  width: 20px;
+  height: 2px;
+  background: var(--ink);
+  border-radius: 2px;
+}
+
+.nav--mobile {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 0;
+}
+
+.nav--mobile a,
+.nav--mobile .btn {
+  width: 100%;
+  text-align: left;
+  padding: 12px 14px;
+  font-size: 16px;
+  min-height: 44px; /* touch target */
+}
+
+@media (max-width: 767px) {
+  .main-shell {
+    width: 100%;
+    padding: 12px;
+  }
+
+  .topbar {
+    /* Override the max-width:600px column-stack rule further up so the
+     * burger sits next to the brand on mobile. */
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  .nav--desktop {
+    display: none;
+  }
+
+  .nav-burger {
+    display: inline-flex;
+  }
+
+  .brand {
+    font-size: 18px;
+  }
+
+  /* Any element using `.btn` becomes a 44px touch target on phones. */
+  .btn {
+    min-height: 44px;
+  }
+}
+
+/* Prevent accidental horizontal scroll on small screens when a descendant
+ * overflows (common with wide tables / <pre> blocks). */
+@media (max-width: 767px) {
+  html, body {
+    overflow-x: hidden;
+  }
+}
+
+/* Dashboard shell — replaces the hard-coded 24px padding / 94vw width
+ * with a mobile-first scale so the template grid and preview profile
+ * aren't cramped on phones. */
+.dashboard-shell {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 12px;
+}
+
+@media (min-width: 768px) {
+  .dashboard-shell {
+    padding: 24px;
+    width: min(1400px, 94vw);
+  }
+}
+
+/* On mobile, make the save/autosave status pill stick to the bottom of
+ * the viewport so users don't lose sight of it while scrolling a long
+ * resume form. Desktop keeps it inline in the editor header.
+ *
+ * Bottom offset accounts for the mobile-action-bar (approx 60px nav +
+ * 12px breathing room + 8px for iOS home indicator via safe-area). */
+@media (max-width: 767px) {
+  .status-pill {
+    position: sticky;
+    bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+    z-index: 50;
+    margin: 8px auto 0;
+    width: fit-content;
+    box-shadow: 0 4px 12px rgba(23, 35, 50, 0.15);
+  }
+}
+
+/* ── Mobile sticky action bar for the resume editor ─────────────────
+ * Hidden on desktop (>=768px). On mobile it sticks to the bottom of
+ * the viewport with safe-area padding so iOS home indicator doesn't
+ * overlap. The editor's <main> gets extra bottom padding so nothing
+ * hides behind the bar.
+ * ─────────────────────────────────────────────────────────────────── */
+.mobile-action-bar {
+  display: none;
+}
+
+.mobile-action-drawer {
+  display: grid;
+  gap: 10px;
+  padding: 4px 0 8px;
+}
+
+.mobile-action-drawer .btn {
+  width: 100%;
+  min-height: 44px;
+  justify-content: center;
+}
+
+@media (max-width: 767px) {
+  .mobile-action-bar {
+    display: block;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 60;
+    background: var(--card);
+    border-top: 1px solid var(--border);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    box-shadow: 0 -4px 16px rgba(23, 35, 50, 0.08);
+  }
+
+  /* Give the editor main enough bottom space to scroll past the
+   * fixed action bar. 72px tracks the bar height + a little margin. */
+  main.grid {
+    padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
 
