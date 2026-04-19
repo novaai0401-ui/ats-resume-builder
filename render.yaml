@@ -44,7 +44,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: PORT
-        value: "3001"
+        value: "4001"
 
       # ── CORS — MUST be set to the Web frontend URL after first deploy
       # Example: https://ats-rb-web.onrender.com
@@ -190,7 +190,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: PORT
-        value: "3000"
+        value: "4000"
 
       # ── API URL (CRITICAL — baked into Next.js build) ───────────────
       # Must point to the API service URL on Render.
