@@ -79,9 +79,30 @@ export class SocialAuthController {
         this.logger.warn(`${cfg.name} login: NOT CONFIGURED — missing: ${missingGroups.join(', ')}`);
       }
     }
-    const successUrl = this.config.get('SOCIAL_LOGIN_SUCCESS_URL');
+    const successUrl = this.config.get<string>('SOCIAL_LOGIN_SUCCESS_URL');
+    const resolved = this.getFrontendCallbackUrl();
     if (!successUrl) {
-      this.logger.warn('SOCIAL_LOGIN_SUCCESS_URL not set — defaulting to http://localhost:4000/auth/callback');
+      this.logger.warn(
+        `SOCIAL_LOGIN_SUCCESS_URL not set — using fallback: ${resolved}`,
+      );
+    } else if (this.looksLikeApiHost(successUrl)) {
+      this.logger.error(
+        `SOCIAL_LOGIN_SUCCESS_URL=${successUrl} appears to point at the API itself. ` +
+          `This will 404 after OAuth completes. Set it to your WEB host, e.g. https://<web-service>.onrender.com/auth/callback`,
+      );
+    } else {
+      this.logger.log(`SOCIAL_LOGIN_SUCCESS_URL resolved to: ${resolved}`);
+    }
+  }
+
+  /** Heuristic: warn if the configured success URL is the API's own host. */
+  private looksLikeApiHost(url: string): boolean {
+    try {
+      const host = new URL(url).hostname;
+      // Heuristic: any hostname starting with "api" or containing "-api."
+      return /^api[.-]|[-.]api\./i.test(host);
+    } catch {
+      return false;
     }
   }
 
@@ -93,7 +114,21 @@ export class SocialAuthController {
   }
 
   private getFrontendCallbackUrl(): string {
-    return this.config.get<string>('SOCIAL_LOGIN_SUCCESS_URL', 'http://localhost:4000/auth/callback');
+    // 1. Explicit env var wins
+    const explicit = this.config.get<string>('SOCIAL_LOGIN_SUCCESS_URL');
+    if (explicit) return explicit;
+
+    // 2. Fall back to first CORS_ORIGIN entry + /auth/callback. This handles the
+    //    common deploy case where the operator sets CORS_ORIGIN to the web host
+    //    and forgets to set SOCIAL_LOGIN_SUCCESS_URL separately.
+    const corsOrigin = this.config.get<string>('CORS_ORIGIN');
+    if (corsOrigin) {
+      const first = corsOrigin.split(',')[0].trim().replace(/\/+$/, '');
+      if (first) return `${first}/auth/callback`;
+    }
+
+    // 3. Local dev fallback
+    return 'http://localhost:4000/auth/callback';
   }
 
   // ─── State Management ─────────────────────────────────────────────────────
