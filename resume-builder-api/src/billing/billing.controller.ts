@@ -1,6 +1,10 @@
 ﻿import { BadRequestException, Body, Controller, Get, Headers, Post, Req, UseGuards } from '@nestjs/common';
 import type { Request } from 'express';
-import { CreateCheckoutSessionSchema, type CreateCheckoutSessionDto } from 'resume-builder-shared';
+import {
+  CreateCheckoutSessionSchema,
+  SUBSCRIPTION_TIERS,
+  type CreateCheckoutSessionDto,
+} from 'resume-builder-shared';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { BillingService } from './billing.service';
 import { RazorpayService } from './razorpay.service';
@@ -17,6 +21,16 @@ export class BillingController {
   @UseGuards(JwtAuthGuard)
   getStatus(@Req() req: { user: { userId: string } }) {
     return this.billingService.getPlanStatus(req.user.userId, this.razorpayService.isConfigured());
+  }
+
+  /**
+   * Public catalog of subscription tiers (FREE / PRO / ELITE).
+   * No auth — the pricing marketing page needs to render for logged-out
+   * visitors. Returns the same catalog the web client imports from shared.
+   */
+  @Get('tiers')
+  listTiers() {
+    return { tiers: SUBSCRIPTION_TIERS };
   }
 
   /** Directly upgrade plan (no Stripe required). For personal/dev use. */

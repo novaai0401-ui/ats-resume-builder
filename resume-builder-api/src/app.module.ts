@@ -11,6 +11,7 @@ import { CompaniesModule } from './companies/companies.module';
 import { MetaModule } from './meta/meta.module';
 import { SettingsModule } from './settings/settings.module';
 import { AdminModule } from './admin/admin.module';
+import { QuantumModule } from './quantum/quantum.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { AdminModule } from './admin/admin.module';
     BillingModule,
     CompaniesModule,
     MetaModule,
+    QuantumModule,
   ],
   controllers: [HealthController],
 })

@@ -882,6 +882,57 @@ export const api = {
       body: JSON.stringify(input),
     }),
 
+  getQuantumIndustries: () =>
+    request<{
+      items: Array<{
+        id: string;
+        label: string;
+        tagline: string;
+        roles: Array<{ id: string; title: string; seniority: string[] }>;
+      }>;
+    }>(`/quantum/industries`),
+
+  recommendQuantum: (input: {
+    industryId: string;
+    roleId: string;
+    currentSkills: string[];
+    targetIndustryId?: string;
+    targetRoleId?: string;
+    limit?: number;
+  }) =>
+    request<{
+      industry: string;
+      role: string;
+      targetIndustry?: string;
+      targetRole?: string;
+      recommendations: Array<{ skill: string; probability: number; reason: string; cluster?: string }>;
+      pivots: Array<{ industryId: string; label: string; alignment: number }>;
+      readiness: number;
+    }>(`/quantum/recommend`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
+  getSubscriptionTiers: () =>
+    request<{
+      tiers: Array<{
+        id: 'FREE' | 'PRO' | 'ELITE';
+        name: string;
+        tagline: string;
+        priceUsdCents: number;
+        priceInrPaise: number;
+        highlight?: boolean;
+        limits: {
+          aiTokens: number;
+          atsScans: number;
+          resumes: number;
+          pdfExports: number;
+          quantumQueries: number;
+        };
+        features: string[];
+      }>;
+    }>(`/billing/tiers`),
+
   getSocialProviders: () =>
     request<{ providers: Array<{ id: string; name: string; configured: boolean }> }>(`/auth/social/providers`),
 

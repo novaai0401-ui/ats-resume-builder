@@ -2447,4 +2447,105 @@ h2 {
   }
 }
 
+/* ───── Quantum Career Navigator + Pricing ─────────────────────────────
+ * Scoped styles for the /career and /pricing routes. Kept in globals.css
+ * because every other style in this app lives here — adding a CSS module
+ * just for these two pages would break the pattern.
+ * Mobile-first: single column by default, `grid` utility handles the
+ * breakpoint to multi-column at wider viewports.
+ */
+
+.career-page select,
+.career-page textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  min-height: 44px; /* WCAG touch target */
+}
+
+.career-page textarea {
+  resize: vertical;
+}
+
+.career-page label {
+  display: block;
+}
+
+.quantum-recs {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 12px;
+}
+
+.quantum-recs li {
+  padding-left: 4px;
+}
+
+.quantum-pivots {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 8px;
+}
+
+.pricing-grid {
+  align-items: stretch;
+}
+
+.pricing-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.pricing-card--highlight {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.pricing-price {
+  font-size: 1.6rem;
+  margin: 8px 0 16px;
+}
+
+.pricing-price strong {
+  font-size: 2rem;
+}
+
+.pricing-features {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 16px;
+  display: grid;
+  gap: 8px;
+}
+
+.pricing-features li {
+  padding-left: 24px;
+  position: relative;
+  line-height: 1.45;
+}
+
+.pricing-features li::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* On narrow screens stack pricing cards full-width — `.col-4` already
+ * degrades to 100% width at the 768px breakpoint via the grid utility. */
+@media (max-width: 767px) {
+  .pricing-card {
+    margin-bottom: 12px;
+  }
+}
+
 
