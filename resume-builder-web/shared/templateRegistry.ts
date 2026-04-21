@@ -1,9 +1,12 @@
 import type { ComponentType } from 'react';
 import type { ResumeImportResult, TemplateCatalogId, TemplateCatalogItem } from 'resume-builder-shared';
 import { DEFAULT_TEMPLATE_ID, TEMPLATE_CATALOG, resolveTemplateCatalogId } from 'resume-builder-shared';
+import AcademicCV from '@/components/templates/AcademicCV';
 import ClassicATS from '@/components/templates/ClassicATS';
 import ConsultantClean from '@/components/templates/ConsultantClean';
+import CreativePortfolio from '@/components/templates/CreativePortfolio';
 import ExecutiveImpact from '@/components/templates/ExecutiveImpact';
+import HealthcareCV from '@/components/templates/HealthcareCV';
 import MinimalClean from '@/components/templates/MinimalClean';
 import ModernProfessional from '@/components/templates/ModernProfessional';
 import TechnicalCompact from '@/components/templates/TechnicalCompact';
@@ -25,6 +28,9 @@ const templateComponents: Record<TemplateComponentKey, ComponentType<TemplateCom
   technical: TechnicalCompact,
   minimal: MinimalClean,
   consultant: ConsultantClean,
+  academic: AcademicCV,
+  healthcare: HealthcareCV,
+  creative: CreativePortfolio,
 };
 
 const templateEntries = TEMPLATE_CATALOG.map((template) => {

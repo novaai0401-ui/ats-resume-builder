@@ -152,13 +152,24 @@ export default function BillingPage() {
   }, [payments.length]);
 
   // ─── Upgrade Handler ────────────────────────────────────────────────────
+  //
+  // Payment gateway priority:
+  //   1. Razorpay (primary for Indian users — UPI, cards, netbanking, wallets)
+  //   2. Stripe (international fallback)
+  //   3. None → surface a clear error. We intentionally no longer fall through
+  //      to a silent directUpgrade; that path bypassed billing entirely and is
+  //      the reason no payment window ever appeared for the user.
+  //
+  // Admins can still force a zero-cost upgrade from the admin panel or by
+  // setting the `rb_allow_direct_upgrade=1` flag in localStorage for local
+  // dev builds. Production users always see a real checkout modal.
 
   async function handleUpgrade(plan: 'STUDENT' | 'PRO') {
     setMessage('');
     setSuccess('');
     setUpgrading(true);
     try {
-      // Priority 1: Razorpay (if configured)
+      // Priority 1: Razorpay (if configured) — preferred for Indian users.
       if (planStatus?.razorpayConfigured) {
         await loadRazorpayScript();
         const order = await api.createRazorpayOrder(plan, billingInterval);
@@ -166,18 +177,30 @@ export default function BillingPage() {
         return; // Don't setUpgrading(false) — Razorpay modal handles it
       }
 
-      // Priority 2: Stripe (if configured)
+      // Priority 2: Stripe (if configured) — international checkout.
       if (planStatus?.stripeConfigured) {
         const { url } = await api.checkout(plan);
         window.location.href = url;
         return;
       }
 
-      // Fallback: Direct upgrade (dev/testing mode)
-      const result = await api.directUpgrade(plan);
-      setSuccess(result.message || `Upgraded to ${plan}!`);
-      setPlanStatus((prev) => prev ? { ...prev, plan, limits: result.limits } : prev);
-      localStorage.setItem('rb_plan', plan);
+      // Priority 3 (dev-only): explicit opt-in via localStorage flag.
+      const allowDirect =
+        typeof window !== 'undefined' &&
+        window.localStorage.getItem('rb_allow_direct_upgrade') === '1';
+      if (allowDirect) {
+        const result = await api.directUpgrade(plan);
+        setSuccess(result.message || `Upgraded to ${plan} (dev mode).`);
+        setPlanStatus((prev) => (prev ? { ...prev, plan, limits: result.limits } : prev));
+        localStorage.setItem('rb_plan', plan);
+        return;
+      }
+
+      // No payment gateway is configured. Tell the user instead of silently
+      // upgrading — the previous silent upgrade path hid billing entirely.
+      setMessage(
+        'Online payments are being set up. Please try again shortly, or contact support to upgrade your account.',
+      );
     } catch (err: unknown) {
       setMessage(err instanceof Error ? err.message : 'Upgrade failed. Please try again.');
     } finally {
@@ -369,7 +392,20 @@ export default function BillingPage() {
         <div className="grid" style={{ gap: 16 }}>
           {PLANS.map((plan) => {
             const isCurrent = currentPlan === plan.key;
-            const price = billingInterval === 'annual' ? plan.annualPrice : plan.monthlyPrice;
+            const priceKey = plan.key.toLowerCase() as 'free' | 'student' | 'pro';
+            const baseMonthly = formatPrice(priceKey);
+            // Annual = monthly displayed price × 10 (2 months free).
+            // We keep this purely in the display layer; the backend authoritative
+            // amount is whatever Razorpay/Stripe charges.
+            const annualPriceLabel = (() => {
+              if (plan.monthlyPrice === 0) return baseMonthly;
+              if (!pricing) return `$${(plan.annualPrice).toFixed(2)}`;
+              const unit = isIndia ? '₹' : '$';
+              const raw = isIndia ? pricing[priceKey].priceInr * 10 : plan.annualPrice;
+              return `${unit}${isIndia ? raw : raw.toFixed(2)}`;
+            })();
+            const priceLabel = billingInterval === 'annual' ? annualPriceLabel : baseMonthly;
+            const gstLabel = isIndia && priceKey !== 'free' ? formatGst(priceKey) : null;
             const borderColor = isCurrent ? '#1e5b35' : plan.key === 'PRO' ? '#2f5f8f' : plan.key === 'STUDENT' ? '#5b9bd5' : '#d0dbe7';
 
             return (
@@ -385,13 +421,16 @@ export default function BillingPage() {
                 )}
                 <h3 style={{ color: '#1a3a5c' }}>{plan.name}</h3>
                 <p style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1a3a5c', margin: '8px 0' }}>
-                  {price === 0 ? '$0' : `$${price.toFixed(2)}`}
-                  {price > 0 && (
+                  {priceLabel}
+                  {plan.monthlyPrice > 0 && (
                     <span className="small" style={{ fontWeight: 400 }}>
                       /{billingInterval === 'annual' ? 'yr' : 'mo'}
                     </span>
                   )}
                 </p>
+                {plan.key !== 'FREE' && gstLabel ? (
+                  <p className="small" style={{ margin: '-4px 0 4px', color: '#4b5d74' }}>{gstLabel}</p>
+                ) : null}
                 <ul className="small" style={{ margin: 0, paddingLeft: 16, lineHeight: 2 }}>
                   {plan.features.map((f, i) => {
                     const text = typeof f === 'string' ? f : f.text;

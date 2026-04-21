@@ -1,0 +1,584 @@
+'use client';
+
+import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import { PROFESSION_INDUSTRIES, getIndustryById, getRoleById } from 'resume-builder-shared';
+import { api, type Resume, type TechGapResult } from '@/src/lib/api';
+
+type Status = 'idle' | 'analyzing' | 'error';
+
+type ReadinessBreakdown = {
+  overall: number;
+  technical: number;
+  leadership: number;
+  domain: number;
+};
+
+/**
+ * Convert a free-form readiness string (e.g. "82%" / "Strong" / "70/100")
+ * into a 0-100 number so we can render bars and the quantum radial.
+ */
+function parseReadiness(text: string | undefined, fallback = 0): number {
+  if (!text) return fallback;
+  const pctMatch = text.match(/(\d{1,3})\s*%/);
+  if (pctMatch) return Math.max(0, Math.min(100, Number(pctMatch[1])));
+  const fractionMatch = text.match(/(\d{1,3})\s*\/\s*(\d{2,3})/);
+  if (fractionMatch) {
+    const n = Number(fractionMatch[1]);
+    const d = Number(fractionMatch[2]) || 100;
+    return Math.max(0, Math.min(100, Math.round((n / d) * 100)));
+  }
+  const lowered = text.toLowerCase();
+  if (lowered.includes('strong') || lowered.includes('excellent')) return 85;
+  if (lowered.includes('high')) return 80;
+  if (lowered.includes('good') || lowered.includes('solid')) return 70;
+  if (lowered.includes('moderate') || lowered.includes('partial')) return 55;
+  if (lowered.includes('weak') || lowered.includes('low')) return 35;
+  return fallback;
+}
+
+function readinessBreakdown(result: TechGapResult | null): ReadinessBreakdown {
+  if (!result) return { overall: 0, technical: 0, leadership: 0, domain: 0 };
+  const r = result.estimatedRoleReadiness;
+  const overallRaw = parseReadiness(r?.overall, 0);
+  // When the AI falls back to qualitative labels for sub-axes, anchor around the
+  // overall number so the bars still feel honest rather than flat-lining at 0.
+  const anchor = overallRaw || 0;
+  return {
+    overall: overallRaw,
+    technical: parseReadiness(r?.technical, anchor),
+    leadership: parseReadiness(r?.leadership, Math.max(0, anchor - 10)),
+    domain: parseReadiness(r?.domain, anchor),
+  };
+}
+
+function splitSkillsInput(raw: string): string[] {
+  return raw
+    .split(/[\n,;]+/)
+    .map((token) => token.trim())
+    .filter(Boolean);
+}
+
+export default function CareerNavigatorClient() {
+  const [industryId, setIndustryId] = useState<string>('information-technology');
+  const [roleId, setRoleId] = useState<string>('');
+  const [targetIndustryId, setTargetIndustryId] = useState<string>('');
+  const [targetRoleId, setTargetRoleId] = useState<string>('');
+  const [skillsText, setSkillsText] = useState('');
+  const [jdText, setJdText] = useState('');
+
+  const [resumes, setResumes] = useState<Resume[]>([]);
+  const [selectedResumeId, setSelectedResumeId] = useState<string>('');
+  const [useResume, setUseResume] = useState(false);
+
+  const [status, setStatus] = useState<Status>('idle');
+  const [error, setError] = useState('');
+  const [result, setResult] = useState<TechGapResult | null>(null);
+
+  // Fetch user's saved resumes so the navigator can analyse any of them
+  // directly — no need to paste skills or upload again.
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .listResumes()
+      .then((items) => {
+        if (cancelled) return;
+        const list = Array.isArray(items) ? items : [];
+        setResumes(list);
+        // Pre-select the most recently updated resume for convenience.
+        if (list.length) {
+          const sorted = [...list].sort(
+            (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+          );
+          setSelectedResumeId(sorted[0].id);
+        }
+      })
+      .catch(() => {
+        // Non-fatal — user can still analyse by pasting skills.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const currentIndustry = useMemo(() => getIndustryById(industryId), [industryId]);
+  const currentRole = useMemo(
+    () => (industryId && roleId ? getRoleById(industryId, roleId) : undefined),
+    [industryId, roleId],
+  );
+  const effectiveTargetIndustryId = targetIndustryId || industryId;
+  const targetIndustry = useMemo(
+    () => getIndustryById(effectiveTargetIndustryId),
+    [effectiveTargetIndustryId],
+  );
+  const targetRole = useMemo(
+    () => (effectiveTargetIndustryId && targetRoleId ? getRoleById(effectiveTargetIndustryId, targetRoleId) : undefined),
+    [effectiveTargetIndustryId, targetRoleId],
+  );
+  const effectiveTargetRole = targetRole || currentRole;
+  const readiness = useMemo(() => readinessBreakdown(result), [result]);
+
+  const selectedResume = useMemo(
+    () => resumes.find((resume) => resume.id === selectedResumeId) || null,
+    [resumes, selectedResumeId],
+  );
+
+  async function handleAnalyze() {
+    setError('');
+    setStatus('analyzing');
+    try {
+      const pastedSkills = splitSkillsInput(skillsText);
+      const resumeSkills = useResume && selectedResume ? (selectedResume.skills || []) : [];
+      const merged = Array.from(new Set([...resumeSkills, ...pastedSkills].map((s) => s.trim()).filter(Boolean)));
+
+      if (!merged.length && !useResume) {
+        setError('Add at least one skill, or pick a saved resume to analyse.');
+        setStatus('idle');
+        return;
+      }
+
+      const targetLabel = effectiveTargetRole?.label || currentRole?.label || '';
+
+      const input: Parameters<typeof api.techGap>[0] = {
+        skills: merged,
+        targetRole: targetLabel,
+        jdText: jdText.trim() || undefined,
+      };
+
+      if (useResume && selectedResume) {
+        input.summary = selectedResume.summary;
+        input.experience = (selectedResume.experience || []).map((exp) => ({
+          company: exp.company,
+          role: exp.role,
+          startDate: exp.startDate,
+          endDate: exp.endDate,
+          highlights: exp.highlights || [],
+        }));
+        input.education = (selectedResume.education || []).map((edu) => ({
+          institution: edu.institution,
+          degree: edu.degree,
+        }));
+        input.certifications = (selectedResume.certifications || []).map((cert) => ({
+          name: cert.name,
+        }));
+      }
+
+      const analysis = await api.techGap(input);
+      setResult(analysis);
+      setStatus('idle');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Analysis failed. Please try again.');
+      setStatus('error');
+    }
+  }
+
+  function resetResults() {
+    setResult(null);
+    setError('');
+  }
+
+  return (
+    <main className="grid">
+      <section className="card col-12">
+        <h1 style={{ margin: '0 0 4px' }}>Quantum Career Navigator</h1>
+        <p className="small" style={{ marginTop: 0, maxWidth: 760 }}>
+          Pick your industry, current role, and target role. Our quantum-inspired engine
+          ranks the next skills to learn by weighing overlap between your resume and
+          what the target role actually demands.
+        </p>
+      </section>
+
+      <section className="card col-12">
+        <h2 style={{ marginTop: 0 }}>Your current profile</h2>
+        <div className="grid" style={{ gap: 12 }}>
+          <label className="col-6" style={{ display: 'grid', gap: 6 }}>
+            <span className="small">Industry</span>
+            <select
+              className="input"
+              value={industryId}
+              onChange={(event) => {
+                setIndustryId(event.target.value);
+                setRoleId('');
+                resetResults();
+              }}
+            >
+              {PROFESSION_INDUSTRIES.map((industry) => (
+                <option key={industry.id} value={industry.id}>
+                  {industry.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="col-6" style={{ display: 'grid', gap: 6 }}>
+            <span className="small">Role</span>
+            <select
+              className="input"
+              value={roleId}
+              onChange={(event) => {
+                setRoleId(event.target.value);
+                resetResults();
+              }}
+            >
+              <option value="">Select a role</option>
+              {(currentIndustry?.roles || []).map((role) => (
+                <option key={role.id} value={role.id}>
+                  {role.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <label style={{ display: 'grid', gap: 6, marginTop: 12 }}>
+          <span className="small">Skills you already have (comma or newline separated)</span>
+          <textarea
+            className="input"
+            rows={4}
+            placeholder="e.g. HTML, CSS, JavaScript, Active Listening, Patient Care"
+            value={skillsText}
+            onChange={(event) => setSkillsText(event.target.value)}
+          />
+        </label>
+
+        {resumes.length > 0 ? (
+          <div style={{ marginTop: 12, border: '1px solid #e5e7eb', borderRadius: 8, padding: 12 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <input
+                type="checkbox"
+                checked={useResume}
+                onChange={(event) => setUseResume(event.target.checked)}
+              />
+              <span className="small" style={{ fontWeight: 600 }}>
+                Use one of my saved resumes for a deeper analysis
+              </span>
+            </label>
+            {useResume ? (
+              <label style={{ display: 'grid', gap: 6 }}>
+                <span className="small">Resume</span>
+                <select
+                  className="input"
+                  value={selectedResumeId}
+                  onChange={(event) => setSelectedResumeId(event.target.value)}
+                >
+                  {resumes.map((resume) => (
+                    <option key={resume.id} value={resume.id}>
+                      {resume.title}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+          </div>
+        ) : (
+          <p className="small" style={{ marginTop: 12 }}>
+            Tip: <Link href="/resume/start">create or upload a resume</Link> to get sharper, resume-aware recommendations.
+          </p>
+        )}
+      </section>
+
+      <section className="card col-12">
+        <h2 style={{ marginTop: 0 }}>Where do you want to go? (optional)</h2>
+        <div className="grid" style={{ gap: 12 }}>
+          <label className="col-6" style={{ display: 'grid', gap: 6 }}>
+            <span className="small">Target industry</span>
+            <select
+              className="input"
+              value={targetIndustryId}
+              onChange={(event) => {
+                setTargetIndustryId(event.target.value);
+                setTargetRoleId('');
+                resetResults();
+              }}
+            >
+              <option value="">— same as current —</option>
+              {PROFESSION_INDUSTRIES.map((industry) => (
+                <option key={industry.id} value={industry.id}>
+                  {industry.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="col-6" style={{ display: 'grid', gap: 6 }}>
+            <span className="small">Target role</span>
+            <select
+              className="input"
+              value={targetRoleId}
+              onChange={(event) => {
+                setTargetRoleId(event.target.value);
+                resetResults();
+              }}
+            >
+              <option value="">— same as current —</option>
+              {(targetIndustry?.roles || []).map((role) => (
+                <option key={role.id} value={role.id}>
+                  {role.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <label style={{ display: 'grid', gap: 6, marginTop: 12 }}>
+          <span className="small">Paste a target job description (optional, sharpens analysis)</span>
+          <textarea
+            className="input"
+            rows={4}
+            placeholder="Paste the JD of the role you want to pivot into..."
+            value={jdText}
+            onChange={(event) => setJdText(event.target.value)}
+          />
+        </label>
+
+        <div style={{ marginTop: 16, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className="btn"
+            onClick={handleAnalyze}
+            disabled={status === 'analyzing'}
+          >
+            {status === 'analyzing' ? 'Analyzing...' : 'Recommend next skills'}
+          </button>
+          <Link className="btn secondary" href="/billing">
+            See subscription tiers
+          </Link>
+          {result ? (
+            <button type="button" className="btn ghost" onClick={resetResults}>
+              Clear results
+            </button>
+          ) : null}
+        </div>
+
+        {error ? (
+          <p className="small" style={{ color: '#b91c1c', marginTop: 12 }}>
+            {error}
+          </p>
+        ) : null}
+      </section>
+
+      {result ? (
+        <CareerNavigatorResults
+          result={result}
+          readiness={readiness}
+          currentRoleLabel={currentRole?.label || ''}
+          targetRoleLabel={effectiveTargetRole?.label || currentRole?.label || ''}
+        />
+      ) : (
+        <section className="card col-12">
+          <h2 style={{ marginTop: 0 }}>Quantum recommendations</h2>
+          <p className="small" style={{ margin: 0 }}>
+            {currentRole
+              ? `Current: ${currentRole.label}`
+              : 'Pick a role above, then click "Recommend next skills" to see a role-aware learning plan.'}
+          </p>
+        </section>
+      )}
+    </main>
+  );
+}
+
+// ─── Results panel ─────────────────────────────────────────────────────────
+
+function CareerNavigatorResults({
+  result,
+  readiness,
+  currentRoleLabel,
+  targetRoleLabel,
+}: {
+  result: TechGapResult;
+  readiness: ReadinessBreakdown;
+  currentRoleLabel: string;
+  targetRoleLabel: string;
+}) {
+  const missingTotal =
+    result.missingCriticalSkills.length +
+    result.missingSecondarySkills.length +
+    result.toolsGap.length;
+  const roadmap = result.learningRoadmap || [];
+
+  return (
+    <>
+      <section className="card col-12">
+        <h2 style={{ marginTop: 0 }}>Quantum recommendations</h2>
+        <p className="small" style={{ margin: 0 }}>
+          {targetRoleLabel && targetRoleLabel !== currentRoleLabel
+            ? `Pivoting from ${currentRoleLabel || 'your current role'} → ${targetRoleLabel}`
+            : currentRoleLabel
+              ? `Current: ${currentRoleLabel}`
+              : ''}
+        </p>
+
+        <div className="grid" style={{ gap: 12, marginTop: 12 }}>
+          <ReadinessTile label="Role readiness" value={readiness.overall} accent="#1e5b35" />
+          <ReadinessTile label="Technical" value={readiness.technical} accent="#2f5f8f" />
+          <ReadinessTile label="Leadership" value={readiness.leadership} accent="#8f5a2f" />
+          <ReadinessTile label="Domain" value={readiness.domain} accent="#5b358f" />
+        </div>
+
+        {result.roleAlignmentSummary ? (
+          <p className="small" style={{ marginTop: 12 }}>
+            {result.roleAlignmentSummary}
+          </p>
+        ) : null}
+      </section>
+
+      <section className="card col-12">
+        <h2 style={{ marginTop: 0 }}>Skills you already bring</h2>
+        {result.strongSkills.length ? (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {result.strongSkills.map((skill) => (
+              <span
+                key={skill}
+                className="pill"
+                style={{ background: '#e8f5ec', color: '#1e5b35' }}
+              >
+                {skill}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <p className="small" style={{ margin: 0 }}>
+            Add more skills (or a resume) so we can recognise your strengths here.
+          </p>
+        )}
+      </section>
+
+      <section className="card col-12">
+        <h2 style={{ marginTop: 0 }}>Skills to learn next</h2>
+        <p className="small" style={{ margin: '0 0 12px' }}>
+          {missingTotal > 0
+            ? `${missingTotal} skill${missingTotal === 1 ? '' : 's'} close the gap to ${targetRoleLabel || 'your target role'}.`
+            : 'Your coverage looks good. Consider deepening existing skills or adding leadership signals.'}
+        </p>
+
+        <SkillGapBlock
+          title="Critical to land the role"
+          tone="#b91c1c"
+          skills={result.missingCriticalSkills}
+        />
+        <SkillGapBlock
+          title="Nice-to-have to stand out"
+          tone="#ca8a04"
+          skills={result.missingSecondarySkills}
+        />
+        <SkillGapBlock title="Tools & platforms" tone="#2f5f8f" skills={result.toolsGap} />
+        <SkillGapBlock
+          title="Leadership signals"
+          tone="#8f5a2f"
+          skills={result.leadershipGap}
+        />
+        <SkillGapBlock
+          title="Architecture / design"
+          tone="#5b358f"
+          skills={result.architectureGap}
+        />
+      </section>
+
+      {roadmap.length ? (
+        <section className="card col-12">
+          <h2 style={{ marginTop: 0 }}>Learning roadmap</h2>
+          <ol style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 10 }}>
+            {roadmap.map((item, idx) => (
+              <li key={`${item.skill}-${idx}`}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <strong>{item.skill}</strong>
+                  <span
+                    className="pill"
+                    style={{
+                      background:
+                        item.priority === 'high' ? '#fee2e2' : item.priority === 'medium' ? '#fef3c7' : '#e0f2fe',
+                      color:
+                        item.priority === 'high' ? '#b91c1c' : item.priority === 'medium' ? '#92400e' : '#075985',
+                    }}
+                  >
+                    {item.priority} priority
+                  </span>
+                </div>
+                {item.reason ? (
+                  <p className="small" style={{ margin: '4px 0 0' }}>{item.reason}</p>
+                ) : null}
+              </li>
+            ))}
+          </ol>
+        </section>
+      ) : null}
+
+      {result.resumeImprovementSuggestions.length ? (
+        <section className="card col-12">
+          <h2 style={{ marginTop: 0 }}>Resume improvements for this role</h2>
+          <ul style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 6 }}>
+            {result.resumeImprovementSuggestions.map((suggestion, idx) => (
+              <li key={idx} className="small">{suggestion}</li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {result.addOnlyIfTrue.length ? (
+        <section className="card col-12">
+          <h2 style={{ marginTop: 0 }}>Add only if actually true</h2>
+          <p className="small" style={{ margin: '0 0 8px' }}>
+            These signals might be present in your experience but weren't explicit.
+            Add them to your resume only if you genuinely did them — never fabricate.
+          </p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {result.addOnlyIfTrue.map((signal) => (
+              <span
+                key={signal}
+                className="pill"
+                style={{ background: '#f3f4f6', color: '#374151' }}
+              >
+                {signal}
+              </span>
+            ))}
+          </div>
+        </section>
+      ) : null}
+    </>
+  );
+}
+
+function ReadinessTile({ label, value, accent }: { label: string; value: number; accent: string }) {
+  const pct = Math.max(0, Math.min(100, Math.round(value)));
+  return (
+    <div className="col-3" style={{ minWidth: 160 }}>
+      <p className="small" style={{ margin: '0 0 4px', fontWeight: 600 }}>{label}</p>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span
+          className="pill"
+          style={{ background: pct > 70 ? '#e8f5ec' : pct > 40 ? '#fef3c7' : '#fee2e2', color: accent, fontWeight: 700 }}
+        >
+          {pct}%
+        </span>
+        <div style={{ height: 6, background: '#e5e7eb', borderRadius: 4, flex: 1, overflow: 'hidden' }}>
+          <div
+            style={{
+              width: `${pct}%`,
+              height: '100%',
+              background: accent,
+              borderRadius: 4,
+              transition: 'width 0.4s',
+            }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SkillGapBlock({ title, tone, skills }: { title: string; tone: string; skills: string[] }) {
+  if (!skills.length) return null;
+  return (
+    <div style={{ marginTop: 10 }}>
+      <p className="small" style={{ margin: '0 0 6px', fontWeight: 600, color: tone }}>
+        {title}
+      </p>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        {skills.map((skill) => (
+          <span key={skill} className="pill" style={{ borderColor: tone }}>
+            {skill}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
