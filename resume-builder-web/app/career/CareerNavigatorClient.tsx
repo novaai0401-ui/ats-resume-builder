@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { PROFESSION_INDUSTRIES, getIndustryById, getRoleById } from 'resume-builder-shared';
 import { api, type Resume, type TechGapResult } from '@/src/lib/api';
 import FreeAiNotice from '@/src/components/FreeAiNotice';
+import { buildSkillsPlaceholder, getSkillHintsForIndustry } from '@/src/lib/profession-skill-hints';
 
 type Status = 'idle' | 'analyzing' | 'error';
 
@@ -235,10 +236,46 @@ export default function CareerNavigatorClient() {
           <textarea
             className="input"
             rows={4}
-            placeholder="e.g. HTML, CSS, JavaScript, Active Listening, Patient Care"
+            placeholder={buildSkillsPlaceholder(industryId)}
             value={skillsText}
             onChange={(event) => setSkillsText(event.target.value)}
           />
+          {/*
+            Profession-keyed chip row. Tapping a chip appends the skill to
+            the textarea so users in non-IT fields don't have to type
+            "Patient Assessment" from scratch. Chips are derived from
+            profession-skill-hints.ts, so they follow the selected industry.
+          */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+            {getSkillHintsForIndustry(industryId).map((skill) => {
+              const alreadyListed = splitSkillsInput(skillsText)
+                .map((s) => s.toLowerCase())
+                .includes(skill.toLowerCase());
+              return (
+                <button
+                  key={skill}
+                  type="button"
+                  className="btn ghost"
+                  disabled={alreadyListed}
+                  style={{
+                    fontSize: '0.75rem',
+                    padding: '3px 10px',
+                    borderRadius: 999,
+                    opacity: alreadyListed ? 0.5 : 1,
+                  }}
+                  onClick={() => {
+                    setSkillsText((prev) => {
+                      const trimmed = prev.trim();
+                      if (!trimmed) return skill;
+                      return `${trimmed}, ${skill}`;
+                    });
+                  }}
+                >
+                  + {skill}
+                </button>
+              );
+            })}
+          </div>
         </label>
 
         {resumes.length > 0 ? (

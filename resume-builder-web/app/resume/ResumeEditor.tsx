@@ -3132,7 +3132,6 @@ export default function ResumeEditor() {
                 <h4>Estimated Improvement</h4>
                 <p className="small">Current: {aiCritiqueResult.critique.estimatedImprovementBand.current}</p>
                 <p className="small">Free optimization: {aiCritiqueResult.critique.estimatedImprovementBand.possibleFree}</p>
-                <p className="small" style={{ color: 'var(--fg-muted, #888)' }}>{aiCritiqueResult.critique.estimatedImprovementBand.premium}</p>
               </div>
             )}
 
@@ -3172,26 +3171,11 @@ export default function ResumeEditor() {
               >
                 Apply All Free Suggestions
               </button>
-              {(() => {
-                const isLoggedIn = Boolean(getAccessToken());
-                const isPaid = currentPlan === 'STUDENT' || currentPlan === 'PRO';
-                const missingData = !resumeId || !aiCritiqueResult;
-                const label = !isLoggedIn
-                  ? 'Sign in to Unlock Premium'
-                  : isPaid
-                    ? 'Run Premium Optimization'
-                    : 'Unlock Premium Optimization';
-                return (
-                  <button
-                    className="btn"
-                    style={{ fontSize: '0.8rem', background: '#2f5f8f' }}
-                    disabled={premiumOptimizing || (isLoggedIn && isPaid && missingData)}
-                    onClick={handlePremiumOptimization}
-                  >
-                    {premiumOptimizing ? 'Optimizing...' : label}
-                  </button>
-                );
-              })()}
+              {/*
+                Premium upgrade CTA intentionally removed here. Per product
+                spec the subscription offer is only surfaced through the
+                post-download popup (see PostDownloadSubscriptionPopup).
+              */}
             </div>
           </div>
         )}
