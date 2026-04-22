@@ -23,30 +23,12 @@ function CallbackHandler() {
     const provider = searchParams.get('provider') || '';
     const providerLabel = provider ? provider.charAt(0).toUpperCase() + provider.slice(1) : 'Provider';
 
-    // Handle errors from backend redirect
-    if (errorParam === 'not_configured') {
-      setError(`${providerLabel} sign-in is not yet configured. Please ask the administrator to set up OAuth credentials, or use another sign-in method.`);
-      setStatus('');
-      return;
-    }
-    if (errorParam === 'denied') {
-      setError('Sign-in was cancelled or denied. Please try again.');
-      setStatus('');
-      return;
-    }
-    if (errorParam === 'invalid_state') {
-      setError('Sign-in session expired or was tampered with. Please try again.');
-      setStatus('');
-      return;
-    }
-    if (errorParam === 'auth_failed') {
-      const message = searchParams.get('message') || 'Authentication failed';
-      setError(`${providerLabel} sign-in failed: ${message}`);
-      setStatus('');
-      return;
-    }
+    // Handle errors from backend redirect. We map each known error *code*
+    // to a user-facing message here — we never display whatever arbitrary
+    // `message` query param the backend might have attached, because that
+    // used to leak raw Prisma / SQL text to the browser.
     if (errorParam) {
-      setError(`Sign-in error: ${errorParam}. Please try again.`);
+      setError(describeCallbackError(errorParam, providerLabel));
       setStatus('');
       return;
     }
@@ -135,4 +117,35 @@ export default function CallbackPage() {
       <CallbackHandler />
     </Suspense>
   );
+}
+
+/**
+ * Map one of the backend's error-code query parameters to a friendly,
+ * user-facing sentence. Keep these strings free of internals, stack
+ * traces, DB column names, etc. Unknown codes fall through to a generic
+ * message so any future server code doesn't accidentally leak.
+ */
+function describeCallbackError(code: string, providerLabel: string): string {
+  switch (code) {
+    case 'not_configured':
+      return `${providerLabel} sign-in is not yet configured on this server. Please try another sign-in method or contact the administrator.`;
+    case 'denied':
+      return 'You cancelled the sign-in at the provider. Please try again when you\'re ready.';
+    case 'no_code':
+      return 'Sign-in was interrupted before it could complete. Please try again.';
+    case 'invalid_state':
+      return 'This sign-in session expired or was tampered with. Please start again from the login page.';
+    case 'unsupported_provider':
+      return 'This sign-in provider is not supported on this server.';
+    case 'provider_auth_failed':
+      return `${providerLabel} rejected the sign-in. Please try again, or use a different provider.`;
+    case 'provider_mismatch':
+      return `This email is already registered through a different sign-in provider. Please sign in with the provider you used originally.`;
+    case 'service_unavailable':
+      return 'The service is temporarily unavailable. This usually means the server is being updated. Please try again in a few minutes — no data has been lost.';
+    case 'auth_failed':
+      return `${providerLabel} sign-in failed. Please try again, or use a different sign-in method.`;
+    default:
+      return `Sign-in could not be completed. Please try again.`;
+  }
 }

@@ -3,10 +3,15 @@ import { NestFactory } from '@nestjs/core';
 import { json } from 'express';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
+import { PrismaExceptionFilter } from './prisma/prisma-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.enableShutdownHooks();
+  // Keep raw Prisma error messages (column names, SQL, stack hints) out of
+  // every HTTP response body. Registered globally so we catch JSON API
+  // responses as well as anything the controllers forget to wrap.
+  app.useGlobalFilters(new PrismaExceptionFilter());
 
   // Security headers. Strict defaults; the API itself serves JSON only, so a
   // very narrow CSP is fine. CORS/browser callers still work because helmet
