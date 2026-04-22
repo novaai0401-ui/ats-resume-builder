@@ -14,7 +14,7 @@ import {
   persistActiveResumeSelection,
   resumeFromApi,
 } from '@/src/lib/resume-flow';
-import { sampleResumeData } from '@/src/lib/sample-resume-data';
+import { getSampleResumeForIndustry } from '@/src/lib/sample-resume-data';
 import { recommendTemplates } from '@/src/lib/template-recommendation';
 import { defaultTemplateId, resolveTemplateId, templateRegistry, type TemplateId } from '@/shared/templateRegistry';
 
@@ -196,7 +196,10 @@ export default function DashboardPageView({
 
   const previewDraft = useMemo(() => (activeResume ? resumeFromApi(activeResume) : null), [activeResume]);
   const previewResume = useMemo(() => (previewDraft ? buildResumePreview(previewDraft) : null), [previewDraft]);
-  const effectivePreviewResume = previewResume || sampleResumeData;
+  // Fallback preview picks a sample tailored to the user's selected industry
+  // so a nurse doesn't see a frontend engineer resume while browsing
+  // healthcare templates. Defaults to the IT sample if no industry is set.
+  const effectivePreviewResume = previewResume || getSampleResumeForIndustry(selectedIndustry);
   const recommendation = useMemo(() => (previewDraft ? recommendTemplates(previewDraft) : null), [previewDraft]);
 
   // Filter templates by the selected industry. When no profession is picked,
