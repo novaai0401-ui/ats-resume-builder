@@ -295,9 +295,48 @@ export class SocialAuthController {
 
       return res.redirect(`${frontendUrl}?handoff=${handoffToken}&provider=${provider}`);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Authentication failed';
+      const msg = err instanceof Error ? err.message : String(err);
+      // Full detail stays in the API logs — never forwarded to the browser.
       this.logger.error(`${provider} callback failed: ${msg}`);
-      return res.redirect(`${frontendUrl}?error=auth_failed&provider=${provider}&message=${encodeURIComponent(msg)}`);
+      const code = classifyCallbackError(err);
+      return res.redirect(`${frontendUrl}?error=${code}&provider=${provider}`);
     }
   }
+}
+
+/**
+ * Map a thrown error to a short, user-safe error code that the callback page
+ * understands. Everything that isn't explicitly recognised becomes
+ * `auth_failed`. Raw Prisma exceptions, stack traces, and "column does not
+ * exist"-style schema drift messages never reach the browser.
+ */
+function classifyCallbackError(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err || '');
+  const code = (err as { code?: string })?.code;
+
+  // Prisma schema-drift / connection problems — operator needs to run
+  // `prisma migrate deploy` or fix the DB URL.
+  if (
+    code === 'P2021' ||            // table does not exist
+    code === 'P2022' ||            // column does not exist
+    code === 'P1001' ||            // can't reach DB server
+    code === 'P1002' ||            // DB server timeout
+    /column .* does not exist/i.test(msg) ||
+    /relation .* does not exist/i.test(msg) ||
+    /prisma\.[a-z]+\.[a-z]+\(\) invocation/i.test(msg)
+  ) {
+    return 'service_unavailable';
+  }
+
+  // OAuth provider lock-in (see social-auth.service.ts handleSocialLogin).
+  if (/already registered via/i.test(msg)) {
+    return 'provider_mismatch';
+  }
+
+  // Upstream OAuth provider rejected the code.
+  if (/authentication failed/i.test(msg)) {
+    return 'provider_auth_failed';
+  }
+
+  return 'auth_failed';
 }
