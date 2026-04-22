@@ -4,7 +4,10 @@ export type TemplateCatalogId =
   | 'executive'
   | 'technical'
   | 'minimal'
-  | 'consultant';
+  | 'consultant'
+  | 'academic'
+  | 'healthcare'
+  | 'creative';
 
 export type TemplateCatalogItem = {
   id: TemplateCatalogId;
@@ -12,6 +15,8 @@ export type TemplateCatalogItem = {
   description: string;
   tags: string[];
   recommendedFor?: string[];
+  /** Industry ids (from professions.ts) this template is suited to. */
+  industries?: string[];
   componentKey: TemplateCatalogId;
   isDefault?: boolean;
 };
@@ -23,6 +28,12 @@ export const TEMPLATE_CATALOG: readonly TemplateCatalogItem[] = [
     description: 'Single-column ATS-safe structure with bold section headers.',
     tags: ['ATS-safe', 'Single-column', 'Default'],
     recommendedFor: ['General professional resumes', 'High ATS compatibility'],
+    industries: [
+      'information-technology', 'engineering', 'finance', 'legal', 'education',
+      'healthcare', 'human-resources', 'manufacturing-supply-chain',
+      'construction-real-estate', 'government-public-sector',
+      'logistics-transport', 'agriculture-environment', 'retail-ecommerce',
+    ],
     componentKey: 'classic',
     isDefault: true,
   },
@@ -32,6 +43,11 @@ export const TEMPLATE_CATALOG: readonly TemplateCatalogItem[] = [
     description: 'Clean modern spacing with subtle divider lines and ATS-safe semantics.',
     tags: ['ATS-safe', 'Modern (ATS-safe)'],
     recommendedFor: ['Product', 'Operations', 'Business-facing roles'],
+    industries: [
+      'business-management', 'sales-marketing', 'human-resources',
+      'hospitality-tourism', 'retail-ecommerce', 'media-communications',
+      'non-profit-social-impact', 'information-technology',
+    ],
     componentKey: 'modern',
   },
   {
@@ -40,6 +56,11 @@ export const TEMPLATE_CATALOG: readonly TemplateCatalogItem[] = [
     description: 'Leadership-focused hierarchy with strong, results-first bullet structure.',
     tags: ['ATS-safe', 'Leadership'],
     recommendedFor: ['Senior IC', 'Manager', 'Director'],
+    industries: [
+      'business-management', 'finance', 'sales-marketing',
+      'human-resources', 'government-public-sector', 'legal',
+      'construction-real-estate',
+    ],
     componentKey: 'executive',
   },
   {
@@ -48,6 +69,11 @@ export const TEMPLATE_CATALOG: readonly TemplateCatalogItem[] = [
     description: 'Dense but readable ATS-safe layout with grouped technical skills.',
     tags: ['ATS-safe', 'Engineering'],
     recommendedFor: ['Engineering', 'Data', 'Platform teams'],
+    industries: [
+      'information-technology', 'engineering', 'science-research',
+      'manufacturing-supply-chain', 'logistics-transport',
+      'construction-real-estate',
+    ],
     componentKey: 'technical',
   },
   {
@@ -56,6 +82,10 @@ export const TEMPLATE_CATALOG: readonly TemplateCatalogItem[] = [
     description: 'Ultra-minimal recruiter-friendly format with precise section rhythm.',
     tags: ['ATS-safe', 'Minimal (ATS-safe)'],
     recommendedFor: ['Early-career', 'One-page resumes'],
+    industries: [
+      'education', 'creative-design', 'media-communications',
+      'non-profit-social-impact', 'information-technology',
+    ],
     componentKey: 'minimal',
   },
   {
@@ -64,7 +94,43 @@ export const TEMPLATE_CATALOG: readonly TemplateCatalogItem[] = [
     description: 'Crisp headings and metric-forward bullet readability in single-column flow.',
     tags: ['ATS-safe', 'Consulting style'],
     recommendedFor: ['Consulting', 'Strategy', 'Client delivery'],
+    industries: [
+      'business-management', 'finance', 'legal', 'information-technology',
+    ],
     componentKey: 'consultant',
+  },
+  {
+    id: 'academic',
+    name: 'Academic CV',
+    description: 'Publication-first layout with sections for research, teaching, and awards. ATS-safe single column.',
+    tags: ['ATS-safe', 'Academic', 'Research'],
+    recommendedFor: ['Researchers', 'Professors', 'PhD candidates', 'Scientists'],
+    industries: [
+      'education', 'science-research', 'government-public-sector',
+      'agriculture-environment', 'healthcare',
+    ],
+    componentKey: 'academic',
+  },
+  {
+    id: 'healthcare',
+    name: 'Healthcare CV',
+    description: 'Credentials-forward layout surfacing licensure, certifications, and clinical experience.',
+    tags: ['ATS-safe', 'Healthcare', 'Clinical'],
+    recommendedFor: ['Physicians', 'Nurses', 'Pharmacists', 'Allied health'],
+    industries: ['healthcare', 'science-research'],
+    componentKey: 'healthcare',
+  },
+  {
+    id: 'creative',
+    name: 'Creative Portfolio',
+    description: 'Portfolio-friendly layout with highlighted links and visual rhythm while staying ATS-safe.',
+    tags: ['ATS-safe', 'Creative', 'Portfolio'],
+    recommendedFor: ['Designers', 'Writers', 'Marketers', 'Media'],
+    industries: [
+      'creative-design', 'media-communications', 'sales-marketing',
+      'hospitality-tourism', 'retail-ecommerce',
+    ],
+    componentKey: 'creative',
   },
 ] as const;
 
@@ -83,6 +149,13 @@ const TEMPLATE_ID_ALIASES: Record<string, TemplateCatalogId> = {
   'technical-compact': 'technical',
   'minimal-clean': 'minimal',
   'consultant-clean': 'consultant',
+  'academic-cv': 'academic',
+  'healthcare-cv': 'healthcare',
+  medical: 'healthcare',
+  clinical: 'healthcare',
+  'creative-portfolio': 'creative',
+  designer: 'creative',
+  portfolio: 'creative',
 };
 
 export function isTemplateCatalogId(value: string): value is TemplateCatalogId {

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { TEMPLATE_CATALOG } from 'resume-builder-shared';
+import { PROFESSION_INDUSTRIES, TEMPLATE_CATALOG, getIndustryById } from 'resume-builder-shared';
 import { TkxEmpty, TkxSkeleton } from 'tekivex-ui';
 import { api, getAccessToken, type DriveSessionResponse, type Resume } from '@/src/lib/api';
 import TemplateCatalogGrid from '@/src/components/templates/TemplateCatalogGrid';
@@ -19,6 +19,8 @@ import { recommendTemplates } from '@/src/lib/template-recommendation';
 import { defaultTemplateId, resolveTemplateId, templateRegistry, type TemplateId } from '@/shared/templateRegistry';
 
 const DASHBOARD_TEMPLATE_OPTIONS = TEMPLATE_CATALOG.map((template) => templateRegistry[template.id]);
+
+const PROFESSION_STORAGE_KEY = 'rb_selected_industry';
 
 type DriveSessionLike = DriveSessionResponse & {
   driveConnected?: boolean;
@@ -72,6 +74,16 @@ export default function DashboardPageView({
   const [templateSaving, setTemplateSaving] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateId | ''>('');
   const [hoveredTemplate, setHoveredTemplate] = useState<TemplateId | ''>('');
+  // Industry selection filters the template grid so, for example, a healthcare
+  // user never has to scroll past engineering-only templates. The choice is
+  // persisted in localStorage so users don't re-pick on every visit.
+  const [selectedIndustry, setSelectedIndustry] = useState<string>('');
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const stored = window.localStorage.getItem(PROFESSION_STORAGE_KEY);
+    if (stored) setSelectedIndustry(stored);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -186,6 +198,19 @@ export default function DashboardPageView({
   const previewResume = useMemo(() => (previewDraft ? buildResumePreview(previewDraft) : null), [previewDraft]);
   const effectivePreviewResume = previewResume || sampleResumeData;
   const recommendation = useMemo(() => (previewDraft ? recommendTemplates(previewDraft) : null), [previewDraft]);
+
+  // Filter templates by the selected industry. When no profession is picked,
+  // show the full catalog so we don't regress the default discovery flow.
+  const selectedIndustryConfig = useMemo(() => getIndustryById(selectedIndustry), [selectedIndustry]);
+  const visibleTemplates = useMemo(() => {
+    if (!selectedIndustry) return DASHBOARD_TEMPLATE_OPTIONS;
+    const allowed = new Set(TEMPLATE_CATALOG
+      .filter((template) => template.industries?.includes(selectedIndustry))
+      .map((template) => template.id));
+    const filtered = DASHBOARD_TEMPLATE_OPTIONS.filter((template) => allowed.has(template.id));
+    // Fall back to the full list if the profession has no curated matches yet.
+    return filtered.length ? filtered : DASHBOARD_TEMPLATE_OPTIONS;
+  }, [selectedIndustry]);
   const profileName = activeResume?.contact?.fullName || 'No resume selected';
   const profileRole = activeResume?.experience?.[0]?.role || '';
   const activeResumeUpdatedAt = activeResume?.updatedAt ? new Date(activeResume.updatedAt).toLocaleDateString() : '';
@@ -342,12 +367,62 @@ export default function DashboardPageView({
         </div>
       </section>
 
+      <section
+        className="card"
+        data-testid="dashboard-profession-section"
+        style={{ marginBottom: 14 }}
+      >
+        <div style={{ display: 'grid', gap: 10 }}>
+          <div>
+            <h2 style={{ margin: 0 }}>Pick your profession</h2>
+            <p className="small" style={{ margin: '6px 0 0' }}>
+              Select an industry to see the ATS templates best suited to that field.
+              Leave it blank to browse every template.
+            </p>
+          </div>
+          <div className="grid" style={{ gap: 12 }}>
+            <label className="col-6" style={{ display: 'grid', gap: 6, minWidth: 240 }}>
+              <span className="small">Industry</span>
+              <select
+                className="input"
+                data-testid="dashboard-industry-select"
+                value={selectedIndustry}
+                onChange={(event) => {
+                  const next = event.target.value;
+                  setSelectedIndustry(next);
+                  if (typeof window !== 'undefined') {
+                    if (next) window.localStorage.setItem(PROFESSION_STORAGE_KEY, next);
+                    else window.localStorage.removeItem(PROFESSION_STORAGE_KEY);
+                  }
+                }}
+              >
+                <option value="">All professions</option>
+                {PROFESSION_INDUSTRIES.map((industry) => (
+                  <option key={industry.id} value={industry.id}>
+                    {industry.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {selectedIndustryConfig ? (
+              <p className="small col-6" style={{ margin: 0, alignSelf: 'end' }}>
+                Showing {visibleTemplates.length} template{visibleTemplates.length === 1 ? '' : 's'}{' '}
+                for <strong>{selectedIndustryConfig.label}</strong>.{' '}
+                <Link href="/career">Explore career paths →</Link>
+              </p>
+            ) : null}
+          </div>
+        </div>
+      </section>
+
       <section className="card" data-testid="dashboard-template-section">
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <div>
             <h2 style={{ margin: 0 }}>Choose a template</h2>
             <p className="small" style={{ margin: '6px 0 0' }}>
-              Same catalog as template selection, optimized for ATS-safe export.
+              {selectedIndustryConfig
+                ? `ATS-safe templates tailored for ${selectedIndustryConfig.label.toLowerCase()}.`
+                : 'Same catalog as template selection, optimized for ATS-safe export.'}
             </p>
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -396,7 +471,7 @@ export default function DashboardPageView({
 
         <div style={{ marginTop: 12 }}>
           <TemplateCatalogGrid
-            templates={DASHBOARD_TEMPLATE_OPTIONS}
+            templates={visibleTemplates}
             previewResume={effectivePreviewResume}
             selectedTemplate={selectedTemplate}
             recommendation={recommendation}

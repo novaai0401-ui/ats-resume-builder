@@ -5,7 +5,7 @@ import { templateList, templateRegistry, type TemplateId } from '@/shared/templa
 
 const SUPPORTED_IDS = TEMPLATE_CATALOG.map((template) => template.id) as TemplateId[];
 
-test('template registry exposes six supported ATS templates', () => {
+test('template registry exposes every supported ATS template', () => {
   assert.equal(templateList.length, TEMPLATE_CATALOG.length);
   const seen = new Set<string>();
   for (const template of templateList) {

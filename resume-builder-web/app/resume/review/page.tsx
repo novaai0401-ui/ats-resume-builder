@@ -1,4 +1,5 @@
 import { Suspense } from 'react';
+import AuthGate from '@/src/components/AuthGate';
 import ResumeEditor from '../ResumeEditor';
 import ResumeReviewEmbedPreview from './ResumeReviewEmbedPreview';
 
@@ -26,8 +27,10 @@ export default async function ResumeReviewPage({ searchParams }: ResumeReviewPag
     );
   }
   return (
-    <Suspense fallback={<div className="card">Loading review workspace...</div>}>
-      <ResumeEditor />
-    </Suspense>
+    <AuthGate>
+      <Suspense fallback={<div className="card">Loading review workspace...</div>}>
+        <ResumeEditor />
+      </Suspense>
+    </AuthGate>
   );
 }

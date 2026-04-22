@@ -911,12 +911,15 @@ test('/resume/template keeps the uploaded resume preview after saving the select
 test('dashboard and template selection import shared TEMPLATE_CATALOG source', () => {
   const dashboardSource = readFileSync(path.join(__dirname, '..', 'app', 'dashboard', 'DashboardPageView.tsx'), 'utf-8');
   const templateSelectionSource = readFileSync(path.join(__dirname, '..', 'app', 'resume', 'template', 'TemplateSelectionView.tsx'), 'utf-8');
+  // Allow other named imports alongside TEMPLATE_CATALOG (e.g. PROFESSION_INDUSTRIES)
+  // as long as the catalog still comes from the shared package.
+  const sharedImportRe = /import\s*\{[^}]*\bTEMPLATE_CATALOG\b[^}]*\}\s*from\s*['"]resume-builder-shared['"]/;
   assert(
-    dashboardSource.includes("import { TEMPLATE_CATALOG } from 'resume-builder-shared'"),
+    sharedImportRe.test(dashboardSource),
     'Dashboard should import catalog from shared package',
   );
   assert(
-    templateSelectionSource.includes("import { TEMPLATE_CATALOG } from 'resume-builder-shared'"),
+    sharedImportRe.test(templateSelectionSource),
     'Template selection should import catalog from shared package',
   );
 });
