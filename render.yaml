@@ -39,6 +39,12 @@ services:
     region: singapore                # ap-southeast for Indian users
     numInstances: 1
     healthCheckPath: /health
+    # Run any pending Prisma migrations BEFORE the new code starts serving
+    # traffic. Render executes this in a fresh container of the new image;
+    # if it fails, the deploy is aborted and the old version keeps running,
+    # so a broken migration cannot take the site down. Uses DIRECT_URL when
+    # set so it bypasses the Supabase pooler (required by Prisma).
+    preDeployCommand: "npx prisma migrate deploy"
     envVars:
       # ── Core ────────────────────────────────────────────────────────
       - key: NODE_ENV
@@ -52,10 +58,18 @@ services:
         sync: false
 
       # ── Database (PostgreSQL — Supabase / Render Postgres / Neon) ──
-      # Pooled connection for queries
+      # Pooled connection used by the runtime API for queries.
+      # Supabase example:
+      #   postgresql://postgres.<proj>:<password>@aws-0-<region>.pooler.supabase.com:6543/postgres?pgbouncer=true
       - key: DATABASE_URL
         sync: false
-      # Direct connection for migrations (bypasses pgBouncer)
+      # Direct connection used by `prisma migrate deploy` in the
+      # preDeployCommand. REQUIRED on Supabase — the pooler (6543) does
+      # not support the advisory locks Prisma needs to apply migrations.
+      # Supabase example:
+      #   postgresql://postgres.<proj>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres
+      # If you are NOT on Supabase and your DATABASE_URL goes to the
+      # database directly, set DIRECT_URL to the same value.
       - key: DIRECT_URL
         sync: false
 
@@ -126,6 +140,30 @@ services:
       - key: STRIPE_CANCEL_URL
         sync: false
 
+      # ── Razorpay (India — UPI / cards / netbanking in INR) ──────────
+      # See docs: https://dashboard.razorpay.com/app/keys
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: RAZORPAY_WEBHOOK_SECRET
+        sync: false
+
+      # ── Per-download charge (optional, off by default) ──────────────
+      # When true, /resumes/:id/pdf requires a one-time payment. The
+      # web service must set NEXT_PUBLIC_ENABLE_DOWNLOAD_CHARGE to the
+      # same value.
+      - key: ENABLE_DOWNLOAD_CHARGE
+        value: "false"
+      - key: DOWNLOAD_CHARGE_INR_PAISE
+        value: "4900"
+      - key: DOWNLOAD_CHARGE_USD_CENTS
+        value: "99"
+      - key: DOWNLOAD_CHARGE_SUCCESS_URL
+        sync: false
+      - key: DOWNLOAD_CHARGE_CANCEL_URL
+        sync: false
+
       # ── Social Login OAuth (all optional) ───────────────────────────
       - key: GOOGLE_LOGIN_CLIENT_ID
         sync: false
@@ -167,6 +205,30 @@ services:
         sync: false
       - key: ADMIN_MOBILES
         sync: false
+
+      # ── Admin bootstrap (item 12) ───────────────────────────────────
+      # On API boot, AdminBootstrapService ensures the admin user exists
+      # with the bcrypt hash of ADMIN_BOOTSTRAP_PASSWORD. Plaintext is
+      # never persisted. Leave ADMIN_BOOTSTRAP_PASSWORD empty to skip.
+      # Set ADMIN_BOOTSTRAP_FORCE_RESET=true once after rotating the
+      # password, then revert to false on the next deploy.
+      - key: ADMIN_BOOTSTRAP_EMAIL
+        value: novaai0401@gmail.com
+      - key: ADMIN_BOOTSTRAP_MOBILE
+        value: "+919307009427"
+      - key: ADMIN_BOOTSTRAP_NAME
+        value: Platform Admin
+      - key: ADMIN_BOOTSTRAP_PASSWORD
+        sync: false
+      - key: ADMIN_BOOTSTRAP_FORCE_RESET
+        value: "false"
+
+      # ── Security hardening ─────────────────────────────────────────
+      # Controls the Have I Been Pwned breached-password check on
+      # register / change-password. Disable only if your deployment
+      # cannot reach api.pwnedpasswords.com.
+      - key: ENABLE_HIBP_CHECK
+        value: "true"
 
       # ── Feature Flags ───────────────────────────────────────────────
       - key: FORCE_DISABLE_RATE_LIMIT
@@ -212,3 +274,9 @@ services:
       # ── Session config ──────────────────────────────────────────────
       - key: NEXT_PUBLIC_SESSION_IDLE_TIMEOUT_MS
         value: "1800000"
+
+      # ── Per-download charge (must mirror ENABLE_DOWNLOAD_CHARGE on API)
+      # BUILD-TIME variable — change requires a manual redeploy of the web
+      # service, not just an env-var save.
+      - key: NEXT_PUBLIC_ENABLE_DOWNLOAD_CHARGE
+        value: "false"
