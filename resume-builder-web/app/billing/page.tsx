@@ -9,6 +9,9 @@ import { api, getAccessToken } from '@/src/lib/api';
 type PlanPricing = {
   displayPriceUsd: string;
   displayPriceInr: string;
+  priceInr: number;
+  priceUsd: number;
+  priceInrWithGst: number;
   gstAmount?: number;
   gstRate: number;
 };
