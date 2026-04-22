@@ -36,6 +36,19 @@ model User {
   stripeSubscriptionId String?
   stripeCurrentPeriodEnd DateTime?
   loginCount   Int      @default(0)
+  /// First auth method used by this account: password | google | github | linkedin | yahoo | email_otp
+  primaryAuthProvider String @default("password")
+  /// True once the user has explicitly set a password. Social signups get a
+  /// random password hash on creation, so this flag distinguishes "real"
+  /// passwords from placeholder ones.
+  hasUserSetPassword Boolean @default(true)
+  /// True if the user has saved a BYOK AI key locally — used for admin dashboard
+  /// aggregate counting only. The actual key is never stored on the server.
+  byokKeyEnabled Boolean @default(false)
+  /// Brute-force protection for password login.
+  failedLoginCount Int @default(0)
+  lockedUntil DateTime?
+  lastActiveAt DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   resumes      Resume[]

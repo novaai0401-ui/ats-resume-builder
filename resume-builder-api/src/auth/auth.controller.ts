@@ -1,4 +1,5 @@
 import { BadRequestException, Body, Controller, HttpCode, Post, Req, UseGuards } from '@nestjs/common';
+import type { Request } from 'express';
 import { AuthService } from './auth.service';
 import {
   RegisterSchema,
@@ -23,13 +24,15 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(200)
-  login(@Body() body: { email: string; password: string }) {
+  login(@Req() req: Request, @Body() body: { email: string; password: string }) {
     const email = String(body?.email || '').trim();
     const password = String(body?.password || '');
     if (!email || !password) {
       throw new BadRequestException('Email and password are required.');
     }
-    return this.authService.loginWithPassword(email, password);
+    const ip = extractIp(req);
+    const userAgent = String(req.headers['user-agent'] || '').slice(0, 500);
+    return this.authService.loginWithPassword(email, password, { ip, userAgent });
   }
 
   @Post('change-password')
@@ -58,4 +61,32 @@ export class AuthController {
   logout(@Req() req: { user: { userId: string } }) {
     return this.authService.logout(req.user.userId);
   }
+
+  @Post('link-password')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(200)
+  linkPassword(@Req() req: { user: { userId: string } }, @Body() body: { newPassword: string }) {
+    const newPassword = String(body?.newPassword || '');
+    if (!newPassword) {
+      throw new BadRequestException('newPassword is required.');
+    }
+    return this.authService.linkPassword(req.user.userId, newPassword);
+  }
+
+  /**
+   * Lightweight heartbeat so the admin dashboard's "active right now" metric
+   * has something current to read. The web client already polls via
+   * startSessionHeartbeat; this gives it a real endpoint to hit.
+   */
+  @Post('heartbeat')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(204)
+  async heartbeat(@Req() req: { user: { userId: string } }) {
+    await this.authService.bumpLastActive(req.user.userId);
+  }
+}
+
+function extractIp(req: Request): string {
+  const fwd = String(req.headers['x-forwarded-for'] || '').split(',')[0]?.trim();
+  return fwd || req.ip || (req.socket?.remoteAddress ?? '') || '';
 }

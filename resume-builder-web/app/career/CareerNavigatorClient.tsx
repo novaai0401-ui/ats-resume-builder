@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { PROFESSION_INDUSTRIES, getIndustryById, getRoleById } from 'resume-builder-shared';
 import { api, type Resume, type TechGapResult } from '@/src/lib/api';
+import FreeAiNotice from '@/src/components/FreeAiNotice';
 
 type Status = 'idle' | 'analyzing' | 'error';
 
@@ -338,9 +339,6 @@ export default function CareerNavigatorClient() {
           >
             {status === 'analyzing' ? 'Analyzing...' : 'Recommend next skills'}
           </button>
-          <Link className="btn secondary" href="/billing">
-            See subscription tiers
-          </Link>
           {result ? (
             <button type="button" className="btn ghost" onClick={resetResults}>
               Clear results
@@ -356,12 +354,15 @@ export default function CareerNavigatorClient() {
       </section>
 
       {result ? (
-        <CareerNavigatorResults
-          result={result}
-          readiness={readiness}
-          currentRoleLabel={currentRole?.label || ''}
-          targetRoleLabel={effectiveTargetRole?.label || currentRole?.label || ''}
-        />
+        <>
+          <FreeAiNotice variant="card" />
+          <CareerNavigatorResults
+            result={result}
+            readiness={readiness}
+            currentRoleLabel={currentRole?.label || ''}
+            targetRoleLabel={effectiveTargetRole?.label || currentRole?.label || ''}
+          />
+        </>
       ) : (
         <section className="card col-12">
           <h2 style={{ marginTop: 0 }}>Quantum recommendations</h2>

@@ -1,11 +1,35 @@
 ﻿import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { json } from 'express';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.enableShutdownHooks();
+
+  // Security headers. Strict defaults; the API itself serves JSON only, so a
+  // very narrow CSP is fine. CORS/browser callers still work because helmet
+  // doesn't touch Access-Control-* headers.
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        useDefaults: true,
+        directives: {
+          defaultSrc: ["'none'"],
+          connectSrc: ["'self'"],
+          baseUri: ["'self'"],
+          frameAncestors: ["'none'"],
+        },
+      },
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+      hsts:
+        process.env.NODE_ENV === 'production'
+          ? { maxAge: 60 * 60 * 24 * 365, includeSubDomains: true, preload: true }
+          : false,
+      referrerPolicy: { policy: 'no-referrer' },
+    }),
+  );
   const allowedOrigins = parseAllowedOrigins(process.env.CORS_ORIGIN);
   app.enableCors({
     origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {

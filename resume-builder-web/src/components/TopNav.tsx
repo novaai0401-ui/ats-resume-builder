@@ -63,10 +63,10 @@ export default function TopNav() {
           <Link href="/dashboard" onClick={closeDrawer}>Dashboard</Link>
           <Link href="/resume/start" onClick={closeDrawer}>Resume</Link>
           <Link href="/career" onClick={closeDrawer}>Career Navigator</Link>
+          <Link href="/settings" onClick={closeDrawer}>Settings</Link>
         </>
       )}
-      <Link href="/billing" onClick={closeDrawer}>Pricing</Link>
-      {authed && admin ? <Link href="/admin/settings" onClick={closeDrawer}>Admin</Link> : null}
+      {authed && admin ? <Link href="/admin" onClick={closeDrawer}>Admin</Link> : null}
       {authed ? (
         <button className="btn secondary" type="button" onClick={onLogout}>Logout</button>
       ) : (

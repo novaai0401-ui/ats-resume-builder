@@ -36,6 +36,9 @@ import { addEmptyExperience, removeExperienceAt } from '@/src/lib/experience-edi
 import { addEmptyProject, EMPTY_PROJECT, ensureAtLeastOneProject, isValidProjectUrl, moveProject } from '@/src/lib/project-editor';
 import { CompanyAutocomplete } from '@/src/components/CompanyAutocomplete';
 import { AutocompleteInput } from '@/src/components/AutocompleteInput';
+import FreeAiNotice from '@/src/components/FreeAiNotice';
+import PostDownloadSubscriptionPopup from '@/src/components/PostDownloadSubscriptionPopup';
+import DownloadChargeModal from '@/src/components/DownloadChargeModal';
 import { compareYearMonth, isPresentToken, isYearMonth, toMonthInputValue, toYearMonth } from '@/src/lib/date-utils';
 import {
   buildCompanySuggestions,
@@ -300,6 +303,9 @@ export default function ResumeEditor() {
   const [techGapLoading, setTechGapLoading] = useState(false);
   const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [premiumOptimizing, setPremiumOptimizing] = useState(false);
+  const [postDownloadPopup, setPostDownloadPopup] = useState<{ score: number | null } | null>(null);
+  const [downloadChargeOpen, setDownloadChargeOpen] = useState(false);
+  const downloadChargeEnabled = (process.env.NEXT_PUBLIC_ENABLE_DOWNLOAD_CHARGE || '').toLowerCase() === 'true';
   const [currentPlan, setCurrentPlan] = useState<string>(() => {
     if (typeof window === 'undefined') return 'FREE';
     return localStorage.getItem('rb_plan') || 'FREE';
@@ -1580,6 +1586,7 @@ export default function ResumeEditor() {
               <span className="small">/ 100</span>
             </div>
             <p className="small">Role level: {atsReview.result?.roleLevel || detectedRoleLevel || 'Not detected'}</p>
+            <FreeAiNotice />
             {atsReview.error && (
               <p className="hint warn" style={{ marginTop: 6 }}>{atsReview.error}</p>
             )}
@@ -3271,6 +3278,36 @@ export default function ResumeEditor() {
             )}
           </div>
         )}
+        {/* ─── Per-download payment gate (feature-flagged) ─── */}
+        {downloadChargeOpen && resumeId && (
+          <DownloadChargeModal
+            resumeId={resumeId}
+            onCancel={() => setDownloadChargeOpen(false)}
+            onSuccess={async (token) => {
+              setDownloadChargeOpen(false);
+              try {
+                await ensureTemplateSavedForExport();
+                const exportTemplateId = String(normalizedTemplateParam || resume.templateId || '').trim() || undefined;
+                await api.downloadPdf(resumeId, exportTemplateId, token);
+                setMessage('PDF downloaded. A copy has also been emailed to you.');
+                setExportOpen(false);
+                const scoreNow = atsReview.result?.roleAdjustedScore ?? null;
+                setPostDownloadPopup({ score: typeof scoreNow === 'number' ? scoreNow : null });
+              } catch (err: unknown) {
+                const errorMessage = err instanceof Error ? err.message : 'PDF export failed';
+                setMessage(errorMessage);
+                showSnackbar('error', errorMessage);
+              }
+            }}
+          />
+        )}
+        {/* ─── Post-download subscription popup (ATS score → "want premium?") ─── */}
+        {postDownloadPopup && (
+          <PostDownloadSubscriptionPopup
+            score={postDownloadPopup.score}
+            onClose={() => setPostDownloadPopup(null)}
+          />
+        )}
         {/* ─── Premium Upgrade Modal ─── */}
         {showPremiumModal && (
           <div className="session-warning-overlay" onClick={() => setShowPremiumModal(false)}>
@@ -3286,17 +3323,10 @@ export default function ResumeEditor() {
                 <li>Advanced job materials & role matching</li>
               </ul>
               <div style={{ display: 'grid', gap: 10 }}>
-                <button
-                  className="btn"
-                  style={{ width: '100%', background: '#2f5f8f' }}
-                  onClick={() => {
-                    setShowPremiumModal(false);
-                    window.location.href = '/billing';
-                  }}
-                >
-                  View Plans & Upgrade
-                </button>
-                <button className="btn ghost" style={{ width: '100%', fontSize: '0.8rem' }} onClick={() => setShowPremiumModal(false)}>
+                <p className="small" style={{ color: '#5a6778', textAlign: 'center', margin: 0 }}>
+                  Premium is offered after you download your resume.
+                </p>
+                <button className="btn" style={{ width: '100%' }} onClick={() => setShowPremiumModal(false)}>
                   Continue with free features
                 </button>
               </div>
@@ -3374,12 +3404,18 @@ export default function ResumeEditor() {
                     disabled={exportIssues.length > 0 && !exportApproved}
                     onClick={async () => {
                       if (!resumeId) return;
+                      if (downloadChargeEnabled) {
+                        setDownloadChargeOpen(true);
+                        return;
+                      }
                       try {
                         await ensureTemplateSavedForExport();
                         const exportTemplateId = String(normalizedTemplateParam || resume.templateId || '').trim() || undefined;
                         await api.downloadPdf(resumeId, exportTemplateId);
-                        setMessage('PDF downloaded.');
+                        setMessage('PDF downloaded. A copy has also been emailed to you.');
                         setExportOpen(false);
+                        const scoreNow = atsReview.result?.roleAdjustedScore ?? null;
+                        setPostDownloadPopup({ score: typeof scoreNow === 'number' ? scoreNow : null });
                       } catch (err: unknown) {
                         const errorMessage = err instanceof Error ? err.message : 'PDF export failed';
                         setMessage(errorMessage);
