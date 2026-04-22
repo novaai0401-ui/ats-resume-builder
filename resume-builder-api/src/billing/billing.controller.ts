@@ -4,12 +4,14 @@ import { CreateCheckoutSessionSchema, type CreateCheckoutSessionDto } from 'resu
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { BillingService } from './billing.service';
 import { RazorpayService } from './razorpay.service';
+import { DownloadChargeService } from './download-charge.service';
 
 @Controller('billing')
 export class BillingController {
   constructor(
     private readonly billingService: BillingService,
     private readonly razorpayService: RazorpayService,
+    private readonly downloadCharge: DownloadChargeService,
   ) {}
 
   /** Get the current user's plan and limits. */
@@ -149,5 +151,71 @@ export class BillingController {
   @UseGuards(JwtAuthGuard)
   getRazorpayStatus() {
     return { configured: this.razorpayService.isConfigured() };
+  }
+
+  // ─── Per-download charge ─────────────────────────────────────────────────
+
+  /** Whether per-download charging is currently enabled (env flag). */
+  @Get('download-charge/config')
+  @UseGuards(JwtAuthGuard)
+  getDownloadChargeConfig() {
+    return { enabled: this.downloadCharge.isFeatureEnabled() };
+  }
+
+  /** Create a per-download payment order. */
+  @Post('download-charge/init')
+  @UseGuards(JwtAuthGuard)
+  initDownloadCharge(
+    @Req() req: { user: { userId: string } },
+    @Body() body: { resumeId: string; region?: string },
+  ) {
+    const resumeId = String(body?.resumeId || '').trim();
+    if (!resumeId) throw new BadRequestException('resumeId is required.');
+    return this.downloadCharge.createOrder({
+      userId: req.user.userId,
+      resumeId,
+      region: body?.region,
+    });
+  }
+
+  /** Verify a Razorpay per-download payment and issue a download token. */
+  @Post('download-charge/verify/razorpay')
+  @UseGuards(JwtAuthGuard)
+  verifyDownloadChargeRazorpay(
+    @Req() req: { user: { userId: string } },
+    @Body() body: {
+      resumeId: string;
+      razorpay_order_id: string;
+      razorpay_payment_id: string;
+      razorpay_signature: string;
+    },
+  ) {
+    if (!body?.resumeId || !body?.razorpay_order_id || !body?.razorpay_payment_id || !body?.razorpay_signature) {
+      throw new BadRequestException('Missing Razorpay verification fields.');
+    }
+    return this.downloadCharge.verifyRazorpay({
+      userId: req.user.userId,
+      resumeId: body.resumeId,
+      razorpay_order_id: body.razorpay_order_id,
+      razorpay_payment_id: body.razorpay_payment_id,
+      razorpay_signature: body.razorpay_signature,
+    });
+  }
+
+  /** Verify a Stripe Checkout Session and issue a download token. */
+  @Post('download-charge/verify/stripe')
+  @UseGuards(JwtAuthGuard)
+  verifyDownloadChargeStripe(
+    @Req() req: { user: { userId: string } },
+    @Body() body: { resumeId: string; sessionId: string },
+  ) {
+    if (!body?.resumeId || !body?.sessionId) {
+      throw new BadRequestException('Missing session details.');
+    }
+    return this.downloadCharge.verifyStripe({
+      userId: req.user.userId,
+      resumeId: body.resumeId,
+      sessionId: body.sessionId,
+    });
   }
 }

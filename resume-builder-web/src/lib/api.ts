@@ -295,6 +295,33 @@ export function isCurrentUserAdmin() {
   return false;
 }
 
+/**
+ * Read the user's bring-your-own-key Groq/XAI API key from local browser
+ * storage. Returns empty string if not set or SSR. Never persisted server-side.
+ */
+export function readByokAiKey(): string {
+  if (typeof window === 'undefined') return '';
+  try {
+    return (window.localStorage.getItem('rb_byok_ai_key') || '').trim();
+  } catch {
+    return '';
+  }
+}
+
+export function writeByokAiKey(key: string): void {
+  if (typeof window === 'undefined') return;
+  const trimmed = (key || '').trim();
+  try {
+    if (trimmed) {
+      window.localStorage.setItem('rb_byok_ai_key', trimmed);
+    } else {
+      window.localStorage.removeItem('rb_byok_ai_key');
+    }
+  } catch {
+    // ignore quota / privacy-mode failures
+  }
+}
+
 export function setAuthTokens(auth: AuthResponse) {
   if (typeof window === 'undefined') return;
   localStorage.setItem(storageKeys.accessToken, auth.accessToken);
@@ -879,7 +906,7 @@ export const api = {
   techGap: (input: TechGapRequest) =>
     request<TechGapResult>(`/ai/tech-gap`, {
       method: 'POST',
-      body: JSON.stringify(input),
+      body: JSON.stringify({ ...input, byokApiKey: readByokAiKey() || undefined }),
     }),
 
   getSocialProviders: () =>
@@ -1021,11 +1048,13 @@ export const api = {
       }>;
     }>('/admin/analytics/users'),
 
-  downloadPdf: async (id: string, templateId?: string) => {
+  downloadPdf: async (id: string, templateId?: string, downloadToken?: string) => {
+    const params = new URLSearchParams();
     const templateQuery = String(templateId || '').trim();
-    const requestUrl = templateQuery
-      ? `${baseUrl}/resumes/${id}/pdf?templateId=${encodeURIComponent(templateQuery)}`
-      : `${baseUrl}/resumes/${id}/pdf`;
+    if (templateQuery) params.set('templateId', templateQuery);
+    if (downloadToken) params.set('downloadToken', downloadToken);
+    const qs = params.toString();
+    const requestUrl = `${baseUrl}/resumes/${id}/pdf${qs ? `?${qs}` : ''}`;
     const res = await fetch(requestUrl, {
       method: 'GET',
       headers: {
@@ -1044,11 +1073,13 @@ export const api = {
     window.URL.revokeObjectURL(blobUrl);
   },
 
-  getPdfBlob: async (id: string, templateId?: string) => {
+  getPdfBlob: async (id: string, templateId?: string, downloadToken?: string) => {
+    const params = new URLSearchParams();
     const templateQuery = String(templateId || '').trim();
-    const url = templateQuery
-      ? `${baseUrl}/resumes/${id}/pdf?templateId=${encodeURIComponent(templateQuery)}`
-      : `${baseUrl}/resumes/${id}/pdf`;
+    if (templateQuery) params.set('templateId', templateQuery);
+    if (downloadToken) params.set('downloadToken', downloadToken);
+    const qs = params.toString();
+    const url = `${baseUrl}/resumes/${id}/pdf${qs ? `?${qs}` : ''}`;
     const res = await fetch(url, {
       method: 'GET',
       headers: {
@@ -1058,4 +1089,49 @@ export const api = {
     if (!res.ok) throw new ApiRequestError(await readApiErrorDetails(res, 'PDF export failed'));
     return res.blob();
   },
+
+  // ─── Per-download charge helpers ─────────────────────────────────────────
+
+  getDownloadChargeConfig: () =>
+    request<{ enabled: boolean }>('/billing/download-charge/config'),
+
+  initDownloadCharge: (resumeId: string, region?: string) =>
+    request<
+      | {
+          provider: 'razorpay';
+          orderId: string;
+          amount: number;
+          currency: string;
+          keyId: string;
+          resumeId: string;
+        }
+      | {
+          provider: 'stripe';
+          checkoutUrl: string;
+          sessionId: string;
+          amount: number;
+          currency: string;
+          resumeId: string;
+        }
+    >('/billing/download-charge/init', {
+      method: 'POST',
+      body: JSON.stringify({ resumeId, region }),
+    }),
+
+  verifyDownloadChargeRazorpay: (body: {
+    resumeId: string;
+    razorpay_order_id: string;
+    razorpay_payment_id: string;
+    razorpay_signature: string;
+  }) =>
+    request<{ downloadToken: string }>('/billing/download-charge/verify/razorpay', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  verifyDownloadChargeStripe: (body: { resumeId: string; sessionId: string }) =>
+    request<{ downloadToken: string }>('/billing/download-charge/verify/stripe', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
 };

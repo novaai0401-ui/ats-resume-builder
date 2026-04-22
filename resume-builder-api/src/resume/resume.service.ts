@@ -14,6 +14,7 @@ import type { ParsedResumeText } from 'resume-intelligence';
 import { sanitizeImportedResume } from './import-sanitizer';
 import { ACTION_VERB_REQUIRED_RATIO, analyzeActionVerbRule, normalizeBulletText, type ActionVerbFailure } from './action-verb-rule';
 import { SettingsService } from '../settings/settings.service';
+import { MailService } from '../mail/mail.service';
 
 /**
  * Detect whether we're running in a serverless environment (AWS Lambda).
@@ -123,6 +124,7 @@ export class ResumeService {
   constructor(
     private readonly prisma: PrismaService,
     @Optional() private readonly settingsService?: SettingsService,
+    @Optional() private readonly mailService?: MailService,
   ) {}
 
   async create(userId: string, dto: CreateResumeDto) {
@@ -509,6 +511,22 @@ export class ResumeService {
         printBackground: true,
         margin: { top: '15mm', bottom: '15mm', left: '15mm', right: '15mm' },
       });
+      const userEmail = updatedUser.email;
+      if (userEmail && this.mailService && this.mailService.isConfigured) {
+        const resumeTitle = (resume.title && String(resume.title).trim()) || 'Resume';
+        const pdfBuffer = Buffer.isBuffer(buffer) ? (buffer as Buffer) : Buffer.from(buffer as unknown as ArrayBuffer);
+        void this.mailService
+          .sendResumePdfEmail({
+            to: userEmail,
+            resumeTitle,
+            pdfBuffer,
+            fileName: `resume-${id}.pdf`,
+          })
+          .catch((err: unknown) => {
+            const msg = err instanceof Error ? err.message : String(err);
+            console.warn(`[pdf-export] Failed to email resume copy to ${userEmail}: ${msg}`);
+          });
+      }
       return buffer;
     } finally {
       await browser.close();

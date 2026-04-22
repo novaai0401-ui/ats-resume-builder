@@ -1,13 +1,14 @@
-﻿import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
+﻿import { BadRequestException, Injectable, Logger, Optional, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import type { RegisterDto } from 'resume-builder-shared';
 import { getPlanConfig } from '../billing/plan-limits';
 import { resetUsageForPlan } from '../billing/usage';
 import { normalizeMobile } from './mobile.util';
+import { MailService } from '../mail/mail.service';
 
 const ACCESS_TOKEN_TYPE = 'access';
 const REFRESH_TOKEN_TYPE = 'refresh';
@@ -23,11 +24,70 @@ type TokenIssueOptions = {
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
+    @Optional() private readonly mailService?: MailService,
   ) {}
+
+  /**
+   * Persist a login event; if the (ip, user-agent) fingerprint has never been
+   * seen for this user, send a new-device alert email. Fire-and-forget so a
+   * mail failure never blocks login.
+   */
+  async recordLoginAndAlertIfNewDevice(params: {
+    userId: string;
+    email: string;
+    method: string;
+    ip?: string;
+    userAgent?: string;
+  }): Promise<void> {
+    const ip = (params.ip || '').trim();
+    const userAgent = (params.userAgent || '').trim();
+    const fingerprint = fingerprintDevice(ip, userAgent);
+
+    let isNewDevice = false;
+    if (fingerprint) {
+      const prior = await this.prisma.loginEvent.findFirst({
+        where: { userId: params.userId, ip: ip || undefined, userAgent: userAgent || undefined },
+        select: { id: true },
+      });
+      if (!prior) {
+        const anyPrior = await this.prisma.loginEvent.findFirst({
+          where: { userId: params.userId },
+          select: { id: true },
+        });
+        isNewDevice = Boolean(anyPrior);
+      }
+    }
+
+    await this.prisma.loginEvent.create({
+      data: {
+        userId: params.userId,
+        email: params.email,
+        method: params.method,
+        ip: ip || null,
+        userAgent: userAgent || null,
+      },
+    });
+
+    if (isNewDevice && this.mailService && this.mailService.isConfigured) {
+      void this.mailService
+        .sendNewDeviceLoginAlert({
+          to: params.email,
+          ip: ip || 'unknown',
+          userAgent: userAgent || 'unknown',
+          when: new Date(),
+        })
+        .catch((err: unknown) => {
+          const msg = err instanceof Error ? err.message : String(err);
+          this.logger.warn(`Failed to send new-device alert to ${params.email}: ${msg}`);
+        });
+    }
+  }
 
   async register(dto: RegisterDto) {
     const email = dto.email.trim().toLowerCase();
@@ -109,7 +169,7 @@ export class AuthService {
   }
 
   /** Password-based login. */
-  async loginWithPassword(email: string, password: string) {
+  async loginWithPassword(email: string, password: string, meta: { ip?: string; userAgent?: string } = {}) {
     const normalized = email.trim().toLowerCase();
     const user = await this.prisma.user.findUnique({ where: { email: normalized } });
     if (!user) {
@@ -122,6 +182,13 @@ export class AuthService {
     await this.prisma.user.update({
       where: { id: user.id },
       data: { loginCount: { increment: 1 } },
+    });
+    await this.recordLoginAndAlertIfNewDevice({
+      userId: user.id,
+      email: user.email,
+      method: 'password',
+      ip: meta.ip,
+      userAgent: meta.userAgent,
     });
     return this.issueTokensForUser({
       id: user.id,
@@ -261,6 +328,12 @@ export class AuthService {
       throw new UnauthorizedException('Invalid refresh token');
     }
   }
+}
+
+function fingerprintDevice(ip: string, userAgent: string): string {
+  const raw = `${ip}|${userAgent}`;
+  if (!ip && !userAgent) return '';
+  return createHash('sha256').update(raw).digest('hex');
 }
 
 function parseAdminEmails(raw: string): Set<string> {

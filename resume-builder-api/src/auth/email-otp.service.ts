@@ -10,7 +10,7 @@ import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from './auth.service';
-import { MailService } from './mail.service';
+import { MailService } from '../mail/mail.service';
 
 const HASH_ROUNDS = 12;
 const OTP_TTL_MS = 10 * 60 * 1000; // 10 minutes
@@ -151,14 +151,12 @@ export class EmailOtpService {
       data: { loginCount: { increment: 1 } },
     });
 
-    await this.prisma.loginEvent.create({
-      data: {
-        userId: user.id,
-        email: normalized,
-        method: 'email_otp',
-        ip: meta.ip,
-        userAgent: meta.userAgent,
-      },
+    await this.authService.recordLoginAndAlertIfNewDevice({
+      userId: user.id,
+      email: normalized,
+      method: 'email_otp',
+      ip: meta.ip,
+      userAgent: meta.userAgent,
     });
 
     return this.authService.issueTokensForUser(user);

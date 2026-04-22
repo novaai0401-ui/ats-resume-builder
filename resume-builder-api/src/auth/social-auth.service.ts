@@ -40,7 +40,7 @@ export class SocialAuthService {
    * If user exists with same email -> link and login.
    * If no user exists -> create new account and login.
    */
-  async handleSocialLogin(profile: OAuthProfile) {
+  async handleSocialLogin(profile: OAuthProfile, meta: { ip?: string; userAgent?: string } = {}) {
     if (!profile.email) {
       throw new BadRequestException('Email is required from OAuth provider.');
     }
@@ -82,13 +82,13 @@ export class SocialAuthService {
       await resetUsageForPlan(this.prisma, user.id, 'FREE');
     }
 
-    // Record login event
-    await this.prisma.loginEvent.create({
-      data: {
-        userId: user.id,
-        email,
-        method: `social_${profile.provider}`,
-      },
+    // Record login event + optional new-device alert
+    await this.authService.recordLoginAndAlertIfNewDevice({
+      userId: user.id,
+      email,
+      method: `social_${profile.provider}`,
+      ip: meta.ip,
+      userAgent: meta.userAgent,
     });
 
     return this.authService.issueTokensForUser({

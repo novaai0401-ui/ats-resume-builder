@@ -1,5 +1,5 @@
-import { BadRequestException, Controller, Get, HttpCode, Inject, Logger, Post, Body, Query, Res } from '@nestjs/common';
-import type { Response } from 'express';
+import { BadRequestException, Controller, Get, HttpCode, Inject, Logger, Post, Body, Query, Req, Res } from '@nestjs/common';
+import type { Request, Response } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { randomBytes } from 'node:crypto';
 import { SocialAuthService } from './social-auth.service';
@@ -200,45 +200,50 @@ export class SocialAuthController {
 
   @Get('google/callback')
   async googleCallback(
+    @Req() req: Request,
     @Query('code') code: string,
     @Query('state') state: string,
     @Query('error') error: string,
     @Res() res: Response,
   ) {
-    return this.handleProviderCallback(res, 'google', code, state, error);
+    return this.handleProviderCallback(req, res, 'google', code, state, error);
   }
 
   @Get('github/callback')
   async githubCallback(
+    @Req() req: Request,
     @Query('code') code: string,
     @Query('state') state: string,
     @Query('error') error: string,
     @Res() res: Response,
   ) {
-    return this.handleProviderCallback(res, 'github', code, state, error);
+    return this.handleProviderCallback(req, res, 'github', code, state, error);
   }
 
   @Get('linkedin/callback')
   async linkedinCallback(
+    @Req() req: Request,
     @Query('code') code: string,
     @Query('state') state: string,
     @Query('error') error: string,
     @Res() res: Response,
   ) {
-    return this.handleProviderCallback(res, 'linkedin', code, state, error);
+    return this.handleProviderCallback(req, res, 'linkedin', code, state, error);
   }
 
   @Get('yahoo/callback')
   async yahooCallback(
+    @Req() req: Request,
     @Query('code') code: string,
     @Query('state') state: string,
     @Query('error') error: string,
     @Res() res: Response,
   ) {
-    return this.handleProviderCallback(res, 'yahoo', code, state, error);
+    return this.handleProviderCallback(req, res, 'yahoo', code, state, error);
   }
 
   private async handleProviderCallback(
+    req: Request,
     res: Response,
     provider: string,
     code: string,
@@ -272,7 +277,9 @@ export class SocialAuthController {
         default: return res.redirect(`${frontendUrl}?error=unsupported_provider`);
       }
 
-      const auth = await this.socialAuth.handleSocialLogin(profile);
+      const ip = (String(req.headers['x-forwarded-for'] || '').split(',')[0]?.trim()) || req.ip || (req.socket?.remoteAddress ?? '') || '';
+      const userAgent = String(req.headers['user-agent'] || '').slice(0, 500);
+      const auth = await this.socialAuth.handleSocialLogin(profile, { ip, userAgent });
       this.logger.log(`${provider} login successful for ${profile.email}`);
 
       // Create a one-time handoff token instead of putting real tokens in the URL

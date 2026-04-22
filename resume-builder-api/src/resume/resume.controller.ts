@@ -13,6 +13,7 @@ import {
   type UpdateResumeDto,
 } from 'resume-builder-shared';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { DownloadChargeService } from '../billing/download-charge.service';
 import { MulterUploadExceptionFilter } from './multer-upload-exception.filter';
 import { z } from 'zod';
 
@@ -60,7 +61,10 @@ type UploadedResumeFile = {
 @Controller('resumes')
 @UseGuards(JwtAuthGuard)
 export class ResumeController {
-  constructor(private readonly resumeService: ResumeService) {}
+  constructor(
+    private readonly resumeService: ResumeService,
+    private readonly downloadCharge: DownloadChargeService,
+  ) {}
 
   @Post()
   create(@Req() req: { user: { userId: string } }, @Body() body: CreateResumeDto) {
@@ -131,6 +135,7 @@ export class ResumeController {
     @Param('id') id: string,
     @Query('templateId') templateId: string | undefined,
     @Query('debug') debug: string | undefined,
+    @Query('downloadToken') downloadToken: string | undefined,
     @Res() res: Response,
   ) {
     if (debug === 'html') {
@@ -142,6 +147,9 @@ export class ResumeController {
       res.setHeader('X-Template-Id', rendered.templateId);
       res.send(rendered.html);
       return;
+    }
+    if (this.downloadCharge.isFeatureEnabled()) {
+      this.downloadCharge.assertDownloadToken(String(downloadToken || ''), req.user.userId, id);
     }
     const pdfBuffer = await this.resumeService.generatePdf(req.user.userId, id, templateId);
     res.setHeader('Content-Type', 'application/pdf');
