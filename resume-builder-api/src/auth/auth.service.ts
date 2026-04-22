@@ -9,6 +9,7 @@ import { getPlanConfig } from '../billing/plan-limits';
 import { resetUsageForPlan } from '../billing/usage';
 import { normalizeMobile } from './mobile.util';
 import { MailService } from '../mail/mail.service';
+import { enforcePasswordPolicy } from './password-hygiene';
 
 const ACCESS_TOKEN_TYPE = 'access';
 const REFRESH_TOKEN_TYPE = 'refresh';
@@ -112,7 +113,17 @@ export class AuthService {
       throw new BadRequestException('This mobile number is already linked to another account. Please use another mobile number.');
     }
 
-    // Generate a random password hash if no password provided (email OTP flow)
+    // Generate a random password hash if no password provided (email OTP flow).
+    // When a password IS provided, enforce complexity + HIBP breach check.
+    let hasUserSetPassword = false;
+    if (dto.password) {
+      try {
+        await enforcePasswordPolicy(dto.password);
+      } catch (err: unknown) {
+        throw new BadRequestException(err instanceof Error ? err.message : 'Password rejected.');
+      }
+      hasUserSetPassword = true;
+    }
     const passwordHash = dto.password
       ? await bcrypt.hash(dto.password, 12)
       : await bcrypt.hash(randomBytes(32).toString('hex'), 12);
@@ -129,6 +140,8 @@ export class AuthService {
         passwordHash,
         plan: 'FREE',
         isAdmin,
+        primaryAuthProvider: 'password',
+        hasUserSetPassword,
         aiTokensLimit: planConfig.aiTokensLimit,
         pdfExportsLimit: planConfig.pdfExportsLimit,
         atsScansLimit: planConfig.atsScansLimit,
@@ -168,20 +181,52 @@ export class AuthService {
     return { ok: true };
   }
 
+  /** Bump lastActiveAt without issuing new tokens. Used by /auth/heartbeat. */
+  async bumpLastActive(userId: string): Promise<void> {
+    try {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { lastActiveAt: new Date() },
+      });
+    } catch {
+      // Heartbeat failures must never surface to the user — swallow quietly.
+    }
+  }
+
   /** Password-based login. */
   async loginWithPassword(email: string, password: string, meta: { ip?: string; userAgent?: string } = {}) {
     const normalized = email.trim().toLowerCase();
+    this.enforceIpLoginRateLimit(meta.ip);
     const user = await this.prisma.user.findUnique({ where: { email: normalized } });
     if (!user) {
       throw new UnauthorizedException('Invalid email or password.');
     }
+    // OAuth lock-in: if the account was created via a social provider and the
+    // user hasn't explicitly set a password yet, refuse password login and
+    // point them back to the correct provider.
+    if (user.primaryAuthProvider !== 'password' && !user.hasUserSetPassword) {
+      throw new UnauthorizedException(
+        `Please sign in with ${humanizeProvider(user.primaryAuthProvider)}. You can add a password from settings after signing in.`,
+      );
+    }
+    if (user.lockedUntil && user.lockedUntil.getTime() > Date.now()) {
+      throw new UnauthorizedException(
+        `Account temporarily locked due to repeated failed attempts. Try again after ${user.lockedUntil.toUTCString()}.`,
+      );
+    }
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) {
+      await this.recordFailedPasswordAttempt(user.id, user.failedLoginCount);
       throw new UnauthorizedException('Invalid email or password.');
     }
     await this.prisma.user.update({
       where: { id: user.id },
-      data: { loginCount: { increment: 1 } },
+      data: {
+        loginCount: { increment: 1 },
+        failedLoginCount: 0,
+        lockedUntil: null,
+        lastActiveAt: new Date(),
+      },
     });
     await this.recordLoginAndAlertIfNewDevice({
       userId: user.id,
@@ -198,6 +243,47 @@ export class AuthService {
     });
   }
 
+  /**
+   * Bump the failed-attempt counter and, after MAX_FAILED_ATTEMPTS, lock the
+   * account for LOCKOUT_MINUTES. Single user-visible message stays "invalid
+   * credentials" until the lockout hits, so attackers can't use the response
+   * to enumerate account state.
+   */
+  private async recordFailedPasswordAttempt(userId: string, priorCount: number): Promise<void> {
+    const MAX_FAILED_ATTEMPTS = 5;
+    const LOCKOUT_MINUTES = 15;
+    const nextCount = priorCount + 1;
+    const shouldLock = nextCount >= MAX_FAILED_ATTEMPTS;
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        failedLoginCount: nextCount,
+        lockedUntil: shouldLock ? new Date(Date.now() + LOCKOUT_MINUTES * 60 * 1000) : null,
+      },
+    });
+  }
+
+  /**
+   * Coarse-grained per-IP rate limit on login attempts. Uses the in-process
+   * counter map; for multi-instance deployments point at Redis.
+   */
+  private enforceIpLoginRateLimit(ip?: string): void {
+    const MAX_PER_WINDOW = 30;
+    const WINDOW_MS = 5 * 60 * 1000;
+    const key = (ip || '').trim();
+    if (!key) return;
+    const now = Date.now();
+    const entry = loginIpCounters.get(key);
+    if (!entry || now - entry.windowStart > WINDOW_MS) {
+      loginIpCounters.set(key, { windowStart: now, count: 1 });
+      return;
+    }
+    entry.count += 1;
+    if (entry.count > MAX_PER_WINDOW) {
+      throw new UnauthorizedException('Too many login attempts from this IP. Please wait a few minutes.');
+    }
+  }
+
   /** Set a new password (for forgot/reset flow). */
   async resetPassword(email: string, newPassword: string) {
     const normalized = email.trim().toLowerCase();
@@ -205,10 +291,15 @@ export class AuthService {
     if (!user) {
       throw new BadRequestException('User not found.');
     }
+    try {
+      await enforcePasswordPolicy(newPassword);
+    } catch (err: unknown) {
+      throw new BadRequestException(err instanceof Error ? err.message : 'Password rejected.');
+    }
     const passwordHash = await bcrypt.hash(newPassword, 12);
     await this.prisma.user.update({
       where: { id: user.id },
-      data: { passwordHash },
+      data: { passwordHash, hasUserSetPassword: true, failedLoginCount: 0, lockedUntil: null },
     });
     return { ok: true, message: 'Password has been reset successfully.' };
   }
@@ -219,16 +310,51 @@ export class AuthService {
     if (!user) {
       throw new BadRequestException('User not found.');
     }
+    // Social accounts that never set a password can reach this via
+    // `linkPassword` only; reject the change-password flow for them so the
+    // "current password" check isn't meaningless.
+    if (!user.hasUserSetPassword) {
+      throw new BadRequestException('Your account does not have a password yet. Use Link Password from settings instead.');
+    }
     const valid = await bcrypt.compare(currentPassword, user.passwordHash);
     if (!valid) {
       throw new UnauthorizedException('Current password is incorrect.');
     }
+    try {
+      await enforcePasswordPolicy(newPassword);
+    } catch (err: unknown) {
+      throw new BadRequestException(err instanceof Error ? err.message : 'Password rejected.');
+    }
     const passwordHash = await bcrypt.hash(newPassword, 12);
     await this.prisma.user.update({
       where: { id: userId },
-      data: { passwordHash },
+      data: { passwordHash, hasUserSetPassword: true, failedLoginCount: 0, lockedUntil: null },
     });
     return { ok: true, message: 'Password changed successfully.' };
+  }
+
+  /**
+   * Let an authenticated social-login user set a password for the first time
+   * so they can sign in with email+password in addition to OAuth. Stays a
+   * separate method from `changePassword` because there's no current password
+   * to verify — authorization comes from the JWT.
+   */
+  async linkPassword(userId: string, newPassword: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new BadRequestException('User not found.');
+    }
+    try {
+      await enforcePasswordPolicy(newPassword);
+    } catch (err: unknown) {
+      throw new BadRequestException(err instanceof Error ? err.message : 'Password rejected.');
+    }
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash, hasUserSetPassword: true },
+    });
+    return { ok: true, message: 'Password linked to your account.' };
   }
 
   async issueTokensForUser(user: { id: string; email: string; fullName: string; mobile?: string | null }) {
@@ -327,6 +453,20 @@ export class AuthService {
     } catch {
       throw new UnauthorizedException('Invalid refresh token');
     }
+  }
+}
+
+/** In-memory per-IP login rate-limit counter. Swap with Redis for multi-instance deployments. */
+const loginIpCounters = new Map<string, { windowStart: number; count: number }>();
+
+function humanizeProvider(provider: string): string {
+  switch (provider) {
+    case 'google': return 'Google';
+    case 'github': return 'GitHub';
+    case 'linkedin': return 'LinkedIn';
+    case 'yahoo': return 'Yahoo';
+    case 'email_otp': return 'the email OTP flow';
+    default: return 'your original sign-in method';
   }
 }
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { readByokAiKey, writeByokAiKey } from '@/src/lib/api';
+import { api, readByokAiKey, writeByokAiKey } from '@/src/lib/api';
 
 /**
  * User settings. Currently limited to the bring-your-own-key AI form.
@@ -18,19 +18,32 @@ export default function SettingsPageView() {
     setHasKey(Boolean(existing));
   }, []);
 
-  function handleSave() {
+  async function handleSave() {
     writeByokAiKey(key);
+    const nowHasKey = Boolean(key.trim());
     setSaved(true);
-    setHasKey(Boolean(key.trim()));
+    setHasKey(nowHasKey);
     setKey('');
+    // Sync the boolean flag to the server so the admin dashboard can count it.
+    // Best-effort only — failures are silent so settings UX isn't blocked.
+    try {
+      await api.setByokKeyFlag(nowHasKey);
+    } catch {
+      // ignore
+    }
     setTimeout(() => setSaved(false), 2500);
   }
 
-  function handleClear() {
+  async function handleClear() {
     writeByokAiKey('');
     setHasKey(false);
     setKey('');
     setSaved(false);
+    try {
+      await api.setByokKeyFlag(false);
+    } catch {
+      // ignore
+    }
   }
 
   return (

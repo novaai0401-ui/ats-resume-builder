@@ -497,9 +497,21 @@ export function startSessionHeartbeat() {
   }
   markSessionActivity(true);
   void ensureSessionActive();
+  // Ping server every 2 min so User.lastActiveAt stays current for the admin
+  // dashboard's "active right now" metric. Fire-and-forget; failures silent.
+  const pingNow = () => {
+    if (!getAccessToken()) return;
+    void fetch(`${baseUrl}/auth/heartbeat`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${getAccessToken()}` },
+      keepalive: true,
+    }).catch(() => undefined);
+  };
+  pingNow();
   window.setInterval(() => {
     void ensureSessionActive();
-  }, 60_000);
+    pingNow();
+  }, 120_000);
 }
 
 function parseCsvSet(raw?: string) {
@@ -1032,9 +1044,19 @@ export const api = {
     }),
 
   getAdminAnalyticsSummary: () =>
-    request<{ totalRegisteredUsers: number; totalLoginEvents: number }>('/admin/analytics/summary'),
+    request<{
+      totalRegisteredUsers: number;
+      totalLoginEvents: number;
+      paidSubscribers: number;
+      usersWithByokKey: number;
+      logins24h: number;
+      activeRightNow: number;
+      newUsers7d: number;
+      planBreakdown: Array<{ plan: string; count: number }>;
+      providerBreakdown: Array<{ provider: string; count: number }>;
+    }>('/admin/analytics/summary'),
 
-  getAdminUsers: () =>
+  getAdminUsers: (limit?: number) =>
     request<{
       users: Array<{
         id: string;
@@ -1044,9 +1066,44 @@ export const api = {
         isAdmin: boolean;
         loginCount: number;
         plan: string;
+        primaryAuthProvider: string;
+        hasUserSetPassword: boolean;
+        byokKeyEnabled: boolean;
+        failedLoginCount: number;
+        lockedUntil: string | null;
+        lastActiveAt: string | null;
         createdAt: string;
       }>;
-    }>('/admin/analytics/users'),
+    }>(`/admin/analytics/users${limit ? `?limit=${limit}` : ''}`),
+
+  getAdminRecentActivity: (limit?: number) =>
+    request<{
+      events: Array<{
+        id: string;
+        userId: string;
+        email: string;
+        method: string;
+        ip: string | null;
+        userAgent: string | null;
+        createdAt: string;
+      }>;
+    }>(`/admin/analytics/recent-activity${limit ? `?limit=${limit}` : ''}`),
+
+  getAdminLocations: (days?: number) =>
+    request<{
+      days: number;
+      top: Array<{ ip: string | null; count: number }>;
+    }>(`/admin/analytics/locations${days ? `?days=${days}` : ''}`),
+
+  /** Mark whether the current user is using their own BYOK AI key. Admin uses this aggregate only. */
+  setByokKeyFlag: (enabled: boolean) =>
+    request<{ ok: true }>('/settings/byok-key-flag', {
+      method: 'POST',
+      body: JSON.stringify({ enabled }),
+    }),
+
+  heartbeat: () =>
+    request<void>('/auth/heartbeat', { method: 'POST' }).catch(() => undefined),
 
   downloadPdf: async (id: string, templateId?: string, downloadToken?: string) => {
     const params = new URLSearchParams();

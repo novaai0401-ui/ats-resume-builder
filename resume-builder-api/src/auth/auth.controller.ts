@@ -61,6 +61,29 @@ export class AuthController {
   logout(@Req() req: { user: { userId: string } }) {
     return this.authService.logout(req.user.userId);
   }
+
+  @Post('link-password')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(200)
+  linkPassword(@Req() req: { user: { userId: string } }, @Body() body: { newPassword: string }) {
+    const newPassword = String(body?.newPassword || '');
+    if (!newPassword) {
+      throw new BadRequestException('newPassword is required.');
+    }
+    return this.authService.linkPassword(req.user.userId, newPassword);
+  }
+
+  /**
+   * Lightweight heartbeat so the admin dashboard's "active right now" metric
+   * has something current to read. The web client already polls via
+   * startSessionHeartbeat; this gives it a real endpoint to hit.
+   */
+  @Post('heartbeat')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(204)
+  async heartbeat(@Req() req: { user: { userId: string } }) {
+    await this.authService.bumpLastActive(req.user.userId);
+  }
 }
 
 function extractIp(req: Request): string {

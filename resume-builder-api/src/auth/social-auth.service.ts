@@ -50,10 +50,17 @@ export class SocialAuthService {
     let user = await this.prisma.user.findUnique({ where: { email } });
 
     if (user) {
-      // Existing user — update login metadata
+      // OAuth lock-in: if this account was originally created via a different
+      // provider, reject the login rather than silently "re-linking" the
+      // account. Users must come back through their original path.
+      if (user.primaryAuthProvider !== 'password' && user.primaryAuthProvider !== profile.provider) {
+        throw new UnauthorizedException(
+          `This email is already registered via ${humanizeProvider(user.primaryAuthProvider)}. Please sign in with that provider.`,
+        );
+      }
       await this.prisma.user.update({
         where: { id: user.id },
-        data: { loginCount: { increment: 1 } },
+        data: { loginCount: { increment: 1 }, lastActiveAt: new Date() },
       });
     } else {
       // New user — register via social login
@@ -73,6 +80,8 @@ export class SocialAuthService {
           passwordHash: await bcrypt.hash(randomBytes(32).toString('hex'), 12),
           plan: 'FREE',
           isAdmin,
+          primaryAuthProvider: profile.provider,
+          hasUserSetPassword: false,
           aiTokensLimit: planConfig.aiTokensLimit,
           pdfExportsLimit: planConfig.pdfExportsLimit,
           atsScansLimit: planConfig.atsScansLimit,
@@ -413,4 +422,16 @@ function parseCsvSet(raw: string): Set<string> {
   return new Set(
     String(raw || '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean),
   );
+}
+
+function humanizeProvider(provider: string): string {
+  switch (provider) {
+    case 'google': return 'Google';
+    case 'github': return 'GitHub';
+    case 'linkedin': return 'LinkedIn';
+    case 'yahoo': return 'Yahoo';
+    case 'email_otp': return 'the email OTP flow';
+    case 'password': return 'email and password';
+    default: return 'your original sign-in method';
+  }
 }

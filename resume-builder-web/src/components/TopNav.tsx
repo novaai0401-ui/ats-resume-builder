@@ -66,7 +66,7 @@ export default function TopNav() {
           <Link href="/settings" onClick={closeDrawer}>Settings</Link>
         </>
       )}
-      {authed && admin ? <Link href="/admin/settings" onClick={closeDrawer}>Admin</Link> : null}
+      {authed && admin ? <Link href="/admin" onClick={closeDrawer}>Admin</Link> : null}
       {authed ? (
         <button className="btn secondary" type="button" onClick={onLogout}>Logout</button>
       ) : (
