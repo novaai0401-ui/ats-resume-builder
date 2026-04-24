@@ -2447,4 +2447,68 @@ h2 {
   }
 }
 
+/* Shared typography helpers used by new Jobs + Cover Letter pages. */
+.heading-xl { font-size: 1.75rem; font-weight: 700; margin: 0 0 .35rem; }
+.heading-lg { font-size: 1.35rem; font-weight: 600; margin: 0 0 .5rem; }
+.heading-md { font-size: 1.05rem; font-weight: 600; margin: 1.25rem 0 .5rem; }
+.muted      { color: #667085; }
+.linklike   { background: none; border: 0; padding: 0; color: inherit; text-decoration: underline; cursor: pointer; }
+
+.alert         { padding: .65rem .9rem; border-radius: 8px; margin: .75rem 0; }
+.alert-error   { background: #fef2f2; border: 1px solid #fecaca; color: #9f1239; }
+
+.jobs-header   { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.jobs-alert    { margin-top: .75rem; }
+.jobs-stats    { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: .75rem; margin: 1rem 0; }
+.jobs-upcoming { margin-top: 1rem; padding: .75rem 1rem; background: #f6f8fa; border-radius: 10px; }
+.jobs-upcoming ul { margin: .5rem 0 0; padding-left: 1rem; }
+.upcoming-chip { display: inline-block; margin-left: .5rem; padding: .1rem .55rem; border-radius: 999px; background: #e5efff; color: #1d4ed8; font-size: .75rem; }
+.upcoming-chip.overdue { background: #fee2e2; color: #b91c1c; }
+
+.stat-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: .75rem .9rem; }
+.stat-card__value { font-size: 1.4rem; font-weight: 700; }
+.stat-card__label { font-size: .8rem; color: #667085; text-transform: uppercase; letter-spacing: .04em; }
+.stat-card--active   { border-color: #c7d2fe; }
+.stat-card--interview{ border-color: #fcd34d; }
+.stat-card--offer    { border-color: #86efac; }
+.stat-card--rate     { border-color: #bae6fd; }
+
+.kanban { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: .75rem; margin-top: 1rem; }
+.kanban--compact { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.kanban-column { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; padding: .6rem; min-height: 180px; }
+.kanban-column header { display: flex; justify-content: space-between; align-items: center; margin-bottom: .5rem; }
+.kanban-column h3 { margin: 0; font-size: .95rem; }
+.kanban-column ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .5rem; }
+.kanban-empty { padding: .5rem; font-size: .85rem; }
+.kanban-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: .55rem .7rem; font-size: .9rem; }
+.kanban-card__top { margin-bottom: .2rem; }
+.kanban-card__actions { display: flex; gap: .35rem; margin-top: .5rem; flex-wrap: wrap; }
+.kanban-card__actions select { flex: 1; min-width: 120px; }
+.btn.tertiary { background: transparent; border: 1px solid #e5e7eb; color: #374151; padding: .25rem .6rem; font-size: .82rem; border-radius: 6px; cursor: pointer; }
+.btn.tertiary.danger { color: #b91c1c; border-color: #fecaca; }
+
+.modal-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,.55); display: flex; align-items: center; justify-content: center; padding: 1rem; z-index: 100; }
+.modal.card { width: min(720px, 100%); max-height: 90vh; overflow: auto; }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .75rem; margin-top: .75rem; }
+.form-grid label { display: flex; flex-direction: column; gap: .25rem; font-size: .85rem; }
+.form-grid .form-full { grid-column: 1 / -1; }
+.form-actions { display: flex; justify-content: flex-end; gap: .5rem; margin-top: 1rem; }
+
+.cover-letter-layout { display: grid; grid-template-columns: minmax(280px, 1fr) minmax(300px, 2fr); gap: 1rem; margin-top: 1rem; }
+@media (max-width: 900px) { .cover-letter-layout { grid-template-columns: 1fr; } }
+.cover-letter-form { display: flex; flex-direction: column; gap: .75rem; }
+.cover-letter-form label { display: flex; flex-direction: column; gap: .25rem; font-size: .88rem; }
+.cover-letter-form .form-full { width: 100%; }
+.tone-picker { border: 1px solid #e5e7eb; border-radius: 10px; padding: .6rem .75rem; margin: 0; }
+.tone-picker legend { font-weight: 600; padding: 0 .3rem; }
+.tone-picker label { display: flex; align-items: flex-start; gap: .5rem; padding: .35rem .2rem; border-radius: 6px; cursor: pointer; }
+.tone-picker label.selected { background: #eef2ff; }
+.tone-picker small { display: block; color: #667085; font-size: .78rem; }
+.cover-letter-preview { border: 1px solid #e5e7eb; border-radius: 10px; padding: .75rem; background: #fafafa; min-height: 320px; display: flex; flex-direction: column; gap: .5rem; }
+.cover-letter-preview__meta { display: flex; gap: .5rem; align-items: center; }
+.cover-letter-body { white-space: pre-wrap; font-family: Georgia, "Times New Roman", serif; font-size: .95rem; line-height: 1.5; margin: 0; background: #fff; padding: 1rem; border-radius: 8px; border: 1px solid #eef2f7; }
+.cover-letter-placeholder { padding: 2rem 1rem; text-align: center; }
+.cover-letter-history { margin-top: 1.25rem; }
+.cover-letter-history ul { list-style: none; padding: 0; margin: .5rem 0 0; }
+.cover-letter-history li { display: flex; gap: .5rem; align-items: center; padding: .4rem 0; border-bottom: 1px dashed #e5e7eb; flex-wrap: wrap; }
 

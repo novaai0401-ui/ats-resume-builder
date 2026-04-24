@@ -12,6 +12,7 @@ import { MetaModule } from './meta/meta.module';
 import { SettingsModule } from './settings/settings.module';
 import { AdminModule } from './admin/admin.module';
 import { MailModule } from './mail/mail.module';
+import { JobsModule } from './jobs/jobs.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { MailModule } from './mail/mail.module';
     BillingModule,
     CompaniesModule,
     MetaModule,
+    JobsModule,
   ],
   controllers: [HealthController],
 })

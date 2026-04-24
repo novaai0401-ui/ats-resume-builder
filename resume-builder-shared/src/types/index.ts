@@ -246,3 +246,112 @@ export type Plan = 'FREE' | 'STUDENT' | 'PRO';
 export type DuplicateResumeDto = {
   title?: string;
 };
+
+export const JOB_STATUS_VALUES = [
+  'wishlist',
+  'applied',
+  'phone_screen',
+  'interview',
+  'offer',
+  'rejected',
+  'withdrawn',
+] as const;
+
+export type JobStatus = (typeof JOB_STATUS_VALUES)[number];
+
+export type JobApplication = {
+  id: string;
+  userId: string;
+  company: string;
+  role: string;
+  jdUrl: string | null;
+  jdText: string | null;
+  location: string | null;
+  salaryRange: string | null;
+  status: JobStatus;
+  source: string | null;
+  referral: string | null;
+  resumeId: string | null;
+  coverLetterId: string | null;
+  notes: string | null;
+  nextActionAt: string | null;
+  appliedAt: string | null;
+  closedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type JobApplicationInput = {
+  company: string;
+  role: string;
+  jdUrl?: string | null;
+  jdText?: string | null;
+  location?: string | null;
+  salaryRange?: string | null;
+  status?: JobStatus;
+  source?: string | null;
+  referral?: string | null;
+  resumeId?: string | null;
+  coverLetterId?: string | null;
+  notes?: string | null;
+  nextActionAt?: string | null;
+  appliedAt?: string | null;
+  closedAt?: string | null;
+};
+
+export type JobStats = {
+  total: number;
+  active: number;
+  closed: number;
+  byStatus: Record<JobStatus, number>;
+  responseRate: number;
+  offerRate: number;
+};
+
+export type CoverLetterTone = 'professional' | 'enthusiastic' | 'concise' | 'formal';
+
+export type CoverLetter = {
+  id: string;
+  userId: string;
+  resumeId: string | null;
+  company: string;
+  role: string;
+  jdText: string | null;
+  tone: CoverLetterTone;
+  body: string;
+  wordCount: number;
+  provider: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CoverLetterGenerateRequest = {
+  resumeId?: string;
+  company: string;
+  role: string;
+  tone?: CoverLetterTone;
+  jdText?: string;
+  candidate?: {
+    fullName?: string;
+    summary?: string;
+    skills?: string[];
+    experience?: Array<{
+      company: string;
+      role: string;
+      startDate?: string;
+      endDate?: string;
+      highlights: string[];
+    }>;
+    education?: Array<{ institution: string; degree: string }>;
+  };
+};
+
+export type CoverLetterGenerateResponse = {
+  id: string;
+  body: string;
+  wordCount: number;
+  provider: string;
+  tone: CoverLetterTone;
+  company: string;
+  role: string;
+};

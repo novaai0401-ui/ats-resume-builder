@@ -1,4 +1,4 @@
-﻿import { BadRequestException, Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
+﻿import { BadRequestException, Body, Controller, Delete, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
 import {
   AiCritiqueSchema,
   AiParseJdSchema,
@@ -11,6 +11,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AiService } from './ai.service';
 import type { AiCritiqueInput } from './ai.service';
 import { TechGapService, type TechGapInput } from './tech-gap.service';
+import { CoverLetterService, type GenerateCoverLetterInput } from './cover-letter.service';
 
 @Controller('ai')
 @UseGuards(JwtAuthGuard)
@@ -18,6 +19,7 @@ export class AiController {
   constructor(
     private readonly aiService: AiService,
     private readonly techGapService: TechGapService,
+    private readonly coverLetterService: CoverLetterService,
   ) {}
 
   @Post('parse-jd')
@@ -61,5 +63,34 @@ export class AiController {
       throw new BadRequestException('Request body is required');
     }
     return this.techGapService.analyze(body);
+  }
+
+  @Post('cover-letter')
+  generateCoverLetter(
+    @Req() req: { user: { userId: string } },
+    @Body() body: GenerateCoverLetterInput,
+  ) {
+    return this.coverLetterService.generate(req.user.userId, body);
+  }
+
+  @Get('cover-letters')
+  listCoverLetters(@Req() req: { user: { userId: string } }) {
+    return this.coverLetterService.list(req.user.userId);
+  }
+
+  @Get('cover-letters/:id')
+  getCoverLetter(
+    @Req() req: { user: { userId: string } },
+    @Param('id') id: string,
+  ) {
+    return this.coverLetterService.get(req.user.userId, id);
+  }
+
+  @Delete('cover-letters/:id')
+  deleteCoverLetter(
+    @Req() req: { user: { userId: string } },
+    @Param('id') id: string,
+  ) {
+    return this.coverLetterService.remove(req.user.userId, id);
   }
 }

@@ -62,6 +62,8 @@ export default function TopNav() {
         <>
           <Link href="/dashboard" onClick={closeDrawer}>Dashboard</Link>
           <Link href="/resume/start" onClick={closeDrawer}>Resume</Link>
+          <Link href="/jobs" onClick={closeDrawer}>Jobs</Link>
+          <Link href="/cover-letter" onClick={closeDrawer}>Cover Letter</Link>
           <Link href="/career" onClick={closeDrawer}>Career Navigator</Link>
           <Link href="/settings" onClick={closeDrawer}>Settings</Link>
         </>

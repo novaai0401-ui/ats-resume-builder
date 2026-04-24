@@ -159,3 +159,51 @@ model AiTokenUsage {
 
   @@index([userId, createdAt])
 }
+
+/// Job Application Tracker: pipeline-style board for every role a user is
+/// pursuing. Keeps JD text, company/role, stage, and notes together so the
+/// resume tailored for that role can be linked back via resumeId.
+model JobApplication {
+  id           String   @id @default(uuid())
+  userId       String
+  company      String
+  role         String
+  jdUrl        String?
+  jdText       String?
+  location     String?
+  salaryRange  String?
+  /// wishlist | applied | phone_screen | interview | offer | rejected | withdrawn
+  status       String   @default("wishlist")
+  source       String?                                 // linkedin | referral | company-site | recruiter
+  referral     String?                                 // name of referrer if applicable
+  resumeId     String?                                 // linked tailored resume
+  coverLetterId String?                                // linked tailored cover letter
+  notes        String?
+  nextActionAt DateTime?                               // follow-up / interview reminder
+  appliedAt    DateTime?
+  closedAt     DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([userId, nextActionAt])
+}
+
+/// AI-generated cover letters. Kept separate from Resume so each JD can have
+/// its own tailored letter without duplicating resume data. Body is markdown.
+model CoverLetter {
+  id           String   @id @default(uuid())
+  userId       String
+  resumeId     String?                                 // resume used as source material
+  company      String
+  role         String
+  jdText       String?
+  tone         String   @default("professional")       // professional | enthusiastic | concise | formal
+  body         String                                  // markdown cover letter body
+  wordCount    Int      @default(0)
+  provider     String?                                 // groq | xai | fallback
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId, createdAt])
+}

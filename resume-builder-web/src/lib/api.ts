@@ -2,8 +2,16 @@ import type {
   AiCritiqueRequest,
   AiCritiqueResult,
   AtsScoreResult,
+  CoverLetter,
+  CoverLetterGenerateRequest,
+  CoverLetterGenerateResponse,
+  CoverLetterTone,
   DuplicateResumeResult,
   JdParseResult,
+  JobApplication,
+  JobApplicationInput,
+  JobStats,
+  JobStatus,
   Resume,
   ResumeCritiqueResult,
   ResumeImportResult,
@@ -14,8 +22,16 @@ export type {
   AiCritiqueRequest,
   AiCritiqueResult,
   AtsScoreResult,
+  CoverLetter,
+  CoverLetterGenerateRequest,
+  CoverLetterGenerateResponse,
+  CoverLetterTone,
   DuplicateResumeResult,
   JdParseResult,
+  JobApplication,
+  JobApplicationInput,
+  JobStats,
+  JobStatus,
   Resume,
   ResumeCritiqueResult,
   ResumeImportResult,
@@ -1191,4 +1207,43 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
+
+  listJobs: (status?: JobStatus) =>
+    request<JobApplication[]>(
+      `/jobs${status ? `?status=${encodeURIComponent(status)}` : ''}`,
+    ),
+
+  getJobStats: () => request<JobStats>('/jobs/stats'),
+
+  getUpcomingJobs: (days = 14) =>
+    request<JobApplication[]>(`/jobs/upcoming?days=${days}`),
+
+  createJob: (payload: JobApplicationInput) =>
+    request<JobApplication>('/jobs', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  updateJob: (id: string, payload: JobApplicationInput) =>
+    request<JobApplication>(`/jobs/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+
+  deleteJob: (id: string) =>
+    request<{ ok: boolean }>(`/jobs/${id}`, { method: 'DELETE' }),
+
+  generateCoverLetter: (payload: CoverLetterGenerateRequest) =>
+    request<CoverLetterGenerateResponse>('/ai/cover-letter', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  listCoverLetters: () => request<CoverLetter[]>('/ai/cover-letters'),
+
+  getCoverLetter: (id: string) =>
+    request<CoverLetter>(`/ai/cover-letters/${id}`),
+
+  deleteCoverLetter: (id: string) =>
+    request<{ ok: boolean }>(`/ai/cover-letters/${id}`, { method: 'DELETE' }),
 };
