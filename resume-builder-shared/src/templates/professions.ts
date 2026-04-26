@@ -51,6 +51,75 @@ export const PROFESSION_INDUSTRIES: readonly ProfessionIndustry[] = [
     ],
   },
   {
+    id: 'ai-machine-learning',
+    label: 'AI & Machine Learning',
+    description:
+      'Applied AI, agentic systems, LLM engineering, MLOps, and AI product roles.',
+    recommendedTemplates: ['technical', 'modern', 'classic'],
+    roles: [
+      {
+        id: 'ai-engineer',
+        label: 'AI Engineer',
+        keywords: ['LLMs', 'RAG', 'Prompt Engineering', 'Vector Databases'],
+      },
+      {
+        id: 'agentic-ai-engineer',
+        label: 'Agentic AI Engineer',
+        keywords: ['Agents', 'Tool Use', 'LangGraph', 'AutoGen', 'Planning'],
+      },
+      {
+        id: 'applied-scientist',
+        label: 'Applied Scientist',
+        keywords: ['Deep Learning', 'Transformers', 'Research'],
+      },
+      {
+        id: 'machine-learning-engineer',
+        label: 'Machine Learning Engineer',
+        keywords: ['PyTorch', 'TensorFlow', 'Model Serving'],
+      },
+      {
+        id: 'ml-ops-engineer',
+        label: 'MLOps / LLMOps Engineer',
+        keywords: ['Kubeflow', 'MLflow', 'Model Monitoring', 'Vector Stores'],
+      },
+      {
+        id: 'data-scientist',
+        label: 'Data Scientist',
+        keywords: ['Python', 'Statistics', 'Experimentation'],
+      },
+      {
+        id: 'nlp-engineer',
+        label: 'NLP Engineer',
+        keywords: ['LLMs', 'Embeddings', 'Tokenization', 'Fine-tuning'],
+      },
+      {
+        id: 'computer-vision-engineer',
+        label: 'Computer Vision Engineer',
+        keywords: ['CNNs', 'Detection', 'Segmentation'],
+      },
+      {
+        id: 'prompt-engineer',
+        label: 'Prompt Engineer',
+        keywords: ['Prompting', 'Evaluation', 'LLM-as-Judge'],
+      },
+      {
+        id: 'ai-product-manager',
+        label: 'AI Product Manager',
+        keywords: ['LLM Roadmap', 'Eval Harness', 'User Research'],
+      },
+      {
+        id: 'ai-research-engineer',
+        label: 'AI Research Engineer',
+        keywords: ['Pretraining', 'Distillation', 'RLHF'],
+      },
+      {
+        id: 'ai-safety-engineer',
+        label: 'AI Safety / Alignment Engineer',
+        keywords: ['Red-teaming', 'Guardrails', 'Eval'],
+      },
+    ],
+  },
+  {
     id: 'engineering',
     label: 'Engineering (Core)',
     description: 'Mechanical, electrical, civil, and industrial engineering.',
