@@ -2447,12 +2447,41 @@ h2 {
   }
 }
 
+/* Mobile guard: no descendant element can ever push the document wider than
+ * the viewport. This stops a stray wide grid (e.g. the Kanban) from blowing
+ * out the layout viewport and forcing phones to render at 980px. */
+html, body { max-width: 100%; overflow-x: hidden; }
+
 /* Shared typography helpers used by new Jobs + Cover Letter pages. */
 .heading-xl { font-size: 1.75rem; font-weight: 700; margin: 0 0 .35rem; }
 .heading-lg { font-size: 1.35rem; font-weight: 600; margin: 0 0 .5rem; }
 .heading-md { font-size: 1.05rem; font-weight: 600; margin: 1.25rem 0 .5rem; }
 .muted      { color: #667085; }
 .linklike   { background: none; border: 0; padding: 0; color: inherit; text-decoration: underline; cursor: pointer; }
+
+/* All form controls in the new flows get touch-friendly sizing by default.
+ * Per WCAG 2.5.5, interactive controls should be ≥44×44px. */
+.cover-letter-form input,
+.cover-letter-form select,
+.cover-letter-form textarea,
+.versions-control input,
+.versions-control select,
+.form-grid input,
+.form-grid select,
+.form-grid textarea {
+  min-height: 44px;
+  font-size: 16px; /* ≥16px stops iOS Safari from auto-zooming on focus */
+  padding: .5rem .65rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.form-grid textarea,
+.cover-letter-form textarea {
+  min-height: 96px;
+  resize: vertical;
+}
 
 .alert         { padding: .65rem .9rem; border-radius: 8px; margin: .75rem 0; }
 .alert-error   { background: #fef2f2; border: 1px solid #fecaca; color: #9f1239; }
@@ -2475,7 +2504,7 @@ h2 {
 
 .kanban { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: .75rem; margin-top: 1rem; }
 .kanban--compact { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
-.kanban-column { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; padding: .6rem; min-height: 180px; }
+.kanban-column { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; padding: .6rem; min-height: 180px; min-width: 0; }
 .kanban-column header { display: flex; justify-content: space-between; align-items: center; margin-bottom: .5rem; }
 .kanban-column h3 { margin: 0; font-size: .95rem; }
 .kanban-column ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .5rem; }
@@ -2499,10 +2528,12 @@ h2 {
 .cover-letter-form { display: flex; flex-direction: column; gap: .75rem; }
 .cover-letter-form label { display: flex; flex-direction: column; gap: .25rem; font-size: .88rem; }
 .cover-letter-form .form-full { width: 100%; }
-.tone-picker { border: 1px solid #e5e7eb; border-radius: 10px; padding: .6rem .75rem; margin: 0; }
+.tone-picker { border: 1px solid #e5e7eb; border-radius: 10px; padding: .6rem .75rem; margin: 0; display: grid; gap: .25rem; }
 .tone-picker legend { font-weight: 600; padding: 0 .3rem; }
-.tone-picker label { display: flex; align-items: flex-start; gap: .5rem; padding: .35rem .2rem; border-radius: 6px; cursor: pointer; }
-.tone-picker label.selected { background: #eef2ff; }
+.tone-picker label { display: flex; align-items: flex-start; gap: .55rem; padding: .55rem .5rem; border-radius: 8px; cursor: pointer; min-height: 44px; border: 1px solid transparent; }
+.tone-picker label:hover { background: #f8fafc; }
+.tone-picker label.selected { background: #eef2ff; border-color: #c7d2fe; }
+.tone-picker input[type="radio"] { width: 18px; height: 18px; margin-top: 2px; flex-shrink: 0; accent-color: #4f46e5; }
 .tone-picker small { display: block; color: #667085; font-size: .78rem; }
 .cover-letter-preview { border: 1px solid #e5e7eb; border-radius: 10px; padding: .75rem; background: #fafafa; min-height: 320px; display: flex; flex-direction: column; gap: .5rem; }
 .cover-letter-preview__meta { display: flex; gap: .5rem; align-items: center; }
@@ -2527,9 +2558,18 @@ h2 {
 .version-row__actions { display: flex; gap: .35rem; flex-shrink: 0; }
 .alert-success { background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; }
 
-/* Auth pages mobile polish */
+/* Auth pages polish — base styles. Mobile bump lives in the @media block.
+ * Keep these BEFORE the @media block so the mobile override wins via the
+ * cascade. */
 .auth-card { width: 100%; }
-.auth-forgot-link { color: #1d4ed8; text-decoration: underline; }
+.auth-forgot-link {
+  color: #1d4ed8;
+  text-decoration: underline;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 6px;
+}
 .message-banner.success { background: #ecfdf5; border-color: #a7f3d0; }
 
 /* Mobile breakpoints for new pages.
@@ -2541,15 +2581,33 @@ h2 {
   .heading-md { font-size: 1rem; }
 
   .jobs-header { flex-direction: column; align-items: stretch; }
-  .jobs-header .btn { width: 100%; }
+  .jobs-header .btn { width: 100%; min-height: 44px; }
 
   .jobs-stats { grid-template-columns: repeat(2, 1fr); }
 
-  .kanban, .kanban--compact { grid-template-columns: 1fr; }
-  .kanban-column { min-height: auto; }
+  /* Kanban becomes a horizontal scroller on mobile (Trello-style).
+   * This is more usable than a single stacked column for >3 statuses
+   * and never forces the page wider than the viewport. */
+  .kanban,
+  .kanban--compact {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 84vw;
+    grid-template-columns: none;
+    overflow-x: auto;
+    overflow-y: visible;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: .35rem;
+    gap: .65rem;
+  }
+  .kanban-column {
+    scroll-snap-align: start;
+    min-height: 180px;
+  }
   .kanban-card__actions { gap: .35rem; }
-  .kanban-card__actions .btn { min-height: 36px; }
-  .kanban-card__actions select { min-height: 36px; }
+  .kanban-card__actions .btn { min-height: 38px; padding: .35rem .65rem; }
+  .kanban-card__actions select { min-height: 38px; flex: 1; min-width: 110px; }
 
   .modal.card { padding: 1rem; max-height: 95vh; }
   .form-grid { grid-template-columns: 1fr; }
@@ -2558,13 +2616,16 @@ h2 {
 
   .cover-letter-layout { grid-template-columns: 1fr; }
   .cover-letter-form .btn { min-height: 44px; }
-  .tone-picker label { padding: .5rem .35rem; }
   .cover-letter-body { padding: .75rem; font-size: .9rem; }
 
   .versions-controls { grid-template-columns: 1fr; }
   .versions-actions .btn { width: 100%; min-height: 44px; }
   .version-row { padding: .5rem .55rem; }
   .version-row__actions { width: 100%; }
-  .version-row__actions .btn { flex: 1; min-height: 38px; }
+  .version-row__actions .btn { flex: 1; min-height: 40px; }
+
+  /* Auth pages: forgot-password link gets a full tap target. */
+  .auth-forgot-link { min-height: 44px; display: inline-flex; align-items: center; padding: .25rem .5rem; }
 }
+
 

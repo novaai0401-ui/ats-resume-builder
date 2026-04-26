@@ -35,6 +35,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <head>
+        {/* Hard-coded viewport meta as a belt-and-braces guarantee. Next.js
+         * normally injects this via the `viewport` export above, but in some
+         * route configurations the streamed metadata can be dropped during
+         * client hydration, leaving phones to fall back to the 980px desktop
+         * default and zoom out. Pinning the meta literally avoids that. */}
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <link
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600;700&family=Literata:wght@400;600;700&family=Source+Sans+3:wght@400;600;700&family=Work+Sans:wght@400;600;700&display=swap"
