@@ -16,6 +16,10 @@ export const PROFESSION_SKILL_HINTS: Record<string, string[]> = {
   'information-technology': [
     'TypeScript', 'React', 'Node.js', 'Python', 'AWS', 'Docker', 'Kubernetes', 'SQL', 'System Design', 'CI/CD',
   ],
+  'ai-machine-learning': [
+    'LLM Application Development', 'RAG', 'Agentic Workflows', 'Prompt Engineering',
+    'LangChain', 'LangGraph', 'Vector Databases', 'PyTorch', 'LLM Evaluation', 'Fine-tuning (LoRA)',
+  ],
   'engineering': [
     'SolidWorks', 'AutoCAD', 'ANSYS', 'GD&T', 'FMEA', 'MATLAB', 'Six Sigma', 'Project Management', 'Product Design', 'DFM',
   ],
