@@ -7,6 +7,7 @@ import { AuthController } from './auth.controller';
 import { JwtStrategy } from './jwt.strategy';
 import { SocialAuthService } from './social-auth.service';
 import { SocialAuthController } from './social-auth.controller';
+import { PasswordResetService } from './password-reset.service';
 import { ResumeModule } from '../resume/resume.module';
 import { GoogleAuthController } from './google-auth.controller';
 import { GoogleDriveController } from './google-drive.controller';
@@ -33,6 +34,7 @@ import { GoogleTokenStore } from './tokenStore';
   providers: [
     AuthService,
     SocialAuthService,
+    PasswordResetService,
     JwtStrategy,
     DriveSessionService,
     RedisClientService,

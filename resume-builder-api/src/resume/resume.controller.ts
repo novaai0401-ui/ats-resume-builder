@@ -15,6 +15,7 @@ import {
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { DownloadChargeService } from '../billing/download-charge.service';
 import { MulterUploadExceptionFilter } from './multer-upload-exception.filter';
+import { ResumeVersionsService } from './resume-versions.service';
 import { z } from 'zod';
 
 const { memoryStorage } = require('multer');
@@ -64,7 +65,45 @@ export class ResumeController {
   constructor(
     private readonly resumeService: ResumeService,
     private readonly downloadCharge: DownloadChargeService,
+    private readonly versionsService: ResumeVersionsService,
   ) {}
+
+  @Get(':id/versions')
+  listVersions(@Req() req: { user: { userId: string } }, @Param('id') id: string) {
+    return this.versionsService.list(req.user.userId, id);
+  }
+
+  @Post(':id/versions')
+  createVersion(
+    @Req() req: { user: { userId: string } },
+    @Param('id') id: string,
+    @Body() body: { label?: string; atsScoreSnapshot?: number },
+  ) {
+    return this.versionsService.snapshot(
+      req.user.userId,
+      id,
+      typeof body?.label === 'string' ? body.label : undefined,
+      typeof body?.atsScoreSnapshot === 'number' ? body.atsScoreSnapshot : undefined,
+    );
+  }
+
+  @Post(':id/versions/:versionId/restore')
+  restoreVersion(
+    @Req() req: { user: { userId: string } },
+    @Param('id') id: string,
+    @Param('versionId') versionId: string,
+  ) {
+    return this.versionsService.restore(req.user.userId, id, versionId);
+  }
+
+  @Delete(':id/versions/:versionId')
+  deleteVersion(
+    @Req() req: { user: { userId: string } },
+    @Param('id') id: string,
+    @Param('versionId') versionId: string,
+  ) {
+    return this.versionsService.remove(req.user.userId, id, versionId);
+  }
 
   @Post()
   create(@Req() req: { user: { userId: string } }, @Body() body: CreateResumeDto) {

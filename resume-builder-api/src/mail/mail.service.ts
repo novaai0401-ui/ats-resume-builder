@@ -100,6 +100,49 @@ export class MailService {
     }
   }
 
+  async sendPasswordResetEmail(to: string, otp: string): Promise<boolean> {
+    if (!this.transporter) {
+      this.logger.warn(`Cannot send password-reset email to ${to}: SMTP not configured`);
+      return false;
+    }
+    try {
+      await this.transporter.sendMail({
+        from: this.fromAddress,
+        to,
+        subject: 'Your Resume Builder password-reset code',
+        text: [
+          `Your password-reset code is: ${otp}`,
+          '',
+          'This code will expire in 15 minutes.',
+          'If you did not request a password reset, you can safely ignore this email — your account stays as it was.',
+        ].join('\n'),
+        html: `
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+            <h2 style="color: #1a3a5c; margin-bottom: 8px;">Reset your password</h2>
+            <p style="color: #555; font-size: 14px; margin-bottom: 20px;">
+              Use the code below to reset your ATS Resume Builder password.
+            </p>
+            <div style="background: #f4f8fc; border: 1px solid #c4d5e0; border-radius: 10px; padding: 20px; text-align: center; margin-bottom: 20px;">
+              <span style="font-size: 32px; font-weight: 700; letter-spacing: 6px; color: #1a3a5c;">${otp}</span>
+            </div>
+            <p style="color: #888; font-size: 12px; margin-bottom: 4px;">
+              This code expires in 15 minutes.
+            </p>
+            <p style="color: #888; font-size: 12px;">
+              If you didn't request this, you can safely ignore this email — your account stays as it was.
+            </p>
+          </div>
+        `,
+      });
+      this.logger.log(`Password-reset email sent to ${to}`);
+      return true;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.error(`Failed to send password-reset email to ${to}: ${msg.replace(/pass[^\s]*/gi, '***')}`);
+      return false;
+    }
+  }
+
   async sendResumePdfEmail(params: {
     to: string;
     resumeTitle: string;

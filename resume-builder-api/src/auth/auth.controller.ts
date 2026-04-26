@@ -8,10 +8,14 @@ import {
   type RefreshTokenDto,
 } from 'resume-builder-shared';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { PasswordResetService } from './password-reset.service';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly passwordResetService: PasswordResetService,
+  ) {}
 
   @Post('register')
   register(@Body() body: RegisterDto) {
@@ -71,6 +75,24 @@ export class AuthController {
       throw new BadRequestException('newPassword is required.');
     }
     return this.authService.linkPassword(req.user.userId, newPassword);
+  }
+
+  @Post('forgot-password')
+  @HttpCode(200)
+  forgotPassword(@Req() req: Request, @Body() body: { email: string }) {
+    const ip = extractIp(req);
+    const userAgent = String(req.headers['user-agent'] || '').slice(0, 500);
+    return this.passwordResetService.requestReset(String(body?.email || ''), { ip, userAgent });
+  }
+
+  @Post('reset-password')
+  @HttpCode(200)
+  resetPassword(@Body() body: { email: string; otp: string; newPassword: string }) {
+    return this.passwordResetService.confirmReset(
+      String(body?.email || ''),
+      String(body?.otp || ''),
+      String(body?.newPassword || ''),
+    );
   }
 
   /**

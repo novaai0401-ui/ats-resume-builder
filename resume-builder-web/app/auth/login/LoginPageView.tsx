@@ -160,6 +160,13 @@ export function LoginPageView({ apiClient = api, routerOverride, defaultMode = '
                 minLength={8}
               />
               <button className="btn" type="submit" disabled={loading}>{loading ? 'Signing in...' : 'Sign In'}</button>
+              <Link
+                href="/auth/forgot-password"
+                className="auth-forgot-link"
+                style={{ fontSize: '0.85rem', justifySelf: 'end' }}
+              >
+                Forgot password?
+              </Link>
             </form>
           ) : (
             <form onSubmit={handleRegister} style={{ display: 'grid', gap: 12 }}>

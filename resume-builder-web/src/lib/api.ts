@@ -2,11 +2,20 @@ import type {
   AiCritiqueRequest,
   AiCritiqueResult,
   AtsScoreResult,
+  CoverLetter,
+  CoverLetterGenerateRequest,
+  CoverLetterGenerateResponse,
+  CoverLetterTone,
   DuplicateResumeResult,
   JdParseResult,
+  JobApplication,
+  JobApplicationInput,
+  JobStats,
+  JobStatus,
   Resume,
   ResumeCritiqueResult,
   ResumeImportResult,
+  ResumeVersionSummary,
   SkillGapResult,
   User,
 } from 'resume-builder-shared';
@@ -14,11 +23,20 @@ export type {
   AiCritiqueRequest,
   AiCritiqueResult,
   AtsScoreResult,
+  CoverLetter,
+  CoverLetterGenerateRequest,
+  CoverLetterGenerateResponse,
+  CoverLetterTone,
   DuplicateResumeResult,
   JdParseResult,
+  JobApplication,
+  JobApplicationInput,
+  JobStats,
+  JobStatus,
   Resume,
   ResumeCritiqueResult,
   ResumeImportResult,
+  ResumeVersionSummary,
   SkillGapResult,
   User,
 } from 'resume-builder-shared';
@@ -1190,5 +1208,79 @@ export const api = {
     request<{ downloadToken: string }>('/billing/download-charge/verify/stripe', {
       method: 'POST',
       body: JSON.stringify(body),
+    }),
+
+  listJobs: (status?: JobStatus) =>
+    request<JobApplication[]>(
+      `/jobs${status ? `?status=${encodeURIComponent(status)}` : ''}`,
+    ),
+
+  getJobStats: () => request<JobStats>('/jobs/stats'),
+
+  getUpcomingJobs: (days = 14) =>
+    request<JobApplication[]>(`/jobs/upcoming?days=${days}`),
+
+  createJob: (payload: JobApplicationInput) =>
+    request<JobApplication>('/jobs', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  updateJob: (id: string, payload: JobApplicationInput) =>
+    request<JobApplication>(`/jobs/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+
+  deleteJob: (id: string) =>
+    request<{ ok: boolean }>(`/jobs/${id}`, { method: 'DELETE' }),
+
+  generateCoverLetter: (payload: CoverLetterGenerateRequest) =>
+    request<CoverLetterGenerateResponse>('/ai/cover-letter', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  listCoverLetters: () => request<CoverLetter[]>('/ai/cover-letters'),
+
+  getCoverLetter: (id: string) =>
+    request<CoverLetter>(`/ai/cover-letters/${id}`),
+
+  deleteCoverLetter: (id: string) =>
+    request<{ ok: boolean }>(`/ai/cover-letters/${id}`, { method: 'DELETE' }),
+
+  forgotPassword: (email: string) =>
+    request<{ ok: boolean; message: string }>('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+
+  resetPassword: (email: string, otp: string, newPassword: string) =>
+    request<{ ok: boolean; message: string }>('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ email, otp, newPassword }),
+    }),
+
+  listResumeVersions: (resumeId: string) =>
+    request<ResumeVersionSummary[]>(`/resumes/${resumeId}/versions`),
+
+  snapshotResumeVersion: (
+    resumeId: string,
+    payload: { label?: string; atsScoreSnapshot?: number } = {},
+  ) =>
+    request<ResumeVersionSummary>(`/resumes/${resumeId}/versions`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  restoreResumeVersion: (resumeId: string, versionId: string) =>
+    request<Resume>(`/resumes/${resumeId}/versions/${versionId}/restore`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    }),
+
+  deleteResumeVersion: (resumeId: string, versionId: string) =>
+    request<{ ok: boolean }>(`/resumes/${resumeId}/versions/${versionId}`, {
+      method: 'DELETE',
     }),
 };
