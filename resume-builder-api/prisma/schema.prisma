@@ -109,6 +109,24 @@ model EmailOtpChallenge {
   @@index([email])
 }
 
+/// Password-reset OTP challenges. Separate from EmailOtpChallenge so the
+/// (currently disabled) email-OTP login flow can never collide with reset
+/// codes. Always responds enumeration-safe — never reveals if an account
+/// exists when the OTP request is handled.
+model PasswordResetChallenge {
+  id          String   @id @default(uuid())
+  email       String
+  otpHash     String
+  expiresAt   DateTime
+  attempts    Int      @default(0)
+  lockedUntil DateTime?
+  ip          String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  @@index([email])
+}
+
 model LoginEvent {
   id        String   @id @default(uuid())
   userId    String
@@ -187,6 +205,21 @@ model JobApplication {
 
   @@index([userId, status])
   @@index([userId, nextActionAt])
+}
+
+/// Snapshot of a resume at a point in time. Lets users branch / restore
+/// before risky AI rewrites and A/B-test multiple variants per role.
+model ResumeVersion {
+  id              String   @id @default(uuid())
+  resumeId        String
+  userId          String
+  label           String?                                 // free-form e.g. "Pre-AI rewrite", "v2 senior pitch"
+  snapshot        Json                                    // full resume payload at snapshot time
+  atsScoreSnapshot Int?                                   // optional cached ATS score at snapshot time
+  createdAt       DateTime @default(now())
+
+  @@index([resumeId, createdAt])
+  @@index([userId, createdAt])
 }
 
 /// AI-generated cover letters. Kept separate from Resume so each JD can have

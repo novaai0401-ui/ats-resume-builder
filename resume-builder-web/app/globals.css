@@ -2512,3 +2512,59 @@ h2 {
 .cover-letter-history ul { list-style: none; padding: 0; margin: .5rem 0 0; }
 .cover-letter-history li { display: flex; gap: .5rem; align-items: center; padding: .4rem 0; border-bottom: 1px dashed #e5e7eb; flex-wrap: wrap; }
 
+/* Resume Versions page */
+.versions-controls { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(200px, 2fr) auto; gap: .75rem; align-items: end; margin: .75rem 0 1rem; }
+.versions-control { display: flex; flex-direction: column; gap: .25rem; font-size: .85rem; }
+.versions-control input, .versions-control select { padding: .45rem .55rem; border: 1px solid #e5e7eb; border-radius: 6px; font-size: .9rem; }
+.versions-control--grow { min-width: 0; }
+.versions-actions { display: flex; gap: .5rem; flex-wrap: wrap; }
+.versions-empty { padding: 1.25rem; border: 1px dashed #e5e7eb; border-radius: 10px; text-align: center; }
+.versions-list { list-style: none; padding: 0; margin: 0; }
+.version-row { display: flex; gap: .5rem; align-items: center; padding: .55rem .75rem; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: .4rem; flex-wrap: wrap; }
+.version-row__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .15rem; }
+.version-row__label { font-size: .95rem; word-break: break-word; }
+.version-row__meta  { font-size: .78rem; }
+.version-row__actions { display: flex; gap: .35rem; flex-shrink: 0; }
+.alert-success { background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; }
+
+/* Auth pages mobile polish */
+.auth-card { width: 100%; }
+.auth-forgot-link { color: #1d4ed8; text-decoration: underline; }
+.message-banner.success { background: #ecfdf5; border-color: #a7f3d0; }
+
+/* Mobile breakpoints for new pages.
+ * Phones (<640px) get single-column stacks, larger touch targets, and
+ * tighter padding so cards aren't pushed off-screen by the AuthGate. */
+@media (max-width: 640px) {
+  .heading-xl { font-size: 1.4rem; }
+  .heading-lg { font-size: 1.15rem; }
+  .heading-md { font-size: 1rem; }
+
+  .jobs-header { flex-direction: column; align-items: stretch; }
+  .jobs-header .btn { width: 100%; }
+
+  .jobs-stats { grid-template-columns: repeat(2, 1fr); }
+
+  .kanban, .kanban--compact { grid-template-columns: 1fr; }
+  .kanban-column { min-height: auto; }
+  .kanban-card__actions { gap: .35rem; }
+  .kanban-card__actions .btn { min-height: 36px; }
+  .kanban-card__actions select { min-height: 36px; }
+
+  .modal.card { padding: 1rem; max-height: 95vh; }
+  .form-grid { grid-template-columns: 1fr; }
+  .form-actions { flex-direction: column-reverse; }
+  .form-actions .btn { width: 100%; min-height: 44px; }
+
+  .cover-letter-layout { grid-template-columns: 1fr; }
+  .cover-letter-form .btn { min-height: 44px; }
+  .tone-picker label { padding: .5rem .35rem; }
+  .cover-letter-body { padding: .75rem; font-size: .9rem; }
+
+  .versions-controls { grid-template-columns: 1fr; }
+  .versions-actions .btn { width: 100%; min-height: 44px; }
+  .version-row { padding: .5rem .55rem; }
+  .version-row__actions { width: 100%; }
+  .version-row__actions .btn { flex: 1; min-height: 38px; }
+}
+

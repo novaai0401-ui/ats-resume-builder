@@ -346,6 +346,14 @@ export type CoverLetterGenerateRequest = {
   };
 };
 
+export type ResumeVersionSummary = {
+  id: string;
+  resumeId: string;
+  label: string | null;
+  atsScoreSnapshot: number | null;
+  createdAt: string;
+};
+
 export type CoverLetterGenerateResponse = {
   id: string;
   body: string;

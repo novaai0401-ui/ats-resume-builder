@@ -15,6 +15,7 @@ import type {
   Resume,
   ResumeCritiqueResult,
   ResumeImportResult,
+  ResumeVersionSummary,
   SkillGapResult,
   User,
 } from 'resume-builder-shared';
@@ -35,6 +36,7 @@ export type {
   Resume,
   ResumeCritiqueResult,
   ResumeImportResult,
+  ResumeVersionSummary,
   SkillGapResult,
   User,
 } from 'resume-builder-shared';
@@ -1246,4 +1248,39 @@ export const api = {
 
   deleteCoverLetter: (id: string) =>
     request<{ ok: boolean }>(`/ai/cover-letters/${id}`, { method: 'DELETE' }),
+
+  forgotPassword: (email: string) =>
+    request<{ ok: boolean; message: string }>('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+
+  resetPassword: (email: string, otp: string, newPassword: string) =>
+    request<{ ok: boolean; message: string }>('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ email, otp, newPassword }),
+    }),
+
+  listResumeVersions: (resumeId: string) =>
+    request<ResumeVersionSummary[]>(`/resumes/${resumeId}/versions`),
+
+  snapshotResumeVersion: (
+    resumeId: string,
+    payload: { label?: string; atsScoreSnapshot?: number } = {},
+  ) =>
+    request<ResumeVersionSummary>(`/resumes/${resumeId}/versions`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  restoreResumeVersion: (resumeId: string, versionId: string) =>
+    request<Resume>(`/resumes/${resumeId}/versions/${versionId}/restore`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    }),
+
+  deleteResumeVersion: (resumeId: string, versionId: string) =>
+    request<{ ok: boolean }>(`/resumes/${resumeId}/versions/${versionId}`, {
+      method: 'DELETE',
+    }),
 };
