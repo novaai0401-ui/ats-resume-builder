@@ -2226,6 +2226,13 @@ h2 {
     max-height: none;
     overflow: visible;
   }
+  /* Template-selection page: on phones the long catalog grid pushes the
+   * preview + action buttons (Use Template, Download PDF, Back) below the
+   * fold and users can't reach them without scrolling past 9 cards. Reorder
+   * so the live preview + actions appear first, catalog second. CSS
+   * `order` only affects flex/grid items, so this is a no-op on desktop
+   * where the two-column layout is preserved. */
+  .template-grid-layout > .preview-pane { order: -1; }
   .start-shell__choices {
     grid-template-columns: 1fr;
   }
@@ -2451,6 +2458,55 @@ h2 {
  * the viewport. This stops a stray wide grid (e.g. the Kanban) from blowing
  * out the layout viewport and forcing phones to render at 980px. */
 html, body { max-width: 100%; overflow-x: hidden; }
+
+/* Template-selection page action row (Upload, Use Template, Edit, Download, Back).
+ * Wraps onto multiple lines on desktop; on phones each button gets the full
+ * row so it's a proper 44px-tall touch target — Download PDF is the most
+ * important action and used to be hard to reach when crammed in a wrap. */
+.template-preview-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.template-preview-actions > .btn,
+.template-preview-actions > label.btn {
+  flex: 0 1 auto;
+}
+@media (max-width: 600px) {
+  .template-preview-actions { flex-direction: column; align-items: stretch; }
+  .template-preview-actions > .btn,
+  .template-preview-actions > label.btn { width: 100%; justify-content: center; text-align: center; }
+}
+
+/* Resume editor — experience highlight bullet rows.
+ * Flex items default to `min-width: auto`, which keeps the input at its
+ * intrinsic content width and clips the visible text on phones. Force the
+ * input to shrink and let the Remove button keep its size. On phones we
+ * stack Remove below the input so the bullet text gets the full row. */
+.exp-highlight-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.exp-highlight-row > .input { flex: 1 1 auto; min-width: 0; }
+.exp-highlight-row > .btn { flex-shrink: 0; }
+@media (max-width: 600px) {
+  .exp-highlight-row { flex-wrap: wrap; }
+  .exp-highlight-row > .input { flex: 1 1 100%; }
+  .exp-highlight-row > .btn { margin-left: auto; padding: 4px 12px; font-size: .82rem; }
+}
+
+/* Landing page — defensive mobile rules.
+ * Some browsers (Safari with "Request Desktop Site" enabled, in-app webviews,
+ * tablet split-view) force a wider viewport than the device width, which
+ * skips the 600px breakpoint and leaves the asymmetric col-7/col-5 cards
+ * rendering side-by-side at ~58/42 — barely readable. Always stack the
+ * landing-page hero cards below 768px regardless of which breakpoint hit. */
+@media (max-width: 768px) {
+  .hero h1 { font-size: clamp(1.5rem, 6vw, 2rem); line-height: 1.2; margin: 0; }
+  main > section.grid > .card { grid-column: 1 / -1; }
+}
 
 /* Shared typography helpers used by new Jobs + Cover Letter pages. */
 .heading-xl { font-size: 1.75rem; font-weight: 700; margin: 0 0 .35rem; }

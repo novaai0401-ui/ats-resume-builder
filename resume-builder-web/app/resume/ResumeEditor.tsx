@@ -2417,7 +2417,7 @@ export default function ResumeEditor() {
                               const bulletLooksGood = line.trim().length > 0 && !bulletNeedsAttention && !showLengthError;
                               return (
                                 <div key={`exp-highlight-${expIdx}-${highlightIdx}`} style={{ marginBottom: 8 }}>
-                                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                  <div className="exp-highlight-row">
                                     {line.trim() && (
                                       <span
                                         className={`bullet-status-badge ${bulletNeedsAttention ? 'bullet-status-badge--attention' : bulletLooksGood ? 'bullet-status-badge--good' : ''}`}

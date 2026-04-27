@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { TEMPLATE_CATALOG } from 'resume-builder-shared';
-import { api, type Resume } from '@/src/lib/api';
+import { api, isApiRequestError, type Resume } from '@/src/lib/api';
 import TemplateCatalogGrid from '@/src/components/templates/TemplateCatalogGrid';
+import DownloadChargeModal from '@/src/components/DownloadChargeModal';
 import {
   buildResumePreview,
   persistActiveResumeSelection,
@@ -15,6 +16,21 @@ import { recommendTemplates } from '@/src/lib/template-recommendation';
 import { useResumeStore, type ResumeDraft } from '@/src/lib/resume-store';
 import { TemplatePreviewFrame } from '@/src/components/TemplatePreviewFrame';
 import { resolveTemplateId, templateRegistry, type TemplateId } from '@/shared/templateRegistry';
+
+const DOWNLOAD_CHARGE_ENABLED =
+  (process.env.NEXT_PUBLIC_ENABLE_DOWNLOAD_CHARGE || '').toLowerCase() === 'true';
+
+function friendlyPdfError(error: unknown, fallback: string): string {
+  if (isApiRequestError(error)) {
+    if (error.status === 503) {
+      return 'PDF service is starting up. Please wait ~30 seconds and try again.';
+    }
+    if (error.status === 401 || error.status === 403) {
+      return 'Your session expired. Please sign in again to download your PDF.';
+    }
+  }
+  return error instanceof Error && error.message ? error.message : fallback;
+}
 
 const TEMPLATE_OPTIONS = TEMPLATE_CATALOG.map((template) => templateRegistry[template.id]);
 
@@ -78,6 +94,7 @@ export default function TemplateSelectionView({
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [downloadChargeOpen, setDownloadChargeOpen] = useState(false);
   const [toast, setToast] = useState('');
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateId>(requestedTemplate);
   const [pendingUploadFileName, setPendingUploadFileName] = useState('');
@@ -220,19 +237,31 @@ export default function TemplateSelectionView({
     }
   };
 
-  const handleDownload = async () => {
+  const runDownload = async (downloadToken?: string) => {
     if (!resumeId) return;
     setDownloading(true);
     setError('');
     setToast('');
     try {
-      await apiClient.downloadPdf(resumeId, selectedTemplate);
+      await apiClient.downloadPdf(resumeId, selectedTemplate, downloadToken);
       setToast('PDF download started.');
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to export PDF.');
+      setError(friendlyPdfError(err, 'Failed to export PDF.'));
     } finally {
       setDownloading(false);
     }
+  };
+
+  const handleDownload = async () => {
+    if (!resumeId) return;
+    // Mirror the editor flow: when the per-download charge is enabled,
+    // surface the payment modal first and only run the actual download
+    // after the gateway confirms a paid token. Otherwise download directly.
+    if (DOWNLOAD_CHARGE_ENABLED) {
+      setDownloadChargeOpen(true);
+      return;
+    }
+    await runDownload();
   };
 
   const previewReady = Boolean(previewResume);
@@ -326,7 +355,7 @@ export default function TemplateSelectionView({
           </div>
         </div>
 
-        <div style={{ marginTop: 16, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div className="template-preview-actions" style={{ marginTop: 16 }}>
           <label className="btn secondary" style={{ cursor: uploading || !resumeId ? 'not-allowed' : 'pointer' }}>
             {uploading ? `Uploading ${pendingUploadFileName || 'resume'}...` : 'Upload / Replace Resume'}
             <input
@@ -357,6 +386,17 @@ export default function TemplateSelectionView({
           {toast && <span className="small" style={{ marginLeft: 'auto' }}>{toast}</span>}
         </div>
       </section>
+
+      {downloadChargeOpen && resumeId ? (
+        <DownloadChargeModal
+          resumeId={resumeId}
+          onCancel={() => setDownloadChargeOpen(false)}
+          onSuccess={async (token) => {
+            setDownloadChargeOpen(false);
+            await runDownload(token);
+          }}
+        />
+      ) : null}
     </main>
   );
 }
