@@ -45,8 +45,27 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=4001
 
-# Prisma query engine needs OpenSSL 3 on Alpine (linux-musl-openssl-3.0.x)
-RUN apk add --no-cache openssl
+# Prisma query engine needs OpenSSL 3 on Alpine (linux-musl-openssl-3.0.x).
+#
+# Chromium + supporting libs are required by the PDF export route
+# (resume.service.ts → puppeteer-core). Without them the API can't launch a
+# browser and every /resumes/:id/pdf request 503s. We install Alpine's
+# `chromium` package and the fonts/render libs it needs, and pin
+# CHROME_EXECUTABLE_PATH so puppeteer-core uses the system binary instead of
+# trying to download its own (which we explicitly skip via npm --ignore-scripts
+# during the build stage).
+RUN apk add --no-cache \
+      openssl \
+      chromium \
+      nss \
+      freetype \
+      freetype-dev \
+      harfbuzz \
+      ca-certificates \
+      ttf-freefont \
+      font-noto-emoji
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV CHROME_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
 # Copy compiled API and dependencies
 COPY --from=builder /build/resume-builder-api/node_modules ./node_modules

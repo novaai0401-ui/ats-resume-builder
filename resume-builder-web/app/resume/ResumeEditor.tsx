@@ -3278,7 +3278,7 @@ export default function ResumeEditor() {
                 const scoreNow = atsReview.result?.roleAdjustedScore ?? null;
                 setPostDownloadPopup({ score: typeof scoreNow === 'number' ? scoreNow : null });
               } catch (err: unknown) {
-                const errorMessage = err instanceof Error ? err.message : 'PDF export failed';
+                const errorMessage = friendlyPdfErrorMessage(err, 'Download PDF failed');
                 setMessage(errorMessage);
                 showSnackbar('error', errorMessage);
               }
@@ -3401,7 +3401,7 @@ export default function ResumeEditor() {
                         const scoreNow = atsReview.result?.roleAdjustedScore ?? null;
                         setPostDownloadPopup({ score: typeof scoreNow === 'number' ? scoreNow : null });
                       } catch (err: unknown) {
-                        const errorMessage = err instanceof Error ? err.message : 'PDF export failed';
+                        const errorMessage = friendlyPdfErrorMessage(err, 'Download PDF failed');
                         setMessage(errorMessage);
                         showSnackbar('error', errorMessage);
                       }
@@ -3419,9 +3419,20 @@ export default function ResumeEditor() {
                         const exportTemplateId = String(normalizedTemplateParam || resume.templateId || '').trim() || undefined;
                         const blob = await api.getPdfBlob(resumeId, exportTemplateId);
                         const url = window.URL.createObjectURL(blob);
-                        window.open(url, '_blank');
+                        const popup = window.open(url, '_blank');
+                        // Some browsers block opens triggered indirectly; fall back so the user
+                        // still gets the printable PDF instead of seeing nothing happen.
+                        if (!popup) {
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.target = '_blank';
+                          a.rel = 'noopener';
+                          document.body.appendChild(a);
+                          a.click();
+                          a.remove();
+                        }
                       } catch (err: unknown) {
-                        const errorMessage = err instanceof Error ? err.message : 'Print preview failed';
+                        const errorMessage = friendlyPdfErrorMessage(err, 'Print preview failed');
                         setMessage(errorMessage);
                         showSnackbar('error', errorMessage);
                       }
@@ -4164,6 +4175,28 @@ export function focusHighlightById(highlightId: string | null) {
   if (!element || typeof element.scrollIntoView !== 'function') return false;
   element.scrollIntoView({ behavior: 'smooth', block: 'center' });
   return true;
+}
+
+/**
+ * Map a PDF-export failure to a user-readable message. The most common production
+ * failure mode is the API returning 503 because the PDF service (puppeteer) is
+ * still warming up after a cold start; the raw "PDF generation unavailable: Chrome
+ * browser not found" string scared users into thinking the feature was broken.
+ */
+function friendlyPdfErrorMessage(error: unknown, fallback: string): string {
+  if (isApiRequestError(error)) {
+    if (error.status === 503) {
+      return 'PDF service is starting up. Please wait ~30 seconds and try again — your data is safe.';
+    }
+    if (error.status === 401 || error.status === 403) {
+      return 'Your session expired. Please sign in again to download your PDF.';
+    }
+    if (error.status === 402 || error.status === 429) {
+      return error.message || fallback;
+    }
+  }
+  if (error instanceof Error && error.message) return error.message;
+  return fallback;
 }
 
 function detectQuotaState(error: unknown) {
