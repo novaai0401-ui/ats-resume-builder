@@ -379,8 +379,9 @@ export default function DashboardPageView({
           <div>
             <h2 style={{ margin: 0 }}>Pick your profession</h2>
             <p className="small" style={{ margin: '6px 0 0' }}>
-              Select an industry to see the ATS templates best suited to that field.
-              Leave it blank to browse every template.
+              {hasSelectedResume
+                ? 'Profession is locked to the selected resume — a person belongs to one profession at a time. To work on a different profession, start a fresh resume.'
+                : 'Select an industry to see the ATS templates best suited to that field. Leave it blank to browse every template.'}
             </p>
           </div>
           <div className="grid" style={{ gap: 12 }}>
@@ -390,6 +391,9 @@ export default function DashboardPageView({
                 className="input"
                 data-testid="dashboard-industry-select"
                 value={selectedIndustry}
+                disabled={hasSelectedResume}
+                aria-disabled={hasSelectedResume}
+                title={hasSelectedResume ? 'Profession is locked while a resume is selected. Click "Create Resume" to start a fresh one.' : undefined}
                 onChange={(event) => {
                   const next = event.target.value;
                   setSelectedIndustry(next);
@@ -407,7 +411,12 @@ export default function DashboardPageView({
                 ))}
               </select>
             </label>
-            {selectedIndustryConfig ? (
+            {hasSelectedResume ? (
+              <p className="small col-6" style={{ margin: 0, alignSelf: 'end' }}>
+                Want a different profession?{' '}
+                <Link href="/resume/start">Create a fresh resume →</Link>
+              </p>
+            ) : selectedIndustryConfig ? (
               <p className="small col-6" style={{ margin: 0, alignSelf: 'end' }}>
                 Showing {visibleTemplates.length} template{visibleTemplates.length === 1 ? '' : 's'}{' '}
                 for <strong>{selectedIndustryConfig.label}</strong>.{' '}

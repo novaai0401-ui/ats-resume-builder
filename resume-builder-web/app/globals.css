@@ -2517,7 +2517,18 @@ html, body { max-width: 100%; overflow-x: hidden; }
 .btn.tertiary.danger { color: #b91c1c; border-color: #fecaca; }
 
 .modal-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,.55); display: flex; align-items: center; justify-content: center; padding: 1rem; z-index: 100; }
-.modal.card { width: min(720px, 100%); max-height: 90vh; overflow: auto; }
+/* `.modal` (defined earlier in this file) sets position:fixed/inset:0 for full-viewport overlays.
+   When `.modal.card` is used as a centered form inside `.modal-backdrop`, reset those properties
+   so the form behaves as an in-flow card and the backdrop's flex centering takes effect. */
+.modal.card {
+  position: relative;
+  inset: auto;
+  display: block;
+  width: min(720px, 100%);
+  max-height: 90vh;
+  overflow: auto;
+  background: var(--card);
+}
 .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .75rem; margin-top: .75rem; }
 .form-grid label { display: flex; flex-direction: column; gap: .25rem; font-size: .85rem; }
 .form-grid .form-full { grid-column: 1 / -1; }

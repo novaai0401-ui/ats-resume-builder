@@ -44,7 +44,9 @@ async function resolveChromeLaunchOptions(): Promise<LaunchOptions> {
   const chromePath = resolveLocalChromePath();
   return {
     headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu'],
+    // --disable-dev-shm-usage is required on Alpine / Render where /dev/shm is
+    // ~64MB; without it Chromium crashes mid-render on multi-page resumes.
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu', '--disable-dev-shm-usage'],
     ...(chromePath ? { executablePath: chromePath } : {}),
   };
 }

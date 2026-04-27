@@ -10,6 +10,11 @@ export default function FreeAiNotice({ variant = 'inline' }: { variant?: 'inline
   const style =
     variant === 'card'
       ? {
+          width: '100%',
+          boxSizing: 'border-box' as const,
+          // When dropped into a .grid parent (e.g. Career Navigator), span all columns
+          // instead of collapsing into a single 1/12-wide column. No-op outside a grid.
+          gridColumn: '1 / -1',
           padding: '10px 12px',
           background: '#fff8e1',
           border: '1px solid #f4d37a',
