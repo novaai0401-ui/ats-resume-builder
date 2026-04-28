@@ -1,21 +1,47 @@
 {
-  "name": "Resume Builder",
-  "short_name": "Resume",
-  "description": "ATS-optimized resume builder — create, edit, and export resumes that get past applicant tracking systems.",
-  "start_url": "/",
+  "name": "Pocket Resume",
+  "short_name": "Pocket Resume",
+  "description": "ATS-optimized resume builder — create, edit, and export resumes that get past applicant tracking systems. Same login as the Pocket Resume mobile app.",
+  "id": "/?source=pwa",
+  "start_url": "/dashboard?source=pwa",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "browser"],
   "orientation": "any",
-  "theme_color": "#2f5f8f",
+  "theme_color": "#1a3a5c",
   "background_color": "#f2f5f8",
   "lang": "en",
   "dir": "ltr",
-  "categories": ["productivity", "business"],
+  "categories": ["productivity", "business", "education"],
+  "prefer_related_applications": false,
+  "related_applications": [
+    {
+      "platform": "play",
+      "url": "https://play.google.com/store/apps/details?id=com.pocketresume.app",
+      "id": "com.pocketresume.app"
+    },
+    {
+      "platform": "itunes",
+      "url": "https://apps.apple.com/app/pocket-resume/id0000000000"
+    }
+  ],
   "icons": [
     {
       "src": "/icons/icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
       "purpose": "any maskable"
     }
   ],
@@ -24,13 +50,19 @@
       "name": "Dashboard",
       "short_name": "Dashboard",
       "description": "View your saved resumes",
-      "url": "/dashboard"
+      "url": "/dashboard?source=pwa-shortcut"
     },
     {
       "name": "New Resume",
       "short_name": "New",
       "description": "Start a new resume",
-      "url": "/resume/start"
+      "url": "/resume/start?source=pwa-shortcut"
+    },
+    {
+      "name": "Job Tracker",
+      "short_name": "Jobs",
+      "description": "Track applications",
+      "url": "/jobs?source=pwa-shortcut"
     }
   ]
 }

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import TemplateCard, { type TemplateCardItem } from '../components/TemplateCard';
 
 const TEMPLATE_CATALOG: TemplateCardItem[] = [
@@ -11,18 +12,11 @@ const TEMPLATE_CATALOG: TemplateCardItem[] = [
   { id: 'consultant', name: 'Consultant Clean', description: 'Consulting/strategy style.', tags: ['ATS-safe', 'Consulting'] },
 ];
 
-type TemplateSelectionScreenProps = {
-  initialTemplateId?: string;
-  onGoBack: () => void;
-  onApplyTemplate: (templateId: string) => void;
-};
-
-export default function TemplateSelectionScreen({
-  initialTemplateId = 'classic',
-  onGoBack,
-  onApplyTemplate,
-}: TemplateSelectionScreenProps) {
-  const [selectedId, setSelectedId] = useState(initialTemplateId);
+export default function TemplateSelectionScreen() {
+  const navigation = useNavigation();
+  const route = useRoute();
+  const params = (route.params as { templateId?: string } | undefined) ?? {};
+  const [selectedId, setSelectedId] = useState(params.templateId ?? 'classic');
   const selectedMeta = TEMPLATE_CATALOG.find((t) => t.id === selectedId) || TEMPLATE_CATALOG[0];
 
   const templates = TEMPLATE_CATALOG.map((t) => ({
@@ -30,12 +24,14 @@ export default function TemplateSelectionScreen({
     isSelected: t.id === selectedId,
   }));
 
+  const onApplyTemplate = (id: string) => {
+    setSelectedId(id);
+    if (navigation.canGoBack()) navigation.goBack();
+  };
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={onGoBack}>
-          <Text style={styles.backBtn}>Back to Dashboard</Text>
-        </TouchableOpacity>
         <Text style={styles.title}>Choose a template</Text>
         <Text style={styles.subtitle}>Pick the layout you want before exporting.</Text>
       </View>
@@ -60,9 +56,11 @@ export default function TemplateSelectionScreen({
           >
             <Text style={styles.btnPrimaryText}>Use Template</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.btnSecondary} onPress={onGoBack}>
-            <Text style={styles.btnSecondaryText}>Back</Text>
-          </TouchableOpacity>
+          {navigation.canGoBack() ? (
+            <TouchableOpacity style={styles.btnSecondary} onPress={() => navigation.goBack()}>
+              <Text style={styles.btnSecondaryText}>Back</Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
       </View>
 

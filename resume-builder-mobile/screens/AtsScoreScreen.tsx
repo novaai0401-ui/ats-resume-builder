@@ -3,14 +3,14 @@ import {
   ScrollView, View, Text, TextInput, TouchableOpacity,
   StyleSheet, ActivityIndicator,
 } from 'react-native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { api, type AtsScoreResult } from '../lib/api';
 
-type Props = {
-  resumeId: string;
-  onGoBack: () => void;
-};
-
-export default function AtsScoreScreen({ resumeId, onGoBack }: Props) {
+export default function AtsScoreScreen() {
+  const navigation = useNavigation();
+  const route = useRoute();
+  const { resumeId } = (route.params as { resumeId: string });
+  const onGoBack = () => (navigation.canGoBack() ? navigation.goBack() : null);
   const [jdText, setJdText] = useState('');
   const [result, setResult] = useState<AtsScoreResult | null>(null);
   const [loading, setLoading] = useState(false);

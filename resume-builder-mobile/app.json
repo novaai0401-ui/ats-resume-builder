@@ -1,4 +1,63 @@
-﻿{
-  "name": "ResumeBuilder",
-  "displayName": "ResumeBuilder"
+{
+  "expo": {
+    "name": "Pocket Resume",
+    "slug": "pocket-resume",
+    "scheme": "pocketresume",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1a3a5c"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.pocketresume.app",
+      "buildNumber": "1",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "Allow Pocket Resume to capture profile photos.",
+        "NSPhotoLibraryUsageDescription": "Allow Pocket Resume to attach images to your resume."
+      }
+    },
+    "android": {
+      "package": "com.pocketresume.app",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1a3a5c"
+      },
+      "permissions": ["INTERNET", "ACCESS_NETWORK_STATE"]
+    },
+    "web": {
+      "bundler": "metro",
+      "favicon": "./assets/favicon.png",
+      "name": "Pocket Resume",
+      "shortName": "Resume",
+      "themeColor": "#1a3a5c",
+      "backgroundColor": "#f2f5f8",
+      "display": "standalone"
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-web-browser"
+    ],
+    "extra": {
+      "apiBase": "http://10.0.2.2:4001",
+      "webUrl": "http://localhost:4000",
+      "eas": {
+        "projectId": "00000000-0000-0000-0000-000000000000"
+      }
+    },
+    "owner": "pocketresume",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/00000000-0000-0000-0000-000000000000"
+    }
+  }
 }

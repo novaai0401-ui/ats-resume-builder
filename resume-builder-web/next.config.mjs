@@ -55,7 +55,23 @@ const nextConfig = {
     optimizePackageImports: ['zustand'],
   },
   async headers() {
-    return [{ source: '/:path*', headers: securityHeaders }];
+    return [
+      { source: '/:path*', headers: securityHeaders },
+      // Service workers must not be cached by the browser; otherwise users
+      // get stuck on a stale SW that never picks up new app shells.
+      {
+        source: '/sw.js',
+        headers: [
+          { key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' },
+          { key: 'Service-Worker-Allowed', value: '/' },
+        ],
+      },
+      // The web manifest is small and rarely changes; allow short caching.
+      {
+        source: '/manifest.json',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=3600' }],
+      },
+    ];
   },
 };
 

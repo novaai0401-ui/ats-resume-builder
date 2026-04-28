@@ -1,165 +1,157 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { SafeAreaView, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import React from 'react';
+import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Text } from 'react-native';
+import * as Linking from 'expo-linking';
+
+import { AuthProvider, useAuth } from './lib/AuthContext';
+import { theme } from './lib/theme';
+
 import LoginScreen from './screens/LoginScreen';
+import RegisterScreen from './screens/RegisterScreen';
+import ForgotPasswordScreen from './screens/ForgotPasswordScreen';
 import DashboardScreen from './screens/DashboardScreen';
 import TemplateSelectionScreen from './screens/TemplateSelectionScreen';
 import ResumeEditorScreen from './screens/ResumeEditorScreen';
 import AtsScoreScreen from './screens/AtsScoreScreen';
 import ProfileScreen from './screens/ProfileScreen';
+import JobTrackerScreen from './screens/JobTrackerScreen';
+import CoverLetterScreen from './screens/CoverLetterScreen';
+import SettingsScreen from './screens/SettingsScreen';
 
-type Route =
-  | { screen: 'login' }
-  | { screen: 'home'; tab: 'resumes' | 'templates' | 'profile' }
-  | { screen: 'templateSelection'; templateId: string }
-  | { screen: 'resumeEditor'; resumeId: string }
-  | { screen: 'atsScore'; resumeId: string };
+export type AuthStackParamList = {
+  Login: undefined;
+  Register: undefined;
+  ForgotPassword: undefined;
+};
 
-const AUTH_KEY = 'rb_auth';
+export type AppStackParamList = {
+  Tabs: undefined;
+  TemplateSelection: { templateId: string };
+  ResumeEditor: { resumeId: string };
+  AtsScore: { resumeId: string };
+  CoverLetter: { resumeId?: string } | undefined;
+  Settings: undefined;
+};
+
+export type TabsParamList = {
+  Resumes: undefined;
+  Templates: undefined;
+  Jobs: undefined;
+  Profile: undefined;
+};
+
+const AuthStack = createNativeStackNavigator<AuthStackParamList>();
+const AppStack = createNativeStackNavigator<AppStackParamList>();
+const Tabs = createBottomTabNavigator<TabsParamList>();
+
+const navTheme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    background: theme.colors.bg,
+    card: theme.colors.card,
+    primary: theme.colors.primary,
+    text: theme.colors.text,
+    border: theme.colors.border,
+  },
+};
+
+function tabIcon(label: string) {
+  return () => <Text style={{ fontSize: 18 }}>{label}</Text>;
+}
+
+function HomeTabs() {
+  return (
+    <Tabs.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: theme.colors.primary },
+        headerTitleStyle: { color: '#fff', fontWeight: '700' },
+        headerTintColor: '#fff',
+        tabBarActiveTintColor: theme.colors.primary,
+        tabBarInactiveTintColor: theme.colors.muted,
+      }}
+    >
+      <Tabs.Screen name="Resumes" component={DashboardScreen} options={{ tabBarIcon: tabIcon('📄') }} />
+      <Tabs.Screen name="Templates" component={TemplateSelectionScreen} options={{ tabBarIcon: tabIcon('🎨') }} />
+      <Tabs.Screen name="Jobs" component={JobTrackerScreen} options={{ tabBarIcon: tabIcon('💼') }} />
+      <Tabs.Screen name="Profile" component={ProfileScreen} options={{ tabBarIcon: tabIcon('👤') }} />
+    </Tabs.Navigator>
+  );
+}
+
+function AuthFlow() {
+  return (
+    <AuthStack.Navigator screenOptions={{ headerShown: false }}>
+      <AuthStack.Screen name="Login" component={LoginScreen} />
+      <AuthStack.Screen name="Register" component={RegisterScreen} />
+      <AuthStack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+    </AuthStack.Navigator>
+  );
+}
+
+function AppFlow() {
+  return (
+    <AppStack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: theme.colors.primary },
+        headerTitleStyle: { color: '#fff', fontWeight: '700' },
+        headerTintColor: '#fff',
+      }}
+    >
+      <AppStack.Screen name="Tabs" component={HomeTabs} options={{ headerShown: false }} />
+      <AppStack.Screen name="TemplateSelection" component={TemplateSelectionScreen} options={{ title: 'Pick a template' }} />
+      <AppStack.Screen name="ResumeEditor" component={ResumeEditorScreen} options={{ title: 'Edit Resume' }} />
+      <AppStack.Screen name="AtsScore" component={AtsScoreScreen} options={{ title: 'ATS Score' }} />
+      <AppStack.Screen name="CoverLetter" component={CoverLetterScreen} options={{ title: 'Cover Letter' }} />
+      <AppStack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Settings' }} />
+    </AppStack.Navigator>
+  );
+}
+
+function RootNavigator() {
+  const { auth } = useAuth();
+  return auth ? <AppFlow /> : <AuthFlow />;
+}
+
+const linking = {
+  prefixes: [Linking.createURL('/'), 'pocketresume://', 'https://pocketresume.app'],
+  config: {
+    screens: {
+      Login: 'login',
+      Register: 'register',
+      ForgotPassword: 'forgot-password',
+      Tabs: {
+        screens: {
+          Resumes: 'resumes',
+          Templates: 'templates',
+          Jobs: 'jobs',
+          Profile: 'profile',
+        },
+      },
+      ResumeEditor: 'resume/:resumeId',
+      AtsScore: 'resume/:resumeId/ats',
+      CoverLetter: 'cover-letter',
+      Settings: 'settings',
+    },
+  },
+};
 
 export default function App() {
-  const [route, setRoute] = useState<Route>({ screen: 'login' });
-  const [selectedTemplateId, setSelectedTemplateId] = useState('classic');
-  const [authChecked, setAuthChecked] = useState(false);
-  const [activeTab, setActiveTab] = useState<'resumes' | 'templates' | 'profile'>('resumes');
-
-  useEffect(() => {
-    AsyncStorage.getItem(AUTH_KEY)
-      .then((stored) => {
-        if (stored) {
-          try {
-            const auth = JSON.parse(stored);
-            if (auth?.accessToken) {
-              setRoute({ screen: 'home', tab: 'resumes' });
-            }
-          } catch {}
-        }
-        setAuthChecked(true);
-      })
-      .catch(() => setAuthChecked(true));
-  }, []);
-
-  const handleLogin = useCallback(async (auth: { accessToken: string; refreshToken: string; user: { id: string; email: string; fullName: string } }) => {
-    await AsyncStorage.setItem(AUTH_KEY, JSON.stringify(auth));
-    setRoute({ screen: 'home', tab: 'resumes' });
-  }, []);
-
-  const handleLogout = useCallback(async () => {
-    await AsyncStorage.removeItem(AUTH_KEY);
-    setRoute({ screen: 'login' });
-  }, []);
-
-  if (!authChecked) {
-    return <SafeAreaView style={styles.root} />;
-  }
-
-  // ─── Login Screen ───
-  if (route.screen === 'login') {
-    return (
-      <SafeAreaView style={styles.root}>
-        <LoginScreen onLoginSuccess={handleLogin} />
-      </SafeAreaView>
-    );
-  }
-
-  // ─── Template Selection (full-screen) ───
-  if (route.screen === 'templateSelection') {
-    return (
-      <SafeAreaView style={styles.root}>
-        <TemplateSelectionScreen
-          initialTemplateId={route.templateId}
-          onGoBack={() => setRoute({ screen: 'home', tab: 'templates' })}
-          onApplyTemplate={(id) => {
-            setSelectedTemplateId(id);
-            setRoute({ screen: 'home', tab: 'templates' });
-          }}
-        />
-      </SafeAreaView>
-    );
-  }
-
-  // ─── Resume Editor (full-screen) ───
-  if (route.screen === 'resumeEditor') {
-    return (
-      <SafeAreaView style={styles.root}>
-        <ResumeEditorScreen
-          resumeId={route.resumeId}
-          onGoBack={() => setRoute({ screen: 'home', tab: 'resumes' })}
-          onViewAts={(id) => setRoute({ screen: 'atsScore', resumeId: id })}
-        />
-      </SafeAreaView>
-    );
-  }
-
-  // ─── ATS Score (full-screen) ───
-  if (route.screen === 'atsScore') {
-    return (
-      <SafeAreaView style={styles.root}>
-        <AtsScoreScreen
-          resumeId={route.resumeId}
-          onGoBack={() => setRoute({ screen: 'resumeEditor', resumeId: route.resumeId })}
-        />
-      </SafeAreaView>
-    );
-  }
-
-  // ─── Home with Bottom Tabs ───
   return (
-    <SafeAreaView style={styles.root}>
-      <View style={{ flex: 1 }}>
-        {activeTab === 'resumes' && (
-          <DashboardScreen
-            selectedTemplateId={selectedTemplateId}
-            onNavigateToTemplate={(id) => setRoute({ screen: 'templateSelection', templateId: id })}
-            onLogout={handleLogout}
-            onEditResume={(id) => setRoute({ screen: 'resumeEditor', resumeId: id })}
-          />
-        )}
-        {activeTab === 'templates' && (
-          <DashboardScreen
-            selectedTemplateId={selectedTemplateId}
-            onNavigateToTemplate={(id) => setRoute({ screen: 'templateSelection', templateId: id })}
-            onLogout={handleLogout}
-          />
-        )}
-        {activeTab === 'profile' && (
-          <ProfileScreen
-            onLogout={handleLogout}
-            onGoBack={() => setActiveTab('resumes')}
-          />
-        )}
-      </View>
-
-      {/* ─── Bottom Tab Bar ─── */}
-      <View style={styles.tabBar}>
-        <TabButton icon="📄" label="Resumes" active={activeTab === 'resumes'} onPress={() => setActiveTab('resumes')} />
-        <TabButton icon="🎨" label="Templates" active={activeTab === 'templates'} onPress={() => setActiveTab('templates')} />
-        <TabButton icon="👤" label="Profile" active={activeTab === 'profile'} onPress={() => setActiveTab('profile')} />
-      </View>
-    </SafeAreaView>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <AuthProvider>
+          <NavigationContainer theme={navTheme} linking={linking}>
+            <StatusBar style="light" />
+            <RootNavigator />
+          </NavigationContainer>
+        </AuthProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
-
-function TabButton({ icon, label, active, onPress }: { icon: string; label: string; active: boolean; onPress: () => void }) {
-  return (
-    <TouchableOpacity style={styles.tabItem} onPress={onPress}>
-      <Text style={{ fontSize: 20 }}>{icon}</Text>
-      <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{label}</Text>
-    </TouchableOpacity>
-  );
-}
-
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#f2f5f8' },
-  tabBar: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
-    paddingBottom: 4,
-    paddingTop: 6,
-  },
-  tabItem: { flex: 1, alignItems: 'center', paddingVertical: 4 },
-  tabLabel: { fontSize: 11, color: '#5a6778', marginTop: 2, fontWeight: '500' },
-  tabLabelActive: { color: '#1a3a5c', fontWeight: '700' },
-});
