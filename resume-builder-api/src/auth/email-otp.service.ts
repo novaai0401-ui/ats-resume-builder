@@ -43,13 +43,19 @@ export class EmailOtpService {
       throw new BadRequestException('Invalid email address.');
     }
 
-    // Check if user exists
+    // User-enumeration defense: we never tell the caller whether the
+    // email matches a real account. Same response either way; we just
+    // skip the actual send when there's no user. This prevents an
+    // attacker from harvesting valid emails by hammering the endpoint.
     const user = await this.prisma.user.findUnique({ where: { email: normalized } });
+    const okResponse = { ok: true, message: 'If an account exists for that email, a verification code has been sent.' };
     if (!user) {
-      throw new BadRequestException('No account found with this email. Please register first.');
+      // Still consume rate limits so an attacker can't probe at full speed.
+      try { this.enforceRateLimits(normalized, meta.ip); } catch { /* swallow */ }
+      return okResponse;
     }
 
-    // Rate limit checks
+    // Rate limit checks (real path)
     this.enforceRateLimits(normalized, meta.ip);
 
     // Cooldown check
@@ -97,7 +103,7 @@ export class EmailOtpService {
     if (!sent) {
       throw new HttpException('Failed to send verification email. Please try again.', HttpStatus.SERVICE_UNAVAILABLE);
     }
-    return { ok: true, message: 'A verification code has been sent to your email.' };
+    return okResponse;
   }
 
   async verifyOtp(email: string, otp: string, meta: { ip?: string; userAgent?: string } = {}) {

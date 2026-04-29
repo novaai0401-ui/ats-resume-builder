@@ -8,7 +8,9 @@ import { JwtStrategy } from './jwt.strategy';
 import { SocialAuthService } from './social-auth.service';
 import { SocialAuthController } from './social-auth.controller';
 import { PasswordResetService } from './password-reset.service';
+import { EmailOtpService } from './email-otp.service';
 import { ResumeModule } from '../resume/resume.module';
+import { MailModule } from '../mail/mail.module';
 import { GoogleAuthController } from './google-auth.controller';
 import { GoogleDriveController } from './google-drive.controller';
 import { DriveSessionService } from './drive-session.service';
@@ -20,6 +22,7 @@ import { GoogleTokenStore } from './tokenStore';
   imports: [
     ConfigModule,
     ResumeModule,
+    MailModule,
     PassportModule,
     JwtModule.registerAsync({
       inject: [ConfigService],
@@ -35,6 +38,7 @@ import { GoogleTokenStore } from './tokenStore';
     AuthService,
     SocialAuthService,
     PasswordResetService,
+    EmailOtpService,
     JwtStrategy,
     DriveSessionService,
     RedisClientService,

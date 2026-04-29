@@ -951,6 +951,29 @@ export const api = {
       return auth;
     }),
 
+  // ── Passwordless OTP login ────────────────────────────────────────
+  // Step 1: ask the API to email a 6-digit code to the address. The
+  // server returns a generic ok-message regardless of whether the email
+  // matches a real account (anti-enumeration), so the UI shouldn't
+  // change its behaviour based on the response body.
+  requestLoginOtp: (email: string) =>
+    request<{ ok: boolean; message: string }>(`/auth/request-otp`, {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+
+  // Step 2: hand the code back. On success we get the same auth
+  // payload as /auth/login, so any code path that uses
+  // loginWithPassword's return value works unchanged.
+  loginWithOtp: (email: string, otp: string) =>
+    request<AuthResponse>(`/auth/verify-otp`, {
+      method: 'POST',
+      body: JSON.stringify({ email, otp }),
+    }).then((auth) => {
+      setAuthTokens(auth);
+      return auth;
+    }),
+
 
   changePassword: (currentPassword: string, newPassword: string) =>
     request<{ ok: boolean; message: string }>(`/auth/change-password`, {
