@@ -6,6 +6,7 @@ import {
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { api, type Resume } from '../lib/api';
+import { setSecureScreen } from '../lib/security';
 import type { AppStackParamList } from '../App';
 
 type Nav = NativeStackNavigationProp<AppStackParamList, 'ResumeEditor'>;
@@ -28,6 +29,14 @@ export default function ResumeEditorScreen() {
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, [resumeId]);
+
+  // Block screenshots / screen recording while editing — resumes contain
+  // home address, phone, full work history. Re-enable on unmount so the
+  // user can still screenshot non-sensitive screens.
+  useEffect(() => {
+    setSecureScreen(true);
+    return () => { setSecureScreen(false); };
+  }, []);
 
   async function handleSave() {
     if (!resume) return;

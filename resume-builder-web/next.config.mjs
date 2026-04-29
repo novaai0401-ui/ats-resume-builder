@@ -10,24 +10,34 @@ const isProd = process.env.NODE_ENV === 'production';
 // allow-listed in connect-src so AJAX calls from the client succeed. If you
 // move the API to a different host you MUST add it here.
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001';
+
+// Trusted Types (Chromium) blocks unsafe DOM sinks like innerHTML unless
+// the value passes through a registered policy. Next.js needs the
+// 'nextjs' / 'nextjs#bundler' policies to hydrate; we add our own
+// 'pocket-resume' policy for any deliberate HTML injection.
+const trustedTypes = "require-trusted-types-for 'script'; trusted-types nextjs nextjs#bundler pocket-resume default";
+
 const csp = [
   "default-src 'self'",
   // Next.js dev/prod both need 'unsafe-inline' for some inlined critical CSS.
-  "style-src 'self' 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   // Razorpay checkout loads from checkout.razorpay.com; Next injects small
   // inline bootstrap scripts so 'unsafe-inline' is required. 'unsafe-eval'
   // is needed for Next dev hot reload but can be removed in pure prod
   // without turbopack if desired.
   `script-src 'self' 'unsafe-inline' ${isProd ? '' : "'unsafe-eval'"} https://checkout.razorpay.com`,
   "img-src 'self' data: blob: https:",
-  "font-src 'self' data:",
+  "font-src 'self' data: https://fonts.gstatic.com",
   `connect-src 'self' ${apiUrl} https://api.razorpay.com https://lumberjack.razorpay.com https://api.stripe.com`,
   "frame-src 'self' https://api.razorpay.com https://checkout.razorpay.com https://js.stripe.com",
+  "worker-src 'self' blob:",
+  "manifest-src 'self'",
+  "media-src 'self'",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
   "frame-ancestors 'none'",
-  ...(isProd ? ['upgrade-insecure-requests'] : []),
+  ...(isProd ? ['upgrade-insecure-requests', 'block-all-mixed-content', trustedTypes] : []),
 ].join('; ');
 
 const securityHeaders = [
@@ -35,9 +45,35 @@ const securityHeaders = [
   { key: 'X-Frame-Options', value: 'DENY' },
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-  { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+  {
+    key: 'Permissions-Policy',
+    // Lock down every powerful surface; the resume builder needs none of these.
+    value: [
+      'accelerometer=()',
+      'autoplay=()',
+      'camera=()',
+      'clipboard-read=(self)',
+      'clipboard-write=(self)',
+      'display-capture=()',
+      'geolocation=()',
+      'gyroscope=()',
+      'magnetometer=()',
+      'microphone=()',
+      'midi=()',
+      'payment=(self "https://checkout.razorpay.com" "https://js.stripe.com")',
+      'usb=()',
+      'xr-spatial-tracking=()',
+    ].join(', '),
+  },
+  // Cross-origin isolation: prevents Spectre-style side-channels and
+  // SharedArrayBuffer leaks. We use same-origin-allow-popups so the
+  // Razorpay/Stripe popup flows still work.
+  { key: 'Cross-Origin-Opener-Policy', value: 'same-origin-allow-popups' },
+  { key: 'Cross-Origin-Resource-Policy', value: 'same-site' },
+  { key: 'Origin-Agent-Cluster', value: '?1' },
+  { key: 'X-DNS-Prefetch-Control', value: 'off' },
   ...(isProd
-    ? [{ key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains; preload' }]
+    ? [{ key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' }]
     : []),
 ];
 

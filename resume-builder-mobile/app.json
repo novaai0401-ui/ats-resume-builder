@@ -43,11 +43,25 @@
     },
     "plugins": [
       "expo-secure-store",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Use Face ID to unlock Pocket Resume."
+        }
+      ]
     ],
     "extra": {
       "apiBase": "http://10.0.2.2:4001",
       "webUrl": "http://localhost:4000",
+      "security": {
+        "pinnedHosts": {
+          "ats-rb-api.onrender.com": [],
+          "pocketresume.app": []
+        },
+        "androidSigningSha256": "",
+        "minSupportedVersion": "1.0.0"
+      },
       "eas": {
         "projectId": "00000000-0000-0000-0000-000000000000"
       }

@@ -2,6 +2,7 @@ import Constants from 'expo-constants';
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import { isHostAllowed, signRequest } from './security';
 
 const AUTH_KEY = 'rb_auth';
 
@@ -146,12 +147,28 @@ async function refreshTokens(): Promise<AuthData | null> {
 }
 
 async function request<T>(path: string, options: RequestInit = {}, retried = false): Promise<T> {
+  const fullUrl = `${API_BASE}${path}`;
+  if (!isHostAllowed(fullUrl)) {
+    throw new Error('Refusing to call non-allowlisted host. Check Settings → API endpoint.');
+  }
+
   const token = await getAccessToken();
-  const res = await fetch(`${API_BASE}${path}`, {
+  const method = (options.method || 'GET').toUpperCase();
+  const body = typeof options.body === 'string' ? options.body : '';
+
+  // Optional: HMAC the request so a stolen JWT alone can't be replayed
+  // with a forged body. Server validates `X-Request-Signature` and
+  // rejects timestamps older than 60s. Disabled if no signing key
+  // configured (so dev with no shared secret keeps working).
+  const sig = await signRequest(method, path, body);
+
+  const res = await fetch(fullUrl, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
+      'X-App-Platform': Platform.OS,
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(sig ? { 'X-Request-Signature': sig.signature, 'X-Request-Timestamp': sig.timestamp } : {}),
       ...(options.headers || {}),
     },
   });

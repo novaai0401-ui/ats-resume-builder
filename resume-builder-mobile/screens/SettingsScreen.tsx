@@ -1,22 +1,40 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { getApiBase, setApiBase } from '../lib/api';
+import { biometricGate, isBiometricEnabled, setBiometricEnabled } from '../lib/security';
 import { theme } from '../lib/theme';
 
 export default function SettingsScreen() {
   const [base, setBase] = useState(getApiBase());
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [bioOn, setBioOn] = useState(false);
+
+  useEffect(() => {
+    isBiometricEnabled().then(setBioOn);
+  }, []);
+
+  async function toggleBio(next: boolean) {
+    if (next) {
+      // Verify the device can do biometrics before flipping on, so we
+      // never lock a user out of their own app.
+      const ok = await biometricGate('Confirm with biometrics to enable app lock');
+      if (!ok) return;
+    }
+    await setBiometricEnabled(next);
+    setBioOn(next);
+  }
 
   async function save() {
     setSaving(true);
@@ -51,10 +69,32 @@ export default function SettingsScreen() {
         </View>
 
         <View style={styles.card}>
+          <View style={styles.rowSwitch}>
+            <View style={{ flex: 1, paddingRight: 12 }}>
+              <Text style={styles.title}>Biometric app lock</Text>
+              <Text style={styles.subtitle}>
+                Require Face ID / Touch ID / fingerprint when you open the app.
+                Recommended if anyone else uses your phone.
+              </Text>
+            </View>
+            <Switch value={bioOn} onValueChange={toggleBio} />
+          </View>
+        </View>
+
+        <View style={styles.card}>
           <Text style={styles.title}>Account sharing</Text>
           <Text style={styles.subtitle}>
             Your Pocket Resume account is the same one you use on the web at the configured web URL.
             Sign in here, sign in there — same data, same JWT.
+          </Text>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.title}>App integrity</Text>
+          <Text style={styles.subtitle}>
+            This build is signature-verified at startup. If you didn&apos;t install it from
+            pocketresume.app/download, uninstall and reinstall — third-party APKs may be
+            tampered with.
           </Text>
         </View>
       </ScrollView>
@@ -70,4 +110,5 @@ const styles = StyleSheet.create({
   btnPrimary: { backgroundColor: theme.colors.primary, borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
   btnPrimaryText: { color: '#fff', fontSize: 15, fontWeight: '600' },
   savedText: { color: theme.colors.success, fontSize: 13, marginTop: 8, textAlign: 'center' },
+  rowSwitch: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
 });
