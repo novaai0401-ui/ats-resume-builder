@@ -1,5 +1,6 @@
-﻿import { Module } from '@nestjs/common';
+﻿import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { RequestSignatureMiddleware } from './auth/request-signature.middleware';
 import { AuthModule } from './auth/auth.module';
 import { ResumeModule } from './resume/resume.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -13,6 +14,7 @@ import { SettingsModule } from './settings/settings.module';
 import { AdminModule } from './admin/admin.module';
 import { MailModule } from './mail/mail.module';
 import { JobsModule } from './jobs/jobs.module';
+import { AppMetaModule } from './app-meta/app-meta.module';
 
 @Module({
   imports: [
@@ -36,7 +38,12 @@ import { JobsModule } from './jobs/jobs.module';
     CompaniesModule,
     MetaModule,
     JobsModule,
+    AppMetaModule,
   ],
   controllers: [HealthController],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(RequestSignatureMiddleware).forRoutes('*');
+  }
+}

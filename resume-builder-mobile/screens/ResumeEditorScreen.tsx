@@ -3,15 +3,20 @@ import {
   ScrollView, View, Text, TextInput, TouchableOpacity,
   StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { api, type Resume } from '../lib/api';
+import { setSecureScreen } from '../lib/security';
+import type { AppStackParamList } from '../App';
 
-type Props = {
-  resumeId: string;
-  onGoBack: () => void;
-  onViewAts: (resumeId: string) => void;
-};
+type Nav = NativeStackNavigationProp<AppStackParamList, 'ResumeEditor'>;
 
-export default function ResumeEditorScreen({ resumeId, onGoBack, onViewAts }: Props) {
+export default function ResumeEditorScreen() {
+  const navigation = useNavigation<Nav>();
+  const route = useRoute();
+  const { resumeId } = (route.params as { resumeId: string });
+  const onGoBack = () => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Tabs'));
+  const onViewAts = (id: string) => navigation.navigate('AtsScore', { resumeId: id });
   const [resume, setResume] = useState<Resume | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -24,6 +29,14 @@ export default function ResumeEditorScreen({ resumeId, onGoBack, onViewAts }: Pr
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, [resumeId]);
+
+  // Block screenshots / screen recording while editing — resumes contain
+  // home address, phone, full work history. Re-enable on unmount so the
+  // user can still screenshot non-sensitive screens.
+  useEffect(() => {
+    setSecureScreen(true);
+    return () => { setSecureScreen(false); };
+  }, []);
 
   async function handleSave() {
     if (!resume) return;

@@ -4,16 +4,17 @@ import 'tekivex-ui/styles';
 import './globals.css';
 import TopNav from '@/src/components/TopNav';
 import Providers from '@/src/components/Providers';
+import PwaInstaller from '@/src/components/PwaInstaller';
 
 export const metadata = {
-  title: 'Resume Builder',
-  description: 'ATS-optimized resume builder',
+  title: 'Pocket Resume',
+  description: 'ATS-optimized resume builder — same login on web and mobile.',
   manifest: '/manifest.json',
-  applicationName: 'Resume Builder',
+  applicationName: 'Pocket Resume',
   appleWebApp: {
     capable: true,
-    title: 'Resume',
-    statusBarStyle: 'default' as const,
+    title: 'Pocket Resume',
+    statusBarStyle: 'black-translucent' as const,
   },
   icons: {
     icon: [{ url: '/icons/icon.svg', type: 'image/svg+xml' }],
@@ -50,11 +51,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <Providers>
           <div className="main-shell">
             <header className="topbar">
-              <div className="brand">Resume Builder</div>
+              <div className="brand">Pocket Resume</div>
               <TopNav />
             </header>
             {children}
           </div>
+          <PwaInstaller />
         </Providers>
       </body>
     </html>

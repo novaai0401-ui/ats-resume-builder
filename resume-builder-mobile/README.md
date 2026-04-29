@@ -1,293 +1,227 @@
-# resume-builder-mobile
+# Pocket Resume — Mobile (Expo, React Native)
 
-React Native mobile client for the Resume Builder SaaS.
+Cross-platform mobile client for the **ATS Resume Builder** API. One
+codebase ships to **iOS, Android, and the Web** because we use Expo +
+react-native-web. Users sign in with the **same account** they use on the
+web app — both clients call the same JWT-secured backend.
+
+```
+resume-builder-mobile/
+├── App.tsx                    Navigation shell (Stack + Tabs)
+├── lib/
+│   ├── api.ts                 fetch client w/ refresh-token rotation
+│   ├── AuthContext.tsx        global auth provider
+│   └── theme.ts               shared design tokens
+├── screens/
+│   ├── LoginScreen.tsx        password + social OAuth
+│   ├── RegisterScreen.tsx     email + password sign-up
+│   ├── ForgotPasswordScreen.tsx
+│   ├── DashboardScreen.tsx    list / create resumes
+│   ├── ResumeEditorScreen.tsx full editor
+│   ├── AtsScoreScreen.tsx     ATS guidance + matched/missing keywords
+│   ├── TemplateSelectionScreen.tsx
+│   ├── JobTrackerScreen.tsx   Kanban-style job applications
+│   ├── CoverLetterScreen.tsx  AI cover letter (premium)
+│   ├── ProfileScreen.tsx      account + quick links
+│   └── SettingsScreen.tsx     API base override
+├── components/
+│   └── TemplateCard.tsx
+├── app.json                   Expo config (iOS, Android, Web)
+├── eas.json                   EAS Build / Submit profiles
+├── babel.config.js            babel-preset-expo + reanimated
+├── metro.config.js
+├── tsconfig.json
+└── assets/                    icons + splash (see assets/README.md)
+```
 
 ---
 
-## Prerequisites
+## 1. Prerequisites
 
-| Tool             | Version | Notes                                          |
-| ---------------- | ------- | ---------------------------------------------- |
-| Node.js          | ≥ 18    | LTS recommended (20.x)                         |
-| npm              | ≥ 9     | Ships with Node 18+                            |
-| React Native CLI | latest  | `npm install -g react-native`                  |
-| **iOS**          |         |                                                |
-| Xcode            | ≥ 15    | macOS only; includes iOS Simulator              |
-| CocoaPods        | ≥ 1.14  | `sudo gem install cocoapods`                   |
-| **Android**      |         |                                                |
-| Android Studio   | latest  | Includes Android SDK, emulator, and build tools |
-| JDK              | 17      | Required for Android builds                    |
+| Tool         | Version | Why                                        |
+| ------------ | ------- | ------------------------------------------ |
+| Node.js      | 18 LTS  | Same as the web/api packages               |
+| npm or pnpm  | latest  | Package manager                            |
+| Expo Go app  | latest  | Run on a physical phone in dev (App Store / Play Store) |
+| Android Studio | Hedgehog+ | Android emulator (optional)              |
+| Xcode        | 15+     | iOS simulator (Mac only, optional)         |
+| EAS CLI      | latest  | Cloud builds for the stores                |
+
+```bash
+npm i -g eas-cli expo-cli
+```
+
+You **don't need** a Mac to build for iOS — EAS Build runs the iOS toolchain
+in the cloud.
 
 ---
 
-## 1. Development Environment (Local)
-
-### 1.1 Install dependencies
+## 2. First-time setup
 
 ```bash
 cd resume-builder-mobile
 npm install
+cp .env.example .env
 ```
 
-### 1.2 iOS setup (macOS only)
+Edit `.env` and set:
 
-```bash
-cd ios && pod install && cd ..
+```
+EXPO_PUBLIC_API_BASE=http://10.0.2.2:4001     # Android emulator
+# EXPO_PUBLIC_API_BASE=http://localhost:4001  # iOS simulator
+# EXPO_PUBLIC_API_BASE=http://192.168.1.x:4001 # physical device on LAN
+EXPO_PUBLIC_WEB_URL=http://localhost:4000
 ```
 
-> If there is no `ios/` directory yet, run `npx react-native init ResumeBuilder --directory .` to generate native projects, or use Expo.
-
-### 1.3 Android setup
-
-1. Open Android Studio → **SDK Manager**
-2. Install Android SDK 34 (or latest)
-3. Install Android SDK Build-Tools, Android Emulator, Intel HAXM
-4. Create an AVD (Android Virtual Device) via **AVD Manager**
-5. Set `ANDROID_HOME` environment variable:
-
-```bash
-# ~/.bashrc or ~/.zshrc
-export ANDROID_HOME=$HOME/Android/Sdk       # Linux
-export ANDROID_HOME=$HOME/Library/Android/sdk # macOS
-export PATH=$PATH:$ANDROID_HOME/emulator
-export PATH=$PATH:$ANDROID_HOME/platform-tools
-```
-
-### 1.4 Configure API URL
-
-The API base URL is configured in `lib/api.ts`:
-
-| Platform         | URL                                | Why                                        |
-| ---------------- | ---------------------------------- | ------------------------------------------ |
-| Android emulator | `http://10.0.2.2:4001`            | `10.0.2.2` maps to host machine localhost  |
-| iOS simulator    | `http://localhost:4001`            | iOS simulator shares host network          |
-| Physical device  | `http://<your-lan-ip>:4001`       | Use your machine's LAN IP (e.g., 192.168.x.x) |
-
-To change the API URL at runtime:
-
-```typescript
-import { setApiBase } from './lib/api';
-setApiBase('http://192.168.1.100:4001');
-```
-
-### 1.5 Start the app
-
-```bash
-# Terminal 1 — Start Metro bundler
-npm run start
-
-# Terminal 2 — Run on platform
-npm run android   # Android emulator/device
-npm run ios       # iOS simulator (macOS only)
-```
-
-### 1.6 Verify
-
-1. Ensure the API is running at `http://localhost:4001`
-2. Open the app — the login screen should appear
-3. Register a new account or login with existing credentials
-4. If you see network errors, check the API URL configuration (step 1.4)
+Make sure the API is running (`cd ../resume-builder-api && npm run start:dev`).
 
 ---
 
-## 2. Staging Environment
+## 3. Run the app
 
-### 2.1 Configure API URL
+### A) Run on a real phone in 30 seconds (recommended)
 
-Point the app to your staging API:
+1. Install **Expo Go** from the App Store / Play Store.
+2. From this folder run:
+   ```bash
+   npm start
+   ```
+3. A QR code appears in the terminal. Scan it with the Expo Go app
+   (Android) or the iPhone Camera app (iOS). The bundler streams the JS
+   bundle to the phone.
 
-```typescript
-// lib/api.ts — change the default
-let API_BASE = 'https://ats-rb-api-staging.onrender.com';
-```
-
-Or call `setApiBase()` at app startup in `App.tsx`:
-
-```typescript
-import { setApiBase } from './lib/api';
-setApiBase('https://ats-rb-api-staging.onrender.com');
-```
-
-### 2.2 Build for staging testing
-
-**Android (debug APK for internal testing):**
+### B) Android emulator
 
 ```bash
-cd android
-./gradlew assembleDebug
-# Output: android/app/build/outputs/apk/debug/app-debug.apk
+# Open Android Studio → AVD Manager → start an emulator first.
+npm run android
 ```
 
-**iOS (via Xcode):**
-
-1. Open `ios/ResumeBuilder.xcworkspace` in Xcode
-2. Select a development team (signing)
-3. Build for a connected device or simulator
-
-### 2.3 Distribute staging builds
-
-- **Android:** Share the debug APK directly, or use Firebase App Distribution
-- **iOS:** Use TestFlight via Xcode → Archive → Upload to App Store Connect
-
----
-
-## 3. Production Environment
-
-### 3.1 Configure production API URL
-
-```typescript
-// lib/api.ts
-let API_BASE = 'https://api.your-domain.com';
-```
-
-### 3.2 Android production build
+### C) iOS simulator (Mac only)
 
 ```bash
-cd android
-
-# Generate a release keystore (one-time)
-keytool -genkeypair -v -storetype PKCS12 \
-  -keystore release.keystore -alias ats-resume \
-  -keyalg RSA -keysize 2048 -validity 10000
-
-# Configure signing in android/app/build.gradle:
-# signingConfigs {
-#   release {
-#     storeFile file('release.keystore')
-#     storePassword 'your-password'
-#     keyAlias 'ats-resume'
-#     keyPassword 'your-password'
-#   }
-# }
-
-# Build signed AAB (for Play Store)
-./gradlew bundleRelease
-# Output: android/app/build/outputs/bundle/release/app-release.aab
-
-# Or build signed APK (for direct install)
-./gradlew assembleRelease
-# Output: android/app/build/outputs/apk/release/app-release.apk
+npm run ios
 ```
 
-**Publish to Google Play Store:**
-
-1. Go to [Google Play Console](https://play.google.com/console)
-2. Create a new app
-3. Upload the `.aab` file
-4. Fill in store listing, content rating, pricing
-5. Submit for review
-
-### 3.3 iOS production build
-
-1. Open `ios/ResumeBuilder.xcworkspace` in Xcode
-2. Set the **Bundle Identifier** (e.g., `com.yourcompany.resumebuilder`)
-3. Select your **Apple Developer Team**
-4. Set **Version** and **Build Number**
-5. Select **Any iOS Device** as the build target
-6. **Product → Archive**
-7. In the **Organizer**, click **Distribute App** → **App Store Connect**
-8. Upload and submit for review via [App Store Connect](https://appstoreconnect.apple.com)
-
-### 3.4 EAS Build (Expo — alternative)
-
-If you migrate to Expo managed workflow:
+### D) Run as a web app (yes, the same code)
 
 ```bash
-npm install -g eas-cli
-eas login
-
-# Create eas.json
-cat > eas.json << 'EOF'
-{
-  "build": {
-    "development": {
-      "developmentClient": true,
-      "distribution": "internal"
-    },
-    "staging": {
-      "distribution": "internal",
-      "env": {
-        "API_BASE": "https://ats-rb-api-staging.onrender.com"
-      }
-    },
-    "production": {
-      "env": {
-        "API_BASE": "https://api.your-domain.com"
-      }
-    }
-  }
-}
-EOF
-
-# Build
-eas build --platform android --profile production
-eas build --platform ios --profile production
-
-# Submit to stores
-eas submit --platform android
-eas submit --platform ios
+npm run web
 ```
 
----
-
-## Available Scripts
-
-| Script            | Description                              |
-| ----------------- | ---------------------------------------- |
-| `npm run start`   | Start Metro bundler                      |
-| `npm run android` | Build & run on Android emulator/device   |
-| `npm run ios`     | Build & run on iOS simulator/device      |
+Opens at `http://localhost:19006`. Useful for quick UI checks without a
+device.
 
 ---
 
-## App Screens
+## 4. Authentication is shared with the web app
 
-| Screen                   | Description                                |
-| ------------------------ | ------------------------------------------ |
-| `LoginScreen`            | Email/password login + social providers    |
-| `DashboardScreen`        | Resume list + template gallery             |
-| `ResumeEditorScreen`     | Full resume editor                         |
-| `AtsScoreScreen`         | ATS score analysis with suggestions        |
-| `TemplateSelectionScreen`| Template preview & selection               |
-| `ProfileScreen`          | User profile management                    |
+Both clients call the same backend (`resume-builder-api`):
 
----
+| Endpoint                         | Used by mobile                     |
+| -------------------------------- | ---------------------------------- |
+| `POST /auth/login`               | LoginScreen                        |
+| `POST /auth/register`            | RegisterScreen                     |
+| `POST /auth/forgot-password`     | ForgotPasswordScreen               |
+| `POST /auth/refresh`             | API client auto-refresh on 401     |
+| `GET  /auth/social/providers`    | Login screen social buttons        |
+| `POST /auth/social/:p/callback`  | OAuth deep link via `expo-web-browser` |
 
-## API Configuration
+JWTs are persisted in **expo-secure-store** on iOS/Android (Keychain /
+EncryptedSharedPreferences) and in `localStorage` on the web build. The
+fetch wrapper in `lib/api.ts` retries once with a fresh access token on a
+401 — concurrent calls share a single refresh promise.
 
-The mobile app communicates with the same backend API used by the web app. All API calls go through `lib/api.ts`.
-
-**Centralized API base URL** is in `lib/api.ts`:
-- `getApiBase()` — returns current API URL
-- `setApiBase(url)` — updates API URL at runtime
-
-**Key endpoints used:**
-
-| Endpoint                    | Method | Description              |
-| --------------------------- | ------ | ------------------------ |
-| `/auth/login`               | POST   | Login                    |
-| `/auth/register`            | POST   | Register                 |
-| `/auth/logout`              | POST   | Logout                   |
-| `/auth/social/providers`    | GET    | Social login providers   |
-| `/resumes`                  | GET    | List resumes             |
-| `/resumes`                  | POST   | Create resume            |
-| `/resumes/:id`              | PATCH  | Update resume            |
-| `/resumes/:id`              | DELETE | Delete resume            |
-| `/resumes/:id/ats-score`    | POST   | Calculate ATS score      |
-| `/ai/ai-critique`           | POST   | AI critique              |
-| `/ai/tech-gap`              | POST   | Tech gap analysis        |
+If a user signs in on the phone and later visits the web app, they log in
+the same way. If they change their password on the web, the next refresh
+on mobile fails and the app sends them back to the Login screen.
 
 ---
 
-## Troubleshooting
+## 5. Production builds (EAS)
 
-| Issue                                       | Fix                                                                                          |
-| ------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `Network request failed` on Android emulator | Use `http://10.0.2.2:4001` (not `localhost`)                                                |
-| `Network request failed` on physical device  | Use your machine's LAN IP; ensure device is on same WiFi                                    |
-| Metro bundler port conflict                 | Kill existing Metro process or use `npm run start -- --port 8082`                            |
-| iOS build fails with signing error          | Open Xcode → Signing & Capabilities → select your team                                      |
-| Android build fails with SDK not found      | Set `ANDROID_HOME` and ensure SDK 34 is installed                                            |
-| `@react-native-async-storage` not found     | Run `npm install @react-native-async-storage/async-storage`                                  |
-| iOS pods out of date                        | Run `cd ios && pod install --repo-update && cd ..`                                           |
-| Stale JS bundle                             | Clear Metro cache: `npm run start -- --reset-cache`                                          |
+### One-time
+
+```bash
+eas login          # log in with the same Expo account that owns the project
+eas init           # creates an EAS project, fills app.json `eas.projectId`
+```
+
+Edit `eas.json` and replace `you@example.com`, `1234567890`,
+`ABCDE12345` under `submit.production.ios` with your Apple credentials.
+For Android, drop a Play Store service account JSON at
+`secrets/play-service-account.json`.
+
+### Build for internal testing
+
+```bash
+# Android: produces an installable .apk
+eas build --platform android --profile preview
+
+# iOS: produces an .ipa for TestFlight
+eas build --platform ios --profile preview
+```
+
+Install the APK directly on a phone. For iOS, distribute the `.ipa` via
+TestFlight (`eas submit --platform ios --profile production --latest`).
+
+### Build for the stores
+
+```bash
+eas build --platform android --profile production   # .aab → Play Console
+eas build --platform ios --profile production       # .ipa → App Store Connect
+```
+
+Both run `autoIncrement: true` so the version code bumps automatically.
+
+### Submit to the stores
+
+```bash
+eas submit --platform android   # uploads to internal track of Google Play
+eas submit --platform ios       # uploads to App Store Connect
+```
+
+### OTA updates (no store re-review)
+
+```bash
+eas update --branch production --message "fix login crash"
+```
+
+Users get the new JS bundle on their next launch. Native modules still
+require a store build.
+
+---
+
+## 6. Deep linking & shared sessions
+
+`App.tsx` registers two prefix schemes:
+
+* `pocketresume://` — custom scheme (set in `app.json`)
+* `https://pocketresume.app` — universal/app-link domain (claim it on your
+  marketing site once the app is in stores)
+
+Routes such as `/resume/:resumeId` and `/cover-letter` work over both.
+This is what lets a user tap a link in an email and land directly on the
+right screen.
+
+---
+
+## 7. Troubleshooting
+
+| Symptom | Fix |
+| --- | --- |
+| `Network request failed` on Android | You're hitting `localhost`; switch to `http://10.0.2.2:4001` |
+| Physical device can't reach the API | Use your machine's LAN IP and make sure the API is bound to `0.0.0.0`, not `127.0.0.1` |
+| White screen on web | Run `expo start --web --clear` to nuke the metro cache |
+| `Unable to resolve module react-native-reanimated` | Re-run `npm install` and ensure `babel.config.js` has the reanimated plugin **last** |
+| Stuck on splash | Check that the API URL in `.env` is reachable from the device's network |
+| OAuth opens but doesn't return to the app | Confirm `pocketresume://callback` is in the OAuth provider's allowed redirect URIs **and** in the API's `OAUTH_REDIRECT_ALLOWLIST` env |
+
+---
+
+## 8. Want a "soft" mobile app instead?
+
+The web app is a full **PWA**. Visit the site on a phone, tap the install
+banner (Chrome/Edge/Samsung) or Share → Add to Home Screen (Safari iOS).
+You get an installable, offline-capable app that uses the same login.
+See `resume-builder-web/public/manifest.json` and `public/sw.js`.
