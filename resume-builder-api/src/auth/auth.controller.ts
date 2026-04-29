@@ -9,12 +9,14 @@ import {
 } from 'resume-builder-shared';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { PasswordResetService } from './password-reset.service';
+import { EmailOtpService } from './email-otp.service';
 
 @Controller('auth')
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly passwordResetService: PasswordResetService,
+    private readonly emailOtpService: EmailOtpService,
   ) {}
 
   @Post('register')
@@ -37,6 +39,39 @@ export class AuthController {
     const ip = extractIp(req);
     const userAgent = String(req.headers['user-agent'] || '').slice(0, 500);
     return this.authService.loginWithPassword(email, password, { ip, userAgent });
+  }
+
+  /**
+   * Request a one-time login code. Same endpoint covers initial sign-up
+   * verification and ongoing passwordless logins; the service decides
+   * whether the email belongs to an existing user. The response is
+   * intentionally vague about which case it was — see the service for
+   * the user-enumeration defense.
+   */
+  @Post('request-otp')
+  @HttpCode(200)
+  requestOtp(@Req() req: Request, @Body() body: { email: string }) {
+    const ip = extractIp(req);
+    const userAgent = String(req.headers['user-agent'] || '').slice(0, 500);
+    return this.emailOtpService.requestOtp(String(body?.email || ''), { ip, userAgent });
+  }
+
+  /**
+   * Verify a previously-issued code. On success returns the same
+   * { accessToken, refreshToken, user } shape as /auth/login so
+   * clients can swap one for the other without changing their session
+   * handling.
+   */
+  @Post('verify-otp')
+  @HttpCode(200)
+  verifyOtp(@Req() req: Request, @Body() body: { email: string; otp: string }) {
+    const ip = extractIp(req);
+    const userAgent = String(req.headers['user-agent'] || '').slice(0, 500);
+    return this.emailOtpService.verifyOtp(
+      String(body?.email || ''),
+      String(body?.otp || ''),
+      { ip, userAgent },
+    );
   }
 
   @Post('change-password')
