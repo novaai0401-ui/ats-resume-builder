@@ -28,6 +28,7 @@
     "@sparticuz/chromium": "^133.0.0",
     "@upstash/redis": "^1.36.3",
     "bcryptjs": "latest",
+    "docx": "^9.5.0",
     "helmet": "^8.1.0",
     "mammoth": "^1.11.0",
     "nodemailer": "^8.0.4",

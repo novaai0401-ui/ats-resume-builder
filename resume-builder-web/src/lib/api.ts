@@ -317,6 +317,29 @@ export function isCurrentUserAdmin() {
  * Read the user's bring-your-own-key Groq/XAI API key from local browser
  * storage. Returns empty string if not set or SSR. Never persisted server-side.
  */
+/**
+ * Make a string safe to use as a filename across iOS Safari, Chrome
+ * Android, and Windows downloads. Strips characters that those OSes
+ * choke on (slashes, colons, control chars), collapses whitespace to
+ * dashes, lowercases everything, and trims to 64 chars so we never
+ * trigger the Windows MAX_PATH limit when combined with the user's
+ * Downloads folder. Returns '' when the input was empty/all-bad so the
+ * caller can fall back to a default ID-based name.
+ */
+function slugifyFileName(input?: string | null): string {
+  if (!input) return '';
+  const cleaned = String(input)
+    .normalize('NFKD')
+    .replace(/[̀-ͯ]/g, '')         // strip diacritics
+    .replace(/[^\w\s.-]/g, '')                // drop everything else
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase();
+  return cleaned.slice(0, 64);
+}
+
 export function readByokAiKey(): string {
   if (typeof window === 'undefined') return '';
   try {
@@ -1120,7 +1143,7 @@ export const api = {
   heartbeat: () =>
     request<void>('/auth/heartbeat', { method: 'POST' }).catch(() => undefined),
 
-  downloadPdf: async (id: string, templateId?: string, downloadToken?: string) => {
+  downloadPdf: async (id: string, templateId?: string, downloadToken?: string, fileBaseName?: string) => {
     const params = new URLSearchParams();
     const templateQuery = String(templateId || '').trim();
     if (templateQuery) params.set('templateId', templateQuery);
@@ -1138,7 +1161,36 @@ export const api = {
     const blobUrl = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = blobUrl;
-    a.download = `resume-${id}.pdf`;
+    a.download = `${slugifyFileName(fileBaseName) || `resume-${id}`}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(blobUrl);
+  },
+
+  /**
+   * Download the resume as a Word (.docx) file. Same auth + payment
+   * gating as the PDF route — server only serves a valid downloadToken
+   * (when the per-download charge is enabled) and uses the user's name
+   * for the Content-Disposition filename.
+   */
+  downloadDocx: async (id: string, downloadToken?: string, fileBaseName?: string) => {
+    const params = new URLSearchParams();
+    if (downloadToken) params.set('downloadToken', downloadToken);
+    const qs = params.toString();
+    const requestUrl = `${baseUrl}/resumes/${id}/docx${qs ? `?${qs}` : ''}`;
+    const res = await fetch(requestUrl, {
+      method: 'GET',
+      headers: {
+        ...(getAccessToken() ? { Authorization: `Bearer ${getAccessToken()}` } : {}),
+      },
+    });
+    if (!res.ok) throw new ApiRequestError(await readApiErrorDetails(res, 'Word export failed'));
+    const blob = await res.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = `${slugifyFileName(fileBaseName) || `resume-${id}`}.docx`;
     document.body.appendChild(a);
     a.click();
     a.remove();
