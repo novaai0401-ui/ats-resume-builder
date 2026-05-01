@@ -208,6 +208,9 @@ export const api = {
 
   logout: () => request('/auth/logout', { method: 'POST' }).catch(() => {}),
 
+  // Note: getSocialProviders was removed in the simplification pass.
+  // We no longer offer Google / LinkedIn / Yahoo / GitHub login.
+
   // Resumes
   listResumes: () => request<Resume[]>('/resumes'),
   getResume: (id: string) => request<Resume>(`/resumes/${id}`),
@@ -221,6 +224,14 @@ export const api = {
   // ATS / AI
   atsScore: (id: string, jdText?: string) =>
     request<AtsScoreResult>(`/resumes/${id}/ats-score`, { method: 'POST', body: JSON.stringify({ jdText }) }),
+
+  // For local-mode resumes: send the content directly. Server processes
+  // in memory and never persists the resume body.
+  atsScoreContent: (resume: Resume, jdText?: string) =>
+    request<AtsScoreResult>(`/resumes/ats-score-content`, {
+      method: 'POST',
+      body: JSON.stringify({ resume, jdText }),
+    }),
   aiCritique: (input: Record<string, unknown>) =>
     request<Record<string, unknown>>('/ai/ai-critique', { method: 'POST', body: JSON.stringify(input) }),
   techGap: (input: Record<string, unknown>) =>
@@ -234,8 +245,4 @@ export const api = {
     request('/jobs', { method: 'POST', body: JSON.stringify(data) }),
   updateJob: (id: string, data: Record<string, unknown>) =>
     request(`/jobs/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
-
-  // Social providers
-  getSocialProviders: () =>
-    request<{ providers: Array<{ id: string; name: string; configured: boolean; url?: string }> }>('/auth/social/providers'),
 };

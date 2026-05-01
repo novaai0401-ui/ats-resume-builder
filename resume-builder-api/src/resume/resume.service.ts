@@ -441,6 +441,77 @@ export class ResumeService {
     };
   }
 
+  /**
+   * ATS scoring for a resume that lives on the user's device. Same
+   * limits, validation, and scoring as the by-ID variant, but never
+   * loads from or writes to the resume table. The resume object is
+   * processed in memory and discarded as soon as the response is sent.
+   */
+  async atsScoreForContent(
+    userId: string,
+    rawResume: Record<string, unknown>,
+    jdText?: string,
+  ) {
+    const productFlowRestrictionsEnabled = await this.areProductFlowRestrictionsEnabled();
+    if (productFlowRestrictionsEnabled) {
+      rateLimitOrThrow({
+        key: `resume:ats:${userId}`,
+        limit: 20,
+        windowMs: 60_000,
+        message: 'Rate limit exceeded for ATS scans.',
+      });
+    }
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    await ensureUsagePeriod(this.prisma, user);
+    const refreshedRaw = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!refreshedRaw) {
+      throw new NotFoundException('User not found');
+    }
+    const refreshed = await ensureFreePlanFloors(this.prisma, refreshedRaw);
+    if (!refreshed) {
+      throw new NotFoundException('User not found');
+    }
+    if (productFlowRestrictionsEnabled && refreshed.atsScansUsed + 1 > refreshed.atsScansLimit) {
+      if (refreshed.plan === 'FREE') {
+        throw new ForbiddenException('FREE_PLAN_ATS_LIMIT_EXCEEDED: Free plan allows ATS checks for up to 2 scans.');
+      }
+      throw new ForbiddenException('ATS scan limit exceeded.');
+    }
+    const resume = normalizeResumeForAtsOutput(rawResume as Parameters<typeof normalizeResumeForAtsOutput>[0]);
+    const resumeText = buildResumeText(resume);
+    const bulletPointers = collectBulletPointers(resume, 'local');
+    const result = computeAtsScore({
+      resumeText,
+      jdText: jdText || '',
+      skills: resume.skills,
+      sections: {
+        summary: Boolean(resume.summary?.trim()),
+        experience: Array.isArray(resume.experience) && resume.experience.length > 0,
+        education: Array.isArray(resume.education) && resume.education.length > 0,
+        skills: Array.isArray(resume.skills) && resume.skills.length >= 3,
+      },
+      bullets: collectBullets(resume),
+      experienceCount: Array.isArray(resume.experience) ? resume.experience.length : 0,
+    });
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { atsScansUsed: refreshed.atsScansUsed + 1 },
+    });
+    const issues = buildAtsIssues({
+      failedBullets: result.actionVerbRule.failedBullets,
+      bulletPointers,
+      jdUsed: result.jobDescriptionUsed,
+    });
+    return {
+      ...result,
+      issues,
+      meta: { jobDescriptionUsed: result.jobDescriptionUsed },
+    };
+  }
+
   async generatePdf(userId: string, id: string, templateIdOverride?: string) {
     const productFlowRestrictionsEnabled = await this.areProductFlowRestrictionsEnabled();
     if (productFlowRestrictionsEnabled) {

@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { getApiBase, setApiBase } from '../lib/api';
 import { biometricGate, isBiometricEnabled, setBiometricEnabled } from '../lib/security';
+import { getStorageMode, setStorageMode, type StorageMode } from '../lib/storageMode';
 import { theme } from '../lib/theme';
 
 export default function SettingsScreen() {
@@ -20,10 +21,17 @@ export default function SettingsScreen() {
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [bioOn, setBioOn] = useState(false);
+  const [storage, setStorage] = useState<StorageMode>('local');
 
   useEffect(() => {
     isBiometricEnabled().then(setBioOn);
+    getStorageMode().then(setStorage);
   }, []);
+
+  async function changeStorageMode(next: StorageMode) {
+    await setStorageMode(next);
+    setStorage(next);
+  }
 
   async function toggleBio(next: boolean) {
     if (next) {
@@ -69,6 +77,36 @@ export default function SettingsScreen() {
         </View>
 
         <View style={styles.card}>
+          <Text style={styles.title}>Where do your resumes live?</Text>
+          <Text style={styles.subtitle}>
+            By default, resumes are stored only on this device. Nobody — not us, not
+            recruiters, not anyone with database access — can read them. Cloud sync
+            uploads them to our server so you can access from any device. You can
+            change this any time.
+          </Text>
+          <TouchableOpacity
+            style={[styles.modeOption, storage === 'local' && styles.modeOptionActive]}
+            onPress={() => changeStorageMode('local')}
+          >
+            <Text style={styles.modeOptionTitle}>This device only (recommended)</Text>
+            <Text style={styles.modeOptionBody}>
+              Maximum privacy. Lose your phone? You lose your resumes too — export
+              PDFs you want to keep.
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.modeOption, storage === 'cloud' && styles.modeOptionActive]}
+            onPress={() => changeStorageMode('cloud')}
+          >
+            <Text style={styles.modeOptionTitle}>Cloud sync</Text>
+            <Text style={styles.modeOptionBody}>
+              Resumes upload to our server (encrypted in transit, stored on Supabase).
+              Sync across web, phone, tablet.
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.card}>
           <View style={styles.rowSwitch}>
             <View style={{ flex: 1, paddingRight: 12 }}>
               <Text style={styles.title}>Biometric app lock</Text>
@@ -111,4 +149,8 @@ const styles = StyleSheet.create({
   btnPrimaryText: { color: '#fff', fontSize: 15, fontWeight: '600' },
   savedText: { color: theme.colors.success, fontSize: 13, marginTop: 8, textAlign: 'center' },
   rowSwitch: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  modeOption: { padding: 12, borderRadius: 10, borderWidth: 1, borderColor: theme.colors.border, marginTop: 8, backgroundColor: '#fafbfc' },
+  modeOptionActive: { borderColor: theme.colors.primary, borderWidth: 2, backgroundColor: '#eef5ff' },
+  modeOptionTitle: { fontSize: 14, fontWeight: '700', color: theme.colors.primary },
+  modeOptionBody: { fontSize: 13, color: theme.colors.muted, marginTop: 4, lineHeight: 18 },
 });

@@ -635,6 +635,42 @@ body.resume-embed-body .main-shell {
   height: 100%;
 }
 
+/* ── Watermark (Pocket Resume) ────────────────────────────────────────
+   Renders a tiled, semi-transparent "POCKET RESUME" overlay across the
+   preview surface. Implementation notes:
+     • Uses SVG-as-data-URI so the watermark prints reliably (canvas
+       overlays drop out of print). Browsers serialise the data URI as
+       part of the page snapshot, so screenshots also keep it.
+     • Sits at z-index 50 (above content, below modals).
+     • pointer-events: none so it never intercepts editor clicks.
+     • Hidden when the parent has .template-preview-frame--clean — set
+       only after a successful paid PDF generation, never client-side.
+     • The print-media block uses !important to defeat aggressive
+       template stylesheets that try to set background: white on print.
+*/
+.template-preview-frame__container::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='420' height='240' viewBox='0 0 420 240'><g transform='rotate(-30 210 120)' fill='%231a3a5c' fill-opacity='0.12' font-family='IBM Plex Sans, Arial, sans-serif' font-weight='700' font-size='34'><text x='50%25' y='50%25' text-anchor='middle' dominant-baseline='middle'>POCKET RESUME</text></g></svg>");
+  background-repeat: repeat;
+  background-size: 420px 240px;
+}
+
+.template-preview-frame--clean::after {
+  display: none !important;
+}
+
+@media print {
+  .template-preview-frame__container::after {
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='420' height='240' viewBox='0 0 420 240'><g transform='rotate(-30 210 120)' fill='%231a3a5c' fill-opacity='0.18' font-family='IBM Plex Sans, Arial, sans-serif' font-weight='700' font-size='34'><text x='50%25' y='50%25' text-anchor='middle' dominant-baseline='middle'>POCKET RESUME</text></g></svg>") !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+
 .template-sample-pdf {
   width: 100%;
   height: 100%;

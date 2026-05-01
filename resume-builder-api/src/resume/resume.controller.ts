@@ -168,6 +168,29 @@ export class ResumeController {
     return this.resumeService.atsScoreForResume(req.user.userId, id, parsed.data.jdText);
   }
 
+  /**
+   * Stateless ATS score for resumes that live on the user's device.
+   *
+   * The privacy-mode mobile and PWA clients don't have a server-side
+   * resume row to look up by ID, so they POST the content here. We run
+   * scoring in-memory and return the result. Nothing is persisted —
+   * no row created, no log line containing the resume body, no AI
+   * provider hand-off that retains state. Same plan limits and rate
+   * limits apply as the by-ID endpoint.
+   */
+  @Post('ats-score-content')
+  @HttpCode(200)
+  atsScoreContent(
+    @Req() req: { user: { userId: string } },
+    @Body() body: { resume: unknown; jdText?: string },
+  ) {
+    if (!body?.resume || typeof body.resume !== 'object') {
+      throw new BadRequestException('resume payload is required.');
+    }
+    const jdText = typeof body.jdText === 'string' ? body.jdText : undefined;
+    return this.resumeService.atsScoreForContent(req.user.userId, body.resume as Record<string, unknown>, jdText);
+  }
+
   @Get(':id/pdf')
   async pdf(
     @Req() req: { user: { userId: string } },

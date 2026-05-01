@@ -6,6 +6,7 @@ import {
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { api, type Resume } from '../lib/api';
+import { resumeStore } from '../lib/storageMode';
 import { setSecureScreen } from '../lib/security';
 import type { AppStackParamList } from '../App';
 
@@ -24,9 +25,12 @@ export default function ResumeEditorScreen() {
   const [activeSection, setActiveSection] = useState<'contact' | 'summary' | 'skills' | 'experience' | 'education'>('summary');
 
   useEffect(() => {
-    api.getResume(resumeId)
-      .then(setResume)
-      .catch((e) => setError(e.message))
+    resumeStore.get(resumeId)
+      .then((r) => {
+        if (!r) throw new Error('Resume not found.');
+        setResume(r);
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : String(e)))
       .finally(() => setLoading(false));
   }, [resumeId]);
 
@@ -43,7 +47,7 @@ export default function ResumeEditorScreen() {
     setSaving(true);
     setError('');
     try {
-      const updated = await api.updateResume(resumeId, {
+      const updated = await resumeStore.update(resumeId, {
         title: resume.title,
         summary: resume.summary,
         skills: resume.skills,
