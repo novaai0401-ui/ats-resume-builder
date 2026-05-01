@@ -96,17 +96,27 @@ export const localResumeStore = {
 
   async create(data: Partial<Resume>): Promise<Resume> {
     const now = new Date().toISOString();
+    // Build the local-resume shape. The shared `Resume` type carries a
+    // `userId` (required on the server-side row) — for a device-local
+    // resume there's no server-side identity to hang it off, so we use
+    // an empty string. The cloud-sync upgrade path will populate it
+    // when the user opts in.
+    // `contact` and the optional list fields stay undefined when the
+    // caller didn't provide them; setting `contact: {}` would violate
+    // ContactInfo (which requires `fullName`), and undefined is the
+    // semantically-correct value for "no contact info yet."
     const resume: Resume = {
       id: uid(),
+      userId: '',
       title: data.title ?? 'Untitled Resume',
       summary: data.summary ?? '',
       skills: data.skills ?? [],
       templateId: data.templateId ?? 'classic',
       experience: data.experience ?? [],
       education: data.education ?? [],
-      projects: data.projects ?? [],
-      certifications: data.certifications ?? [],
-      contact: data.contact ?? {},
+      projects: data.projects,
+      certifications: data.certifications,
+      contact: data.contact,
       updatedAt: now,
       createdAt: now,
     };
