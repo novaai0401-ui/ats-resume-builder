@@ -13,6 +13,7 @@ import { theme } from './lib/theme';
 import { biometricGate, isBiometricEnabled, verifyAppSignature } from './lib/security';
 import { checkForUpdate } from './lib/updateCheck';
 import { getApiBase } from './lib/api';
+import { migrateCloudToLocalIfNeeded } from './lib/storageMode';
 
 import LoginScreen from './screens/LoginScreen';
 import RegisterScreen from './screens/RegisterScreen';
@@ -145,6 +146,14 @@ function RootNavigator() {
     })();
     return () => { cancelled = true; };
   }, [signOut]);
+
+  // For accounts with existing cloud-stored resumes, pull them into the
+  // device once on first authenticated launch so the user keeps every
+  // resume they had — and from now on, all writes stay on-device.
+  useEffect(() => {
+    if (!auth) return;
+    migrateCloudToLocalIfNeeded();
+  }, [auth]);
 
   // Background update check; non-blocking. Force-upgrade hard-stops the
   // app for users running a build older than minSupported.

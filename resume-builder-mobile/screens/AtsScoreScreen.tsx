@@ -5,12 +5,15 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { api, type AtsScoreResult } from '../lib/api';
+import { resumeStore } from '../lib/storageMode';
 
 export default function AtsScoreScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const { resumeId } = (route.params as { resumeId: string });
   const onGoBack = () => (navigation.canGoBack() ? navigation.goBack() : null);
+
+  const isLocalId = resumeId.startsWith('local_');
   const [jdText, setJdText] = useState('');
   const [result, setResult] = useState<AtsScoreResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -20,7 +23,17 @@ export default function AtsScoreScreen() {
     setLoading(true);
     setError('');
     try {
-      const res = await api.atsScore(resumeId, jdText.trim() || undefined);
+      let res: AtsScoreResult;
+      if (isLocalId) {
+        // Local-mode resume: send the content in the request body. The
+        // server scores it in memory and returns the result without
+        // ever writing the resume to its database.
+        const resume = await resumeStore.get(resumeId);
+        if (!resume) throw new Error('Resume not found on this device.');
+        res = await api.atsScoreContent(resume, jdText.trim() || undefined);
+      } else {
+        res = await api.atsScore(resumeId, jdText.trim() || undefined);
+      }
       setResult(res);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Scoring failed');

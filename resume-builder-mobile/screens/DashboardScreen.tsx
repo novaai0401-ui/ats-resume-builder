@@ -3,6 +3,7 @@ import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, Toucha
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { api, type Resume } from '../lib/api';
+import { resumeStore } from '../lib/storageMode';
 import { theme } from '../lib/theme';
 import type { AppStackParamList } from '../App';
 
@@ -18,7 +19,7 @@ export default function DashboardScreen() {
   const loadResumes = useCallback(async () => {
     setError('');
     try {
-      const list = await api.listResumes();
+      const list = await resumeStore.list();
       setResumes(Array.isArray(list) ? list : []);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to load resumes');
@@ -44,7 +45,7 @@ export default function DashboardScreen() {
 
   async function createResume() {
     try {
-      const created = await api.createResume({ title: 'Untitled Resume', summary: '', skills: [], experience: [], education: [] });
+      const created = await resumeStore.create({ title: 'Untitled Resume', summary: '', skills: [], experience: [], education: [] });
       navigation.navigate('ResumeEditor', { resumeId: created.id });
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Could not create resume');
