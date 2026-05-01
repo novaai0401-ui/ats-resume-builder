@@ -305,7 +305,16 @@ export default function ResumeEditor() {
   const [premiumOptimizing, setPremiumOptimizing] = useState(false);
   const [postDownloadPopup, setPostDownloadPopup] = useState<{ score: number | null } | null>(null);
   const [downloadChargeOpen, setDownloadChargeOpen] = useState(false);
-  const downloadChargeEnabled = (process.env.NEXT_PUBLIC_ENABLE_DOWNLOAD_CHARGE || '').toLowerCase() === 'true';
+  // Per the project owner's call (see PLAN.md / monetization docs):
+  // every download is paid. The flag below now defaults to ON so the
+  // Razorpay/Stripe charge modal is always shown before a PDF/DOCX
+  // download. Set NEXT_PUBLIC_ENABLE_DOWNLOAD_CHARGE=false explicitly
+  // to bypass it in dev or for free-trial promos.
+  const downloadChargeEnabled = (process.env.NEXT_PUBLIC_ENABLE_DOWNLOAD_CHARGE || 'true').toLowerCase() !== 'false';
+  // The export modal lets the user pick PDF or Word. The same payment
+  // (downloadToken) covers either format — they don't pay twice — so
+  // we capture the format choice here before opening the charge modal.
+  const [exportFormat, setExportFormat] = useState<'pdf' | 'docx'>('pdf');
   const [currentPlan, setCurrentPlan] = useState<string>(() => {
     if (typeof window === 'undefined') return 'FREE';
     return localStorage.getItem('rb_plan') || 'FREE';
@@ -2335,11 +2344,18 @@ export default function ResumeEditor() {
                             {roleError && <p className="hint error">{roleError}</p>}
                           </div>
                           <div className="experience-entry__field">
-                            <label className="label">Start (YYYY-MM)</label>
+                            <label className="label">Start month</label>
+                            {/* type="month" lets the OS supply a native picker —
+                                wheel on iOS, dialog on Android. Browsers display
+                                the chosen value as "October 2021" while still
+                                storing it as YYYY-MM, which is what the API
+                                expects. The hint nudges users who don't realise
+                                the field is tappable. */}
                             <input
-                              className={`input${startError ? ' input-error' : ''}`}
+                              className={`input month-input${startError ? ' input-error' : ''}`}
                               type="month"
                               placeholder="YYYY-MM"
+                              aria-label="Start month and year"
                               value={toMonthInputValue(exp.startDate)}
                               onChange={(e) => {
                                 const copy = [...resume.experience];
@@ -2348,11 +2364,12 @@ export default function ResumeEditor() {
                                 markDirty();
                               }}
                             />
+                            <p className="hint">Tap to pick month and year.</p>
                             {startError && <p className="hint error">{startError}</p>}
                           </div>
                           <div className="experience-entry__field">
                             <div className="experience-entry__date-head">
-                              <label className="label">End (YYYY-MM or Present)</label>
+                              <label className="label">End month</label>
                               <label className="small experience-entry__present-toggle">
                                 <input
                                   type="checkbox"
@@ -2368,9 +2385,10 @@ export default function ResumeEditor() {
                               </label>
                             </div>
                             <input
-                              className={`input${endError ? ' input-error' : ''}`}
+                              className={`input month-input${endError ? ' input-error' : ''}`}
                               type="month"
                               placeholder="YYYY-MM"
+                              aria-label="End month and year"
                               value={toMonthInputValue(exp.endDate)}
                               disabled={endIsPresent}
                               onChange={(e) => {
@@ -2426,12 +2444,22 @@ export default function ResumeEditor() {
                                         {bulletNeedsAttention ? '!' : bulletLooksGood ? '\u2713' : ''}
                                       </span>
                                     )}
-                                    <input
-                                      className={`input${highlightHasInputError ? ' input-error' : ''}`}
+                                    {/* Multiline so users on phones can see and edit the full
+                                        bullet, not just the first ~30 chars. rows=2 starts compact;
+                                        the inline auto-grow handler bumps it as the user types so
+                                        we never trap their text behind a horizontal scroll. */}
+                                    <textarea
+                                      className={`input bullet-input${highlightHasInputError ? ' input-error' : ''}`}
                                       placeholder="Improved checkout conversion by 18% by redesigning the flow."
                                       value={line}
+                                      rows={2}
                                       data-testid={`experience-highlight-${expIdx}-${highlightIdx}`}
                                       data-highlight-id={`experience-highlight-${expIdx}-${highlightIdx}`}
+                                      onInput={(e) => {
+                                        const el = e.currentTarget;
+                                        el.style.height = 'auto';
+                                        el.style.height = `${Math.min(el.scrollHeight, 240)}px`;
+                                      }}
                                       onChange={(e) => {
                                         const copy = [...resume.experience];
                                         const nextHighlights = [...(copy[expIdx].highlights || [])];
@@ -3141,32 +3169,54 @@ export default function ResumeEditor() {
                 style={{ fontSize: '0.8rem' }}
                 onClick={() => {
                   const c = aiCritiqueResult.critique;
+                  // Count actionable suggestions BEFORE we mutate. If the AI
+                  // provider was unconfigured (GROQ_API_KEY missing) the
+                  // backend returns rule-based critique with empty section
+                  // arrays — clicking "Apply" then silently does nothing
+                  // and the user thinks the feature is broken. Surface
+                  // that explicitly.
+                  const summaryChange = c.sectionSuggestions.summary[0]
+                    && c.sectionSuggestions.summary[0] !== resume.summary
+                    ? 1 : 0;
+                  const newSkills = c.sectionSuggestions.skills.filter((s) => !resume.skills.includes(s));
+                  const expChanges = c.sectionSuggestions.experience.filter((sug) => {
+                    const entry = resume.experience[sug.expIndex];
+                    return entry && entry.highlights[sug.bulletIndex] !== sug.suggested;
+                  });
+                  const totalChanges = summaryChange + newSkills.length + expChanges.length;
+
+                  if (totalChanges === 0) {
+                    showSnackbar(
+                      'info',
+                      'No new suggestions to apply. Configure GROQ_API_KEY for AI-powered critique, or edit bullets manually.',
+                    );
+                    return;
+                  }
+
                   setResume((prev) => {
                     let updated = { ...prev };
-                    if (c.sectionSuggestions.summary[0]) {
+                    if (summaryChange) {
                       updated = { ...updated, summary: c.sectionSuggestions.summary[0] };
                     }
-                    if (c.sectionSuggestions.skills.length > 0) {
-                      const newSkills = c.sectionSuggestions.skills.filter((s) => !prev.skills.includes(s));
+                    if (newSkills.length > 0) {
                       updated = { ...updated, skills: [...prev.skills, ...newSkills] };
                     }
-                    if (c.sectionSuggestions.experience.length > 0) {
+                    if (expChanges.length > 0) {
                       const exp = [...updated.experience];
-                      for (const sug of c.sectionSuggestions.experience) {
+                      for (const sug of expChanges) {
                         const entry = exp[sug.expIndex];
                         if (entry) {
                           const highlights = [...entry.highlights];
-                          if (sug.bulletIndex < highlights.length) {
-                            highlights[sug.bulletIndex] = sug.suggested;
-                            exp[sug.expIndex] = { ...entry, highlights };
-                          }
+                          highlights[sug.bulletIndex] = sug.suggested;
+                          exp[sug.expIndex] = { ...entry, highlights };
                         }
                       }
                       updated = { ...updated, experience: exp };
                     }
                     return updated;
                   });
-                  showSnackbar('success', 'All free suggestions applied.');
+                  markDirty();
+                  showSnackbar('success', `Applied ${totalChanges} suggestion${totalChanges === 1 ? '' : 's'}.`);
                 }}
               >
                 Apply All Free Suggestions
@@ -3272,8 +3322,14 @@ export default function ResumeEditor() {
               try {
                 await ensureTemplateSavedForExport();
                 const exportTemplateId = String(normalizedTemplateParam || resume.templateId || '').trim() || undefined;
-                await api.downloadPdf(resumeId, exportTemplateId, token);
-                setMessage('PDF downloaded. A copy has also been emailed to you.');
+                const fileBaseName = resume.contact?.fullName || resume.title || '';
+                if (exportFormat === 'docx') {
+                  await api.downloadDocx(resumeId, token, fileBaseName);
+                  setMessage('Word document downloaded. A copy has also been emailed to you.');
+                } else {
+                  await api.downloadPdf(resumeId, exportTemplateId, token, fileBaseName);
+                  setMessage('PDF downloaded. A copy has also been emailed to you.');
+                }
                 setExportOpen(false);
                 const scoreNow = atsReview.result?.roleAdjustedScore ?? null;
                 setPostDownloadPopup({ score: typeof scoreNow === 'number' ? scoreNow : null });
@@ -3388,6 +3444,7 @@ export default function ResumeEditor() {
                     disabled={exportIssues.length > 0 && !exportApproved}
                     onClick={async () => {
                       if (!resumeId) return;
+                      setExportFormat('pdf');
                       if (downloadChargeEnabled) {
                         setDownloadChargeOpen(true);
                         return;
@@ -3395,7 +3452,8 @@ export default function ResumeEditor() {
                       try {
                         await ensureTemplateSavedForExport();
                         const exportTemplateId = String(normalizedTemplateParam || resume.templateId || '').trim() || undefined;
-                        await api.downloadPdf(resumeId, exportTemplateId);
+                        const fileBaseName = resume.contact?.fullName || resume.title || '';
+                        await api.downloadPdf(resumeId, exportTemplateId, undefined, fileBaseName);
                         setMessage('PDF downloaded. A copy has also been emailed to you.');
                         setExportOpen(false);
                         const scoreNow = atsReview.result?.roleAdjustedScore ?? null;
@@ -3408,6 +3466,30 @@ export default function ResumeEditor() {
                     }}
                   >
                     Download PDF
+                  </button>
+                  <button
+                    className="btn"
+                    disabled={exportIssues.length > 0 && !exportApproved}
+                    onClick={async () => {
+                      if (!resumeId) return;
+                      setExportFormat('docx');
+                      if (downloadChargeEnabled) {
+                        setDownloadChargeOpen(true);
+                        return;
+                      }
+                      try {
+                        const fileBaseName = resume.contact?.fullName || resume.title || '';
+                        await api.downloadDocx(resumeId, undefined, fileBaseName);
+                        setMessage('Word document downloaded. A copy has also been emailed to you.');
+                        setExportOpen(false);
+                      } catch (err: unknown) {
+                        const errorMessage = friendlyPdfErrorMessage(err, 'Word export failed');
+                        setMessage(errorMessage);
+                        showSnackbar('error', errorMessage);
+                      }
+                    }}
+                  >
+                    Download Word
                   </button>
                   <button
                     className="btn secondary"

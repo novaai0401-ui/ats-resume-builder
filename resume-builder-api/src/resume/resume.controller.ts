@@ -214,9 +214,36 @@ export class ResumeController {
       this.downloadCharge.assertDownloadToken(String(downloadToken || ''), req.user.userId, id);
     }
     const pdfBuffer = await this.resumeService.generatePdf(req.user.userId, id, templateId);
+    const filename = await this.resumeService.buildExportFileName(req.user.userId, id, 'pdf');
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="resume-${id}.pdf"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(pdfBuffer);
+  }
+
+  /**
+   * DOCX export. Same auth + payment gate as the PDF route. We render
+   * the resume into a Word-compatible document built from the structured
+   * resume fields (not the styled HTML), which keeps the file ATS-safe
+   * and small (~10–30 KB).
+   */
+  @Get(':id/docx')
+  async docx(
+    @Req() req: { user: { userId: string } },
+    @Param('id') id: string,
+    @Query('downloadToken') downloadToken: string | undefined,
+    @Res() res: Response,
+  ) {
+    if (this.downloadCharge.isFeatureEnabled()) {
+      this.downloadCharge.assertDownloadToken(String(downloadToken || ''), req.user.userId, id);
+    }
+    const buffer = await this.resumeService.generateDocx(req.user.userId, id);
+    const filename = await this.resumeService.buildExportFileName(req.user.userId, id, 'docx');
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    );
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(buffer);
   }
 
   @Get('debug/export-html')

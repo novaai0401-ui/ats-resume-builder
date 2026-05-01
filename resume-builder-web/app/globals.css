@@ -1889,6 +1889,35 @@ body.resume-embed-body .main-shell {
   box-shadow: 0 0 0 3px rgba(222, 109, 109, 0.18);
 }
 
+/* Bullet rows. The editor uses <textarea> here so users on phones can
+   see and edit the full sentence — a single-line <input> truncates and
+   forces horizontal scroll, which is the bug the project owner reported.
+   `field-sizing: content` is the modern way to auto-grow; we still set
+   min-height + a JS fallback in the component for browsers without it
+   (Safari < 17.4). */
+.bullet-input {
+  min-height: 56px;
+  line-height: 1.45;
+  font: inherit;
+  resize: vertical;
+  white-space: pre-wrap;
+  word-break: break-word;
+  field-sizing: content;
+}
+
+/* Native month input on iOS Safari is small and centers the placeholder
+   awkwardly. Force a 44pt tappable height (Apple HIG minimum) and align
+   left so "October 2021" reads like a normal field value. */
+.month-input {
+  min-height: 44px;
+  text-align: left;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.month-input::-webkit-date-and-time-value {
+  text-align: left;
+}
+
 .label {
   display: block;
   margin-bottom: 6px;

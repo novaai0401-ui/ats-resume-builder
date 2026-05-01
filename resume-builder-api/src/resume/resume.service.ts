@@ -15,6 +15,9 @@ import { sanitizeImportedResume } from './import-sanitizer';
 import { ACTION_VERB_REQUIRED_RATIO, analyzeActionVerbRule, normalizeBulletText, type ActionVerbFailure } from './action-verb-rule';
 import { SettingsService } from '../settings/settings.service';
 import { MailService } from '../mail/mail.service';
+import { renderResumeDocx, buildResumeFileName } from './docx-export';
+
+
 
 /**
  * Detect whether we're running in a serverless environment (AWS Lambda).
@@ -603,6 +606,48 @@ export class ResumeService {
       return buffer;
     } finally {
       await browser.close();
+    }
+  }
+
+  /**
+   * Build a Word (.docx) document from the resume's structured fields.
+   *
+   * Same gates as PDF (auth via JWT, payment via downloadToken). We
+   * deliberately do NOT route through Puppeteer / HTML — DOCX from the
+   * styled HTML would balloon to 1MB+ with embedded fonts and trip up
+   * ATS parsers. The text-first DOCX builder lives in `./docx-export`.
+   */
+  async generateDocx(userId: string, id: string): Promise<Buffer> {
+    const productFlowRestrictionsEnabled = await this.areProductFlowRestrictionsEnabled();
+    if (productFlowRestrictionsEnabled) {
+      rateLimitOrThrow({
+        key: `resume:docx:${userId}`,
+        limit: 8,
+        windowMs: 60_000,
+        message: 'Rate limit exceeded for Word export.',
+      });
+    }
+    const resume = await this.get(userId, id);
+    return renderResumeDocx(resume as Parameters<typeof renderResumeDocx>[0]);
+  }
+
+  /**
+   * Resolve the user-facing filename used in Content-Disposition for
+   * PDF and DOCX downloads. Falls back to the resume id when the user
+   * hasn't filled in their name yet.
+   */
+  async buildExportFileName(
+    userId: string,
+    id: string,
+    ext: 'pdf' | 'docx',
+  ): Promise<string> {
+    try {
+      const resume = await this.get(userId, id);
+      return buildResumeFileName(resume as Parameters<typeof buildResumeFileName>[0], id, ext);
+    } catch {
+      // If the resume can't be loaded, the caller is going to throw
+      // anyway. Provide a safe filename so we don't crash here.
+      return `resume-${id}.${ext}`;
     }
   }
 
