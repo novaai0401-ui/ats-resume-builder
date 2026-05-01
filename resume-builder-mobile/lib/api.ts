@@ -208,6 +208,9 @@ export const api = {
 
   logout: () => request('/auth/logout', { method: 'POST' }).catch(() => {}),
 
+  // Note: getSocialProviders was removed in the simplification pass.
+  // We no longer offer Google / LinkedIn / Yahoo / GitHub login.
+
   // Resumes
   listResumes: () => request<Resume[]>('/resumes'),
   getResume: (id: string) => request<Resume>(`/resumes/${id}`),
@@ -242,8 +245,4 @@ export const api = {
     request('/jobs', { method: 'POST', body: JSON.stringify(data) }),
   updateJob: (id: string, data: Record<string, unknown>) =>
     request(`/jobs/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
-
-  // Social providers
-  getSocialProviders: () =>
-    request<{ providers: Array<{ id: string; name: string; configured: boolean; url?: string }> }>('/auth/social/providers'),
 };

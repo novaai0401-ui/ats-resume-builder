@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import TemplateCard, { type TemplateCardItem } from '../components/TemplateCard';
+import { WatermarkOverlay } from '../components/WatermarkOverlay';
 
 const TEMPLATE_CATALOG: TemplateCardItem[] = [
   { id: 'classic', name: 'Classic ATS', description: 'Single-column, clean ATS layout.', tags: ['ATS-safe', 'Classic'] },
@@ -48,6 +49,7 @@ export default function TemplateSelectionScreen() {
           <Text style={styles.previewNote}>
             Full template preview renders via WebView in production builds.
           </Text>
+          <WatermarkOverlay />
         </View>
         <View style={styles.previewActions}>
           <TouchableOpacity

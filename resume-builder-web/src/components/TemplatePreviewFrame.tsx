@@ -17,6 +17,10 @@ type TemplatePreviewFrameProps = {
   pageWidth?: number;
   pageHeight?: number;
   mode?: 'full' | 'thumbnail';
+  // Set to true ONLY after a paid download has been verified and the
+  // user is being shown a final clean preview. Never expose this in a
+  // public/free flow — the watermark is the monetisation gate.
+  clean?: boolean;
 };
 
 export function TemplatePreviewFrame({
@@ -24,6 +28,7 @@ export function TemplatePreviewFrame({
   pageWidth = TEMPLATE_PAGE_WIDTH,
   pageHeight = TEMPLATE_PAGE_HEIGHT,
   mode = 'full',
+  clean = false,
 }: TemplatePreviewFrameProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
@@ -50,7 +55,11 @@ export function TemplatePreviewFrame({
   }, [updateScale]);
 
   return (
-    <div className="template-preview-frame__container" data-preview-frame-mode={mode} ref={containerRef}>
+    <div
+      className={`template-preview-frame__container${clean ? ' template-preview-frame--clean' : ''}`}
+      data-preview-frame-mode={mode}
+      ref={containerRef}
+    >
       <div
         className="template-preview-frame__page"
         style={{ transform: `scale(${scale}) translateZ(0)`, width: pageWidth, height: pageHeight }}
