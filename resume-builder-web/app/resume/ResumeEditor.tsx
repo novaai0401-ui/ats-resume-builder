@@ -3186,8 +3186,11 @@ export default function ResumeEditor() {
                   const totalChanges = summaryChange + newSkills.length + expChanges.length;
 
                   if (totalChanges === 0) {
+                    // showSnackbar's severity union is ('success' | 'error') only.
+                    // This is an informational nudge, not a failure, so keep
+                    // it on 'success' (green) rather than the red 'error' tone.
                     showSnackbar(
-                      'info',
+                      'success',
                       'No new suggestions to apply. Configure GROQ_API_KEY for AI-powered critique, or edit bullets manually.',
                     );
                     return;
