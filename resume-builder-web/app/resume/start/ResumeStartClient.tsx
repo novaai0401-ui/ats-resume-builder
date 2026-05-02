@@ -17,6 +17,7 @@ import {
 } from '@/src/lib/resume-flow';
 import { ingestResumeFile } from '@/src/lib/resume-ingest';
 import { useResumeStore } from '@/src/lib/resume-store';
+import { PrivacyBadge } from '@/src/components/PrivacyBadge';
 
 const SECTION_LABELS: Record<SectionType, string> = {
   contact: 'Header & Contact',
@@ -92,6 +93,8 @@ export default function ResumeStartClient() {
           <h2>Start your resume</h2>
           <p className="small">Are you uploading an existing resume?</p>
         </div>
+
+        <PrivacyBadge variant="upload" />
 
         <div className="start-shell__choices">
           <div className="start-choice start-choice--upload">

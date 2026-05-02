@@ -6,6 +6,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { TkxBottomNav, TkxDrawer } from 'tekivex-ui';
 import useFeatureFlags from '@/src/hooks/use-feature-flags';
 import { RESUME_CREATE_RATE_LIMIT_CODE, api, Resume, ResumeImportResult, UploadResumeResponse, getAccessToken, isApiRequestError } from '@/src/lib/api';
+import { PrivacyBadge } from '@/src/components/PrivacyBadge';
 import { useResumeStore } from '@/src/lib/resume-store';
 import {
   REQUIRED_FLOW_SEQUENCE,
@@ -3421,6 +3422,8 @@ export default function ResumeEditor() {
               </div>
               <button className="btn secondary" onClick={() => setExportOpen(false)}>Close</button>
             </div>
+
+            <PrivacyBadge variant="download" />
             {exportLoading ? (
               <p className="small">Running ATS checks...</p>
             ) : (
