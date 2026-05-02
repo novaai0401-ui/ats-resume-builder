@@ -11,11 +11,14 @@ const isProd = process.env.NODE_ENV === 'production';
 // move the API to a different host you MUST add it here.
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001';
 
-// Trusted Types (Chromium) blocks unsafe DOM sinks like innerHTML unless
-// the value passes through a registered policy. Next.js needs the
-// 'nextjs' / 'nextjs#bundler' policies to hydrate; we add our own
-// 'pocket-resume' policy for any deliberate HTML injection.
-const trustedTypes = "require-trusted-types-for 'script'; trusted-types nextjs nextjs#bundler pocket-resume default";
+// Trusted Types is intentionally NOT enforced. Razorpay and Stripe both
+// load their checkout SDKs by assigning to <script>.src directly — that
+// pattern fails the `require-trusted-types-for 'script'` directive in
+// Chromium and breaks payment flows entirely (visible error:
+// "Failed to set the 'src' property on 'HTMLScriptElement': This
+// document requires 'TrustedScriptURL' assignment"). Until both SDKs
+// publish Trusted-Types-compliant loaders we ship the rest of the
+// hardened CSP without this directive.
 
 const csp = [
   "default-src 'self'",
@@ -37,7 +40,7 @@ const csp = [
   "base-uri 'self'",
   "form-action 'self'",
   "frame-ancestors 'none'",
-  ...(isProd ? ['upgrade-insecure-requests', 'block-all-mixed-content', trustedTypes] : []),
+  ...(isProd ? ['upgrade-insecure-requests', 'block-all-mixed-content'] : []),
 ].join('; ');
 
 const securityHeaders = [
