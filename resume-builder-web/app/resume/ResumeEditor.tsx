@@ -1665,7 +1665,8 @@ export default function ResumeEditor() {
                             onClick={() => {
                               if (!allSkills.includes(kw)) {
                                 setResume((prev) => ({ ...prev, skills: [...prev.skills, kw] }));
-                                showSnackbar('success', `Added "${kw}" to skills.`);
+                                markDirty();
+                                showSnackbar('success', `Added "${kw}" — tap "Save changes" to keep it.`);
                               }
                             }}
                           >
@@ -1709,7 +1710,8 @@ export default function ResumeEditor() {
                           onClick={() => {
                             if (!allSkills.includes(skill)) {
                               setResume((prev) => ({ ...prev, skills: [...prev.skills, skill] }));
-                              showSnackbar('success', `Added "${skill}" to skills.`);
+                              markDirty();
+                              showSnackbar('success', `Added "${skill}" — tap "Save changes" to keep it.`);
                             }
                           }}
                         >
@@ -3074,7 +3076,12 @@ export default function ResumeEditor() {
                       style={{ fontSize: '0.7rem', padding: '3px 8px', marginTop: 4 }}
                       onClick={() => {
                         setResume((prev) => ({ ...prev, summary: suggestion }));
-                        showSnackbar('success', 'Summary updated.');
+                        // Without markDirty the change lands in React state but
+                        // the Save indicator stays grey, which makes users
+                        // (correctly) think nothing happened. Mark dirty + tell
+                        // them what to do next.
+                        markDirty();
+                        showSnackbar('success', 'Summary updated. Tap "Save changes" to keep it.');
                       }}
                     >
                       Apply
@@ -3095,7 +3102,8 @@ export default function ResumeEditor() {
                       onClick={() => {
                         if (!allSkills.includes(skill)) {
                           setResume((prev) => ({ ...prev, skills: [...prev.skills, skill] }));
-                          showSnackbar('success', `Added "${skill}" to skills.`);
+                          markDirty();
+                          showSnackbar('success', `Added "${skill}" — tap "Save changes" to keep it.`);
                         }
                       }}
                       title="Click to add"
@@ -3251,13 +3259,13 @@ export default function ResumeEditor() {
             {techGapResult.missingCriticalSkills.length > 0 && (
               <div className="ai-critique-section">
                 <h4>Missing Critical Skills</h4>
-                <div className="ai-keywords">{techGapResult.missingCriticalSkills.map((s, i) => (<span key={i} className="ats-chip ats-chip--missing" style={{ cursor: 'pointer' }} onClick={() => { if (!allSkills.includes(s)) { setResume((prev) => ({ ...prev, skills: [...prev.skills, s] })); showSnackbar('success', `Added "${s}".`); } }}>+ {s}</span>))}</div>
+                <div className="ai-keywords">{techGapResult.missingCriticalSkills.map((s, i) => (<span key={i} className="ats-chip ats-chip--missing" style={{ cursor: 'pointer' }} onClick={() => { if (!allSkills.includes(s)) { setResume((prev) => ({ ...prev, skills: [...prev.skills, s] })); markDirty(); showSnackbar('success', `Added "${s}" — tap "Save changes" to keep it.`); } }}>+ {s}</span>))}</div>
               </div>
             )}
             {techGapResult.missingSecondarySkills.length > 0 && (
               <div className="ai-critique-section">
                 <h4>Missing Secondary Skills</h4>
-                <div className="ai-keywords">{techGapResult.missingSecondarySkills.map((s, i) => (<span key={i} className="ats-chip ats-chip--suggestion" style={{ cursor: 'pointer' }} onClick={() => { if (!allSkills.includes(s)) { setResume((prev) => ({ ...prev, skills: [...prev.skills, s] })); showSnackbar('success', `Added "${s}".`); } }}>+ {s}</span>))}</div>
+                <div className="ai-keywords">{techGapResult.missingSecondarySkills.map((s, i) => (<span key={i} className="ats-chip ats-chip--suggestion" style={{ cursor: 'pointer' }} onClick={() => { if (!allSkills.includes(s)) { setResume((prev) => ({ ...prev, skills: [...prev.skills, s] })); markDirty(); showSnackbar('success', `Added "${s}" — tap "Save changes" to keep it.`); } }}>+ {s}</span>))}</div>
               </div>
             )}
             {techGapResult.leadershipGap.length > 0 && (
@@ -3496,30 +3504,20 @@ export default function ResumeEditor() {
                   </button>
                   <button
                     className="btn secondary"
-                    disabled={exportIssues.length > 0 && !exportApproved}
-                    onClick={async () => {
-                      if (!resumeId) return;
+                    onClick={() => {
+                      // Print preview is a free read-only experience. We
+                      // deliberately don't hit the server's /pdf endpoint
+                      // (which is paywalled) — instead we drive the browser's
+                      // native print dialog on the in-app preview, which
+                      // already carries the POCKET RESUME watermark via
+                      // `.template-preview-frame__container::after` in
+                      // globals.css. The user gets a printable / save-as-PDF
+                      // copy with the watermark intact, no server call,
+                      // no charge.
                       try {
-                        await ensureTemplateSavedForExport();
-                        const exportTemplateId = String(normalizedTemplateParam || resume.templateId || '').trim() || undefined;
-                        const blob = await api.getPdfBlob(resumeId, exportTemplateId);
-                        const url = window.URL.createObjectURL(blob);
-                        const popup = window.open(url, '_blank');
-                        // Some browsers block opens triggered indirectly; fall back so the user
-                        // still gets the printable PDF instead of seeing nothing happen.
-                        if (!popup) {
-                          const a = document.createElement('a');
-                          a.href = url;
-                          a.target = '_blank';
-                          a.rel = 'noopener';
-                          document.body.appendChild(a);
-                          a.click();
-                          a.remove();
-                        }
-                      } catch (err: unknown) {
-                        const errorMessage = friendlyPdfErrorMessage(err, 'Print preview failed');
-                        setMessage(errorMessage);
-                        showSnackbar('error', errorMessage);
+                        if (typeof window !== 'undefined') window.print();
+                      } catch {
+                        showSnackbar('error', 'Print preview failed. Try the Download PDF flow instead.');
                       }
                     }}
                   >

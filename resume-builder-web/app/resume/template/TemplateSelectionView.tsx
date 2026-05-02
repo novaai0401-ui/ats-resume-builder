@@ -17,8 +17,13 @@ import { useResumeStore, type ResumeDraft } from '@/src/lib/resume-store';
 import { TemplatePreviewFrame } from '@/src/components/TemplatePreviewFrame';
 import { resolveTemplateId, templateRegistry, type TemplateId } from '@/shared/templateRegistry';
 
+// Mirrors the editor: default ON unless explicitly disabled in env. The
+// server-side gate (ENABLE_DOWNLOAD_CHARGE) returns 403 Forbidden when
+// the client skips the charge modal, which is what was happening on the
+// template page before this fix — the click went straight to the API
+// and bounced with "Payment required to download this resume."
 const DOWNLOAD_CHARGE_ENABLED =
-  (process.env.NEXT_PUBLIC_ENABLE_DOWNLOAD_CHARGE || '').toLowerCase() === 'true';
+  (process.env.NEXT_PUBLIC_ENABLE_DOWNLOAD_CHARGE || 'true').toLowerCase() !== 'false';
 
 function friendlyPdfError(error: unknown, fallback: string): string {
   if (isApiRequestError(error)) {

@@ -664,10 +664,46 @@ body.resume-embed-body .main-shell {
 }
 
 @media print {
+  /* Watermark stays visible through Save-as-PDF / printer output. */
   .template-preview-frame__container::after {
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='420' height='240' viewBox='0 0 420 240'><g transform='rotate(-30 210 120)' fill='%231a3a5c' fill-opacity='0.18' font-family='IBM Plex Sans, Arial, sans-serif' font-weight='700' font-size='34'><text x='50%25' y='50%25' text-anchor='middle' dominant-baseline='middle'>POCKET RESUME</text></g></svg>") !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+  }
+
+  /* When the user clicks "Print preview" we kick window.print(). The
+     editor chrome (sidebar, buttons, modal overlays, the AI critique
+     panel) shouldn't appear on the printed page — only the resume
+     itself. We hide everything by default and re-show the live preview
+     subtree. The selectors here cover both the desktop split-pane
+     editor (.editor-shell__preview / .resume-preview) and the modal
+     preview opened from the export dialog. */
+  body * { visibility: hidden !important; }
+  .editor-shell__preview,
+  .editor-shell__preview *,
+  .resume-preview,
+  .resume-preview *,
+  .template-preview-frame__container,
+  .template-preview-frame__container *,
+  .resume-export-page,
+  .resume-export-page * {
+    visibility: visible !important;
+  }
+  /* Anchor the visible preview to the page top so the printed PDF
+     starts cleanly instead of inheriting the editor's layout offset. */
+  .template-preview-frame__container,
+  .resume-preview {
+    position: absolute !important;
+    inset: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+  }
+  /* Hide UI furniture explicitly in case a parent has visibility: visible. */
+  .topbar, .editor-shell__sidebar, .modal, .modal-backdrop, .snackbar,
+  .download-charge-modal, .post-download-popup, .ai-critique__panel,
+  .tech-gap__panel, .export-modal, .export-actions, button {
+    display: none !important;
   }
 }
 
