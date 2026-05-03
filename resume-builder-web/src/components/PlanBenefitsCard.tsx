@@ -1,0 +1,141 @@
+'use client';
+
+/**
+ * What-you-get summary for each plan tier. Single source of truth so
+ * the billing page, the dashboard banner, and the post-upgrade
+ * confirmation all show the same list — and no drift when the plan
+ * config changes on the server.
+ *
+ * The list is deliberately concrete (numbers, named features) instead
+ * of generic ("more access"). After the user reported "I paid but
+ * nothing seems different", the goal is to make the tangible upgrade
+ * obvious in three seconds.
+ */
+
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+
+type Plan = 'FREE' | 'STUDENT' | 'PRO';
+
+type Benefit = { label: string; details: string };
+
+const BENEFITS: Record<Plan, Benefit[]> = {
+  FREE: [
+    { label: 'Build & edit unlimited resumes', details: 'No cap on saved resumes you can edit.' },
+    { label: '2 ATS scans / month', details: 'See your score against ATS rules.' },
+    { label: '5 PDF exports / month', details: 'Each export ₹49.' },
+    { label: 'All ATS-safe templates', details: '10+ layouts that pass ATS parsers.' },
+    { label: 'Rule-based bullet checks', details: 'Action verb + length suggestions.' },
+  ],
+  STUDENT: [
+    { label: '50 ATS scans / month', details: '25× the free tier — iterate fast.' },
+    { label: '25 PDF + Word exports / month', details: 'No per-download charge for paid tier.' },
+    { label: 'AI Resume Critique (GROQ Llama 3.3 70B)', details: 'Real LLM rewrites for summary, skills, bullets.' },
+    { label: 'Tech Gap Analysis', details: 'See which skills/keywords your industry expects.' },
+    { label: 'Industry-tailored templates', details: 'Suggested by role + experience level.' },
+    { label: 'Mentor Mode (Career Insights)', details: 'Ask the AI mentor about roles, paths, technologies, learning resources.' },
+    { label: '10 saved resumes', details: 'Track different versions per role.' },
+    { label: 'Email support within 48h', details: 'Reply from a real human.' },
+  ],
+  PRO: [
+    { label: '300 ATS scans / month', details: 'Effectively unlimited for a job hunt.' },
+    { label: '200 PDF + Word exports / month', details: 'Run portfolio variants without a worry.' },
+    { label: 'Everything in Student, plus:', details: '' },
+    { label: 'Premium AI Career Guidance', details: 'Long-form rewrites, role-fit scoring, salary band hints.' },
+    { label: 'Cover Letter Studio (unlimited)', details: 'Tailored cover letters per JD with tone control.' },
+    { label: 'Interview Prep Cards', details: 'Likely questions + suggested answers from your resume.' },
+    { label: 'Priority queue for AI calls', details: 'Skip rate-limit waits during peak hours.' },
+    { label: '100 saved resumes', details: 'Full job-hunt portfolio.' },
+    { label: 'Priority support within 24h', details: 'Slack channel access.' },
+  ],
+};
+
+function readPlan(): Plan {
+  try {
+    const stored = window.localStorage.getItem('rb_plan');
+    if (stored === 'PRO' || stored === 'STUDENT' || stored === 'FREE') return stored;
+  } catch { /* private mode */ }
+  return 'FREE';
+}
+
+const PLAN_LABEL: Record<Plan, string> = {
+  FREE: 'Free',
+  STUDENT: 'Student',
+  PRO: 'Pro',
+};
+
+const NEXT_TIER: Record<Plan, { plan: Plan; cta: string } | null> = {
+  FREE: { plan: 'STUDENT', cta: 'Upgrade to Student — ₹399/mo' },
+  STUDENT: { plan: 'PRO', cta: 'Upgrade to Pro — ₹799/mo' },
+  PRO: null,
+};
+
+/**
+ * Compact benefits card shown on the dashboard so paying users see
+ * what they unlocked, every time they visit. Free users see the same
+ * card with a "What you get when you upgrade" framing.
+ */
+export function PlanBenefitsCard({ defaultPlan }: { defaultPlan?: Plan } = {}) {
+  const [plan, setPlan] = useState<Plan>(defaultPlan ?? 'FREE');
+
+  useEffect(() => {
+    setPlan(readPlan());
+    const refresh = () => setPlan(readPlan());
+    window.addEventListener('storage', refresh);
+    window.addEventListener('auth-state-changed', refresh);
+    return () => {
+      window.removeEventListener('storage', refresh);
+      window.removeEventListener('auth-state-changed', refresh);
+    };
+  }, []);
+
+  const benefits = BENEFITS[plan];
+  const next = NEXT_TIER[plan];
+  const isFree = plan === 'FREE';
+
+  return (
+    <section
+      className="card"
+      style={{
+        background: isFree ? '#f7f9fc' : 'linear-gradient(180deg, #f3fbf6 0%, #ffffff 100%)',
+        borderLeft: isFree ? '4px solid #c4d5e0' : '4px solid #1e7a3a',
+        marginBottom: 18,
+      }}
+      aria-label="Plan benefits"
+    >
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+        <h2 style={{ margin: 0, fontSize: 18 }}>
+          {isFree ? 'You\'re on the Free plan' : `What\'s unlocked on your ${PLAN_LABEL[plan]} plan`}
+        </h2>
+        {next ? (
+          <Link className="btn" href="/billing" style={{ fontSize: 13, padding: '8px 14px' }}>
+            {next.cta}
+          </Link>
+        ) : (
+          <span className="plan-badge plan-badge--pro" style={{ fontSize: 11 }}>Top tier</span>
+        )}
+      </header>
+
+      <ul style={{ margin: '12px 0 0', paddingLeft: 0, listStyle: 'none', display: 'grid', gap: 8 }}>
+        {benefits.map((b) => (
+          <li key={b.label} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+            <span aria-hidden="true" style={{ color: '#1e7a3a', fontWeight: 700, lineHeight: 1.4 }}>✓</span>
+            <span style={{ flex: 1, lineHeight: 1.4 }}>
+              <strong style={{ color: '#1a3a5c' }}>{b.label}</strong>
+              {b.details ? <span className="small" style={{ color: '#5a6778' }}> — {b.details}</span> : null}
+            </span>
+          </li>
+        ))}
+      </ul>
+
+      {isFree ? (
+        <p className="small" style={{ marginTop: 14, color: '#5a6778' }}>
+          Pocket Resume stays free forever for the basics. The Student plan adds AI critique,
+          tech-gap analysis, and Mentor Mode for ₹399/mo — cancel anytime.
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
+export { BENEFITS as PLAN_BENEFITS };

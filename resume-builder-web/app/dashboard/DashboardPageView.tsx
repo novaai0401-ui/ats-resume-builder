@@ -17,6 +17,7 @@ import {
 import { getSampleResumeForIndustry } from '@/src/lib/sample-resume-data';
 import { recommendTemplates } from '@/src/lib/template-recommendation';
 import { PrivacyBadge } from '@/src/components/PrivacyBadge';
+import { PlanBenefitsCard } from '@/src/components/PlanBenefitsCard';
 import { defaultTemplateId, resolveTemplateId, templateRegistry, type TemplateId } from '@/shared/templateRegistry';
 
 const DASHBOARD_TEMPLATE_OPTIONS = TEMPLATE_CATALOG.map((template) => templateRegistry[template.id]);
@@ -297,6 +298,7 @@ export default function DashboardPageView({
       </header>
 
       <PrivacyBadge variant="dashboard" />
+      <PlanBenefitsCard />
 
       <section
         data-testid="dashboard-preview-profile"
