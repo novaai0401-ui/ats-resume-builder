@@ -67,6 +67,37 @@ body.resume-embed-body .main-shell {
   gap: 12px;
 }
 
+/* Plan badge in the top nav — single source of truth for "what tier
+   am I on right now". Free users see a subtle outline tone (so it
+   stays a noticeable upgrade target without screaming); paid users
+   get a green tone that matches the success colour elsewhere in the
+   app, plus a star prefix for the Pro tier. */
+.plan-badge {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 6px 12px !important;
+  border-radius: 999px;
+  text-decoration: none;
+}
+.plan-badge--free {
+  background: var(--card) !important;
+  color: var(--fg) !important;
+  border: 1px dashed var(--border) !important;
+}
+.plan-badge--student {
+  background: #1e7a3a !important;
+  color: #fff !important;
+  border: 1px solid #1e7a3a !important;
+}
+.plan-badge--pro {
+  background: linear-gradient(135deg, #1e7a3a, #1a3a5c) !important;
+  color: #fff !important;
+  border: 0 !important;
+}
+.plan-badge--pro::before { content: '⭐ '; }
+
 .nav a {
   padding: 8px 12px;
   border: 1px solid var(--border);
@@ -671,39 +702,42 @@ body.resume-embed-body .main-shell {
     print-color-adjust: exact !important;
   }
 
-  /* When the user clicks "Print preview" we kick window.print(). The
-     editor chrome (sidebar, buttons, modal overlays, the AI critique
-     panel) shouldn't appear on the printed page — only the resume
-     itself. We hide everything by default and re-show the live preview
-     subtree. The selectors here cover both the desktop split-pane
-     editor (.editor-shell__preview / .resume-preview) and the modal
-     preview opened from the export dialog. */
-  body * { visibility: hidden !important; }
-  .editor-shell__preview,
-  .editor-shell__preview *,
-  .resume-preview,
-  .resume-preview *,
-  .template-preview-frame__container,
-  .template-preview-frame__container *,
-  .resume-export-page,
-  .resume-export-page * {
-    visibility: visible !important;
-  }
-  /* Anchor the visible preview to the page top so the printed PDF
-     starts cleanly instead of inheriting the editor's layout offset. */
-  .template-preview-frame__container,
-  .resume-preview {
-    position: absolute !important;
-    inset: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    box-shadow: none !important;
-  }
-  /* Hide UI furniture explicitly in case a parent has visibility: visible. */
-  .topbar, .editor-shell__sidebar, .modal, .modal-backdrop, .snackbar,
-  .download-charge-modal, .post-download-popup, .ai-critique__panel,
-  .tech-gap__panel, .export-modal, .export-actions, button {
+  /* Print is initiated from /resume/template?print=1 (which renders
+     the actual template). Hide just the obvious page chrome — top nav,
+     toolbar buttons, modal overlays — and let the rest print. The
+     previous "hide everything by visibility, then show specific
+     selectors" approach produced blank pages whenever the live
+     preview subtree wasn't on screen (e.g. tablet portrait, the
+     editor route which has no preview pane). */
+  .topbar,
+  .editor-shell__sidebar,
+  .modal-backdrop,
+  .snackbar,
+  .download-charge-modal,
+  .post-download-popup,
+  .ai-critique__panel,
+  .tech-gap__panel,
+  .export-modal,
+  .export-actions,
+  .pwa-install-banner,
+  button {
     display: none !important;
+  }
+
+  /* The template preview frame has aspect-ratio + overflow: hidden in
+     the on-screen view. For print, let the content flow across pages
+     instead of being clipped to a single A4 sheet. */
+  .template-preview-frame__container {
+    aspect-ratio: auto !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    border: 0 !important;
+  }
+  .template-preview-frame__page {
+    position: static !important;
+    transform: none !important;
+    width: 100% !important;
+    height: auto !important;
   }
 }
 
