@@ -1975,6 +1975,32 @@ body.resume-embed-body .main-shell {
   field-sizing: content;
 }
 
+/* JD Match Score circular ring. CSS-only; the colour is set inline
+   via style={borderColor/color} so the score "feels" green/red without
+   us having to maintain three CSS classes. */
+.match-score-ring {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  border: 8px solid currentColor;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: 800;
+  background: #fff;
+  flex-shrink: 0;
+}
+.match-score-ring strong { font-size: 36px; line-height: 1; }
+.match-score-ring small { font-size: 14px; opacity: 0.7; }
+.keyword-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
 /* AI Bullet Rewriter — inline panel under the bullet input. We keep
    it inside the same .exp-highlight-row so the layout follows the
    bullet on mobile as the editor scrolls. The "Use this" buttons

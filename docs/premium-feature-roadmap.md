@@ -20,6 +20,7 @@ mentor 30 minutes to give you, automated and tailored to your role.
 | **Mentor Mode** — pick role + level → tech list, recruiter keywords, free learning resources | Student/Pro | `/mentor` |
 | **Salary band hints** — p25 / median / p75 by role + level + city, 8 roles × 9 cities | Pro only | `/mentor` (within the role result) |
 | **AI Bullet Rewriter** — per-bullet "✨ Rewrite" returns 3 LLM alternatives, with rule-based fallback | Student/Pro | Editor (next to each experience bullet) |
+| **JD Match Score** — paste a JD, get match % + matched/missing keywords + 3 bullets to add | Student/Pro | `/jd-match` |
 | **No-double-charge for subscribers** — Student/Pro skip Razorpay on export, exports are part of the plan | Student/Pro | `/billing/download-charge/init` short-circuits |
 | **AI Resume Critique** with GROQ Llama 3.3 70B | Student/Pro | Editor → AI Critique button (existing) |
 | **Tech Gap Analysis** | Student/Pro | Editor → Tech Gap button (existing) |
@@ -60,14 +61,15 @@ mentor 30 minutes to give you, automated and tailored to your role.
 - Quotas: ~400 tokens charged per call against the user's monthly
   AI budget.
 
-### 4. Job-Description Match Score (Student & Pro)
-- **What:** Paste a JD → see "you're a 73% match" with the missing
-  skills and the bullets to add.
-- **Why:** ATS scan + JD analysis already exists; surfacing the gap
-  per-job (not per-resume) is what users want to act on.
-- **How:** Hook into the existing ATS scan flow with the JD pre-filled
-  from the Job Tracker.
-- **Effort:** ~1 day.
+### 4. ~~Job-Description Match Score (Student & Pro)~~ ✅ Shipped
+- New `JdMatchService` at `resume-builder-api/src/ai/jd-match.service.ts`.
+- New endpoint `POST /ai/jd-match`. GROQ-driven; rule-based core
+  always runs as a baseline so the result is never empty.
+- New page `/jd-match` with circular score ring, matched/missing
+  keyword chips, and 3 copy-to-clipboard bullet suggestions.
+- 13 unit tests pin the rule-based scoring + parser
+  (`tests/jd-match.unit.test.cjs`).
+- ~600 tokens charged per call.
 
 ### 5. Mentor Chat (Pro only — true differentiator)
 - **What:** Replace the static role table on `/mentor` with a chat

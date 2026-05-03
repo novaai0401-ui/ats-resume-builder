@@ -13,6 +13,7 @@ import type { AiCritiqueInput } from './ai.service';
 import { TechGapService, type TechGapInput } from './tech-gap.service';
 import { CoverLetterService, type GenerateCoverLetterInput } from './cover-letter.service';
 import { BulletRewriterService, type RewriteBulletInput } from './bullet-rewriter.service';
+import { JdMatchService, type JdMatchInput } from './jd-match.service';
 
 @Controller('ai')
 @UseGuards(JwtAuthGuard)
@@ -22,6 +23,7 @@ export class AiController {
     private readonly techGapService: TechGapService,
     private readonly coverLetterService: CoverLetterService,
     private readonly bulletRewriter: BulletRewriterService,
+    private readonly jdMatchService: JdMatchService,
   ) {}
 
   @Post('parse-jd')
@@ -91,6 +93,22 @@ export class AiController {
       throw new BadRequestException('currentBullet is required');
     }
     return this.bulletRewriter.rewrite(req.user.userId, body);
+  }
+
+  /**
+   * JD Match Score — paste a JD, get a percentage match,
+   * matched/missing keywords, and three bullet suggestions to close
+   * the gap. Plan-gated; rule-based fallback when LLM is unavailable.
+   */
+  @Post('jd-match')
+  jdMatch(
+    @Req() req: { user: { userId: string } },
+    @Body() body: JdMatchInput,
+  ) {
+    if (!body || typeof body !== 'object' || !body.resumeText || !body.jdText) {
+      throw new BadRequestException('resumeText and jdText are required');
+    }
+    return this.jdMatchService.match(req.user.userId, body);
   }
 
   @Get('cover-letters')

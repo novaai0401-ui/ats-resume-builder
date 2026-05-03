@@ -975,6 +975,20 @@ export const api = {
       { method: 'POST', body: JSON.stringify(input) },
     ),
 
+  /**
+   * JD Match Score. Returns matchPercent (0-100), matched/missing
+   * keywords, and 3 bullet suggestions to close the gap. Plan-gated;
+   * server falls back to rule-based output when LLM is unavailable.
+   */
+  jdMatch: (input: { resumeText: string; jdText: string; currentSkills?: string[] }) =>
+    request<{
+      matchPercent: number;
+      matchedKeywords: string[];
+      missingKeywords: string[];
+      bulletSuggestions: string[];
+      provider: 'groq' | 'rule-based';
+    }>(`/ai/jd-match`, { method: 'POST', body: JSON.stringify(input) }),
+
   loginWithPassword: (email: string, password: string) =>
     request<AuthResponse>(`/auth/login`, {
       method: 'POST',
