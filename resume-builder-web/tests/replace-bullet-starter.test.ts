@@ -43,10 +43,12 @@ test('strips a leading connector after the weak phrase', () => {
 
 test('falls back to first-word strip when no weak phrase is found', () => {
   // Bullet has no recognisable weak opener; we still swap the first
-  // word so the chip click does *something* useful.
+  // word so the chip click does *something* useful. The dedupe rule
+  // then catches the "Shipped shipped" duplicate and removes the
+  // second one.
   assert.equal(
     replaceBulletStarter('Quickly shipped a redesign of checkout', 'Shipped'),
-    'Shipped shipped a redesign of checkout',
+    'Shipped a redesign of checkout',
   );
 });
 
@@ -65,5 +67,42 @@ test('no-op when verb is empty', () => {
   assert.equal(
     replaceBulletStarter('Responsible for hiring engineers', ''),
     'Responsible for hiring engineers',
+  );
+});
+
+test('does not duplicate the chosen verb when it follows an intensifier (regression)', () => {
+  // Production bug: "Successfully delivered multiple zero-defect UI
+  // projects..." + Delivered chip produced "Delivered delivered
+  // multiple..." because "Successfully" was stripped as the first
+  // word, leaving "delivered" at the head, then prepending
+  // "Delivered" again.
+  assert.equal(
+    replaceBulletStarter(
+      'Successfully delivered multiple zero-defect UI projects, improving delivery reliability.',
+      'Delivered',
+    ),
+    'Delivered multiple zero-defect UI projects, improving delivery reliability.',
+  );
+});
+
+test('does not strip a different strong verb after intensifier strip', () => {
+  // "Carefully designed the API surface" → swap with "Built". After
+  // stripping "Carefully" the rest starts with "designed" — also a
+  // strong verb but a different one, so we keep it. Result reads as
+  // "Built designed..." which the user can polish; we'd rather keep
+  // a meaningful word than drop it.
+  assert.equal(
+    replaceBulletStarter('Carefully designed the API surface', 'Built'),
+    'Built designed the API surface',
+  );
+});
+
+test('preserves "managing" after replacing "responsible for" (regression for over-aggressive strip)', () => {
+  // Earlier draft of the dedupe logic stripped *any* strong verb at
+  // the head, which would have turned this into "Led the team" —
+  // dropping "managing" loses the management context. Keep it.
+  assert.equal(
+    replaceBulletStarter('Responsible for managing the team', 'Led'),
+    'Led managing the team',
   );
 });

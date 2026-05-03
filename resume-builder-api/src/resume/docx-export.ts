@@ -272,7 +272,13 @@ export function buildResumeFileName(
   fallbackId: string,
   ext: 'pdf' | 'docx',
 ): string {
-  const candidate = resume.contact?.fullName || resume.title || '';
+  // "<full name>_<role>" reads as "seema-shaikh_technical-lead" which
+  // is what users want when they're tracking applications across
+  // multiple roles. Falls back to title or "resume-{id}" only when
+  // both name and role are empty.
+  const fullName = (resume.contact?.fullName || '').trim();
+  const role = (resume.experience?.[0]?.role || '').trim();
+  const candidate = [fullName, role].filter(Boolean).join('_') || resume.title || '';
   const slug = candidate
     .normalize('NFKD')
     .replace(/[̀-ͯ]/g, '')

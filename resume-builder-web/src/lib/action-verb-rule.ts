@@ -250,6 +250,20 @@ export function replaceBulletStarter(bullet: string, selectedVerb: string) {
   // follows the stripped phrase and reads awkwardly after the new verb.
   rest = rest.replace(/^(?:and|but|so|then)\s+/i, '');
 
+  // Avoid the duplicate-verb bug: if the user picked "Delivered" and
+  // the rest now starts with "delivered" / "delivers" / "delivering"
+  // (because we stripped an intensifier like "Successfully"), strip
+  // that next word too — otherwise we get "Delivered delivered..."
+  // We only dedupe on EXACT lemma match. Stripping any other strong
+  // verb would damage meaning ("Led managing the team" → "Led the
+  // team" loses the management context).
+  const verbLemma = normalizeVerbToken(safeVerb);
+  const restFirstToken = rest.split(/\s+/)[0] || '';
+  const restFirstLemma = normalizeVerbToken(restFirstToken);
+  if (verbLemma && restFirstLemma && restFirstLemma === verbLemma) {
+    rest = rest.replace(/^[^\s]+\s*/, '').trim();
+  }
+
   const output = rest ? `${capitalizeWord(safeVerb)} ${rest}` : capitalizeWord(safeVerb);
   return `${preservedPrefix}${output}`.trim();
 }
