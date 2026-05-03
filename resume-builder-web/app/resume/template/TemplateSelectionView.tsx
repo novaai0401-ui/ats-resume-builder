@@ -92,6 +92,10 @@ export default function TemplateSelectionView({
   const templateQuery = String(searchParams.get('template') || '').trim();
   const hasTemplateQuery = Boolean(templateQuery);
   const requestedTemplate = resolveTemplateId(templateQuery, 'classic');
+  // ?print=1 flag is set when the user clicked "Print preview" in the
+  // editor. We auto-open the browser print dialog once the resume has
+  // rendered so they don't have to hunt for a button on this page.
+  const printRequested = searchParams.get('print') === '1';
   const [resumeData, setResumeData] = useState<Resume | null>(null);
   const [resumeDraft, setResumeDraft] = useState<ResumeDraft | null>(null);
   const [loading, setLoading] = useState(Boolean(resumeId));
@@ -279,6 +283,28 @@ export default function TemplateSelectionView({
   };
 
   const previewReady = Boolean(previewResume);
+
+  // Auto-trigger window.print() once when the user arrived via the
+  // editor's "Print preview" button (?print=1). We wait for the
+  // preview to actually render so the print dialog has content to
+  // show — without this gate the dialog opens before
+  // ActiveTemplateComponent has finished rendering and the user
+  // gets blank pages, which is exactly the bug reported.
+  const hasPrintedRef = useRef(false);
+  useEffect(() => {
+    if (!printRequested) return;
+    if (hasPrintedRef.current) return;
+    if (!previewReady) return;
+    hasPrintedRef.current = true;
+    // Two RAFs: one to flush React commit, one to flush layout. Without
+    // this the print dialog often races the browser's first paint and
+    // captures an empty document.
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        try { window.print(); } catch { /* user-cancelled is fine */ }
+      });
+    });
+  }, [printRequested, previewReady]);
   if (!resumeId && !loading) {
     return (
       <main className="grid">

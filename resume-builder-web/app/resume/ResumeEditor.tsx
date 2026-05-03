@@ -218,6 +218,12 @@ type SectionChangeReason = 'focusin' | 'pointerdown' | 'keydown' | 'intersection
 const SECTION_KEYS: SectionType[] = SECTION_NAV_ORDER;
 
 const BULLET_WORD_LIMIT = 28;
+// Bullets shorter than this (in words) are almost always fragments left
+// behind by PDF wrap-around or a half-deleted edit. Flagging them as
+// "too short" with the red ! badge is more useful than the green check
+// that suggests "looks good" — recruiters skip fragments anyway, and
+// users miss them when scanning their own resume.
+const BULLET_MIN_WORDS = 4;
 const BULLET_LENGTH_WARNING = 'Experience bullets must be 28 words or fewer.';
 
 const defaultQuotaState: QuotaState = {
@@ -2434,8 +2440,14 @@ export default function ResumeEditor() {
                               const aiSuggestion = aiCritiqueResult?.critique?.sectionSuggestions?.experience?.find(
                                 (s) => s.expIndex === expIdx && s.bulletIndex === highlightIdx,
                               );
-                              const bulletNeedsAttention = Boolean(localFailure || aiSuggestion || highlightError);
-                              const bulletLooksGood = line.trim().length > 0 && !bulletNeedsAttention && !showLengthError;
+                              // Too-short fragments must surface as "needs
+                              // attention" so the badge turns red ! and not
+                              // green ✓. Otherwise users skip past a 2-word
+                              // bullet thinking it's fine.
+                              const bulletNeedsAttention = Boolean(
+                                localFailure || aiSuggestion || highlightError || showLengthError,
+                              );
+                              const bulletLooksGood = line.trim().length > 0 && !bulletNeedsAttention;
                               return (
                                 <div key={`exp-highlight-${expIdx}-${highlightIdx}`} style={{ marginBottom: 8 }}>
                                   <div className="exp-highlight-row">
@@ -3228,7 +3240,23 @@ export default function ResumeEditor() {
                     return updated;
                   });
                   markDirty();
-                  showSnackbar('success', `Applied ${totalChanges} suggestion${totalChanges === 1 ? '' : 's'}.`);
+                  // Clear the cached critique result. Without this, every
+                  // bullet that *had* a suggestion keeps showing the red
+                  // "!" badge because bulletNeedsAttention sees a stale
+                  // `aiSuggestion` from the snapshot. After Apply the
+                  // suggestions are no longer applicable — the right
+                  // signal is "ATS score is now stale, rescan to see
+                  // new feedback."
+                  setAiCritiqueResult(null);
+                  // The displayed ATS score was computed before the user
+                  // applied these suggestions, so it's stale by the time
+                  // this toast fires. Tell the user explicitly — auto-
+                  // rerunning AI critique here would cost a credit on
+                  // every Apply click (and confuses the rate limits).
+                  showSnackbar(
+                    'success',
+                    `Applied ${totalChanges} suggestion${totalChanges === 1 ? '' : 's'}. Save changes, then run AI Critique again to see your new score.`,
+                  );
                 }}
               >
                 Apply All Free Suggestions
@@ -3528,20 +3556,26 @@ export default function ResumeEditor() {
                   <button
                     className="btn secondary"
                     onClick={() => {
-                      // Print preview is a free read-only experience. We
-                      // deliberately don't hit the server's /pdf endpoint
-                      // (which is paywalled) — instead we drive the browser's
-                      // native print dialog on the in-app preview, which
-                      // already carries the POCKET RESUME watermark via
-                      // `.template-preview-frame__container::after` in
-                      // globals.css. The user gets a printable / save-as-PDF
-                      // copy with the watermark intact, no server call,
-                      // no charge.
-                      try {
-                        if (typeof window !== 'undefined') window.print();
-                      } catch {
-                        showSnackbar('error', 'Print preview failed. Try the Download PDF flow instead.');
+                      // Print preview is a free read-only experience that
+                      // shows a watermarked view of the resume. The editor
+                      // page itself doesn't render a full-page preview —
+                      // it's a form, not a canvas — so window.print() here
+                      // produces the empty pages users reported.
+                      //
+                      // Route to the template page (which DOES render the
+                      // resume in the chosen layout, with the watermark
+                      // CSS already applied) and pass `?print=1` so that
+                      // page auto-opens the print dialog after first
+                      // render. Free, watermarked, predictable output.
+                      if (!resumeId) {
+                        showSnackbar('error', 'Save the resume first to preview it.');
+                        return;
                       }
+                      const templateForPreview = String(
+                        normalizedTemplateParam || resume.templateId || 'classic',
+                      ).trim();
+                      const url = `/resume/template?id=${encodeURIComponent(resumeId)}&template=${encodeURIComponent(templateForPreview)}&print=1`;
+                      window.open(url, '_blank', 'noopener');
                     }}
                   >
                     Print preview
@@ -4254,12 +4288,23 @@ export function shouldShowBulletLengthWarning(message: string | null | undefined
 export function getHighlightLengthState(line: string, warningActive: boolean) {
   const words = countWords(line);
   const isTooLong = words > BULLET_WORD_LIMIT;
-  const showError = warningActive && isTooLong;
+  // Empty inputs aren't fragments — they're just empty rows the user
+  // hasn't filled yet. Only flag as too-short once the user has typed
+  // something but it's clearly not a complete bullet.
+  const isTooShort = words > 0 && words < BULLET_MIN_WORDS;
+  const showError = (warningActive && isTooLong) || isTooShort;
+  let helperText = '';
+  if (isTooShort) {
+    helperText = `Too short — fragments like this don't help your resume. Add more detail or remove this bullet.`;
+  } else if (showError && isTooLong) {
+    helperText = `Too long: ${words} words (max ${BULLET_WORD_LIMIT}).`;
+  }
   return {
     words,
     isTooLong,
+    isTooShort,
     showError,
-    helperText: showError ? `Too long: ${words} words (max ${BULLET_WORD_LIMIT}).` : '',
+    helperText,
   };
 }
 
