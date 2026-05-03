@@ -22,6 +22,7 @@ mentor 30 minutes to give you, automated and tailored to your role.
 | **AI Bullet Rewriter** — per-bullet "✨ Rewrite" returns 3 LLM alternatives, with rule-based fallback | Student/Pro | Editor (next to each experience bullet) |
 | **JD Match Score** — paste a JD, get match % + matched/missing keywords + 3 bullets to add | Student/Pro | `/jd-match` |
 | **Interview Prep Cards** — 8 likely interview questions with answer outlines drawn from the user's resume | Pro only | `/interview-prep` |
+| **Mentor Chat** — chat with an AI mentor that has the user's resume + job-tracker history as context | Pro only | `/mentor/chat` |
 | **No-double-charge for subscribers** — Student/Pro skip Razorpay on export, exports are part of the plan | Student/Pro | `/billing/download-charge/init` short-circuits |
 | **AI Resume Critique** with GROQ Llama 3.3 70B | Student/Pro | Editor → AI Critique button (existing) |
 | **Tech Gap Analysis** | Student/Pro | Editor → Tech Gap button (existing) |
@@ -73,20 +74,22 @@ mentor 30 minutes to give you, automated and tailored to your role.
   (`tests/jd-match.unit.test.cjs`).
 - ~600 tokens charged per call.
 
-### 5. Mentor Chat (Pro only — true differentiator)
-- **What:** Replace the static role table on `/mentor` with a chat
-  interface. User asks "I'm a 3-year frontend dev, should I learn
-  React Native or backend next?" — agent answers using their resume +
-  job-tracker history as context.
-- **Why:** This is the feature competitors *don't* have because most
-  aren't built on a resume backend. We have the user's full career
-  history; we should put it to work.
-- **How:**
-  - New `/mentor/chat` route with a streaming chat UI.
-  - Server-side: `POST /ai/mentor-chat` with the resume + recent jobs
-    + user message. GROQ Llama 3.3 70B with a tight system prompt.
-  - Strict rate limit: 20 turns/day on Pro, 5 on Student, 0 on Free.
-- **Effort:** ~5 days — biggest item, ship last.
+### 5. ~~Mentor Chat (Pro only — true differentiator)~~ ✅ Shipped
+- New `MentorChatService` at `src/ai/mentor-chat.service.ts`.
+- New endpoint `POST /ai/mentor-chat` — Pro-only. Stateless: the
+  client passes the full message history each turn; the server
+  injects the user's resume + recent job applications into the
+  system prompt as context.
+- New page `/mentor/chat` — bubble-style chat UI, transcript caps at
+  60vh, Enter-to-send / Shift+Enter for newline, "Restart conversation"
+  button, 4 starter prompts for cold-open.
+- 10 unit tests in `tests/mentor-chat.unit.test.cjs` cover history
+  sanitization (role validation, content trimming, MAX_HISTORY cap),
+  prompt-builder content (resume injection, missing-resume note, job
+  list formatting), and transcript serialisation.
+- ~800 tokens / turn. 6 turns / minute / user rate limit.
+- Helpful failure messages (provider unavailable / hiccup) instead of
+  silent breakage.
 
 ## Backlog (90 days)
 

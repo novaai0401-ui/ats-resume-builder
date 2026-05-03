@@ -15,6 +15,7 @@ import { CoverLetterService, type GenerateCoverLetterInput } from './cover-lette
 import { BulletRewriterService, type RewriteBulletInput } from './bullet-rewriter.service';
 import { JdMatchService, type JdMatchInput } from './jd-match.service';
 import { InterviewPrepService, type InterviewPrepInput } from './interview-prep.service';
+import { MentorChatService, type MentorChatInput } from './mentor-chat.service';
 
 @Controller('ai')
 @UseGuards(JwtAuthGuard)
@@ -26,6 +27,7 @@ export class AiController {
     private readonly bulletRewriter: BulletRewriterService,
     private readonly jdMatchService: JdMatchService,
     private readonly interviewPrepService: InterviewPrepService,
+    private readonly mentorChatService: MentorChatService,
   ) {}
 
   @Post('parse-jd')
@@ -126,6 +128,22 @@ export class AiController {
       throw new BadRequestException('resumeText is required');
     }
     return this.interviewPrepService.generate(req.user.userId, body);
+  }
+
+  /**
+   * Mentor Chat — Pro only. The user sends the full message history
+   * (we're stateless on the server) plus their resume + recent job
+   * applications as context. Returns the mentor's next reply.
+   */
+  @Post('mentor-chat')
+  mentorChat(
+    @Req() req: { user: { userId: string } },
+    @Body() body: MentorChatInput,
+  ) {
+    if (!body || typeof body !== 'object' || !Array.isArray(body.messages)) {
+      throw new BadRequestException('messages[] is required');
+    }
+    return this.mentorChatService.chat(req.user.userId, body);
   }
 
   @Get('cover-letters')

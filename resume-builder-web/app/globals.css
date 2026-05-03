@@ -1975,6 +1975,69 @@ body.resume-embed-body .main-shell {
   field-sizing: content;
 }
 
+/* Mentor Chat shell. The transcript scrolls inside the card, with the
+   composer fixed at the bottom of the same card so the user can keep
+   typing while context is visible above. We cap the transcript height
+   so a long conversation doesn't push the page footer offscreen. */
+.mentor-chat-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.mentor-chat-transcript {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 240px;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: 4px;
+  margin-bottom: 12px;
+}
+.mentor-chat-empty {
+  padding: 12px;
+  border: 1px dashed #d9e3ec;
+  border-radius: 10px;
+  background: #f7faff;
+  font-size: 13px;
+}
+.mentor-chat-bubble {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 85%;
+  padding: 10px 14px;
+  border-radius: 12px;
+  line-height: 1.55;
+  font-size: 14px;
+}
+.mentor-chat-bubble--user {
+  align-self: flex-end;
+  background: #1a3a5c;
+  color: #fff;
+}
+.mentor-chat-bubble--user .mentor-chat-role { color: rgba(255, 255, 255, 0.7); }
+.mentor-chat-bubble--assistant {
+  align-self: flex-start;
+  background: #f0f4fa;
+  color: #1a3a5c;
+}
+.mentor-chat-role {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #5a6778;
+}
+.mentor-chat-content {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.mentor-chat-form {
+  border-top: 1px solid #e2e8f0;
+  padding-top: 12px;
+}
+
 /* Interview Prep accordion cards. Each card is a button that toggles
    the answer-outline panel. Keeps the page tight (8 questions = 8
    rows) and lets the user focus on one answer at a time. */

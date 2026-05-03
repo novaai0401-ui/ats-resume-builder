@@ -44,6 +44,7 @@ const BENEFITS: Record<Plan, Benefit[]> = {
     { label: '200 PDF + Word exports / month', details: 'Run portfolio variants without a worry.' },
     { label: 'Everything in Student, plus:', details: '' },
     { label: 'Salary band hints', details: '25/50/75 percentile compensation for your role, level, and city — sourced from 2024–2025 Indian market surveys.' },
+    { label: 'Mentor Chat', details: 'Chat with an AI career mentor that knows your resume — ask about role choices, learning priorities, interview strategy.' },
     { label: 'Premium AI Career Guidance', details: 'Long-form rewrites + role-fit scoring.' },
     { label: 'Cover Letter Studio (unlimited)', details: 'Tailored cover letters per JD with tone control.' },
     { label: 'Interview Prep Cards', details: '8 likely questions per role with answer outlines drawn from your actual experience.' },

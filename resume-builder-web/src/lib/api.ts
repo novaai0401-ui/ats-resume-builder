@@ -1001,6 +1001,17 @@ export const api = {
       provider: 'groq' | 'rule-based';
     }>(`/ai/interview-prep`, { method: 'POST', body: JSON.stringify(input) }),
 
+  /** Mentor Chat — Pro only. Stateless; pass the full history each turn. */
+  mentorChat: (input: {
+    messages: Array<{ role: 'user' | 'assistant'; content: string }>;
+    resumeText?: string;
+    recentJobApplications?: Array<{ company: string; role: string; status: string }>;
+  }) =>
+    request<{ reply: string; provider: 'groq' | 'unavailable'; tokensUsed: number }>(
+      `/ai/mentor-chat`,
+      { method: 'POST', body: JSON.stringify(input) },
+    ),
+
   loginWithPassword: (email: string, password: string) =>
     request<AuthResponse>(`/auth/login`, {
       method: 'POST',

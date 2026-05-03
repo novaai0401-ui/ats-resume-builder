@@ -7,6 +7,7 @@ import { CoverLetterService } from './cover-letter.service';
 import { BulletRewriterService } from './bullet-rewriter.service';
 import { JdMatchService } from './jd-match.service';
 import { InterviewPrepService } from './interview-prep.service';
+import { MentorChatService } from './mentor-chat.service';
 import { SettingsModule } from '../settings/settings.module';
 
 @Module({
@@ -19,6 +20,7 @@ import { SettingsModule } from '../settings/settings.module';
     BulletRewriterService,
     JdMatchService,
     InterviewPrepService,
+    MentorChatService,
   ],
   exports: [CoverLetterService],
 })
