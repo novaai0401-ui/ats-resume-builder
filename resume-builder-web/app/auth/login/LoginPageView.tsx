@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/src/lib/api';
+import { PrivacyBadge } from '@/src/components/PrivacyBadge';
 
 type RouterLike = {
   push: (href: string) => Promise<boolean> | void;
@@ -205,6 +206,7 @@ export function LoginPageView({ apiClient = api, routerOverride, defaultMode = '
         </div>
       </section>
       <section className="card col-7">
+        <PrivacyBadge variant="login" />
         <h3>Why sign in?</h3>
         <ul className="small" style={{ margin: 0, paddingLeft: 16, lineHeight: 1.8 }}>
           <li>Save and manage multiple resumes</li>

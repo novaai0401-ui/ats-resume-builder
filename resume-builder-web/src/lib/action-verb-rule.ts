@@ -217,12 +217,53 @@ export function replaceBulletStarter(bullet: string, selectedVerb: string) {
 
   const lower = normalized.toLowerCase();
   let rest = normalized;
-  const weakMatch = WEAK_STARTER_PHRASES.find((phrase) => lower.startsWith(phrase));
-  if (weakMatch) {
-    rest = normalized.slice(weakMatch.length).trim();
+
+  // Look for a weak starter phrase anywhere in the first ~6 words, not
+  // just at the very start. This handles compound openers like
+  // "Actively participated in", "I was responsible for", "Successfully
+  // helped" that the previous start-only check missed — those bullets
+  // would end up reading "Implemented participated in design..." after
+  // the verb chip click, which is exactly the bug the project owner
+  // reported. We scan the first 6 words because that's enough to catch
+  // intensifier + weak-verb combos without rewriting the rest of the
+  // sentence.
+  const headWords = lower.split(/\s+/).slice(0, 6);
+  const headChunk = headWords.join(' ');
+  let stripUpTo = 0;
+  for (const phrase of WEAK_STARTER_PHRASES) {
+    const idx = headChunk.indexOf(phrase);
+    if (idx >= 0) {
+      const end = idx + phrase.length;
+      if (end > stripUpTo) stripUpTo = end;
+    }
+  }
+
+  if (stripUpTo > 0) {
+    rest = normalized.slice(stripUpTo).trim();
   } else {
+    // Fallback: strip just the first word, preserving the previous
+    // behaviour for bullets that have no recognisable weak phrase.
     rest = normalized.replace(/^[^\s]+/, '').trim();
   }
+
+  // Drop a single connector word (and / but / so / then) that often
+  // follows the stripped phrase and reads awkwardly after the new verb.
+  rest = rest.replace(/^(?:and|but|so|then)\s+/i, '');
+
+  // Avoid the duplicate-verb bug: if the user picked "Delivered" and
+  // the rest now starts with "delivered" / "delivers" / "delivering"
+  // (because we stripped an intensifier like "Successfully"), strip
+  // that next word too — otherwise we get "Delivered delivered..."
+  // We only dedupe on EXACT lemma match. Stripping any other strong
+  // verb would damage meaning ("Led managing the team" → "Led the
+  // team" loses the management context).
+  const verbLemma = normalizeVerbToken(safeVerb);
+  const restFirstToken = rest.split(/\s+/)[0] || '';
+  const restFirstLemma = normalizeVerbToken(restFirstToken);
+  if (verbLemma && restFirstLemma && restFirstLemma === verbLemma) {
+    rest = rest.replace(/^[^\s]+\s*/, '').trim();
+  }
+
   const output = rest ? `${capitalizeWord(safeVerb)} ${rest}` : capitalizeWord(safeVerb);
   return `${preservedPrefix}${output}`.trim();
 }

@@ -6,6 +6,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { TkxBottomNav, TkxDrawer } from 'tekivex-ui';
 import useFeatureFlags from '@/src/hooks/use-feature-flags';
 import { RESUME_CREATE_RATE_LIMIT_CODE, api, Resume, ResumeImportResult, UploadResumeResponse, getAccessToken, isApiRequestError } from '@/src/lib/api';
+import { PrivacyBadge } from '@/src/components/PrivacyBadge';
 import { useResumeStore } from '@/src/lib/resume-store';
 import {
   REQUIRED_FLOW_SEQUENCE,
@@ -3330,10 +3331,24 @@ export default function ResumeEditor() {
             onCancel={() => setDownloadChargeOpen(false)}
             onSuccess={async (token) => {
               setDownloadChargeOpen(false);
+              // Server-side PDF rendering with Puppeteer + DOCX
+              // builders can take 5–10 seconds. Without a visible
+              // status the user sees the payment modal close and a
+              // long quiet wait — they assume something broke. Set
+              // the message immediately so the snackbar shows the
+              // progress, then overwrite it with the success text.
+              setMessage(exportFormat === 'docx'
+                ? 'Generating your Word document…'
+                : 'Generating your PDF…');
               try {
                 await ensureTemplateSavedForExport();
                 const exportTemplateId = String(normalizedTemplateParam || resume.templateId || '').trim() || undefined;
-                const fileBaseName = resume.contact?.fullName || resume.title || '';
+                // "<full name>_<role>" is more useful than just the
+                // full name when a user has multiple resumes targeting
+                // different roles. Falls back to title or just the id.
+                const fullName = (resume.contact?.fullName || '').trim();
+                const role = (resume.experience?.[0]?.role || resume.title || '').trim();
+                const fileBaseName = [fullName, role].filter(Boolean).join('_') || resume.title || '';
                 if (exportFormat === 'docx') {
                   await api.downloadDocx(resumeId, token, fileBaseName);
                   setMessage('Word document downloaded. A copy has also been emailed to you.');
@@ -3421,6 +3436,8 @@ export default function ResumeEditor() {
               </div>
               <button className="btn secondary" onClick={() => setExportOpen(false)}>Close</button>
             </div>
+
+            <PrivacyBadge variant="download" />
             {exportLoading ? (
               <p className="small">Running ATS checks...</p>
             ) : (
@@ -3460,10 +3477,13 @@ export default function ResumeEditor() {
                         setDownloadChargeOpen(true);
                         return;
                       }
+                      setMessage('Generating your PDF…');
                       try {
                         await ensureTemplateSavedForExport();
                         const exportTemplateId = String(normalizedTemplateParam || resume.templateId || '').trim() || undefined;
-                        const fileBaseName = resume.contact?.fullName || resume.title || '';
+                        const fullName = (resume.contact?.fullName || '').trim();
+                        const role = (resume.experience?.[0]?.role || resume.title || '').trim();
+                        const fileBaseName = [fullName, role].filter(Boolean).join('_') || resume.title || '';
                         await api.downloadPdf(resumeId, exportTemplateId, undefined, fileBaseName);
                         setMessage('PDF downloaded. A copy has also been emailed to you.');
                         setExportOpen(false);
@@ -3488,8 +3508,11 @@ export default function ResumeEditor() {
                         setDownloadChargeOpen(true);
                         return;
                       }
+                      setMessage('Generating your Word document…');
                       try {
-                        const fileBaseName = resume.contact?.fullName || resume.title || '';
+                        const fullName = (resume.contact?.fullName || '').trim();
+                        const role = (resume.experience?.[0]?.role || resume.title || '').trim();
+                        const fileBaseName = [fullName, role].filter(Boolean).join('_') || resume.title || '';
                         await api.downloadDocx(resumeId, undefined, fileBaseName);
                         setMessage('Word document downloaded. A copy has also been emailed to you.');
                         setExportOpen(false);

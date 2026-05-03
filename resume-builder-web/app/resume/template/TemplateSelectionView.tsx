@@ -246,12 +246,21 @@ export default function TemplateSelectionView({
     if (!resumeId) return;
     setDownloading(true);
     setError('');
-    setToast('');
+    setToast('Generating your PDF, this can take 5–10 seconds…');
     try {
-      await apiClient.downloadPdf(resumeId, selectedTemplate, downloadToken);
+      // Build a human-readable filename: "<full name>_<role>" when both
+      // are present, otherwise fall back to the role or the title alone.
+      // The api client slugifies and adds the .pdf extension. Without
+      // this, downloads land as the prisma cuid which is unreadable
+      // when users manage multiple resumes.
+      const fullName = (resumeDraft?.contact?.fullName || '').trim();
+      const role = (resumeDraft?.experience?.[0]?.role || resumeDraft?.title || '').trim();
+      const fileBaseName = [fullName, role].filter(Boolean).join('_');
+      await apiClient.downloadPdf(resumeId, selectedTemplate, downloadToken, fileBaseName);
       setToast('PDF download started.');
     } catch (err: unknown) {
       setError(friendlyPdfError(err, 'Failed to export PDF.'));
+      setToast('');
     } finally {
       setDownloading(false);
     }

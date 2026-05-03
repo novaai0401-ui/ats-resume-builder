@@ -515,7 +515,23 @@ function mapExperience(parsed: ParsedResumeText) {
     }
 
     if (!current) continue;
-    if (normalizedLine.length > 10) current.highlights.push(normalizedLine);
+    if (normalizedLine.length > 10) {
+      // Wrapped-line repair: when the previous highlight ends without
+      // a sentence terminator (".", "!", "?", ";"), the PDF parser
+      // probably broke a long bullet across two lines. Merging the
+      // continuation back into the previous bullet stops the editor
+      // from rendering fragments like
+      //     • Designed and implemented data models ... consistent data
+      //     • relationships.
+      // as two separate bullets — the production bug the project
+      // owner reported.
+      const last = current.highlights[current.highlights.length - 1];
+      if (last && shouldMergeWrappedLine(last, normalizedLine)) {
+        current.highlights[current.highlights.length - 1] = `${last.trimEnd()} ${normalizedLine.trimStart()}`;
+      } else {
+        current.highlights.push(normalizedLine);
+      }
+    }
   }
 
   // Flush any remaining pending role with dates
@@ -1159,6 +1175,44 @@ function extractBulletLine(line: string) {
   const match = String(line || '').match(/^\s*[-*•·]\s*(.+)$/);
   if (!match) return '';
   return cleanLooseText(match[1] || '');
+}
+
+/**
+ * Decide whether a non-bullet `next` line is a continuation of the
+ * previous bullet `prev` (PDF wrap-around) rather than a new bullet.
+ *
+ * Heuristics, in order of decisiveness:
+ *   1. If prev ends with a sentence terminator (.!?;), it's complete —
+ *      treat next as a new bullet.
+ *   2. If next starts with a capital letter and is reasonably long
+ *      (>= 30 chars), it's likely a real new bullet someone forgot to
+ *      bullet-prefix. Don't merge.
+ *   3. If prev ends with a connector ("and", "or", "but", "of",
+ *      "with", "to", "for", "in", "on") OR a comma, it's almost
+ *      certainly a wrap. Merge.
+ *   4. If next starts with a lowercase word OR a clear continuation
+ *      ("relationships.", "and team productivity"), merge.
+ *   5. Otherwise, keep as a separate bullet (false negative is safer
+ *      than wrong-merge).
+ */
+export function shouldMergeWrappedLine(prev: string, next: string): boolean {
+  const p = String(prev || '').trim();
+  const n = String(next || '').trim();
+  if (!p || !n) return false;
+  // 1. Sentence-terminated previous → new bullet.
+  if (/[.!?;]$/.test(p)) return false;
+  // 2. Long capitalised next → new bullet (false-negative is safe).
+  if (n.length >= 30 && /^[A-Z]/.test(n)) return false;
+  // 3. Connector or comma at end of prev → almost certainly a wrap.
+  if (/(?:^|\s)(and|or|but|of|with|to|for|in|on|the|a|an)$/i.test(p)) return true;
+  if (p.endsWith(',')) return true;
+  // 4. Lowercase start on next → continuation of the previous sentence.
+  if (/^[a-z]/.test(n)) return true;
+  // 5. Short next clauses ("relationships.", "fewer escalations.") that
+  //    do start with a capital but are too short to stand alone — merge
+  //    when prev didn't terminate.
+  if (n.length <= 28) return true;
+  return false;
 }
 
 function cleanCompanyName(value: string) {
