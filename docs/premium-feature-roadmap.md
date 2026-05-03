@@ -19,6 +19,7 @@ mentor 30 minutes to give you, automated and tailored to your role.
 | **Plan badge in TopNav** (Free / Student / Pro pill) | All | Every page |
 | **Mentor Mode** — pick role + level → tech list, recruiter keywords, free learning resources | Student/Pro | `/mentor` |
 | **Salary band hints** — p25 / median / p75 by role + level + city, 8 roles × 9 cities | Pro only | `/mentor` (within the role result) |
+| **AI Bullet Rewriter** — per-bullet "✨ Rewrite" returns 3 LLM alternatives, with rule-based fallback | Student/Pro | Editor (next to each experience bullet) |
 | **No-double-charge for subscribers** — Student/Pro skip Razorpay on export, exports are part of the plan | Student/Pro | `/billing/download-charge/init` short-circuits |
 | **AI Resume Critique** with GROQ Llama 3.3 70B | Student/Pro | Editor → AI Critique button (existing) |
 | **Tech Gap Analysis** | Student/Pro | Editor → Tech Gap button (existing) |
@@ -46,15 +47,18 @@ mentor 30 minutes to give you, automated and tailored to your role.
   for unknown city, formatInr units (Lakh / Crore), null on unknown role.
 - V2 pull from Levels.fyi / AmbitionBox API still pending.
 
-### 3. AI Bullet Rewriter (Student & Pro)
-- **What:** Inline "Rewrite with AI" button next to each bullet that
-  produces 3 alternative phrasings.
-- **Why:** The current AI Critique is bulk-apply. Per-bullet rewrites
-  are what users actually want when they're polishing.
-- **How:** Extend `/ai/critique` to accept a `mode: 'bullet'` flag with
-  `{ expIndex, bulletIndex, current }`. Reuses the same endpoint and
-  plan-gate.
-- **Effort:** ~2 days.
+### 3. ~~AI Bullet Rewriter (Student & Pro)~~ ✅ Shipped
+- New `BulletRewriterService` at
+  `resume-builder-api/src/ai/bullet-rewriter.service.ts`.
+- New endpoint `POST /ai/rewrite-bullet` returns 3 alternatives.
+- GROQ-driven when `GROQ_API_KEY` is set; rule-based fallback (verb
+  swaps) when not — same response shape so the client never branches.
+- Per-bullet "✨ Rewrite" button in the editor opens an inline panel
+  with 3 alternatives; "Use this" replaces the bullet text and marks
+  dirty. Free users see a paywall card pointing at /billing.
+- 9 unit tests pin the parser + fallback (`tests/bullet-rewriter.unit.test.cjs`).
+- Quotas: ~400 tokens charged per call against the user's monthly
+  AI budget.
 
 ### 4. Job-Description Match Score (Student & Pro)
 - **What:** Paste a JD → see "you're a 73% match" with the missing

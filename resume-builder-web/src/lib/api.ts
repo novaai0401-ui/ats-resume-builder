@@ -962,6 +962,19 @@ export const api = {
       body: JSON.stringify({ ...input, byokApiKey: readByokAiKey() || undefined }),
     }),
 
+  /**
+   * Per-bullet AI rewrite. Returns 3 alternative phrasings.
+   * Server gates Free users (returns 403 FREE_PLAN_AI_BLOCKED) when
+   * the payment feature is enabled. Falls back server-side to rule-
+   * based variants when no LLM is configured — the response shape is
+   * identical, so the caller doesn't have to branch.
+   */
+  rewriteBullet: (input: { currentBullet: string; role?: string; company?: string; jdText?: string }) =>
+    request<{ alternatives: string[]; provider: 'groq' | 'rule-based'; tokensUsed: number }>(
+      `/ai/rewrite-bullet`,
+      { method: 'POST', body: JSON.stringify(input) },
+    ),
+
   loginWithPassword: (email: string, password: string) =>
     request<AuthResponse>(`/auth/login`, {
       method: 'POST',

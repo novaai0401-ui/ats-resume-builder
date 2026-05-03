@@ -2,6 +2,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { TkxBottomNav, TkxDrawer } from 'tekivex-ui';
 import useFeatureFlags from '@/src/hooks/use-feature-flags';
@@ -322,6 +323,15 @@ export default function ResumeEditor() {
   // (downloadToken) covers either format — they don't pay twice — so
   // we capture the format choice here before opening the charge modal.
   const [exportFormat, setExportFormat] = useState<'pdf' | 'docx'>('pdf');
+  // Per-bullet AI rewrite state. Keyed by `${expIdx}-${highlightIdx}`.
+  // The actual handlers are declared further down — *after* showSnackbar
+  // is defined — so we only allocate the state slot here.
+  type BulletRewriteEntry =
+    | { status: 'loading' }
+    | { status: 'ready'; alternatives: string[]; provider: 'groq' | 'rule-based' }
+    | { status: 'paywall' }
+    | { status: 'error'; message: string };
+  const [bulletRewrites, setBulletRewrites] = useState<Record<string, BulletRewriteEntry>>({});
   const [currentPlan, setCurrentPlan] = useState<string>(() => {
     if (typeof window === 'undefined') return 'FREE';
     return localStorage.getItem('rb_plan') || 'FREE';
@@ -871,6 +881,79 @@ export default function ResumeEditor() {
     setSnackbar({ type, text });
     if (snackbarTimerRef.current) clearTimeout(snackbarTimerRef.current);
     snackbarTimerRef.current = setTimeout(() => setSnackbar(null), 3200);
+  }, []);
+
+  // ── Per-bullet AI rewrite handlers ─────────────────────────────────
+  // Declared after showSnackbar so the deps array can reference it
+  // without hitting the temporal dead zone. markDirty is a regular
+  // function (hoisted within the component body), so referencing it
+  // here is safe.
+  const requestBulletRewrite = useCallback(
+    async (expIdx: number, highlightIdx: number) => {
+      const key = `${expIdx}-${highlightIdx}`;
+      const exp = resume.experience[expIdx];
+      const bullet = (exp?.highlights ?? [])[highlightIdx] ?? '';
+      if (!bullet.trim()) {
+        setBulletRewrites((prev) => ({ ...prev, [key]: { status: 'error', message: 'Add some text first.' } }));
+        return;
+      }
+      setBulletRewrites((prev) => ({ ...prev, [key]: { status: 'loading' } }));
+      try {
+        const result = await api.rewriteBullet({
+          currentBullet: bullet,
+          role: exp?.role || '',
+          company: exp?.company || '',
+        });
+        setBulletRewrites((prev) => ({
+          ...prev,
+          [key]: {
+            status: 'ready',
+            alternatives: result.alternatives.slice(0, 3),
+            provider: result.provider,
+          },
+        }));
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Rewrite failed';
+        // Free users hit FREE_PLAN_AI_BLOCKED when payment-feature
+        // is enabled. Surface a paywall card rather than a red error.
+        if (/FREE_PLAN_AI_BLOCKED/i.test(message)) {
+          setBulletRewrites((prev) => ({ ...prev, [key]: { status: 'paywall' } }));
+          return;
+        }
+        setBulletRewrites((prev) => ({ ...prev, [key]: { status: 'error', message } }));
+      }
+    },
+    [resume.experience],
+  );
+
+  const acceptBulletRewrite = useCallback(
+    (expIdx: number, highlightIdx: number, suggestion: string) => {
+      setResume((prev) => {
+        const copy = [...prev.experience];
+        const nextHighlights = [...(copy[expIdx]?.highlights ?? [])];
+        nextHighlights[highlightIdx] = suggestion;
+        copy[expIdx] = { ...copy[expIdx], highlights: nextHighlights };
+        return { ...prev, experience: copy };
+      });
+      markDirty();
+      // Drop the rewrite state for this bullet so the panel closes
+      // automatically after the user accepts a variant.
+      setBulletRewrites((prev) => {
+        const next = { ...prev };
+        delete next[`${expIdx}-${highlightIdx}`];
+        return next;
+      });
+      showSnackbar('success', 'Bullet rewritten — tap "Save changes" to keep it.');
+    },
+    [showSnackbar],
+  );
+
+  const dismissBulletRewrite = useCallback((expIdx: number, highlightIdx: number) => {
+    setBulletRewrites((prev) => {
+      const next = { ...prev };
+      delete next[`${expIdx}-${highlightIdx}`];
+      return next;
+    });
   }, []);
 
   const persistTemplateId = useCallback(
@@ -2501,7 +2584,98 @@ export default function ResumeEditor() {
                                     >
                                       Remove
                                     </button>
+                                    <button
+                                      type="button"
+                                      className="btn secondary bullet-rewrite-trigger"
+                                      onClick={() => requestBulletRewrite(expIdx, highlightIdx)}
+                                      data-testid={`rewrite-bullet-${expIdx}-${highlightIdx}`}
+                                      disabled={
+                                        bulletRewrites[`${expIdx}-${highlightIdx}`]?.status === 'loading' ||
+                                        !line.trim()
+                                      }
+                                      title="Rewrite this bullet with AI"
+                                    >
+                                      {bulletRewrites[`${expIdx}-${highlightIdx}`]?.status === 'loading'
+                                        ? 'Rewriting…'
+                                        : '✨ Rewrite'}
+                                    </button>
                                   </div>
+                                  {(() => {
+                                    const entry = bulletRewrites[`${expIdx}-${highlightIdx}`];
+                                    if (!entry) return null;
+                                    if (entry.status === 'loading') {
+                                      return (
+                                        <div className="bullet-rewrite-panel" aria-live="polite">
+                                          <p className="small" style={{ margin: 0 }}>Generating 3 alternatives…</p>
+                                        </div>
+                                      );
+                                    }
+                                    if (entry.status === 'paywall') {
+                                      return (
+                                        <div className="bullet-rewrite-panel bullet-rewrite-panel--paywall">
+                                          <strong>AI Bullet Rewriter is a paid feature</strong>
+                                          <p className="small" style={{ margin: '4px 0 8px' }}>
+                                            Upgrade to Student (₹399/mo) to get LLM-quality rewrites
+                                            for every bullet, plus AI Critique, Tech Gap, and Cover
+                                            Letter Studio.
+                                          </p>
+                                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                            <Link className="btn" href="/billing" style={{ fontSize: 13 }}>See plans</Link>
+                                            <button
+                                              type="button"
+                                              className="btn ghost"
+                                              style={{ fontSize: 13 }}
+                                              onClick={() => dismissBulletRewrite(expIdx, highlightIdx)}
+                                            >
+                                              Dismiss
+                                            </button>
+                                          </div>
+                                        </div>
+                                      );
+                                    }
+                                    if (entry.status === 'error') {
+                                      return (
+                                        <div className="bullet-rewrite-panel bullet-rewrite-panel--error">
+                                          <p className="small" style={{ margin: 0 }}>{entry.message}</p>
+                                          <button
+                                            type="button"
+                                            className="btn ghost"
+                                            style={{ fontSize: 12, marginTop: 6 }}
+                                            onClick={() => dismissBulletRewrite(expIdx, highlightIdx)}
+                                          >Dismiss</button>
+                                        </div>
+                                      );
+                                    }
+                                    return (
+                                      <div className="bullet-rewrite-panel" aria-live="polite">
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                                          <strong style={{ fontSize: 13 }}>Pick an alternative</strong>
+                                          <span className="small" style={{ color: '#5a6778' }}>
+                                            {entry.provider === 'groq' ? 'Powered by AI' : 'Rule-based fallback'}
+                                          </span>
+                                        </div>
+                                        <ul style={{ margin: 0, paddingLeft: 0, listStyle: 'none', display: 'grid', gap: 6 }}>
+                                          {entry.alternatives.map((alt, i) => (
+                                            <li key={i} className="bullet-rewrite-option">
+                                              <span style={{ flex: 1, lineHeight: 1.4 }}>{alt}</span>
+                                              <button
+                                                type="button"
+                                                className="btn"
+                                                style={{ fontSize: 12, padding: '4px 10px' }}
+                                                onClick={() => acceptBulletRewrite(expIdx, highlightIdx, alt)}
+                                              >Use this</button>
+                                            </li>
+                                          ))}
+                                        </ul>
+                                        <button
+                                          type="button"
+                                          className="btn ghost"
+                                          style={{ fontSize: 12, marginTop: 6 }}
+                                          onClick={() => dismissBulletRewrite(expIdx, highlightIdx)}
+                                        >Keep current</button>
+                                      </div>
+                                    );
+                                  })()}
                                   {highlightError && <p className="hint error">{highlightError}</p>}
                                   {showLengthError && (
                                     <p className="hint error" style={{ marginTop: 4 }}>{lengthHelperText}</p>

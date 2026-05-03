@@ -4,12 +4,13 @@ import { AiController } from './ai.controller';
 import { AiService } from './ai.service';
 import { TechGapService } from './tech-gap.service';
 import { CoverLetterService } from './cover-letter.service';
+import { BulletRewriterService } from './bullet-rewriter.service';
 import { SettingsModule } from '../settings/settings.module';
 
 @Module({
   imports: [ConfigModule, SettingsModule],
   controllers: [AiController],
-  providers: [AiService, TechGapService, CoverLetterService],
+  providers: [AiService, TechGapService, CoverLetterService, BulletRewriterService],
   exports: [CoverLetterService],
 })
 export class AiModule {}

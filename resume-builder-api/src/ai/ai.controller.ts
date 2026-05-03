@@ -12,6 +12,7 @@ import { AiService } from './ai.service';
 import type { AiCritiqueInput } from './ai.service';
 import { TechGapService, type TechGapInput } from './tech-gap.service';
 import { CoverLetterService, type GenerateCoverLetterInput } from './cover-letter.service';
+import { BulletRewriterService, type RewriteBulletInput } from './bullet-rewriter.service';
 
 @Controller('ai')
 @UseGuards(JwtAuthGuard)
@@ -20,6 +21,7 @@ export class AiController {
     private readonly aiService: AiService,
     private readonly techGapService: TechGapService,
     private readonly coverLetterService: CoverLetterService,
+    private readonly bulletRewriter: BulletRewriterService,
   ) {}
 
   @Post('parse-jd')
@@ -71,6 +73,24 @@ export class AiController {
     @Body() body: GenerateCoverLetterInput,
   ) {
     return this.coverLetterService.generate(req.user.userId, body);
+  }
+
+  /**
+   * Per-bullet AI rewrite. Returns 3 alternative phrasings.
+   * Plan-gated (Free is rejected by the service when payment-feature
+   * is enabled). Falls back to rule-based variants when no AI
+   * provider is configured or the call fails — the response shape is
+   * identical so the client doesn't branch on it.
+   */
+  @Post('rewrite-bullet')
+  rewriteBullet(
+    @Req() req: { user: { userId: string } },
+    @Body() body: RewriteBulletInput,
+  ) {
+    if (!body || typeof body !== 'object' || !body.currentBullet) {
+      throw new BadRequestException('currentBullet is required');
+    }
+    return this.bulletRewriter.rewrite(req.user.userId, body);
   }
 
   @Get('cover-letters')

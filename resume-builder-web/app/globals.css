@@ -1975,6 +1975,49 @@ body.resume-embed-body .main-shell {
   field-sizing: content;
 }
 
+/* AI Bullet Rewriter — inline panel under the bullet input. We keep
+   it inside the same .exp-highlight-row so the layout follows the
+   bullet on mobile as the editor scrolls. The "Use this" buttons
+   should never push the suggestion text off-screen, so the option
+   row uses flex with a min-width:0 on the text span. */
+.bullet-rewrite-trigger {
+  white-space: nowrap;
+}
+.bullet-rewrite-panel {
+  margin-top: 8px;
+  border: 1px solid #c4d5e0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #f7faff;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.bullet-rewrite-panel--paywall {
+  background: linear-gradient(180deg, #eef5ff 0%, #ffffff 100%);
+  border-left: 3px solid #1a3a5c;
+}
+.bullet-rewrite-panel--error {
+  background: #fff0f0;
+  border-color: #f5a3a3;
+  color: #7a1f1f;
+}
+.bullet-rewrite-option {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+.bullet-rewrite-option > span { min-width: 0; word-break: break-word; }
+@media (max-width: 540px) {
+  /* On phones, stack the suggestion + button so the chevron-style
+     button doesn't push half the suggestion behind the right edge. */
+  .bullet-rewrite-option { flex-direction: column; align-items: stretch; }
+  .bullet-rewrite-option > span { padding-right: 0; }
+}
+
 /* Mentor Mode form: collapses to single column on phones so the role,
    level, and city pickers don't squeeze each other on a 360px screen. */
 .mentor-form-grid {
