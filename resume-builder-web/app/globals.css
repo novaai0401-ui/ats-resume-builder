@@ -1975,6 +1975,61 @@ body.resume-embed-body .main-shell {
   field-sizing: content;
 }
 
+/* Interview Prep accordion cards. Each card is a button that toggles
+   the answer-outline panel. Keeps the page tight (8 questions = 8
+   rows) and lets the user focus on one answer at a time. */
+.prep-card {
+  border: 1px solid #d9e3ec;
+  border-radius: 12px;
+  background: #fff;
+  overflow: hidden;
+}
+.prep-card[data-open="true"] {
+  border-color: #b8c8da;
+  box-shadow: 0 2px 6px rgba(20, 40, 70, 0.04);
+}
+.prep-card__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  padding: 14px 16px;
+  font-size: 15px;
+  cursor: pointer;
+  color: #1a3a5c;
+}
+.prep-card__category {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+.prep-card__question {
+  flex: 1;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.prep-card__chevron {
+  font-size: 18px;
+  font-weight: 700;
+  color: #5a6778;
+}
+.prep-card__body {
+  padding: 0 16px 16px 16px;
+  border-top: 1px dashed #e2e8f0;
+  font-size: 14px;
+  background: #f7faff;
+}
+.prep-card__body > * { padding-top: 12px; }
+
 /* JD Match Score circular ring. CSS-only; the colour is set inline
    via style={borderColor/color} so the score "feels" green/red without
    us having to maintain three CSS classes. */

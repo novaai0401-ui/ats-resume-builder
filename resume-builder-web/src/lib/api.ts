@@ -989,6 +989,18 @@ export const api = {
       provider: 'groq' | 'rule-based';
     }>(`/ai/jd-match`, { method: 'POST', body: JSON.stringify(input) }),
 
+  /** Interview Prep Cards — Pro only. */
+  interviewPrep: (input: { resumeText: string; targetRole?: string; jdText?: string }) =>
+    request<{
+      questions: Array<{
+        category: 'behavioral' | 'technical' | 'role-specific';
+        question: string;
+        whyAsked: string;
+        answerOutline: string[];
+      }>;
+      provider: 'groq' | 'rule-based';
+    }>(`/ai/interview-prep`, { method: 'POST', body: JSON.stringify(input) }),
+
   loginWithPassword: (email: string, password: string) =>
     request<AuthResponse>(`/auth/login`, {
       method: 'POST',

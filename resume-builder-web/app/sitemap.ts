@@ -18,6 +18,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${SITE_URL}/career`, lastModified, changeFrequency: 'monthly', priority: 0.7 },
     { url: `${SITE_URL}/mentor`, lastModified, changeFrequency: 'weekly', priority: 0.8 },
     { url: `${SITE_URL}/jd-match`, lastModified, changeFrequency: 'weekly', priority: 0.7 },
+    { url: `${SITE_URL}/interview-prep`, lastModified, changeFrequency: 'monthly', priority: 0.6 },
     { url: `${SITE_URL}/download`, lastModified, changeFrequency: 'weekly', priority: 0.6 },
   ];
 }

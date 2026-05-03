@@ -21,6 +21,7 @@ mentor 30 minutes to give you, automated and tailored to your role.
 | **Salary band hints** — p25 / median / p75 by role + level + city, 8 roles × 9 cities | Pro only | `/mentor` (within the role result) |
 | **AI Bullet Rewriter** — per-bullet "✨ Rewrite" returns 3 LLM alternatives, with rule-based fallback | Student/Pro | Editor (next to each experience bullet) |
 | **JD Match Score** — paste a JD, get match % + matched/missing keywords + 3 bullets to add | Student/Pro | `/jd-match` |
+| **Interview Prep Cards** — 8 likely interview questions with answer outlines drawn from the user's resume | Pro only | `/interview-prep` |
 | **No-double-charge for subscribers** — Student/Pro skip Razorpay on export, exports are part of the plan | Student/Pro | `/billing/download-charge/init` short-circuits |
 | **AI Resume Critique** with GROQ Llama 3.3 70B | Student/Pro | Editor → AI Critique button (existing) |
 | **Tech Gap Analysis** | Student/Pro | Editor → Tech Gap button (existing) |
@@ -28,17 +29,18 @@ mentor 30 minutes to give you, automated and tailored to your role.
 
 ## Next 30 days (priority order)
 
-### 1. Interview Prep Cards (Pro)
-- **What:** From the user's resume + a target role, generate 10 likely
-  interview questions with suggested answer outlines.
-- **Why:** Every paying user is preparing for interviews. This is the
-  highest-leverage extension of what we already know about them.
-- **How (rough):**
-  - New `/interview-prep` route.
-  - New `POST /ai/interview-prep` endpoint that takes the resume +
-    role and returns `{ questions: [{ q, why, outline }] }`.
-  - Reuse the GROQ provider; same plan-gate as critique.
-- **Effort:** ~3 days.
+### 1. ~~Interview Prep Cards (Pro)~~ ✅ Shipped
+- New `InterviewPrepService` at `src/ai/interview-prep.service.ts`.
+- New endpoint `POST /ai/interview-prep` — Pro-only (throws
+  PRO_PLAN_REQUIRED for FREE/STUDENT). LLM-driven, with a rule-based
+  fallback returning 8 always-relevant role-agnostic questions.
+- New page `/interview-prep` with accordion cards (category badge,
+  question, why-asked, answer outline). 8 cards: 3 behavioural, 3
+  technical, 2 role-specific.
+- 11 unit tests in `tests/interview-prep.unit.test.cjs` covering
+  parser robustness, malformed-entry filtering, category coercion,
+  fallback completeness.
+- ~1500 tokens charged per call. 5 calls / 5 minutes / user rate limit.
 
 ### 2. ~~Salary band hints (Pro)~~ ✅ Shipped
 - Implemented at `resume-builder-web/src/lib/salary-bands.ts`.

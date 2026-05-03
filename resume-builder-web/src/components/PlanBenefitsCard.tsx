@@ -46,7 +46,7 @@ const BENEFITS: Record<Plan, Benefit[]> = {
     { label: 'Salary band hints', details: '25/50/75 percentile compensation for your role, level, and city — sourced from 2024–2025 Indian market surveys.' },
     { label: 'Premium AI Career Guidance', details: 'Long-form rewrites + role-fit scoring.' },
     { label: 'Cover Letter Studio (unlimited)', details: 'Tailored cover letters per JD with tone control.' },
-    { label: 'Interview Prep Cards', details: 'Likely questions + suggested answers from your resume.' },
+    { label: 'Interview Prep Cards', details: '8 likely questions per role with answer outlines drawn from your actual experience.' },
     { label: 'Priority queue for AI calls', details: 'Skip rate-limit waits during peak hours.' },
     { label: '100 saved resumes', details: 'Full job-hunt portfolio.' },
     { label: 'Priority support within 24h', details: 'Slack channel access.' },

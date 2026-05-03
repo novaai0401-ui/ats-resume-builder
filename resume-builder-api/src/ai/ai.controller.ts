@@ -14,6 +14,7 @@ import { TechGapService, type TechGapInput } from './tech-gap.service';
 import { CoverLetterService, type GenerateCoverLetterInput } from './cover-letter.service';
 import { BulletRewriterService, type RewriteBulletInput } from './bullet-rewriter.service';
 import { JdMatchService, type JdMatchInput } from './jd-match.service';
+import { InterviewPrepService, type InterviewPrepInput } from './interview-prep.service';
 
 @Controller('ai')
 @UseGuards(JwtAuthGuard)
@@ -24,6 +25,7 @@ export class AiController {
     private readonly coverLetterService: CoverLetterService,
     private readonly bulletRewriter: BulletRewriterService,
     private readonly jdMatchService: JdMatchService,
+    private readonly interviewPrepService: InterviewPrepService,
   ) {}
 
   @Post('parse-jd')
@@ -109,6 +111,21 @@ export class AiController {
       throw new BadRequestException('resumeText and jdText are required');
     }
     return this.jdMatchService.match(req.user.userId, body);
+  }
+
+  /**
+   * Interview Prep Cards — Pro only. Generate 8 likely interview
+   * questions with answer outlines tailored to the user's resume.
+   */
+  @Post('interview-prep')
+  interviewPrep(
+    @Req() req: { user: { userId: string } },
+    @Body() body: InterviewPrepInput,
+  ) {
+    if (!body || typeof body !== 'object' || !body.resumeText) {
+      throw new BadRequestException('resumeText is required');
+    }
+    return this.interviewPrepService.generate(req.user.userId, body);
   }
 
   @Get('cover-letters')
