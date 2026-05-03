@@ -18,6 +18,8 @@ mentor 30 minutes to give you, automated and tailored to your role.
 | **Plan Benefits card** with concrete bullets | All | `/dashboard`, `/billing` |
 | **Plan badge in TopNav** (Free / Student / Pro pill) | All | Every page |
 | **Mentor Mode** — pick role + level → tech list, recruiter keywords, free learning resources | Student/Pro | `/mentor` |
+| **Salary band hints** — p25 / median / p75 by role + level + city, 8 roles × 9 cities | Pro only | `/mentor` (within the role result) |
+| **No-double-charge for subscribers** — Student/Pro skip Razorpay on export, exports are part of the plan | Student/Pro | `/billing/download-charge/init` short-circuits |
 | **AI Resume Critique** with GROQ Llama 3.3 70B | Student/Pro | Editor → AI Critique button (existing) |
 | **Tech Gap Analysis** | Student/Pro | Editor → Tech Gap button (existing) |
 | **Cover Letter Studio** with tone control | Student/Pro | `/cover-letter` (existing) |
@@ -36,16 +38,13 @@ mentor 30 minutes to give you, automated and tailored to your role.
   - Reuse the GROQ provider; same plan-gate as critique.
 - **Effort:** ~3 days.
 
-### 2. Salary band hints (Pro)
-- **What:** Show a salary range for the user's role + level + city.
-- **Why:** Anchors the resume work in a concrete career outcome.
-- **How:**
-  - Static seed dataset for top 10 Indian metros + remote, top 8 roles,
-    3 experience bands (Fresher/Mid/Senior). 240 rows. Render as a
-    band ("₹X – ₹Y / year, median ₹Z").
-  - No new backend; ship a JSON file.
-  - V2: pull from Levels.fyi / AmbitionBox APIs.
-- **Effort:** ~1 day for v1.
+### 2. ~~Salary band hints (Pro)~~ ✅ Shipped
+- Implemented at `resume-builder-web/src/lib/salary-bands.ts`.
+- 8 roles × 9 cities × 3 levels = 216 combinations, derived from a
+  per-(role × level) base table multiplied by per-city multipliers.
+- 12 unit tests pin behaviour: ordering, multiplier direction, fallback
+  for unknown city, formatInr units (Lakh / Crore), null on unknown role.
+- V2 pull from Levels.fyi / AmbitionBox API still pending.
 
 ### 3. AI Bullet Rewriter (Student & Pro)
 - **What:** Inline "Rewrite with AI" button next to each bullet that

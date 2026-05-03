@@ -24,6 +24,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { getAccessToken } from '@/src/lib/api';
+import {
+  SALARY_CITIES,
+  SALARY_ROLES,
+  formatInr,
+  getSalaryBand,
+  type SalaryLevel,
+} from '@/src/lib/salary-bands';
 
 type RoleSeed = {
   role: string;
@@ -154,6 +161,11 @@ export default function MentorClient() {
   const [plan, setPlan] = useState<'FREE' | 'STUDENT' | 'PRO'>('FREE');
   const [role, setRole] = useState<string>(ROLES[0] ?? '');
   const [level, setLevel] = useState<typeof LEVELS[number]>('Mid');
+  // Default city = Bangalore (largest IT hiring market). The salary
+  // band auto-falls-back to the Bangalore multiplier for any city we
+  // don't have data for, so picking the wrong city still produces a
+  // reasonable answer.
+  const [city, setCity] = useState<string>('Bangalore');
   const [showResult, setShowResult] = useState(false);
 
   useEffect(() => {
@@ -165,7 +177,15 @@ export default function MentorClient() {
   }, []);
 
   const seed = useMemo(() => lookupSeed(role, level), [role, level]);
+  // Salary bands are looked up lazily — only when the user has clicked
+  // "Show my path" AND the chosen role exists in the salary data set
+  // (the Mentor seed list is broader than the salary table for v1).
+  const salaryBand = useMemo(
+    () => (showResult ? getSalaryBand(role, level as SalaryLevel, city) : null),
+    [showResult, role, level, city],
+  );
   const isPaid = plan === 'STUDENT' || plan === 'PRO';
+  const isPro = plan === 'PRO';
 
   return (
     <main className="grid">
@@ -179,7 +199,7 @@ export default function MentorClient() {
       </section>
 
       <section className="card col-12">
-        <div style={{ display: 'grid', gap: 12, gridTemplateColumns: '1fr 1fr', alignItems: 'end' }}>
+        <div className="mentor-form-grid">
           <div>
             <label className="label" htmlFor="mentor-role">Target role</label>
             <select
@@ -200,6 +220,17 @@ export default function MentorClient() {
               onChange={(e) => { setLevel(e.target.value as typeof LEVELS[number]); setShowResult(false); }}
             >
               {LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="label" htmlFor="mentor-city">City (for salary band)</label>
+            <select
+              id="mentor-city"
+              className="input"
+              value={city}
+              onChange={(e) => { setCity(e.target.value); setShowResult(false); }}
+            >
+              {SALARY_CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
         </div>
@@ -245,10 +276,63 @@ export default function MentorClient() {
               ))}
             </ul>
 
+            {/* Salary band — Pro only. Student/Pro both see the
+                section heading so Student users know the feature
+                exists and what they're paying extra for at the Pro
+                tier. Free users land in the outer paywall card and
+                never reach this branch. */}
+            <h3 style={{ marginTop: 24 }}>
+              Expected salary <span className="plan-badge plan-badge--pro" style={{ fontSize: 10, padding: '2px 8px' }}>Pro</span>
+            </h3>
+            {isPro && salaryBand ? (
+              <div className="salary-band">
+                <div className="salary-band__row">
+                  <span className="salary-band__label">25th percentile</span>
+                  <span className="salary-band__value">{formatInr(salaryBand.p25)}</span>
+                </div>
+                <div className="salary-band__row salary-band__row--median">
+                  <span className="salary-band__label">Median</span>
+                  <span className="salary-band__value">{formatInr(salaryBand.median)}</span>
+                </div>
+                <div className="salary-band__row">
+                  <span className="salary-band__label">75th percentile</span>
+                  <span className="salary-band__value">{formatInr(salaryBand.p75)}</span>
+                </div>
+                <p className="small" style={{ marginTop: 10, color: '#5a6778', lineHeight: 1.5 }}>
+                  Total annual gross compensation for {seed.role} ({seed.level}) in {city}.
+                  {salaryBand.disclaimer ? ` ${salaryBand.disclaimer}` : null}
+                </p>
+              </div>
+            ) : isPro && !salaryBand ? (
+              <p className="small" style={{ color: '#5a6778' }}>
+                We don&rsquo;t have salary data for this role yet. We&rsquo;re adding more roles
+                each month — pick a closer adjacent role for now.
+              </p>
+            ) : (
+              <div
+                className="salary-band"
+                style={{
+                  background: 'linear-gradient(180deg, #f7f9fc 0%, #ffffff 100%)',
+                  border: '1px dashed #c4d5e0',
+                }}
+              >
+                <p style={{ margin: 0, fontWeight: 600, color: '#1a3a5c' }}>
+                  Salary bands are a Pro feature
+                </p>
+                <p className="small" style={{ marginTop: 6, color: '#5a6778', lineHeight: 1.5 }}>
+                  Pro shows the 25th / 50th / 75th percentile annual compensation for your role,
+                  level, and city — sourced from public 2024–2025 surveys.
+                </p>
+                <Link className="btn" href="/billing" style={{ marginTop: 10, fontSize: 13 }}>
+                  Upgrade to Pro — ₹799/mo
+                </Link>
+              </div>
+            )}
+
             <p className="small" style={{ marginTop: 18, color: '#5a6778' }}>
-              {plan === 'PRO'
+              {isPro
                 ? 'Pro tip: head over to the Cover Letter Studio to draft a tailored letter for any of these roles.'
-                : 'Upgrade to Pro for interview prep cards and salary band hints for this role.'}
+                : 'Student covers AI critique, Cover Letter, and Mentor Mode. Pro adds salary bands, interview prep, and priority AI access.'}
             </p>
           </section>
         ) : (

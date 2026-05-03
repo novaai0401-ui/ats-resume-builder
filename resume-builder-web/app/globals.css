@@ -1975,6 +1975,46 @@ body.resume-embed-body .main-shell {
   field-sizing: content;
 }
 
+/* Mentor Mode form: collapses to single column on phones so the role,
+   level, and city pickers don't squeeze each other on a 360px screen. */
+.mentor-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+  align-items: end;
+}
+@media (max-width: 720px) {
+  .mentor-form-grid { grid-template-columns: 1fr; }
+}
+
+/* Salary band table — three rows, the median highlighted. We avoid
+   <table> because the layout is responsive and a flex row is enough. */
+.salary-band {
+  margin-top: 8px;
+  border: 1px solid #d9e3ec;
+  border-radius: 12px;
+  padding: 14px 16px;
+  background: linear-gradient(180deg, #f3fbf6 0%, #ffffff 100%);
+}
+.salary-band__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px dashed #e2e8f0;
+}
+.salary-band__row:last-child { border-bottom: 0; }
+.salary-band__row--median {
+  background: rgba(30, 122, 58, 0.06);
+  margin: 0 -8px;
+  padding-left: 8px;
+  padding-right: 8px;
+  border-radius: 6px;
+}
+.salary-band__row--median .salary-band__value { color: #1e7a3a; font-size: 22px; }
+.salary-band__label { color: #5a6778; font-size: 13px; }
+.salary-band__value { font-weight: 700; font-size: 18px; color: #1a3a5c; }
+
 /* Native month input on iOS Safari is small and centers the placeholder
    awkwardly. Force a 44pt tappable height (Apple HIG minimum), align
    left so "October 2021" reads like a normal field value, and reserve
