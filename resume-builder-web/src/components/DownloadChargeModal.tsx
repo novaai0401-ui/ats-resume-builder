@@ -84,7 +84,17 @@ export default function DownloadChargeModal({
       setError('');
       try {
         const result = await api.initDownloadCharge(resumeId, region || undefined);
-        if (!cancelled) setInit(result);
+        if (cancelled) return;
+        // Subscribers (Student / Pro) get the server-issued download
+        // token without going through Razorpay. The init endpoint
+        // returns `{ included: true, downloadToken }` for them. Honor
+        // it by triggering the success callback immediately so the
+        // export proceeds, and skip rendering the payment modal.
+        if (result && (result as unknown as { included?: boolean; downloadToken?: string }).included) {
+          const token = (result as unknown as { downloadToken?: string }).downloadToken;
+          if (token) { onSuccess(token); return; }
+        }
+        setInit(result);
       } catch (err: unknown) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : 'Could not start payment.');
