@@ -3574,7 +3574,12 @@ export default function ResumeEditor() {
                       const templateForPreview = String(
                         normalizedTemplateParam || resume.templateId || 'classic',
                       ).trim();
-                      const url = `/resume/template?id=${encodeURIComponent(resumeId)}&template=${encodeURIComponent(templateForPreview)}&print=1`;
+                      // The template page reads `resumeId` from the
+                      // URL — passing `id` here previously caused it to
+                      // render the "Select a resume to preview" empty
+                      // state, then window.print() snapshotted the
+                      // empty state. Match the param name exactly.
+                      const url = `/resume/template?resumeId=${encodeURIComponent(resumeId)}&template=${encodeURIComponent(templateForPreview)}&print=1`;
                       window.open(url, '_blank', 'noopener');
                     }}
                   >

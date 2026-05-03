@@ -1976,16 +1976,37 @@ body.resume-embed-body .main-shell {
 }
 
 /* Native month input on iOS Safari is small and centers the placeholder
-   awkwardly. Force a 44pt tappable height (Apple HIG minimum) and align
-   left so "October 2021" reads like a normal field value. */
+   awkwardly. Force a 44pt tappable height (Apple HIG minimum), align
+   left so "October 2021" reads like a normal field value, and reserve
+   ~36px of right padding so the OS-rendered calendar icon doesn't
+   overlap the value text on small screens. The owner reported the
+   "date going beyond the border" — that was the calendar glyph
+   sitting on top of the year. */
 .month-input {
   min-height: 44px;
   text-align: left;
   appearance: none;
   -webkit-appearance: none;
+  padding-right: 38px !important;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+  box-sizing: border-box;
+  max-width: 100%;
 }
 .month-input::-webkit-date-and-time-value {
   text-align: left;
+  /* Pin the value to the start of the field so a long localised
+     month name ("September 2024") stays inside the visible width
+     instead of pushing the calendar icon off-screen. */
+  padding-right: 4px;
+}
+/* Some Safari builds render the calendar picker indicator absolute-
+   positioned and let it bleed past the input border on narrow
+   layouts. Pull it back inside. */
+.month-input::-webkit-calendar-picker-indicator {
+  margin-right: 0;
+  margin-left: 4px;
 }
 
 .label {

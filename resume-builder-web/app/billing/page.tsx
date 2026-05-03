@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, getAccessToken } from '@/src/lib/api';
+import { PlanBenefitsCard } from '@/src/components/PlanBenefitsCard';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -357,6 +358,13 @@ export default function BillingPage() {
 
   return (
     <main className="grid">
+      {/* Benefits card (top) gives the user an immediate "this is what
+          your money buys" answer — solves the "I paid but nothing
+          changed" perception. Renders for free users too as a
+          comparison surface. */}
+      <div className="col-12">
+        <PlanBenefitsCard defaultPlan={currentPlan as 'FREE' | 'STUDENT' | 'PRO'} />
+      </div>
       <section className="card col-12">
         <h2>Your Plan</h2>
         <p className="small" style={{ maxWidth: 600, marginBottom: 8 }}>
