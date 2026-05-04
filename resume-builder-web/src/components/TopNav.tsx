@@ -90,6 +90,13 @@ export default function TopNav() {
           <Link href="/cover-letter" onClick={closeDrawer}>Cover Letter</Link>
           <Link href="/career" onClick={closeDrawer}>Career Navigator</Link>
           <Link href="/mentor" onClick={closeDrawer}>Mentor</Link>
+          <Link href="/jd-match" onClick={closeDrawer}>JD Match</Link>
+          {plan === 'PRO' ? (
+            <>
+              <Link href="/interview-prep" onClick={closeDrawer}>Interview Prep</Link>
+              <Link href="/mentor/chat" onClick={closeDrawer}>Mentor Chat</Link>
+            </>
+          ) : null}
           <Link href="/settings" onClick={closeDrawer}>Settings</Link>
           {/* Plan badge doubles as a billing-page link so users can see
               their tier at a glance and one-tap to manage. Free users

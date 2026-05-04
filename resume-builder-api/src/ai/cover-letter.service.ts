@@ -79,9 +79,9 @@ export class CoverLetterService {
     if (!user) throw new NotFoundException('User not found');
 
     const paymentFeatureEnabled = await this.isPaymentFeatureEnabled();
-    if (paymentFeatureEnabled && user.plan === 'FREE' && !user.byokKeyEnabled) {
+    if (paymentFeatureEnabled && user.plan === 'FREE') {
       throw new ForbiddenException(
-        'Cover letter generation requires a paid plan or BYOK AI key.',
+        'FREE_PLAN_AI_BLOCKED: Cover letter generation requires Student or Pro.',
       );
     }
 

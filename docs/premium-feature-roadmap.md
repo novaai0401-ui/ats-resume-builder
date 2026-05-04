@@ -18,68 +18,78 @@ mentor 30 minutes to give you, automated and tailored to your role.
 | **Plan Benefits card** with concrete bullets | All | `/dashboard`, `/billing` |
 | **Plan badge in TopNav** (Free / Student / Pro pill) | All | Every page |
 | **Mentor Mode** — pick role + level → tech list, recruiter keywords, free learning resources | Student/Pro | `/mentor` |
+| **Salary band hints** — p25 / median / p75 by role + level + city, 8 roles × 9 cities | Pro only | `/mentor` (within the role result) |
+| **AI Bullet Rewriter** — per-bullet "✨ Rewrite" returns 3 LLM alternatives, with rule-based fallback | Student/Pro | Editor (next to each experience bullet) |
+| **JD Match Score** — paste a JD, get match % + matched/missing keywords + 3 bullets to add | Student/Pro | `/jd-match` |
+| **Interview Prep Cards** — 8 likely interview questions with answer outlines drawn from the user's resume | Pro only | `/interview-prep` |
+| **Mentor Chat** — chat with an AI mentor that has the user's resume + job-tracker history as context | Pro only | `/mentor/chat` |
+| **No-double-charge for subscribers** — Student/Pro skip Razorpay on export, exports are part of the plan | Student/Pro | `/billing/download-charge/init` short-circuits |
 | **AI Resume Critique** with GROQ Llama 3.3 70B | Student/Pro | Editor → AI Critique button (existing) |
 | **Tech Gap Analysis** | Student/Pro | Editor → Tech Gap button (existing) |
 | **Cover Letter Studio** with tone control | Student/Pro | `/cover-letter` (existing) |
 
 ## Next 30 days (priority order)
 
-### 1. Interview Prep Cards (Pro)
-- **What:** From the user's resume + a target role, generate 10 likely
-  interview questions with suggested answer outlines.
-- **Why:** Every paying user is preparing for interviews. This is the
-  highest-leverage extension of what we already know about them.
-- **How (rough):**
-  - New `/interview-prep` route.
-  - New `POST /ai/interview-prep` endpoint that takes the resume +
-    role and returns `{ questions: [{ q, why, outline }] }`.
-  - Reuse the GROQ provider; same plan-gate as critique.
-- **Effort:** ~3 days.
+### 1. ~~Interview Prep Cards (Pro)~~ ✅ Shipped
+- New `InterviewPrepService` at `src/ai/interview-prep.service.ts`.
+- New endpoint `POST /ai/interview-prep` — Pro-only (throws
+  PRO_PLAN_REQUIRED for FREE/STUDENT). LLM-driven, with a rule-based
+  fallback returning 8 always-relevant role-agnostic questions.
+- New page `/interview-prep` with accordion cards (category badge,
+  question, why-asked, answer outline). 8 cards: 3 behavioural, 3
+  technical, 2 role-specific.
+- 11 unit tests in `tests/interview-prep.unit.test.cjs` covering
+  parser robustness, malformed-entry filtering, category coercion,
+  fallback completeness.
+- ~1500 tokens charged per call. 5 calls / 5 minutes / user rate limit.
 
-### 2. Salary band hints (Pro)
-- **What:** Show a salary range for the user's role + level + city.
-- **Why:** Anchors the resume work in a concrete career outcome.
-- **How:**
-  - Static seed dataset for top 10 Indian metros + remote, top 8 roles,
-    3 experience bands (Fresher/Mid/Senior). 240 rows. Render as a
-    band ("₹X – ₹Y / year, median ₹Z").
-  - No new backend; ship a JSON file.
-  - V2: pull from Levels.fyi / AmbitionBox APIs.
-- **Effort:** ~1 day for v1.
+### 2. ~~Salary band hints (Pro)~~ ✅ Shipped
+- Implemented at `resume-builder-web/src/lib/salary-bands.ts`.
+- 8 roles × 9 cities × 3 levels = 216 combinations, derived from a
+  per-(role × level) base table multiplied by per-city multipliers.
+- 12 unit tests pin behaviour: ordering, multiplier direction, fallback
+  for unknown city, formatInr units (Lakh / Crore), null on unknown role.
+- V2 pull from Levels.fyi / AmbitionBox API still pending.
 
-### 3. AI Bullet Rewriter (Student & Pro)
-- **What:** Inline "Rewrite with AI" button next to each bullet that
-  produces 3 alternative phrasings.
-- **Why:** The current AI Critique is bulk-apply. Per-bullet rewrites
-  are what users actually want when they're polishing.
-- **How:** Extend `/ai/critique` to accept a `mode: 'bullet'` flag with
-  `{ expIndex, bulletIndex, current }`. Reuses the same endpoint and
-  plan-gate.
-- **Effort:** ~2 days.
+### 3. ~~AI Bullet Rewriter (Student & Pro)~~ ✅ Shipped
+- New `BulletRewriterService` at
+  `resume-builder-api/src/ai/bullet-rewriter.service.ts`.
+- New endpoint `POST /ai/rewrite-bullet` returns 3 alternatives.
+- GROQ-driven when `GROQ_API_KEY` is set; rule-based fallback (verb
+  swaps) when not — same response shape so the client never branches.
+- Per-bullet "✨ Rewrite" button in the editor opens an inline panel
+  with 3 alternatives; "Use this" replaces the bullet text and marks
+  dirty. Free users see a paywall card pointing at /billing.
+- 9 unit tests pin the parser + fallback (`tests/bullet-rewriter.unit.test.cjs`).
+- Quotas: ~400 tokens charged per call against the user's monthly
+  AI budget.
 
-### 4. Job-Description Match Score (Student & Pro)
-- **What:** Paste a JD → see "you're a 73% match" with the missing
-  skills and the bullets to add.
-- **Why:** ATS scan + JD analysis already exists; surfacing the gap
-  per-job (not per-resume) is what users want to act on.
-- **How:** Hook into the existing ATS scan flow with the JD pre-filled
-  from the Job Tracker.
-- **Effort:** ~1 day.
+### 4. ~~Job-Description Match Score (Student & Pro)~~ ✅ Shipped
+- New `JdMatchService` at `resume-builder-api/src/ai/jd-match.service.ts`.
+- New endpoint `POST /ai/jd-match`. GROQ-driven; rule-based core
+  always runs as a baseline so the result is never empty.
+- New page `/jd-match` with circular score ring, matched/missing
+  keyword chips, and 3 copy-to-clipboard bullet suggestions.
+- 13 unit tests pin the rule-based scoring + parser
+  (`tests/jd-match.unit.test.cjs`).
+- ~600 tokens charged per call.
 
-### 5. Mentor Chat (Pro only — true differentiator)
-- **What:** Replace the static role table on `/mentor` with a chat
-  interface. User asks "I'm a 3-year frontend dev, should I learn
-  React Native or backend next?" — agent answers using their resume +
-  job-tracker history as context.
-- **Why:** This is the feature competitors *don't* have because most
-  aren't built on a resume backend. We have the user's full career
-  history; we should put it to work.
-- **How:**
-  - New `/mentor/chat` route with a streaming chat UI.
-  - Server-side: `POST /ai/mentor-chat` with the resume + recent jobs
-    + user message. GROQ Llama 3.3 70B with a tight system prompt.
-  - Strict rate limit: 20 turns/day on Pro, 5 on Student, 0 on Free.
-- **Effort:** ~5 days — biggest item, ship last.
+### 5. ~~Mentor Chat (Pro only — true differentiator)~~ ✅ Shipped
+- New `MentorChatService` at `src/ai/mentor-chat.service.ts`.
+- New endpoint `POST /ai/mentor-chat` — Pro-only. Stateless: the
+  client passes the full message history each turn; the server
+  injects the user's resume + recent job applications into the
+  system prompt as context.
+- New page `/mentor/chat` — bubble-style chat UI, transcript caps at
+  60vh, Enter-to-send / Shift+Enter for newline, "Restart conversation"
+  button, 4 starter prompts for cold-open.
+- 10 unit tests in `tests/mentor-chat.unit.test.cjs` cover history
+  sanitization (role validation, content trimming, MAX_HISTORY cap),
+  prompt-builder content (resume injection, missing-resume note, job
+  list formatting), and transcript serialisation.
+- ~800 tokens / turn. 6 turns / minute / user rate limit.
+- Helpful failure messages (provider unavailable / hiccup) instead of
+  silent breakage.
 
 ## Backlog (90 days)
 

@@ -12,6 +12,10 @@ import { AiService } from './ai.service';
 import type { AiCritiqueInput } from './ai.service';
 import { TechGapService, type TechGapInput } from './tech-gap.service';
 import { CoverLetterService, type GenerateCoverLetterInput } from './cover-letter.service';
+import { BulletRewriterService, type RewriteBulletInput } from './bullet-rewriter.service';
+import { JdMatchService, type JdMatchInput } from './jd-match.service';
+import { InterviewPrepService, type InterviewPrepInput } from './interview-prep.service';
+import { MentorChatService, type MentorChatInput } from './mentor-chat.service';
 
 @Controller('ai')
 @UseGuards(JwtAuthGuard)
@@ -20,6 +24,10 @@ export class AiController {
     private readonly aiService: AiService,
     private readonly techGapService: TechGapService,
     private readonly coverLetterService: CoverLetterService,
+    private readonly bulletRewriter: BulletRewriterService,
+    private readonly jdMatchService: JdMatchService,
+    private readonly interviewPrepService: InterviewPrepService,
+    private readonly mentorChatService: MentorChatService,
   ) {}
 
   @Post('parse-jd')
@@ -71,6 +79,71 @@ export class AiController {
     @Body() body: GenerateCoverLetterInput,
   ) {
     return this.coverLetterService.generate(req.user.userId, body);
+  }
+
+  /**
+   * Per-bullet AI rewrite. Returns 3 alternative phrasings.
+   * Plan-gated (Free is rejected by the service when payment-feature
+   * is enabled). Falls back to rule-based variants when no AI
+   * provider is configured or the call fails — the response shape is
+   * identical so the client doesn't branch on it.
+   */
+  @Post('rewrite-bullet')
+  rewriteBullet(
+    @Req() req: { user: { userId: string } },
+    @Body() body: RewriteBulletInput,
+  ) {
+    if (!body || typeof body !== 'object' || !body.currentBullet) {
+      throw new BadRequestException('currentBullet is required');
+    }
+    return this.bulletRewriter.rewrite(req.user.userId, body);
+  }
+
+  /**
+   * JD Match Score — paste a JD, get a percentage match,
+   * matched/missing keywords, and three bullet suggestions to close
+   * the gap. Plan-gated; rule-based fallback when LLM is unavailable.
+   */
+  @Post('jd-match')
+  jdMatch(
+    @Req() req: { user: { userId: string } },
+    @Body() body: JdMatchInput,
+  ) {
+    if (!body || typeof body !== 'object' || !body.resumeText || !body.jdText) {
+      throw new BadRequestException('resumeText and jdText are required');
+    }
+    return this.jdMatchService.match(req.user.userId, body);
+  }
+
+  /**
+   * Interview Prep Cards — Pro only. Generate 8 likely interview
+   * questions with answer outlines tailored to the user's resume.
+   */
+  @Post('interview-prep')
+  interviewPrep(
+    @Req() req: { user: { userId: string } },
+    @Body() body: InterviewPrepInput,
+  ) {
+    if (!body || typeof body !== 'object' || !body.resumeText) {
+      throw new BadRequestException('resumeText is required');
+    }
+    return this.interviewPrepService.generate(req.user.userId, body);
+  }
+
+  /**
+   * Mentor Chat — Pro only. The user sends the full message history
+   * (we're stateless on the server) plus their resume + recent job
+   * applications as context. Returns the mentor's next reply.
+   */
+  @Post('mentor-chat')
+  mentorChat(
+    @Req() req: { user: { userId: string } },
+    @Body() body: MentorChatInput,
+  ) {
+    if (!body || typeof body !== 'object' || !Array.isArray(body.messages)) {
+      throw new BadRequestException('messages[] is required');
+    }
+    return this.mentorChatService.chat(req.user.userId, body);
   }
 
   @Get('cover-letters')

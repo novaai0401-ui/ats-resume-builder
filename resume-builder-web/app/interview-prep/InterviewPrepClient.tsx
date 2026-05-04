@@ -1,0 +1,242 @@
+'use client';
+
+/**
+ * Interview Prep Cards — Pro only.
+ *
+ * Generates 8 likely interview questions from the user's resume +
+ * target role. Each card has the question, why it's asked, and an
+ * answer outline (3 bullets).
+ *
+ * Free / Student users see a paywall card explaining what they'd
+ * unlock at Pro. We deliberately don't run the rule-based fallback
+ * for non-Pro users — interview prep is the marquee Pro feature and
+ * shouldn't leak.
+ */
+
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { api, getAccessToken } from '@/src/lib/api';
+import { useResumeStore } from '@/src/lib/resume-store';
+
+type Card = {
+  category: 'behavioral' | 'technical' | 'role-specific';
+  question: string;
+  whyAsked: string;
+  answerOutline: string[];
+};
+
+const CATEGORY_LABEL: Record<Card['category'], string> = {
+  behavioral: 'Behavioral',
+  technical: 'Technical',
+  'role-specific': 'Role-specific',
+};
+
+const CATEGORY_COLOR: Record<Card['category'], string> = {
+  behavioral: '#1e7a3a',
+  technical: '#1a3a5c',
+  'role-specific': '#b07906',
+};
+
+function buildResumeText(resume: { summary?: string; skills?: string[]; experience?: Array<{ company?: string; role?: string; highlights?: string[] }> } | null): string {
+  if (!resume) return '';
+  const parts: string[] = [];
+  if (resume.summary) parts.push(resume.summary);
+  if (resume.skills?.length) parts.push(`Skills: ${resume.skills.join(', ')}`);
+  for (const exp of resume.experience ?? []) {
+    parts.push(`${exp.role ?? ''} at ${exp.company ?? ''}: ${(exp.highlights ?? []).join(' ')}`);
+  }
+  return parts.filter(Boolean).join('\n');
+}
+
+export default function InterviewPrepClient() {
+  const resume = useResumeStore((state) => state.resume);
+  const [authed, setAuthed] = useState(false);
+  const [plan, setPlan] = useState<'FREE' | 'STUDENT' | 'PRO'>('FREE');
+  const [targetRole, setTargetRole] = useState('');
+  const [jdText, setJdText] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [paywall, setPaywall] = useState(false);
+  const [cards, setCards] = useState<Card[]>([]);
+  const [provider, setProvider] = useState<'groq' | 'rule-based' | null>(null);
+  const [openIdx, setOpenIdx] = useState<number | null>(0);
+
+  useEffect(() => {
+    setAuthed(Boolean(getAccessToken()));
+    try {
+      const stored = window.localStorage.getItem('rb_plan');
+      if (stored === 'PRO' || stored === 'STUDENT' || stored === 'FREE') setPlan(stored);
+    } catch { /* ignore */ }
+  }, []);
+
+  const isPro = plan === 'PRO';
+  const resumeText = buildResumeText(resume as never);
+  const hasResume = resumeText.trim().length > 30;
+
+  async function handleGenerate() {
+    setError('');
+    setPaywall(false);
+    setCards([]);
+    setProvider(null);
+    if (!hasResume) {
+      setError('Build or upload a resume first — interview prep cards are generated from it.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const data = await api.interviewPrep({
+        resumeText,
+        targetRole: targetRole.trim() || undefined,
+        jdText: jdText.trim() || undefined,
+      });
+      setCards(data.questions);
+      setProvider(data.provider);
+      setOpenIdx(0);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Generation failed';
+      if (/PRO_PLAN_REQUIRED/i.test(message)) {
+        setPaywall(true);
+      } else {
+        setError(message);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (!authed) {
+    return (
+      <main className="grid">
+        <section className="card col-12">
+          <h1>Interview Prep Cards</h1>
+          <p className="small">Sign in to generate interview prep cards from your resume.</p>
+          <Link className="btn" href="/auth/login">Sign in</Link>
+        </section>
+      </main>
+    );
+  }
+
+  return (
+    <main className="grid">
+      <section className="card col-12">
+        <h1 style={{ marginBottom: 4 }}>
+          Interview Prep Cards{' '}
+          <span className="plan-badge plan-badge--pro" style={{ fontSize: 11 }}>Pro</span>
+        </h1>
+        <p className="small" style={{ margin: 0, color: '#5a6778' }}>
+          We&rsquo;ll generate 8 likely interview questions from your saved resume — three
+          behavioral, three technical, two role-specific. Each card includes a 3-bullet answer
+          outline drawn from your actual experience.
+        </p>
+      </section>
+
+      {!isPro ? (
+        <section
+          className="card col-12"
+          style={{
+            background: 'linear-gradient(180deg, #eef5ff 0%, #ffffff 100%)',
+            borderLeft: '4px solid #1a3a5c',
+          }}
+        >
+          <h2 style={{ marginTop: 0 }}>This is a Pro feature</h2>
+          <p className="small" style={{ color: '#3a4655', lineHeight: 1.6, marginBottom: 12 }}>
+            Pro (₹799/mo) includes Interview Prep, Salary band hints, Mentor Chat, and 300/200
+            monthly ATS scans / exports. Upgrade once to use this feature for your full job hunt.
+          </p>
+          <Link className="btn" href="/billing">See plans</Link>
+        </section>
+      ) : null}
+
+      <section className="card col-12">
+        <div className="mentor-form-grid">
+          <div>
+            <label className="label" htmlFor="target-role">Target role (optional)</label>
+            <input
+              id="target-role"
+              className="input"
+              type="text"
+              placeholder="e.g. Senior Frontend Engineer"
+              value={targetRole}
+              onChange={(e) => setTargetRole(e.target.value)}
+            />
+          </div>
+          <div style={{ gridColumn: 'span 2' }}>
+            <label className="label" htmlFor="jd-context">Paste a JD (optional)</label>
+            <textarea
+              id="jd-context"
+              className="input"
+              rows={3}
+              placeholder="Adds JD-specific questions to the cards…"
+              value={jdText}
+              onChange={(e) => setJdText(e.target.value)}
+              style={{ resize: 'vertical', minHeight: 80 }}
+            />
+          </div>
+        </div>
+        <div style={{ marginTop: 12 }}>
+          <button className="btn" onClick={handleGenerate} disabled={loading || !isPro}>
+            {loading ? 'Generating cards…' : 'Generate prep cards'}
+          </button>
+        </div>
+        {error ? <p className="hint error" style={{ marginTop: 10 }}>{error}</p> : null}
+        {paywall ? (
+          <p className="small" style={{ marginTop: 10, color: '#5a6778' }}>
+            Upgrade to Pro on the <Link href="/billing">billing page</Link> to use Interview Prep.
+          </p>
+        ) : null}
+      </section>
+
+      {cards.length > 0 ? (
+        <section className="card col-12">
+          <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+            <h2 style={{ margin: 0 }}>{cards.length} prep cards</h2>
+            <span className="small" style={{ color: '#7a8a99' }}>
+              {provider === 'groq' ? 'Powered by AI' : 'Rule-based (configure GROQ_API_KEY for tailored cards)'}
+            </span>
+          </header>
+          <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 10 }}>
+            {cards.map((card, i) => {
+              const isOpen = openIdx === i;
+              return (
+                <li
+                  key={i}
+                  className="prep-card"
+                  data-open={isOpen ? 'true' : 'false'}
+                >
+                  <button
+                    type="button"
+                    className="prep-card__head"
+                    onClick={() => setOpenIdx(isOpen ? null : i)}
+                    aria-expanded={isOpen}
+                  >
+                    <span
+                      className="prep-card__category"
+                      style={{ background: CATEGORY_COLOR[card.category] }}
+                    >
+                      {CATEGORY_LABEL[card.category]}
+                    </span>
+                    <span className="prep-card__question">{card.question}</span>
+                    <span className="prep-card__chevron" aria-hidden="true">{isOpen ? '−' : '+'}</span>
+                  </button>
+                  {isOpen ? (
+                    <div className="prep-card__body">
+                      <p className="small" style={{ margin: '0 0 8px', color: '#5a6778' }}>
+                        <strong>Why this is asked:</strong> {card.whyAsked || '—'}
+                      </p>
+                      <p style={{ margin: '0 0 6px', fontWeight: 600 }}>Answer outline:</p>
+                      <ul style={{ paddingLeft: 18, lineHeight: 1.6, margin: 0 }}>
+                        {card.answerOutline.map((bullet, b) => (
+                          <li key={b}>{bullet}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ) : null}
+    </main>
+  );
+}

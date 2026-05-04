@@ -120,13 +120,33 @@ These can't be automated:
 - **Not** a per-user GROQ API key system. Don't go down that path —
   GROQ doesn't support it, and even if they did, the operational
   burden (key rotation, attribution, abuse handling) outweighs the
-  benefit.
+  benefit. The previous "bring your own key" form / endpoint /
+  Settings UI was removed; users have no way to supply an LLM key,
+  by design.
 - **Not** a usage-based billing model. We charge a flat monthly tier
   + a flat per-download charge. If you want to shift to usage-based
   later, that needs a separate plan card and a different webhook.
 - **Not** a feature flag system. Plan changes are reflected by the
   user-row `plan` column. Feature flags are governed separately by
   `SettingsService`.
+
+## Deferred database cleanup
+
+The Prisma `User.byokKeyEnabled` column still exists in the schema.
+We left it in place because dropping a column on a live deployment
+breaks any in-flight queries from the previous code version. To
+reclaim it cleanly:
+
+1. Wait at least one full deploy cycle after this change ships so
+   no in-flight requests reference the column.
+2. Generate a Prisma migration that drops `byokKeyEnabled` from
+   the `User` model (also remove the field from `prisma/schema.prisma`).
+3. `npx prisma migrate dev` locally → review → commit.
+4. Deploy. Render's pre-deploy hook runs `prisma migrate deploy`,
+   which applies the column drop atomically.
+
+No data loss — the column is a boolean flag that's no longer read
+or written.
 
 ## Failure modes and what users see
 

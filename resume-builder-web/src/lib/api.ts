@@ -340,28 +340,14 @@ function slugifyFileName(input?: string | null): string {
   return cleaned.slice(0, 64);
 }
 
-export function readByokAiKey(): string {
-  if (typeof window === 'undefined') return '';
-  try {
-    return (window.localStorage.getItem('rb_byok_ai_key') || '').trim();
-  } catch {
-    return '';
-  }
-}
-
-export function writeByokAiKey(key: string): void {
-  if (typeof window === 'undefined') return;
-  const trimmed = (key || '').trim();
-  try {
-    if (trimmed) {
-      window.localStorage.setItem('rb_byok_ai_key', trimmed);
-    } else {
-      window.localStorage.removeItem('rb_byok_ai_key');
-    }
-  } catch {
-    // ignore quota / privacy-mode failures
-  }
-}
+// BYOK (bring your own LLM key) was removed. Every paid user routes
+// through the single shared GROQ key configured by the operator. See
+// docs/subscription-mechanics.md.
+//
+// We deliberately do NOT auto-clean the legacy `rb_byok_ai_key` from
+// localStorage; users who set one once shouldn't re-encounter it via
+// any UI surface, but leaving the value untouched avoids surprising
+// state mutations on existing browser sessions.
 
 export function setAuthTokens(auth: AuthResponse) {
   if (typeof window === 'undefined') return;
@@ -959,8 +945,58 @@ export const api = {
   techGap: (input: TechGapRequest) =>
     request<TechGapResult>(`/ai/tech-gap`, {
       method: 'POST',
-      body: JSON.stringify({ ...input, byokApiKey: readByokAiKey() || undefined }),
+      body: JSON.stringify(input),
     }),
+
+  /**
+   * Per-bullet AI rewrite. Returns 3 alternative phrasings.
+   * Server gates Free users (returns 403 FREE_PLAN_AI_BLOCKED) when
+   * the payment feature is enabled. Falls back server-side to rule-
+   * based variants when no LLM is configured — the response shape is
+   * identical, so the caller doesn't have to branch.
+   */
+  rewriteBullet: (input: { currentBullet: string; role?: string; company?: string; jdText?: string }) =>
+    request<{ alternatives: string[]; provider: 'groq' | 'rule-based'; tokensUsed: number }>(
+      `/ai/rewrite-bullet`,
+      { method: 'POST', body: JSON.stringify(input) },
+    ),
+
+  /**
+   * JD Match Score. Returns matchPercent (0-100), matched/missing
+   * keywords, and 3 bullet suggestions to close the gap. Plan-gated;
+   * server falls back to rule-based output when LLM is unavailable.
+   */
+  jdMatch: (input: { resumeText: string; jdText: string; currentSkills?: string[] }) =>
+    request<{
+      matchPercent: number;
+      matchedKeywords: string[];
+      missingKeywords: string[];
+      bulletSuggestions: string[];
+      provider: 'groq' | 'rule-based';
+    }>(`/ai/jd-match`, { method: 'POST', body: JSON.stringify(input) }),
+
+  /** Interview Prep Cards — Pro only. */
+  interviewPrep: (input: { resumeText: string; targetRole?: string; jdText?: string }) =>
+    request<{
+      questions: Array<{
+        category: 'behavioral' | 'technical' | 'role-specific';
+        question: string;
+        whyAsked: string;
+        answerOutline: string[];
+      }>;
+      provider: 'groq' | 'rule-based';
+    }>(`/ai/interview-prep`, { method: 'POST', body: JSON.stringify(input) }),
+
+  /** Mentor Chat — Pro only. Stateless; pass the full history each turn. */
+  mentorChat: (input: {
+    messages: Array<{ role: 'user' | 'assistant'; content: string }>;
+    resumeText?: string;
+    recentJobApplications?: Array<{ company: string; role: string; status: string }>;
+  }) =>
+    request<{ reply: string; provider: 'groq' | 'unavailable'; tokensUsed: number }>(
+      `/ai/mentor-chat`,
+      { method: 'POST', body: JSON.stringify(input) },
+    ),
 
   loginWithPassword: (email: string, password: string) =>
     request<AuthResponse>(`/auth/login`, {
@@ -1086,7 +1122,6 @@ export const api = {
       totalRegisteredUsers: number;
       totalLoginEvents: number;
       paidSubscribers: number;
-      usersWithByokKey: number;
       logins24h: number;
       activeRightNow: number;
       newUsers7d: number;
@@ -1106,7 +1141,6 @@ export const api = {
         plan: string;
         primaryAuthProvider: string;
         hasUserSetPassword: boolean;
-        byokKeyEnabled: boolean;
         failedLoginCount: number;
         lockedUntil: string | null;
         lastActiveAt: string | null;
@@ -1133,12 +1167,7 @@ export const api = {
       top: Array<{ ip: string | null; count: number }>;
     }>(`/admin/analytics/locations${days ? `?days=${days}` : ''}`),
 
-  /** Mark whether the current user is using their own BYOK AI key. Admin uses this aggregate only. */
-  setByokKeyFlag: (enabled: boolean) =>
-    request<{ ok: true }>('/settings/byok-key-flag', {
-      method: 'POST',
-      body: JSON.stringify({ enabled }),
-    }),
+  // setByokKeyFlag was removed alongside the BYOK feature.
 
   heartbeat: () =>
     request<void>('/auth/heartbeat', { method: 'POST' }).catch(() => undefined),

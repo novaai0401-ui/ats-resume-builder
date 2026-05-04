@@ -1975,6 +1975,233 @@ body.resume-embed-body .main-shell {
   field-sizing: content;
 }
 
+/* Mentor Chat shell. The transcript scrolls inside the card, with the
+   composer fixed at the bottom of the same card so the user can keep
+   typing while context is visible above. We cap the transcript height
+   so a long conversation doesn't push the page footer offscreen. */
+.mentor-chat-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.mentor-chat-transcript {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 240px;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: 4px;
+  margin-bottom: 12px;
+}
+.mentor-chat-empty {
+  padding: 12px;
+  border: 1px dashed #d9e3ec;
+  border-radius: 10px;
+  background: #f7faff;
+  font-size: 13px;
+}
+.mentor-chat-bubble {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 85%;
+  padding: 10px 14px;
+  border-radius: 12px;
+  line-height: 1.55;
+  font-size: 14px;
+}
+.mentor-chat-bubble--user {
+  align-self: flex-end;
+  background: #1a3a5c;
+  color: #fff;
+}
+.mentor-chat-bubble--user .mentor-chat-role { color: rgba(255, 255, 255, 0.7); }
+.mentor-chat-bubble--assistant {
+  align-self: flex-start;
+  background: #f0f4fa;
+  color: #1a3a5c;
+}
+.mentor-chat-role {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #5a6778;
+}
+.mentor-chat-content {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.mentor-chat-form {
+  border-top: 1px solid #e2e8f0;
+  padding-top: 12px;
+}
+
+/* Interview Prep accordion cards. Each card is a button that toggles
+   the answer-outline panel. Keeps the page tight (8 questions = 8
+   rows) and lets the user focus on one answer at a time. */
+.prep-card {
+  border: 1px solid #d9e3ec;
+  border-radius: 12px;
+  background: #fff;
+  overflow: hidden;
+}
+.prep-card[data-open="true"] {
+  border-color: #b8c8da;
+  box-shadow: 0 2px 6px rgba(20, 40, 70, 0.04);
+}
+.prep-card__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  padding: 14px 16px;
+  font-size: 15px;
+  cursor: pointer;
+  color: #1a3a5c;
+}
+.prep-card__category {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+.prep-card__question {
+  flex: 1;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.prep-card__chevron {
+  font-size: 18px;
+  font-weight: 700;
+  color: #5a6778;
+}
+.prep-card__body {
+  padding: 0 16px 16px 16px;
+  border-top: 1px dashed #e2e8f0;
+  font-size: 14px;
+  background: #f7faff;
+}
+.prep-card__body > * { padding-top: 12px; }
+
+/* JD Match Score circular ring. CSS-only; the colour is set inline
+   via style={borderColor/color} so the score "feels" green/red without
+   us having to maintain three CSS classes. */
+.match-score-ring {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  border: 8px solid currentColor;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: 800;
+  background: #fff;
+  flex-shrink: 0;
+}
+.match-score-ring strong { font-size: 36px; line-height: 1; }
+.match-score-ring small { font-size: 14px; opacity: 0.7; }
+.keyword-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+/* AI Bullet Rewriter — inline panel under the bullet input. We keep
+   it inside the same .exp-highlight-row so the layout follows the
+   bullet on mobile as the editor scrolls. The "Use this" buttons
+   should never push the suggestion text off-screen, so the option
+   row uses flex with a min-width:0 on the text span. */
+.bullet-rewrite-trigger {
+  white-space: nowrap;
+}
+.bullet-rewrite-panel {
+  margin-top: 8px;
+  border: 1px solid #c4d5e0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #f7faff;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.bullet-rewrite-panel--paywall {
+  background: linear-gradient(180deg, #eef5ff 0%, #ffffff 100%);
+  border-left: 3px solid #1a3a5c;
+}
+.bullet-rewrite-panel--error {
+  background: #fff0f0;
+  border-color: #f5a3a3;
+  color: #7a1f1f;
+}
+.bullet-rewrite-option {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+.bullet-rewrite-option > span { min-width: 0; word-break: break-word; }
+@media (max-width: 540px) {
+  /* On phones, stack the suggestion + button so the chevron-style
+     button doesn't push half the suggestion behind the right edge. */
+  .bullet-rewrite-option { flex-direction: column; align-items: stretch; }
+  .bullet-rewrite-option > span { padding-right: 0; }
+}
+
+/* Mentor Mode form: collapses to single column on phones so the role,
+   level, and city pickers don't squeeze each other on a 360px screen. */
+.mentor-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+  align-items: end;
+}
+@media (max-width: 720px) {
+  .mentor-form-grid { grid-template-columns: 1fr; }
+}
+
+/* Salary band table — three rows, the median highlighted. We avoid
+   <table> because the layout is responsive and a flex row is enough. */
+.salary-band {
+  margin-top: 8px;
+  border: 1px solid #d9e3ec;
+  border-radius: 12px;
+  padding: 14px 16px;
+  background: linear-gradient(180deg, #f3fbf6 0%, #ffffff 100%);
+}
+.salary-band__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px dashed #e2e8f0;
+}
+.salary-band__row:last-child { border-bottom: 0; }
+.salary-band__row--median {
+  background: rgba(30, 122, 58, 0.06);
+  margin: 0 -8px;
+  padding-left: 8px;
+  padding-right: 8px;
+  border-radius: 6px;
+}
+.salary-band__row--median .salary-band__value { color: #1e7a3a; font-size: 22px; }
+.salary-band__label { color: #5a6778; font-size: 13px; }
+.salary-band__value { font-weight: 700; font-size: 18px; color: #1a3a5c; }
+
 /* Native month input on iOS Safari is small and centers the placeholder
    awkwardly. Force a 44pt tappable height (Apple HIG minimum), align
    left so "October 2021" reads like a normal field value, and reserve

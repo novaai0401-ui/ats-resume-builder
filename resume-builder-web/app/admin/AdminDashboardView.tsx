@@ -98,7 +98,6 @@ export default function AdminDashboardView() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
             <Metric label="Total users" value={summary.totalRegisteredUsers} />
             <Metric label="Paid subscribers" value={summary.paidSubscribers} />
-            <Metric label="Using BYOK key" value={summary.usersWithByokKey} />
             <Metric label="Active right now" value={summary.activeRightNow} hint="Last 5 minutes" />
             <Metric label="Logins (24h)" value={summary.logins24h} />
             <Metric label="New users (7d)" value={summary.newUsers7d} />
@@ -136,7 +135,6 @@ export default function AdminDashboardView() {
                   <th style={thStyle}>Email</th>
                   <th style={thStyle}>Plan</th>
                   <th style={thStyle}>Provider</th>
-                  <th style={thStyle}>BYOK</th>
                   <th style={thStyle}>Last active</th>
                   <th style={thStyle}>Logins</th>
                   <th style={thStyle}>Created</th>
@@ -149,7 +147,6 @@ export default function AdminDashboardView() {
                     <td style={tdStyle}>{u.email}</td>
                     <td style={tdStyle}>{u.plan}</td>
                     <td style={tdStyle}>{u.primaryAuthProvider}</td>
-                    <td style={tdStyle}>{u.byokKeyEnabled ? 'yes' : 'no'}</td>
                     <td style={tdStyle}>{u.lastActiveAt ? new Date(u.lastActiveAt).toLocaleString() : '—'}</td>
                     <td style={tdStyle}>{u.loginCount}</td>
                     <td style={tdStyle}>{new Date(u.createdAt).toLocaleDateString()}</td>
