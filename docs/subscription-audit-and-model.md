@@ -11,7 +11,7 @@ The audit was run against the codebase, not from memory.
 | Feature | Free | Student | Pro | Enforced where |
 | --- | --- | --- | --- | --- |
 | AI Critique (LLM rewrite of summary, skills, bullets) | blocked | unlocked | unlocked | `resume-builder-api/src/ai/ai.service.ts:103` |
-| Cover Letter Studio | blocked unless BYOK | unlocked | unlocked | `resume-builder-api/src/ai/cover-letter.service.ts:82` |
+| Cover Letter Studio | blocked | unlocked | unlocked | `resume-builder-api/src/ai/cover-letter.service.ts:82` |
 | Saved resumes | 2 | 10 | 100 | `resume-builder-api/src/billing/plan-limits.ts` |
 | ATS scans / month | 2 | 50 | 300 | `plan-limits.ts:25-28` |
 | PDF + Word exports / month | 5 | 25 | 200 | `plan-limits.ts:25-28` |

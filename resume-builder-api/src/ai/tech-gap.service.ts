@@ -21,11 +21,6 @@ export interface TechGapInput {
   certifications?: Array<{ name: string }>;
   targetRole?: string;
   jdText?: string;
-  /**
-   * Optional bring-your-own-key override. When set, the request uses this
-   * Groq/XAI key in place of the server's default. Never persisted.
-   */
-  byokApiKey?: string;
 }
 
 export interface TechGapResult {
@@ -86,7 +81,7 @@ export class TechGapService {
   constructor(private readonly config: ConfigService) {}
 
   async analyze(input: TechGapInput): Promise<TechGapResult> {
-    const provider = this.resolveProvider(input.byokApiKey);
+    const provider = this.resolveProvider();
 
     if (!provider) {
       return this.buildRuleBasedAnalysis(input);
@@ -219,14 +214,15 @@ export class TechGapService {
     };
   }
 
-  private resolveProvider(byokKey?: string): AiProvider | null {
+  private resolveProvider(): AiProvider | null {
+    // BYOK was removed — every paid user routes through the single
+    // shared key configured by the operator. See subscription-mechanics.md.
     const name = this.config.get<string>('AI_PROVIDER', 'groq').toLowerCase();
-    const userKey = (byokKey || '').trim();
     if (name === 'xai') {
-      const key = userKey || this.config.get<string>('XAI_API_KEY', '');
+      const key = this.config.get<string>('XAI_API_KEY', '');
       return key ? new XaiProvider(key, this.config.get<string>('XAI_MODEL', '') || undefined) : null;
     }
-    const key = userKey || this.config.get<string>('GROQ_API_KEY', '');
+    const key = this.config.get<string>('GROQ_API_KEY', '');
     return key ? new GroqProvider(key, this.config.get<string>('GROQ_MODEL', '') || undefined) : null;
   }
 }
