@@ -2211,7 +2211,8 @@ body.resume-embed-body .main-shell {
    sitting on top of the year. */
 .month-input {
   min-height: 44px;
-  text-align: left;
+  width: 100%;
+  text-align: left !important;
   appearance: none;
   -webkit-appearance: none;
   padding-right: 38px !important;
@@ -2221,11 +2222,20 @@ body.resume-embed-body .main-shell {
   box-sizing: border-box;
   max-width: 100%;
 }
+/* iOS Safari renders the value via several shadow parts. We have to
+   pin alignment on each because the parent .month-input rule doesn't
+   propagate through the shadow boundary. Without this, "July 2008"
+   stays centered (the iOS default) and overlaps the calendar glyph
+   on narrow phones — that's the bug the project owner reported. */
+.month-input::-webkit-datetime-edit {
+  text-align: left !important;
+  padding: 0 !important;
+}
+.month-input::-webkit-datetime-edit-fields-wrapper {
+  text-align: left !important;
+}
 .month-input::-webkit-date-and-time-value {
-  text-align: left;
-  /* Pin the value to the start of the field so a long localised
-     month name ("September 2024") stays inside the visible width
-     instead of pushing the calendar icon off-screen. */
+  text-align: left !important;
   padding-right: 4px;
 }
 /* Some Safari builds render the calendar picker indicator absolute-
