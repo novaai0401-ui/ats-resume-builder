@@ -2813,10 +2813,18 @@ export default function ResumeEditor() {
                             {eduErrors.degree && <p className="hint error">{eduErrors.degree}</p>}
                           </div>
                           <div className="education-entry__field">
-                            <label className="label">Start (YYYY-MM)</label>
+                            <label className="label">Start month</label>
+                            {/* Education uses the same month-input styling as
+                                Experience so the value text doesn't get
+                                pushed under the OS calendar glyph on iOS
+                                Safari. Without `.month-input` the value is
+                                centered and overlaps the right border at
+                                small widths — that's the bug the project
+                                owner reported. */}
                             <input
-                              className={`input${eduErrors.startDate ? ' input-error' : ''}`}
+                              className={`input month-input${eduErrors.startDate ? ' input-error' : ''}`}
                               type="month"
+                              aria-label="Start month and year"
                               value={toMonthInputValue(edu.startDate)}
                               onChange={(e) => {
                                 const copy = [...resume.education];
@@ -2825,13 +2833,15 @@ export default function ResumeEditor() {
                                 markDirty();
                               }}
                             />
+                            <p className="hint">Tap to pick month and year.</p>
                             {eduErrors.startDate && <p className="hint error">{eduErrors.startDate}</p>}
                           </div>
                           <div className="education-entry__field">
-                            <label className="label">End (YYYY-MM)</label>
+                            <label className="label">End month</label>
                             <input
-                              className={`input${eduErrors.endDate ? ' input-error' : ''}`}
+                              className={`input month-input${eduErrors.endDate ? ' input-error' : ''}`}
                               type="month"
+                              aria-label="End month and year"
                               value={toMonthInputValue(edu.endDate)}
                               onChange={(e) => {
                                 const copy = [...resume.education];
@@ -2840,6 +2850,7 @@ export default function ResumeEditor() {
                                 markDirty();
                               }}
                             />
+                            <p className="hint">Tap to pick month and year.</p>
                             {eduErrors.endDate && <p className="hint error">{eduErrors.endDate}</p>}
                           </div>
                           <div className="education-entry__field">
@@ -2984,8 +2995,9 @@ export default function ResumeEditor() {
                       }} />
                       <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                         <input
-                          className="input"
+                          className="input month-input"
                           type="month"
+                          aria-label="Project start month and year"
                           placeholder="Start (YYYY-MM)"
                           value={toMonthInputValue(proj.startDate || '')}
                           onChange={(e) => {
@@ -2996,8 +3008,9 @@ export default function ResumeEditor() {
                           }}
                         />
                         <input
-                          className="input"
+                          className="input month-input"
                           type="month"
+                          aria-label="Project end month and year"
                           placeholder="End (YYYY-MM)"
                           value={toMonthInputValue(proj.endDate || '')}
                           onChange={(e) => {
@@ -3106,8 +3119,9 @@ export default function ResumeEditor() {
                         <div className="col-6">
                           <label className="label">Date</label>
                           <input
-                            className="input"
+                            className="input month-input"
                             type="month"
+                            aria-label="Certification date"
                             value={toMonthInputValue(cert.date || '')}
                             onChange={(e) => {
                               const copy = [...resume.certifications];
