@@ -7,7 +7,9 @@ export type TemplateCatalogId =
   | 'consultant'
   | 'academic'
   | 'healthcare'
-  | 'creative';
+  | 'creative'
+  | 'sidebar-bold'
+  | 'accent-header';
 
 export type TemplateCatalogItem = {
   id: TemplateCatalogId;
@@ -135,6 +137,30 @@ export const TEMPLATE_CATALOG: readonly TemplateCatalogItem[] = [
     ],
     componentKey: 'creative',
   },
+  {
+    id: 'sidebar-bold',
+    name: 'Sidebar Bold',
+    description: 'Two-column layout with a dark navy sidebar for skills and a clean white main area. Visual showcase template — not ATS-optimised.',
+    tags: ['Visual', 'Two-column', 'Showcase'],
+    recommendedFor: ['Portfolio sites', 'Direct networking', 'Printed CVs'],
+    industries: [
+      'creative-design', 'media-communications', 'information-technology',
+      'sales-marketing', 'business-management',
+    ],
+    componentKey: 'sidebar-bold',
+  },
+  {
+    id: 'accent-header',
+    name: 'Accent Header',
+    description: 'Vivid gradient header band, colour-coded skill pills and a timeline-style experience section. Visual showcase template — not ATS-optimised.',
+    tags: ['Visual', 'Modern', 'Showcase'],
+    recommendedFor: ['Portfolio sites', 'Direct networking', 'Printed CVs'],
+    industries: [
+      'creative-design', 'media-communications', 'information-technology',
+      'ai-machine-learning', 'sales-marketing',
+    ],
+    componentKey: 'accent-header',
+  },
 ] as const;
 
 export const DEFAULT_TEMPLATE_ID: TemplateCatalogId =
@@ -159,6 +185,12 @@ const TEMPLATE_ID_ALIASES: Record<string, TemplateCatalogId> = {
   'creative-portfolio': 'creative',
   designer: 'creative',
   portfolio: 'creative',
+  'sidebar-bold': 'sidebar-bold',
+  'two-column-bold': 'sidebar-bold',
+  sidebar: 'sidebar-bold',
+  'accent-header': 'accent-header',
+  'accent-band': 'accent-header',
+  visual: 'accent-header',
 };
 
 export function isTemplateCatalogId(value: string): value is TemplateCatalogId {

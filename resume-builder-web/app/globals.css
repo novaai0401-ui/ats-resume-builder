@@ -207,12 +207,17 @@ body.resume-embed-body .main-shell {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
+  /* Prevent grid row from expanding when the native date-picker chrome
+     appears; each row is sized to its content only. */
+  align-items: start;
 }
 
 .experience-entry__field {
   display: grid;
   gap: 6px;
   min-width: 0;
+  /* Stable height so the row doesn't reflow when a date input is focused */
+  align-self: start;
 }
 
 .experience-entry__field--full {
@@ -252,12 +257,14 @@ body.resume-embed-body .main-shell {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
+  align-items: start;
 }
 
 .education-entry__field {
   display: grid;
   gap: 6px;
   min-width: 0;
+  align-self: start;
 }
 
 .education-entry__actions {
@@ -492,7 +499,7 @@ body.resume-embed-body .main-shell {
 }
 
 .hint.error {
-  color: #7a1f1f;
+  color: #dc2626;
 }
 
 .field-meta {
@@ -1534,8 +1541,8 @@ body.resume-embed-body .main-shell {
 
 .snackbar.error {
   background: #fff0f0;
-  color: #7a1f1f;
-  border-color: #f2a2a2;
+  color: #b91c1c;
+  border-color: #fca5a5;
 }
 
 /* ─── Premium Gate ──────────────────────────────────────────────────────── */
@@ -1908,11 +1915,19 @@ body.resume-embed-body .main-shell {
 }
 
 .template-grid-layout {
-  grid-template-columns: 30% 70%;
+  grid-template-columns: 38% 62%;
+  align-items: start;
 }
 .template-grid-layout > .col-7,
 .template-grid-layout > .col-5 {
   grid-column: auto;
+}
+/* Left: catalog list scrolls inside itself so the preview panel on the
+   right stays permanently in view without the user scrolling back up. */
+.template-grid-layout > .col-7 {
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .col-7 {
@@ -2211,6 +2226,9 @@ body.resume-embed-body .main-shell {
    sitting on top of the year. */
 .month-input {
   min-height: 44px;
+  /* Fixed height so the row doesn't reflow on desktop when Chrome renders
+     its inline date-picker control (changes input height on some builds). */
+  height: 52px;
   width: 100%;
   text-align: left !important;
   appearance: none;
@@ -2221,6 +2239,9 @@ body.resume-embed-body .main-shell {
   white-space: nowrap;
   box-sizing: border-box;
   max-width: 100%;
+  /* Prevent the browser's native month widget from expanding past the grid
+     column on Chromium builds that briefly widen the input on focus. */
+  contain: layout;
 }
 /* iOS Safari renders the value via several shadow parts. We have to
    pin alignment on each because the parent .month-input rule doesn't
@@ -2626,6 +2647,12 @@ h2 {
    * `order` only affects flex/grid items, so this is a no-op on desktop
    * where the two-column layout is preserved. */
   .template-grid-layout > .preview-pane { order: -1; }
+  /* On mobile the two-column template layout stacks; reset the left-panel
+     scroll constraint so it grows naturally inside the stacked flow. */
+  .template-grid-layout > .col-7 {
+    max-height: none;
+    overflow-y: visible;
+  }
   .start-shell__choices {
     grid-template-columns: 1fr;
   }
@@ -3031,6 +3058,7 @@ html, body { max-width: 100%; overflow-x: hidden; }
   padding: 4px 6px;
 }
 .message-banner.success { background: #ecfdf5; border-color: #a7f3d0; }
+.message-banner.error   { background: #fff1f2; border-color: #fca5a5; color: #b91c1c; }
 
 /* Mobile breakpoints for new pages.
  * Phones (<640px) get single-column stacks, larger touch targets, and
@@ -3089,3 +3117,410 @@ html, body { max-width: 100%; overflow-x: hidden; }
 }
 
 
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * NON-ATS TEMPLATE STYLES
+ * These templates prioritise visual impact over ATS-scanner compatibility.
+ * Use them for portfolio/showcase purposes, not machine-screened applications.
+ * ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Sidebar Bold ─────────────────────────────────────────────────────────
+ * Two-column: dark navy sidebar (left) + white main content (right)
+ * ─────────────────────────────────────────────────────────────────────── */
+.nb-sidebar-bold {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  min-height: 100%;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #1a2233;
+}
+
+.nb-sidebar-bold__sidebar {
+  background: #1a2e4a;
+  color: #e8edf5;
+  padding: 28px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.nb-sidebar-bold__name-block {
+  margin-bottom: 20px;
+}
+
+.nb-sidebar-bold__name {
+  font-size: 18px;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.25;
+  margin: 0 0 4px;
+  word-break: break-word;
+}
+
+.nb-sidebar-bold__role {
+  font-size: 11px;
+  color: #7eb8e8;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0;
+}
+
+.nb-sidebar-bold__divider {
+  height: 1px;
+  background: rgba(255,255,255,0.15);
+  margin: 0 0 16px;
+}
+
+.nb-sidebar-bold__section {
+  margin-bottom: 18px;
+}
+
+.nb-sidebar-bold__section-title {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #7eb8e8;
+  margin: 0 0 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.nb-sidebar-bold__contact-item {
+  font-size: 10px;
+  color: #c8d8ea;
+  margin: 0 0 4px;
+  word-break: break-all;
+}
+
+.nb-sidebar-bold__contact-item--link {
+  color: #7eb8e8;
+}
+
+.nb-sidebar-bold__skill-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.nb-sidebar-bold__skill-item {
+  font-size: 10px;
+  color: #e8edf5;
+  padding: 2px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.nb-sidebar-bold__skill-item::before {
+  content: '';
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #7eb8e8;
+  flex-shrink: 0;
+}
+
+.nb-sidebar-bold__edu-item {
+  margin-bottom: 10px;
+}
+
+.nb-sidebar-bold__edu-degree {
+  font-size: 10px;
+  font-weight: 600;
+  color: #e8edf5;
+  margin: 0 0 2px;
+}
+
+.nb-sidebar-bold__edu-inst {
+  font-size: 10px;
+  color: #a8bdd0;
+  margin: 0 0 2px;
+}
+
+.nb-sidebar-bold__edu-date {
+  font-size: 9px;
+  color: #7eb8e8;
+  margin: 0;
+}
+
+/* Main area */
+.nb-sidebar-bold__main {
+  padding: 28px 24px;
+  background: #ffffff;
+}
+
+.nb-sidebar-bold__content-section {
+  margin-bottom: 22px;
+}
+
+.nb-sidebar-bold__content-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1a2e4a;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0 0 10px;
+  padding-bottom: 5px;
+  border-bottom: 2px solid #1a2e4a;
+}
+
+.nb-sidebar-bold__summary {
+  font-size: 11px;
+  color: #3a4a5c;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.nb-sidebar-bold__exp-item {
+  margin-bottom: 14px;
+}
+
+.nb-sidebar-bold__exp-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+
+.nb-sidebar-bold__exp-role {
+  font-size: 12px;
+  font-weight: 600;
+  color: #1a2e4a;
+  margin: 0 0 2px;
+}
+
+.nb-sidebar-bold__exp-company {
+  font-size: 11px;
+  color: #5a7a9a;
+  margin: 0;
+  font-style: italic;
+}
+
+.nb-sidebar-bold__exp-date {
+  font-size: 10px;
+  color: #7a9ab8;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.nb-sidebar-bold__exp-bullets {
+  margin: 4px 0 0 14px;
+  padding: 0;
+  list-style: disc;
+}
+
+.nb-sidebar-bold__exp-bullets li {
+  font-size: 10px;
+  color: #3a4a5c;
+  margin-bottom: 2px;
+  line-height: 1.5;
+}
+
+
+/* ── Accent Header ────────────────────────────────────────────────────────
+ * Full-width coloured header band + skill pills + timeline-style experience
+ * ─────────────────────────────────────────────────────────────────────── */
+.nb-accent-header {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #1a2233;
+  background: #ffffff;
+}
+
+.nb-accent-header__band {
+  background: linear-gradient(135deg, #1a3a6e 0%, #2563a8 100%);
+  color: #ffffff;
+  padding: 28px 32px 24px;
+}
+
+.nb-accent-header__name {
+  font-size: 26px;
+  font-weight: 700;
+  margin: 0 0 4px;
+  letter-spacing: -0.02em;
+}
+
+.nb-accent-header__title {
+  font-size: 13px;
+  opacity: 0.85;
+  margin: 0 0 8px;
+  font-weight: 400;
+}
+
+.nb-accent-header__contact {
+  font-size: 11px;
+  opacity: 0.75;
+  margin: 0;
+}
+
+.nb-accent-header__body {
+  padding: 24px 32px;
+}
+
+.nb-accent-header__section {
+  margin-bottom: 22px;
+}
+
+.nb-accent-header__section-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: #2563a8;
+  margin: 0 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nb-accent-header__section-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #d0dff0;
+}
+
+.nb-accent-header__summary {
+  font-size: 11px;
+  color: #3a4a5c;
+  line-height: 1.7;
+  margin: 0;
+}
+
+.nb-accent-header__skills-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.nb-accent-header__skill-pill {
+  background: #e8f0f8;
+  color: #1a3a6e;
+  border: 1px solid #c0d4ea;
+  border-radius: 20px;
+  padding: 3px 10px;
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.nb-accent-header__skill-pill--soft {
+  background: #f0f8ee;
+  color: #1e5535;
+  border-color: #b8dfb0;
+}
+
+/* Timeline items */
+.nb-accent-header__item {
+  margin-bottom: 14px;
+  padding-left: 18px;
+  position: relative;
+}
+
+.nb-accent-header__item-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.nb-accent-header__item-dot {
+  position: absolute;
+  left: 0;
+  top: 5px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #2563a8;
+  flex-shrink: 0;
+}
+
+.nb-accent-header__item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px;
+  flex: 1;
+}
+
+.nb-accent-header__item-role {
+  font-size: 12px;
+  font-weight: 600;
+  color: #1a2e4a;
+}
+
+.nb-accent-header__item-company {
+  font-size: 11px;
+  color: #5a7a9a;
+  font-style: italic;
+}
+
+.nb-accent-header__item-date {
+  font-size: 10px;
+  color: #8aa8c8;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.nb-accent-header__bullets {
+  margin: 4px 0 0 4px;
+  padding: 0 0 0 12px;
+  list-style: disc;
+}
+
+.nb-accent-header__bullets li {
+  font-size: 10px;
+  color: #3a4a5c;
+  margin-bottom: 2px;
+  line-height: 1.5;
+}
+
+.nb-accent-header__lower {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.nb-accent-header__edu-item {
+  margin-bottom: 8px;
+}
+
+.nb-accent-header__edu-degree {
+  font-size: 11px;
+  font-weight: 600;
+  color: #1a2e4a;
+  margin: 0 0 2px;
+}
+
+.nb-accent-header__edu-inst {
+  font-size: 10px;
+  color: #5a7a9a;
+  margin: 0 0 2px;
+}
+
+.nb-accent-header__edu-date {
+  font-size: 10px;
+  color: #8aa8c8;
+  margin: 0;
+}
+
+/* ── Non-ATS template responsive resets ──────────────────────────────── */
+@media (max-width: 600px) {
+  .nb-sidebar-bold {
+    grid-template-columns: 1fr;
+  }
+  .nb-accent-header__lower {
+    grid-template-columns: 1fr;
+  }
+  .nb-accent-header__band {
+    padding: 20px 16px;
+  }
+  .nb-accent-header__body {
+    padding: 16px;
+  }
+}

@@ -90,6 +90,12 @@ export function AutocompleteInput({
         aria-expanded={open}
         aria-controls={testId ? `${testId}-listbox` : undefined}
         onFocus={() => setOpen(true)}
+        onClick={() => {
+          // When a suggestion is selected, the input keeps focus (onMouseDown
+          // on the list item prevents blur). A subsequent click on the input
+          // does NOT fire onFocus again, so we need onClick to re-open.
+          setOpen(true);
+        }}
         onBlur={() => {
           closeTimerRef.current = setTimeout(() => setOpen(false), 120);
         }}
