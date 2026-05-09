@@ -112,6 +112,9 @@ export default function TopNav() {
         </>
       )}
       {authed && admin ? <Link href="/admin" onClick={closeDrawer}>Admin</Link> : null}
+      <Link href="/download" onClick={closeDrawer} className="nav-download-app">
+        Download App
+      </Link>
       {authed ? (
         <button className="btn secondary" type="button" onClick={onLogout}>Logout</button>
       ) : (

@@ -98,6 +98,17 @@ body.resume-embed-body .main-shell {
 }
 .plan-badge--pro::before { content: '⭐ '; }
 
+/* Download App link — distinct accent so it doesn't blend with nav text links */
+.nav-download-app {
+  background: var(--accent) !important;
+  color: #fff !important;
+  border-color: var(--accent) !important;
+  font-weight: 600;
+}
+.nav-download-app:hover {
+  opacity: 0.88;
+}
+
 .nav a {
   padding: 8px 12px;
   border: 1px solid var(--border);
