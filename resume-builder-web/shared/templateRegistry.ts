@@ -10,6 +10,8 @@ import HealthcareCV from '@/components/templates/HealthcareCV';
 import MinimalClean from '@/components/templates/MinimalClean';
 import ModernProfessional from '@/components/templates/ModernProfessional';
 import TechnicalCompact from '@/components/templates/TechnicalCompact';
+import SidebarBold from '@/components/templates/SidebarBold';
+import AccentHeader from '@/components/templates/AccentHeader';
 
 export type TemplateComponentProps = {
   resumeData: ResumeImportResult;
@@ -31,6 +33,8 @@ const templateComponents: Record<TemplateComponentKey, ComponentType<TemplateCom
   academic: AcademicCV,
   healthcare: HealthcareCV,
   creative: CreativePortfolio,
+  'sidebar-bold': SidebarBold,
+  'accent-header': AccentHeader,
 };
 
 const templateEntries = TEMPLATE_CATALOG.map((template) => {

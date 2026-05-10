@@ -66,6 +66,139 @@ type TemplateCatalogGridProps = {
   dataTestId?: string;
 };
 
+function TemplateCard({
+  template,
+  previewResume,
+  selectedTemplate,
+  recommendation,
+  hoveredTemplate,
+  onHoverTemplate,
+  onPreviewTemplate,
+  onSelectTemplate,
+  primaryActionLabel,
+  disabled,
+  previewLoading,
+}: {
+  template: TemplateConfig;
+  previewResume: ResumeImportResult | null;
+  selectedTemplate: TemplateId | '';
+  recommendation?: TemplateRecommendation | null;
+  hoveredTemplate: TemplateId | '';
+  onHoverTemplate?: (id: TemplateId | '') => void;
+  onPreviewTemplate?: (id: TemplateId) => void;
+  onSelectTemplate: (id: TemplateId) => void;
+  primaryActionLabel: string;
+  disabled: boolean;
+  previewLoading: boolean;
+}) {
+  const isApplied = Boolean(selectedTemplate) && template.id === selectedTemplate;
+  const isRecommended = template.id === recommendation?.primaryTemplateId;
+  const showRecommendedReason = Boolean(isRecommended && recommendation?.reasons[0]);
+  const isPreviewing = template.id === hoveredTemplate;
+  const previewHandler = onPreviewTemplate || onSelectTemplate;
+  const showPreviewAction = Boolean(onPreviewTemplate);
+
+  const handlePreview = () => {
+    if (disabled) return;
+    previewHandler(template.id);
+  };
+
+  const handlePrimaryAction = () => {
+    if (disabled) return;
+    onSelectTemplate(template.id);
+  };
+
+  return (
+    <article
+      key={template.id}
+      className={`template-card ${isApplied ? 'active' : ''}`}
+      data-template-id={template.id}
+      onClick={() => {
+        if (disabled) return;
+        previewHandler(template.id);
+      }}
+      onKeyDown={(event) => {
+        if (disabled) return;
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          previewHandler(template.id);
+        }
+      }}
+      role="button"
+      tabIndex={disabled ? -1 : 0}
+      onMouseEnter={() => onHoverTemplate?.(template.id)}
+      onMouseLeave={() => onHoverTemplate?.('')}
+    >
+      <div
+        className="template-card__preview template-card__preview--interactive"
+        onClick={(event) => {
+          event.stopPropagation();
+          handlePreview();
+        }}
+      >
+        <TemplateCardThumbnail templateId={template.id} previewResume={previewResume} previewLoading={previewLoading} />
+        <button
+          type="button"
+          className="template-card__preview-overlay template-card__preview-overlay-button"
+          onClick={(event) => {
+            event.stopPropagation();
+            handlePreview();
+          }}
+          disabled={disabled}
+        >
+          Open preview
+        </button>
+      </div>
+      <div className="template-card__meta">
+        <div>
+          <strong>{template.name}</strong>
+          <div className="small">{template.description}</div>
+          <div className="small template-card__availability">{template.tags.join(' | ')}</div>
+          {showRecommendedReason && (
+            <p className="small template-card__reason">
+              Why recommended? {recommendation?.reasons[0]}
+            </p>
+          )}
+        </div>
+        <div className="template-card__meta-badges">
+          <span className="pill">{isApplied ? 'Applied' : isPreviewing ? 'Previewing' : 'Available'}</span>
+          {isRecommended && (
+            <span className="pill recommended" title={(recommendation?.reasons || []).join(' ')}>
+              Recommended
+            </span>
+          )}
+        </div>
+        <div className="template-card__actions">
+          {showPreviewAction && (
+            <button
+              type="button"
+              className="btn secondary template-card__action"
+              onClick={(event) => {
+                event.stopPropagation();
+                handlePreview();
+              }}
+              disabled={disabled}
+            >
+              Preview
+            </button>
+          )}
+          <button
+            type="button"
+            className="btn template-card__action"
+            onClick={(event) => {
+              event.stopPropagation();
+              handlePrimaryAction();
+            }}
+            disabled={disabled}
+          >
+            {primaryActionLabel}
+          </button>
+        </div>
+      </div>
+    </article>
+  );
+}
+
 export default function TemplateCatalogGrid({
   templates,
   previewResume,
@@ -81,120 +214,58 @@ export default function TemplateCatalogGrid({
   previewLoading = false,
   dataTestId,
 }: TemplateCatalogGridProps) {
+  const atsTemplates = templates.filter((t) => t.tags.includes('ATS-safe'));
+  const visualTemplates = templates.filter((t) => !t.tags.includes('ATS-safe'));
+
+  const cardProps = {
+    previewResume,
+    selectedTemplate,
+    recommendation,
+    hoveredTemplate,
+    onHoverTemplate,
+    onPreviewTemplate,
+    onSelectTemplate,
+    primaryActionLabel,
+    disabled,
+    previewLoading,
+  };
+
+  const gridClass = `template-grid ${layoutVariant === 'gallery' ? 'template-grid--gallery' : 'template-grid--list'}`;
+
   return (
-    <div
-      className={`template-grid ${layoutVariant === 'gallery' ? 'template-grid--gallery' : 'template-grid--list'}`}
-      data-testid={dataTestId}
-      data-layout-variant={layoutVariant}
-    >
-      {templates.map((template) => {
-        const isApplied = Boolean(selectedTemplate) && template.id === selectedTemplate;
-        const isRecommended = template.id === recommendation?.primaryTemplateId;
-        const showRecommendedReason = Boolean(isRecommended && recommendation?.reasons[0]);
-        const isPreviewing = template.id === hoveredTemplate;
-        const previewHandler = onPreviewTemplate || onSelectTemplate;
-        const showPreviewAction = Boolean(onPreviewTemplate);
+    <div data-testid={dataTestId} data-layout-variant={layoutVariant}>
+      {atsTemplates.length > 0 && (
+        <div className="template-catalog-section">
+          <div className="template-catalog-section__header">
+            <span className="template-catalog-section__badge template-catalog-section__badge--ats">ATS-Safe</span>
+            <h3 className="template-catalog-section__title">ATS-Optimised Templates</h3>
+            <p className="template-catalog-section__desc">Parsed correctly by applicant tracking systems. Safe to submit to job portals.</p>
+          </div>
+          <div className={gridClass}>
+            {atsTemplates.map((template) => (
+              <TemplateCard key={template.id} template={template} {...cardProps} />
+            ))}
+          </div>
+        </div>
+      )}
 
-        const handlePreview = () => {
-          if (disabled) return;
-          previewHandler(template.id);
-        };
-
-        const handlePrimaryAction = () => {
-          if (disabled) return;
-          onSelectTemplate(template.id);
-        };
-
-        return (
-          <article
-            key={template.id}
-            className={`template-card ${isApplied ? 'active' : ''}`}
-            data-template-id={template.id}
-            onClick={() => {
-              if (disabled) return;
-              previewHandler(template.id);
-            }}
-            onKeyDown={(event) => {
-              if (disabled) return;
-              if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault();
-                previewHandler(template.id);
-              }
-            }}
-            role="button"
-            tabIndex={disabled ? -1 : 0}
-            onMouseEnter={() => onHoverTemplate?.(template.id)}
-            onMouseLeave={() => onHoverTemplate?.('')}
-          >
-            <div
-              className="template-card__preview template-card__preview--interactive"
-              onClick={(event) => {
-                event.stopPropagation();
-                handlePreview();
-              }}
-            >
-              <TemplateCardThumbnail templateId={template.id} previewResume={previewResume} previewLoading={previewLoading} />
-              <button
-                type="button"
-                className="template-card__preview-overlay template-card__preview-overlay-button"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  handlePreview();
-                }}
-                disabled={disabled}
-              >
-                Open preview
-              </button>
-            </div>
-            <div className="template-card__meta">
-              <div>
-                <strong>{template.name}</strong>
-                <div className="small">{template.description}</div>
-                <div className="small template-card__availability">{template.tags.join(' | ')}</div>
-                {showRecommendedReason && (
-                  <p className="small template-card__reason">
-                    Why recommended? {recommendation?.reasons[0]}
-                  </p>
-                )}
-              </div>
-              <div className="template-card__meta-badges">
-                <span className="pill">{isApplied ? 'Applied' : isPreviewing ? 'Previewing' : 'Available'}</span>
-                {isRecommended && (
-                  <span className="pill recommended" title={(recommendation?.reasons || []).join(' ')}>
-                    Recommended
-                  </span>
-                )}
-              </div>
-              <div className="template-card__actions">
-                {showPreviewAction && (
-                  <button
-                    type="button"
-                    className="btn secondary template-card__action"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      handlePreview();
-                    }}
-                    disabled={disabled}
-                  >
-                    Preview
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className="btn template-card__action"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    handlePrimaryAction();
-                  }}
-                  disabled={disabled}
-                >
-                  {primaryActionLabel}
-                </button>
-              </div>
-            </div>
-          </article>
-        );
-      })}
+      {visualTemplates.length > 0 && (
+        <div className="template-catalog-section">
+          <div className="template-catalog-section__header">
+            <span className="template-catalog-section__badge template-catalog-section__badge--visual">Visual</span>
+            <h3 className="template-catalog-section__title">Visual / Showcase Templates</h3>
+            <p className="template-catalog-section__desc">Designed for portfolios, direct networking, and printed CVs. Not optimised for ATS parsing.</p>
+          </div>
+          <div className="template-catalog-section__warning">
+            Not ATS-safe — avoid submitting through job portals or automated hiring systems.
+          </div>
+          <div className={gridClass}>
+            {visualTemplates.map((template) => (
+              <TemplateCard key={template.id} template={template} {...cardProps} />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

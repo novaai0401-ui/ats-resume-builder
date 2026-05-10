@@ -54,7 +54,11 @@ const TITLE_BLOCKLIST = new Set([
   'achievements',
 ]);
 const CONTACT_LABEL_RE = /\b(email|mobile|phone|contact|linkedin|github|portfolio|address|location)\b/i;
-const NAME_BLOCKLIST_RE = /\b(skills?|technical|soft|experience|employment|education|communication|teamwork|leadership|problem[-\s]?solving|languages|achievements?|summary|profile|objective)\b/i;
+// Used to prevent section heading words from being mistaken for a person's name.
+// NOTE: soft-skill words (communication, leadership, teamwork, problem-solving) are
+// intentionally NOT blocked here — they are legitimate skill tokens extracted from
+// the sidebar skills sections of two-column resumes.
+const NAME_BLOCKLIST_RE = /\b(skills?|technical|soft|experience|employment|education|languages|achievements?|summary|profile|objective)\b/i;
 const COMPANY_SUFFIX_RE = /\b(inc|llc|ltd|corp|company|technologies|systems|labs|solutions|group|studio|partners|bank|consulting|digital)\b/i;
 const HEADLINE_FRAGMENT_RE = /\b(system design|software design|web development|frontend|backend|full stack|machine learning|data science|cloud computing|devops|product management|project management|artificial intelligence|digital marketing|user experience|user interface|mobile development|database|networking|cybersecurity|blockchain|deep learning)\b/i;
 const LEGACY_BULLET_PREFIX_RE = /^\s*(?:[-*•·]+|\d{1,3}[.)]|[a-z][.)])?\s*(impact|achievement|result|highlights?|accomplishment)s?:\s*/i;
@@ -133,11 +137,14 @@ export function mapParsedResume(parsed: ParsedResumeText): MappedResumeResult {
   ].join(' ');
   const levelResult = computeExperienceLevel({ resumeText, experience: finalExperience });
 
+  const languages = mapLanguages(effectiveParsed.sections);
+
   const validated = ParsedResumeSchema.parse({
     title,
     contact,
     summary,
     skills: finalSkills,
+    languages,
     experience: finalExperience,
     education: educationSanitized.items,
     projects,
@@ -192,10 +199,20 @@ function mapSkills(sections: Record<string, string[]>) {
     ...(sections.core || []),
     ...(sections.technologies || []),
   ];
+  // Two-column sidebar resumes often list one skill per line with no delimiter.
+  // When the majority of non-empty lines are short and delimiter-free, treat
+  // each line as a single skill rather than splitting on delimiters.
+  const mostAreSingleItems = lines.length > 2
+    && lines.filter((l) => l.length < 35 && !/[,;|]/.test(l)).length / lines.length > 0.65;
   const tokens = lines
     .flatMap((line) => {
       // Remove common leading labels like "Skills:", "Technical Skills:", etc.
-      const cleaned = line.replace(/^(?:skills?|technical\s+skills?|core\s+skills?|key\s+skills?|technologies)\s*:?\s*/i, '');
+      const cleaned = line.replace(/^(?:skills?|technical\s+skills?|soft\s+skills?|core\s+skills?|key\s+skills?|technologies)\s*:?\s*/i, '')
+        .replace(/^[-*\u2022\u25e6\u25aa\u25cf\u25cb]\s*/, '');
+      if (mostAreSingleItems) {
+        const parts = cleaned.split(/,|;|\|/);
+        return parts.length > 1 ? parts : [cleaned];
+      }
       // Split on common delimiters: comma, semicolon, pipe, bullet, middot
       return cleaned.split(/,|;|\||\u00b7|\u2022|\u25e6|\u25aa|\u25cf|â€¢|Â·/);
     })
@@ -238,6 +255,16 @@ function mapSkills(sections: Record<string, string[]>) {
     }
   }
   return Array.from(new Set(tokens)).slice(0, 30);
+}
+
+function mapLanguages(sections: Record<string, string[]>): string[] {
+  const lines = sections.languages || [];
+  if (!lines.length) return [];
+  const tokens = lines
+    .flatMap((line) => line.replace(/^languages?\s*:?\s*/i, '').split(/,|;|\||·|•/))
+    .map((t) => cleanLooseText(t))
+    .filter((t) => t.length >= 2 && t.length <= 40 && !/^\d+$/.test(t) && /[a-z]/i.test(t));
+  return Array.from(new Set(tokens)).slice(0, 10);
 }
 
 const KNOWN_TECH_SKILLS = [

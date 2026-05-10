@@ -3208,7 +3208,7 @@ export default function ResumeEditor() {
           </p>
         )}
         {message && (
-          <div className="message-banner" style={{ marginTop: 12 }}>
+          <div className={`message-banner${status === 'error' ? ' error' : ''}`} style={{ marginTop: 12 }}>
             <p className="small">{message}</p>
             {showBulletLengthWarning && firstTooLongHighlightId && (
               <button

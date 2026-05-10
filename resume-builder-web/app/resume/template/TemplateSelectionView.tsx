@@ -341,7 +341,7 @@ export default function TemplateSelectionView({
           </div>
         )}
         {error && (
-          <div className="message-banner" style={{ marginTop: 12 }}>
+          <div className="message-banner error" style={{ marginTop: 12 }}>
             <p className="small">{error}</p>
           </div>
         )}
