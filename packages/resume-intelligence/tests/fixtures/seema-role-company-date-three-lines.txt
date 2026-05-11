@@ -1,0 +1,163 @@
+SEEMA ALMAS YUNUS SHAIKH
+Full Stack Developer | ReactJS, NodeJS | Passionate About AI, Blockchain, DevOps
+Phone: 9172780700
+E-mail: Seemaalmasshaikh@gmail.com
+LinkedIn: https://www.linkedin.com/in/seema-almas-shaikh/
+Address: Pune, IN
+DOB: 04-07-1990
+Dedicated and results-oriented Software Developer with 11 years of experience specializing in ReactJS, JavaScript, Redux, HTML,
+CSS, and SCSS, NodeJS. Skilled at building scalable, high-performance web applications with a strong focus on user experience,
+responsive design, and code quality. Experienced in leading and mentoring development teams, ensuring successful project delivery
+through collaboration and strategic planning. Currently enhancing backend and cross-platform development skills with Python and
+Flutter. Committed to continuous learning, innovation, and contributing to impactful, growth-driven projects.
+PROFESSIONAL SUMMARY
+- Full Stack Developer with 11 years of hands-on experience in front-end and back-end development, specializing in ReactJS,
+JavaScript, Redux, HTML5, CSS, SCSS, NodeJS, and basic MongoDB.
+- Proven leadership in managing, mentoring, and guiding development teams towards successful project completion, maintaining a
+strong track record of zero-defect deliveries.
+- Expertise in designing scalable, user-centric, and high-performance web applications, with a deep focus on responsive UI
+development and seamless UX integration.
+- Strong skills in backend API creation, authentication, and authorization using NodeJS, and a foundational understanding of database
+operations with MongoDB.
+- Actively upskilling in Python and Flutter to expand backend and cross-platform mobile development capabilities, along with
+continuous exploration of AI, Blockchain, and DevOps technologies.
+- Adept at critical thinking, strategic problem-solving under pressure, and delivering high-quality solutions within fast-paced Agile
+environments.
+- Skilled in Agile practices including sprint planning, backlog refinement, task tracking, and collaboration using Jira and Azure
+DevOps.
+- Experienced in building and managing CI/CD pipelines, source control management with Git, enforcing best practices through
+rigorous code reviews and comprehensive test case writing.
+- Proficient in collaborating with UX teams to enhance user experiences, developing reusable component libraries, and leading cross-
+functional initiatives for delivery excellence.
+- Hands-on experience in providing production release support and post-deployment maintenance to ensure stability, performance, and
+client satisfaction.
+- Committed to innovation, continuous improvement, and contributing to a positive, growth-oriented team culture.
+SKILLS
+Technical Skills: JavaScript, Python, ReactJS, Redux, Html5, CSS, Flutter
+Soft Skills: Communication, Teamwork, Leadership, Problem-solving
+WORK EXPERIENCE
+Assistant Vice President
+Citi Corp (Pune, India)
+(Dec 2022 - Present)
+As an Assistant Vice President, provided strategic leadership and direction to the UI development team, ensuring delivery excellence,
+innovation, and alignment with business objectives. Spearheaded initiatives to optimize front-end architecture, enhance user experience,
+and foster a high-performing team environment.
+Led full cycle requirement gathering and analysis to align frontend architecture and user experience with business objectives,
+ensuring delivery of intuitive and high performing applications.
+Architected and implemented scalable web solutions using ReactJS, Redux, JavaScript, HTML/CSS, and NodeJS, improving
+performance and code maintainability across multiple projects.
+Guided cross functional teams through complex development lifecycles, actively mentoring developers and fostering a culture of
+technical excellence, collaboration, and continuous improvement.
+Introduced reusable UI components and shared utilities, resulting in a 50% reduction in development time and improved code
+standardization across teams.
+Developed and maintained backend services using NodeJS and integrated with MongoDB, contributing to seamless API performance
+and system scalability.
+Enhanced test coverage through unit and integration testing, resulting in fewer bugs in production and streamlined QA cycles.
+Practiced Agile methodologies including sprint planning, backlog grooming, and retrospectives, contributing to a 25% increase in
+delivery efficiency.
+Collaborated closely with architects, product managers, and QA teams to deliver highimpact features aligned with strategic product
+goals.
+
+-- 1 of 3 --
+
+Drove code optimization and refactoring, consolidating redundant logic and constants into centralized modules, enhancing
+maintainability.
+Exploring and integrating CI/CD best practices, contributing to improved deployment reliability and reduced manual effort.
+Hindson experience with Flutter and basic Python, expanding versatility in mobile and scripting tasks as needed.
+Achievements:
+Successfully delivered multiple high-visibility projects with a strong focus on cutting-edge UI design and enhanced user experience.
+Recognized by leadership for fostering an innovative and adaptive team environment, leading to increased project velocity and
+quality.
+Senior Technology Consultant
+Ernst & Young (Pune, Maharashtra)
+(Oct 2021 - Nov 2022)
+Managed and mentored a team of developers, steering projects towards strategic goals and ensuring the consistent delivery of high-
+quality, scalable software solutions. Focused on driving innovation, improving development processes, and fostering a collaborative
+team environment.
+Directed critical project initiatives to minimize defects, stabilize product outcomes, and enhance overall delivery quality.
+Innovated and developed a key API component to streamline developer experience and accelerate integration timelines.
+Successfully led a zero-defect UI project from conception to full client satisfaction and deployment.
+Authored detailed documentation to support new feature rollouts, knowledge sharing, and team training efforts.
+Facilitated seamless team collaboration to achieve and exceed set sprint goals and delivery milestones.
+Played a pivotal role in customer issue resolution and critical problem-solving during development and post-launch phases.
+Actively engaged across the entire Software Development Life Cycle (SDLC) including requirement gathering, design, development,
+testing, and deployment.
+Achievements:
+Delivered critical UI projects with zero defects, significantly boosting client confidence and project success rate.
+Enhanced overall team efficiency, collaboration, and innovation through effective leadership and proactive mentoring.
+Recognized for driving process improvements and contributing to the continuous enhancement of project outcomes.
+Senior Software Engineer
+One Network Enterprises (Pune, Maharashtra)
+(Sep 2020 - Sep 2021)
+Acted as a key contributor and collaborator in the software development team, focusing on optimizing user interfaces (UI) and
+enhancing user experiences (UX) for diverse client projects, with a particular emphasis on supply chain management solutions.
+Collaborated with cross-functional teams to deliver UI solutions tailored for supply chain management systems.
+Incorporated UX principles to design intuitive, user-friendly interfaces meeting client-specific needs.
+Applied supply chain management domain knowledge to UI development for optimized user flows.
+Built and maintained strong working relationships with clients, stakeholders, and internal teams.
+Contributed actively to defining project specifications and ensuring alignment with customer requirements.
+Supported project delivery through thorough documentation, client feedback sessions, and agile sprint cycles.
+Achievements:
+Successfully delivered optimized, high-performance UI solutions within stringent timelines, ensuring high client satisfaction.
+Consistently recognized for maintaining excellent client relations and fostering a collaborative environment throughout project
+lifecycles.
+Appreciated for translating complex domain requirements into simple, elegant front-end solutions.
+Lead UI Developer
+Infosys Limited (Pune)
+(Aug 2017 - Aug 2020)
+Led and guided a team of UI developers, ensuring project alignment with user requirements, technical standards, and organizational
+goals. Focused on delivering high-quality, scalable UI solutions through effective project planning, mentoring, and cross-team
+collaboration.
+Spearheaded UI development for the Speedboat project, managing requirements analysis, design, and enhancement implementations.
+Authored detailed high-level design documents and defined effective API integration strategies.
+Developed robust data models in LoopbackJS to ensure strong database relations and efficient backend connectivity.
+Mentored a team of 9 developers, fostering skill development, best practices adoption, and overseeing high standards of code quality.
+Designed and implemented a custom Gulp utility to automate file system tasks, boosting team productivity and reducing manual
+overhead.
+Actively collaborated with cross-functional teams to ensure project success across all stages of the Software Development Life Cycle
+(SDLC).
+Achievements:
+Successfully led the Speedboat project to meet and exceed high standards of UI design, functionality, and client satisfaction.
+Received formal recognition for exceptional leadership, mentoring capabilities, and team performance improvement.
+Associate Software Engineer
+The Digital Group Infotech Pvt. Ltd (Pune)
+(Apr 2014 - Jul 2017)
+
+-- 2 of 3 --
+
+Functioned as a Full Stack Developer, playing a significant role in both front-end and back-end development processes, system
+enhancements, and user experience optimization.
+Enhanced system functionality through full-stack development and performance analysis.
+Conducted module-level testing and code optimization to improve application performance and reliability.
+Designed and implemented the application's homepage, enhancing user experience and navigation flow.
+Developed custom AngularJS directives and implemented a date picker feature for dynamic user interaction.
+Leveraged Google Charts in AngularJS for insightful and dynamic data visualization solutions.
+Actively participated in design discussions, development cycles, and module integration for project delivery.
+Achievements:
+Successfully improved overall system functionality and user experience through innovative front-end and back-end development
+strategies.
+Recognized for contributing to effective testing, performance tuning, and system optimization initiatives that enhanced application
+stability.
+EDUCATION
+CERTIFICATIONS
+Azure AZ900 	2022
+Microsoft
+ACHIEVEMENTS
+Consistently achieved near-perfect on-time delivery for assigned modules, significantly reducing defects, enhancing client
+satisfaction, and contributing to improved project KPIs.
+Launched and successfully led the innovative SpeedBoat project, earning recognition for its user-centric design approach, seamless
+execution, and efficient project management practices.
+LANGUAGES
+English, Hindi, Marathi
+HOBBIES
+Exploring emerging technologies like AI, Blockchain, and DevOps through online communities and self-projects,
+Writing technical blogs and tutorials to share knowledge and contribute to the developer community,
+Engaging in fitness activities like running and yoga to maintain focus and a healthy work-life balance,
+Volunteering for tech mentorship programs and coding workshops for young learners
+B.E: Computer Science and Engineering
+(2008-07 - 2012-07)
+Babasaheb Naik college of engineering Pusad, Amravati University, Maharashtra
+#CreatedByOutspark#
+
+-- 3 of 3 --
+

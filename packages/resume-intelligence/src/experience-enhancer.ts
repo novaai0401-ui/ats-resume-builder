@@ -30,6 +30,10 @@ const WORK_SECTION_STOP_CANDIDATES = new Set(['skills', 'education', 'projects',
 const WORK_SECTION_LITERAL_STOPS = new Set(['skills', 'education', 'projects', 'certifications', 'languages', 'hobbies', 'interests', 'summary', 'innovation']);
 const ROLE_HINT_RE = /\b(engineer|developer|manager|architect|consultant|assistant vice president|vice president|avp|director|lead|officer|specialist|principal|administrator|coordinator|analyst|founder|owner|scientist|researcher|associate|professor|instructor|trainer|executive|president|cto|ceo|cfo|coo|cio|vp|svp|evp|partner|fellow|technologist|programmer|tester|strategist|advisor|supervisor|technician)\b/i;
 const COMPANY_HINT_RE = /\b(inc|llc|ltd|corp|company|technologies|systems|solutions|group|partners|bank|consulting|digital|services|labs|enterprises|pvt|private)\b/i;
+// Skill subsection labels (often emitted as ALL CAPS by the upstream restructurer) are never
+// company names — guard the enhancer's all-caps fallback so they don't get promoted.
+const SKILL_SUBSECTION_LABEL_RE = /^\s*(?:soft|technical|hard|core|key|professional|relevant|additional|primary|secondary|computer|programming|functional|domain|business|interpersonal|transferable|cloud|devops|data|ai|ml|management)\s+(?:skills?|competencies|expertise|proficiencies|tools?|technologies)\b\s*[:\-—–]?/i;
+const SECTION_LABEL_ONLY_RE = /^\s*(?:soft|technical|hard|core|key)?\s*(?:skills?|competencies|expertise|proficiencies|education|certifications?|languages?|hobbies|interests|achievements?|projects?|summary|profile|objective)\s*[:\-—–]?\s*$/i;
 const DATE_RANGE_RE = /(?:\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\s*\d{4}|\b(?:19|20)\d{2}[-/]\d{1,2}\b|\b\d{1,2}[/-]\d{4}|\b\d{4})(?:\s*(?:\s-\s|–|—|to)\s*(?:present|current|now|till\s*date|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\s*\d{4}|(?:19|20)\d{2}[-/]\d{1,2}|\d{1,2}[/-]\d{4}|\d{4}))?/i;
 const BULLET_PREFIX_RE = /^[\-\u2022\u25E6\u25AA\u25CF\*•]\s*/;
 
@@ -162,13 +166,23 @@ function splitIntoBlocks(lines: string[]) {
 
 function parseBlockToExperience(block: string[]): ExperienceItem | null {
   if (!block.length) return null;
+  // Drop section-label lines (e.g. "SOFT SKILLS", "TECHNICAL SKILLS:", "EDUCATION")
+  // before any heuristic picks them up as role/company.
+  const filteredBlock = block.filter((line) => {
+    const trimmed = line.trim();
+    if (!trimmed) return false;
+    if (SKILL_SUBSECTION_LABEL_RE.test(trimmed)) return false;
+    if (SECTION_LABEL_ONLY_RE.test(trimmed)) return false;
+    return true;
+  });
+  if (!filteredBlock.length) return null;
   let company = '';
   let role = '';
   let startDate = '';
   let endDate = '';
   const highlights: string[] = [];
 
-  for (const line of block) {
+  for (const line of filteredBlock) {
     const trimmed = line.trim();
     if (!trimmed) continue;
     const date = extractDateRange(trimmed);
@@ -191,15 +205,15 @@ function parseBlockToExperience(block: string[]): ExperienceItem | null {
     }
   }
 
-  if (!role && block.length) {
-    role = block[0];
+  if (!role && filteredBlock.length) {
+    role = filteredBlock[0];
   }
-  if (!company && block.length > 1) {
-    const candidate = block.slice(1).find((line) => line && line !== role);
+  if (!company && filteredBlock.length > 1) {
+    const candidate = filteredBlock.slice(1).find((line) => line && line !== role);
     if (candidate) company = candidate;
   }
   if (!company) {
-    const alt = block.find((line) => line.toUpperCase() === line && line.length > 3);
+    const alt = filteredBlock.find((line) => line.toUpperCase() === line && line.length > 3);
     if (alt) company = alt;
   }
 
@@ -217,6 +231,10 @@ function parseBlockToExperience(block: string[]): ExperienceItem | null {
   if (entry.company.length === 1 || entry.role.length === 1) return null;
   if (/^(company|role|title|position|employer|organization)$/i.test(entry.company)) return null;
   if (/^(role|title|position|job)$/i.test(entry.role)) return null;
+  // Final guard: drop entries whose company/role still look like section labels
+  // (e.g. "SOFT SKILLS", "Soft Skills", "Education"). Real names contain a non-label token.
+  if (SKILL_SUBSECTION_LABEL_RE.test(entry.company) || SECTION_LABEL_ONLY_RE.test(entry.company)) return null;
+  if (SKILL_SUBSECTION_LABEL_RE.test(entry.role) || SECTION_LABEL_ONLY_RE.test(entry.role)) return null;
   return entry;
 }
 
@@ -267,6 +285,11 @@ function parseWorkExperienceBlock(lines: string[]) {
       index += 1;
       continue;
     }
+    // Never treat a skill subsection label as the start of an experience entry.
+    if (SKILL_SUBSECTION_LABEL_RE.test(currentLine) || SECTION_LABEL_ONLY_RE.test(currentLine)) {
+      index += 1;
+      continue;
+    }
     const inlineHeader = parseInlineCompanyRole(currentLine);
     let entry: ExperienceItem | null = null;
     if (inlineHeader) {
@@ -279,6 +302,14 @@ function parseWorkExperienceBlock(lines: string[]) {
       };
       index += 1;
     } else {
+      // Don't claim the next line for a (company, role) pair when the
+      // CURRENT line already carries its own date range — that means it's a
+      // self-contained "Company, Role, Date" / "Role - Company - Date" entry
+      // whose inline parser just didn't recognise the delimiter shape.
+      if (hasDateRange(currentLine)) {
+        index += 1;
+        continue;
+      }
       const nextLine = lines[index + 1]?.trim() ?? '';
       if (nextLine && hasDateRange(nextLine)) {
         const parsed = parseCompanyRolePair(currentLine, nextLine);
@@ -342,7 +373,7 @@ function parseCompanyRolePair(companyLine: string, roleLine: string) {
 function parseInlineCompanyRole(line: string) {
   const match = matchDateRangeSegment(line);
   if (!match) return null;
-  const cleaned = line.replace(match.segment, '').trim();
+  const cleaned = line.replace(match.segment, '').replace(/[,\s]+$/, '').trim();
   const delimiters = ['—', '–', ' - ', ' | ', ' – ', ' — ', '|'];
   for (const delimiter of delimiters) {
     if (cleaned.includes(delimiter)) {
@@ -354,6 +385,24 @@ function parseInlineCompanyRole(line: string) {
           startDate: match.start,
           endDate: match.end,
         };
+      }
+    }
+  }
+  // Comma-delimited "Company, Role" — common in compact functional-resume entries
+  // like "Alpha Industries, Senior Engineer, 2020 - Present". The date has been
+  // removed; if the rest is exactly two comma-separated parts and one looks
+  // like a role title and the other like a company, treat it as an inline header.
+  if (cleaned.includes(',')) {
+    const parts = cleaned.split(',').map((p) => p.trim()).filter(Boolean);
+    if (parts.length === 2) {
+      const [first, second] = parts;
+      const firstIsRole = ROLE_HINT_RE.test(first);
+      const secondIsRole = ROLE_HINT_RE.test(second);
+      if (firstIsRole && !secondIsRole) {
+        return { company: second, role: first, startDate: match.start, endDate: match.end };
+      }
+      if (secondIsRole && !firstIsRole) {
+        return { company: first, role: second, startDate: match.start, endDate: match.end };
       }
     }
   }
