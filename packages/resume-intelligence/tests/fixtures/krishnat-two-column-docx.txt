@@ -1,0 +1,130 @@
+
+
+Education
+
+
+
+M.Tech. (Intelligent Systems and Analytics)
+
+MIT-ADT University, Pune
+
+2026
+
+
+
+B.Tech. (IT)
+
+Walchand College of Engineering,
+
+Sangli, 2011
+
+
+
+Organization
+
+Citi
+
+Cognizant 
+
+Skills
+
+
+
+Backend-Java, Springboot, Microservices, Python
+
+Frontend- Javascript, ReactJs, NodeJs, NPM
+
+Database- MySql, Oracle, PLSQL
+
+Data structures and Algorithms
+
+Event driven architecture-Kafka, RabbitMQ
+
+AI/ML hands-on
+
+Additional- Golang, Bigdata Hadoop, Kotlin
+
+Mentorship
+
+9890356887
+
+molawadekn@gmail.com
+
+Pune, India
+
+LinkedIn
+
+Contact
+
+Krishnat Molawade
+
+Technology Lead |FULLSTACK DEVELOPMENT | Banking & FinTech 
+
+
+
+
+
+
+
+Professional overview
+
+
+
+Showcase your most impressive accomplishments right here. Within seconds, the reader should be able to tell who you are and what your areas of expertise are. The purpose of a professional profile is to provide a quick overview of your potential skills, experience, and achievements to a recruiter without requiring them to read the rest of your resume.
+
+
+
+Work experience
+
+
+
+Java Tech Lead
+
+Citi	Dec 2013- Present
+
+• Led architectural transformation of legacy monolithic systems into scalable microservices-based platforms.
+
+ • Designed and implemented Kafka-based event-driven architecture enabling asynchronous processing. 
+
+• Architected enterprise platforms supporting client onboarding, account opening, product onboarding, entitlement management, and investment research workflows.
+
+ • Improved system performance through multithreading and multiprocessing optimizations.
+
+ • Led AWS cloud migration initiatives and containerized deployments.
+
+ • Owned end-to-end architecture across application, data, and integration layers.
+
+ • Mentored and guided teams of 8–10 engineers improving delivery efficiency.
+
+
+
+Programmer Analyst
+
+Cognizant	2011- 2013
+
+• Developed enterprise Java applications and database logic using Oracle and PL/SQL.
+
+• Built backend services supporting enterprise banking workflows.
+
+• Worked on database optimization and application enhancement initiatives.
+
+
+
+
+
+
+
+RESEARCH & PUBLICATIONS
+
+ Automated Stroke Prediction Using Machine Learning and Explainable AI. [Published]
+
+ IEEE Conference Publication Focus on explainable machine learning models for healthcare analytics and decision support systems.
+
+Collision Avoidance in Low Earth Orbit: A Review [Accepted]
+
+ IEEE Conference Publication Focus on different methodologies studied till date to act upon collisions happening in low earth orbit.
+
+Fuel-Constrained Multi-Agent Reinforcement Learning for Autonomous Collision Avoidance in Low Earth Orbit. [In Draft]
+
+
+

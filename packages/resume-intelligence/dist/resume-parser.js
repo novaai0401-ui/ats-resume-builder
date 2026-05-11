@@ -58,10 +58,24 @@ function normalizeText(text) {
         .replace(/â€¢|â—¦|â–ª|â—/g, '- ')
         .replace(/[\u2022\u25e6\u25aa\u25cf\u00b7]/g, '- ')
         .replace(/\r/g, '')
+        // Convert any single tab to a space so "Company\tDate" becomes a normal
+        // separator. PDF extractors and docx readers leak tab-separated columns
+        // through to text, and downstream date/role detectors assume
+        // whitespace-only separation.
+        .replace(/\t/g, ' ')
         .split('\n')
         .map((line) => normalizeLegacyBulletPrefix(line))
         .join('\n');
-    return canonical
+    // Repair date range separators that lost a space ("Dec 2013- Present" or
+    // "2022-Mar 2023"). Pdf-parse / docx readers sometimes drop the leading
+    // space, which kills downstream date-range detection in the experience
+    // mapper. Insert the missing space when the hyphen sits directly between a
+    // year and the next date token (year, month name, or "Present").
+    const dateSeparatorRepaired = canonical
+        .replace(/\b((?:19|20)\d{2})-\s*(Present|Current|Now|Till\s*Date)\b/gi, '$1 - $2')
+        .replace(/\b((?:19|20)\d{2})-\s*((?:19|20)\d{2})\b/g, '$1 - $2')
+        .replace(/\b((?:19|20)\d{2})-\s*((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sept?|Oct|Nov|Dec)\b)/gi, '$1 - $2');
+    return dateSeparatorRepaired
         .replace(/\n{3,}/g, '\n\n')
         .replace(/[ \t]{2,}/g, ' ')
         .trim();

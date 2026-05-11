@@ -64,6 +64,16 @@ const COMPANY_SUFFIX_RE = /\b(inc|llc|ltd|corp|company|technologies|systems|labs
 // PDF extractors sometimes strip the parent SKILLS heading or break sublabels onto their own line,
 // causing these tokens to leak into experience extraction.
 const SKILL_SUBSECTION_LABEL_RE = /^\s*(?:soft|technical|hard|core|key|professional|relevant|additional|primary|secondary|computer|programming|functional|domain|business|interpersonal|transferable|cloud|devops|data|ai|ml|management)\s+(?:skills?|competencies|expertise|proficiencies|tools?|technologies)\b\s*[:\-—–]?/i;
+// Lines that open with a sentence-style verb / past participle / connector are
+// descriptions or bullets, never company names. Used as an additional guard in
+// looksLikeCompany() / looksLikeRoleTitle() so that prose like "ensuring
+// alignment with company" or "Built scalable distributed systems" does not
+// pass detection just because it incidentally contains a company-suffix
+// word or role hint.
+//
+// Listed verbs are explicit — a broad pattern like `[A-Z][a-z]+ing` would
+// wrongly reject nouns ("Engineering Manager", "Marketing Director", etc.).
+const SENTENCE_OPENER_RE = /^(?:As\s|Led\s|Built\s|Drove\s|Designed\s|Developed\s|Improved\s|Owned\s|Managed\s|Delivered\s|Implemented\s|Architected\s|Created\s|Worked\s|Authored\s|Spearheaded\s|Mentored\s|Coordinated\s|Collaborated\s|Conducted\s|Contributed\s|Defined\s|Engineered\s|Enhanced\s|Facilitated\s|Generated\s|Guided\s|Headed\s|Initiated\s|Integrated\s|Introduced\s|Maintained\s|Optimized\s|Orchestrated\s|Organized\s|Participated\s|Performed\s|Pioneered\s|Planned\s|Practiced\s|Provided\s|Reduced\s|Refactored\s|Researched\s|Resolved\s|Reviewed\s|Streamlined\s|Supervised\s|Supported\s|Tested\s|Trained\s|Utilized\s|Acted\s|Achieved\s|Applied\s|Assisted\s|Analyzed\s|Innovated\s|Hindson\s|Incorporated\s|Played\s|Recognized\s|Received\s|Successfully\s|Championed\s|Cultivated\s|Demonstrated\s|Engaged\s|Exploring\s|Showcase\s|Fostered\s|Functioned\s|Hands-?on\s|Oversaw\s|Utilised\s|Spearheading\s|Driving\s|Ensuring\s|Promoting\s|Leveraged\s)/;
 const HEADLINE_FRAGMENT_RE = /\b(system design|software design|web development|frontend|backend|full stack|machine learning|data science|cloud computing|devops|product management|project management|artificial intelligence|digital marketing|user experience|user interface|mobile development|database|networking|cybersecurity|blockchain|deep learning)\b/i;
 const LEGACY_BULLET_PREFIX_RE = /^\s*(?:[-*•·]+|\d{1,3}[.)]|[a-z][.)])?\s*(impact|achievement|result|highlights?|accomplishment)s?:\s*/i;
 
@@ -488,6 +498,32 @@ function mapExperience(parsed: ParsedResumeText) {
         pushCurrent();
       }
       pendingRole = normalizedLine;
+      continue;
+    }
+
+    // Detect bare "Company DateRange" pattern (no parens) — common in docx
+    // exports where the column structure renders as a tab- or space-separated
+    // "Company\tDate" line, e.g. "Citi Dec 2013 - Present" or "Cognizant 2011 - 2013".
+    const companyBareDate = parseCompanyDateLine(normalizedLine);
+    if (companyBareDate) {
+      if (pendingRole) {
+        startCurrent({
+          company: companyBareDate.company,
+          role: pendingRole,
+          startDate: companyBareDate.startDate || pendingStartDate,
+          endDate: companyBareDate.endDate || pendingEndDate,
+        });
+        continue;
+      }
+      if (current && current.company && current.role && normalizeCompany(current.company) !== normalizeCompany(companyBareDate.company)) {
+        pushCurrent();
+      }
+      currentCompany = companyBareDate.company;
+      if (current && !current.company) current.company = companyBareDate.company;
+      if (current && !current.startDate && companyBareDate.startDate) {
+        current.startDate = companyBareDate.startDate;
+        current.endDate = companyBareDate.endDate;
+      }
       continue;
     }
 
@@ -1073,13 +1109,20 @@ function buildExperienceSource(parsed: ParsedResumeText) {
     // Also collect experience-like lines from other sections (e.g. education)
     // that may contain experience entries due to PDF page breaks — but only
     // if those sections contain clear role+company patterns.
-    // Exclude sections that should never contain experience entries.
-    const nonExperienceSections = new Set(['hobbies', 'languages', 'certifications', 'skills', 'summary', 'profile', 'objective']);
+    const skipSpillover = new Set(['skills', 'summary', 'profile', 'objective']);
     const otherSections = Object.entries(parsed.sections)
       .filter(([key]) => !['experience', 'employment', 'work', 'career', 'unmapped'].includes(key))
-      .filter(([key]) => !nonExperienceSections.has(key));
+      .filter(([key]) => !skipSpillover.has(key));
     const otherLines = otherSections.flatMap(([, lines]) => lines);
-    const hasRoleCompany = otherLines.some((l) => looksLikeRole(l) && looksLikeRoleTitle(l) && !looksLikeEducationRoleLine(l));
+    // A line carries an experience-like role title even when an inline date
+    // attaches to it ("Associate Software Engineer Apr 2014 - Jul 2017").
+    // Strip dates before testing for a role-title shape so we don't miss
+    // entries that bled into LANGUAGES/HOBBIES/CERTIFICATIONS via page breaks.
+    const hasRoleCompany = otherLines.some((l) => {
+      const stripped = cleanLooseText(stripDates(l));
+      if (!stripped) return false;
+      return looksLikeRole(stripped) && looksLikeRoleTitle(stripped) && !looksLikeEducationRoleLine(stripped);
+    });
     if (hasRoleCompany) {
       const spillover = collectLikelyExperienceLines(otherLines);
       if (spillover.length) return [...sectionLines, ...spillover];
@@ -1196,6 +1239,39 @@ function parseCompanyLocationDateLine(line: string): { company: string; startDat
   const dateParenContent = match[2];
   const dates = extractDates(dateParenContent);
   return { company, startDate: dates.start, endDate: dates.end };
+}
+
+/**
+ * Parse lines matching "CompanyName DateRange" — no parentheses, just a
+ * company followed by a date range. This is how DOCX exports often render
+ * the right-aligned dates in a two-column experience block.
+ *
+ *   "Citi Dec 2013 - Present"
+ *   "Cognizant 2011 - 2013"
+ *   "Acme Corp Jan 2020 - Dec 2022"
+ *
+ * Returns null if there isn't a date range OR the prefix isn't recognisably
+ * a company name (we don't want to swallow descriptive sentences).
+ */
+function parseCompanyDateLine(line: string): { company: string; startDate: string; endDate: string } | null {
+  if (!isDateLine(line)) return null;
+  const dates = extractDates(line);
+  if (!dates.start && !dates.end) return null;
+  const prefix = cleanLooseText(stripDates(line));
+  if (!prefix) return null;
+  // The prefix must look like a company name. Reject if it carries role
+  // keywords (otherwise "Senior Software Engineer Aug 2017 - Aug 2020" would
+  // be misread as a company line — that pattern is handled elsewhere by the
+  // role-with-dates branch).
+  if (looksLikeRole(prefix)) return null;
+  if (!looksLikeCompany(prefix)) {
+    // Short single-token brand names ("Citi", "EY", "Cognizant") still count
+    // even if they don't pass the multi-token title-case heuristic.
+    const tokens = prefix.split(/\s+/).filter(Boolean);
+    if (tokens.length !== 1) return null;
+    if (!/^[A-Z][A-Za-z0-9&'.-]+$/.test(tokens[0]) && !/^[A-Z]{2,6}$/.test(tokens[0])) return null;
+  }
+  return { company: cleanCompanyName(prefix), startDate: dates.start, endDate: dates.end };
 }
 
 function parseCompanyHeading(line: string) {
@@ -1376,6 +1452,28 @@ function looksLikeRoleTitle(line: string) {
   const words = cleaned.split(/\s+/).filter(Boolean);
   if (words.length > 8) return false;
   if (!/^[A-Z]/.test(cleaned)) return false;
+  // A role title doesn't start with an action verb (past-tense or gerund).
+  // "Innovated an API component" or "Designed scalable systems" — both contain
+  // a role hint ("developer", etc.) but are bullet sentences, not role titles.
+  if (SENTENCE_OPENER_RE.test(cleaned)) return false;
+  // A role title is mostly title-case tokens (e.g. "Senior Software Engineer",
+  // "Lead UI Developer"). Reject lines whose words are predominantly lowercase
+  // function words/verbs. Test the title-case shape on the role portion only
+  // (strip trailing dates, delimiters, and parenthesised metadata so date
+  // tokens / pipe separators don't drag the title-case ratio down).
+  const titlePortion = stripDates(cleaned)
+    .replace(/\|.*$/, '')
+    .replace(/\([^)]*\)/g, ' ')
+    .replace(/[\-–—]/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+  const titleTokens = titlePortion.split(/\s+/).filter(Boolean);
+  if (titleTokens.length === 0) return true;
+  const STOPWORDS = new Set(['of', 'the', 'and', 'or', 'in', 'on', 'at', 'to', 'for', 'with', 'a', 'an', '&', 'de', 'la']);
+  const significant = titleTokens.filter((w) => !STOPWORDS.has(w.toLowerCase()));
+  if (significant.length === 0) return true;
+  const titleCaseSignificant = significant.filter((w) => /^[A-Z][A-Za-z0-9&'./-]*$/.test(w) || /^[A-Z]{2,}$/.test(w));
+  if (titleCaseSignificant.length < significant.length) return false;
   return true;
 }
 
@@ -1439,6 +1537,13 @@ function looksLikeCompany(line: string) {
   // collapse to a known title in TITLE_BLOCKLIST after normalization.
   const normalizedTitle = cleaned.toLowerCase().replace(/[^a-z\s-]/g, ' ').replace(/\s+/g, ' ').trim();
   if (normalizedTitle && TITLE_BLOCKLIST.has(normalizedTitle)) return false;
+  // Reject sentence-prose: lines that start with a lowercase verb/preposition
+  // or a present-participle ("ensuring alignment with company") are descriptions,
+  // not company names. Real company names start with an uppercase letter,
+  // a digit, or punctuation like "&".
+  if (!/^[A-Z0-9&(]/.test(cleaned)) return false;
+  // Reject lines that start with an action verb. Real company names don't.
+  if (SENTENCE_OPENER_RE.test(cleaned)) return false;
   if (looksLikeRole(cleaned)) {
     // "Systems Engineer", "Systems Analyst", etc. are role titles, not companies
     if (/\bsystems?\s+(?:engineer|developer|analyst|administrator|architect|specialist)\b/i.test(cleaned)) {
@@ -1453,7 +1558,18 @@ function looksLikeCompany(line: string) {
     // (e.g. "Designed distributed systems handling 1M concurrent users") are
     // NOT company names. Real company names rarely exceed 6 words.
     const wordCount = cleaned.split(/\s+/).filter(Boolean).length;
-    if (wordCount <= 6) return true;
+    if (wordCount > 6) return false;
+    // Even short lines like "ensuring alignment with company" pass the word-count
+    // guard but are still prose. Require at least half the non-stopword tokens
+    // to be title-case (i.e. starting with an uppercase letter), so we accept
+    // "Citi Group" or "Bank of America" but reject "alignment with company".
+    const STOPWORDS = new Set(['of', 'the', 'and', 'or', 'in', 'on', 'at', 'to', 'for', 'with', 'a', 'an', '&', 'de', 'la']);
+    const tokens = cleaned.replace(/[(),]/g, ' ').split(/\s+/).filter(Boolean);
+    const significant = tokens.filter((t) => !STOPWORDS.has(t.toLowerCase()));
+    if (significant.length === 0) return false;
+    const titleCase = significant.filter((t) => /^[A-Z]/.test(t) || /^[A-Z0-9&]+$/.test(t)).length;
+    if (titleCase < Math.ceil(significant.length * 0.5)) return false;
+    return true;
   }
   // Short ALL-CAPS abbreviations (2-6 chars) are common company names
   // e.g. TCS, IBM, SAP, HCL, KPMG, EY — but not role abbreviations like AVP, CTO, CEO
