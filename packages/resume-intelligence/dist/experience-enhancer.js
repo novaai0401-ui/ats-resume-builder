@@ -305,6 +305,14 @@ function parseWorkExperienceBlock(lines) {
             index += 1;
         }
         else {
+            // Don't claim the next line for a (company, role) pair when the
+            // CURRENT line already carries its own date range — that means it's a
+            // self-contained "Company, Role, Date" / "Role - Company - Date" entry
+            // whose inline parser just didn't recognise the delimiter shape.
+            if (hasDateRange(currentLine)) {
+                index += 1;
+                continue;
+            }
             const nextLine = lines[index + 1]?.trim() ?? '';
             if (nextLine && hasDateRange(nextLine)) {
                 const parsed = parseCompanyRolePair(currentLine, nextLine);
@@ -367,7 +375,7 @@ function parseInlineCompanyRole(line) {
     const match = matchDateRangeSegment(line);
     if (!match)
         return null;
-    const cleaned = line.replace(match.segment, '').trim();
+    const cleaned = line.replace(match.segment, '').replace(/[,\s]+$/, '').trim();
     const delimiters = ['—', '–', ' - ', ' | ', ' – ', ' — ', '|'];
     for (const delimiter of delimiters) {
         if (cleaned.includes(delimiter)) {
@@ -379,6 +387,24 @@ function parseInlineCompanyRole(line) {
                     startDate: match.start,
                     endDate: match.end,
                 };
+            }
+        }
+    }
+    // Comma-delimited "Company, Role" — common in compact functional-resume entries
+    // like "Alpha Industries, Senior Engineer, 2020 - Present". The date has been
+    // removed; if the rest is exactly two comma-separated parts and one looks
+    // like a role title and the other like a company, treat it as an inline header.
+    if (cleaned.includes(',')) {
+        const parts = cleaned.split(',').map((p) => p.trim()).filter(Boolean);
+        if (parts.length === 2) {
+            const [first, second] = parts;
+            const firstIsRole = ROLE_HINT_RE.test(first);
+            const secondIsRole = ROLE_HINT_RE.test(second);
+            if (firstIsRole && !secondIsRole) {
+                return { company: second, role: first, startDate: match.start, endDate: match.end };
+            }
+            if (secondIsRole && !firstIsRole) {
+                return { company: first, role: second, startDate: match.start, endDate: match.end };
             }
         }
     }

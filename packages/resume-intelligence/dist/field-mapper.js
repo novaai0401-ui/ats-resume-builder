@@ -431,11 +431,17 @@ function mapExperience(parsed) {
         }
         // Handle “Role DateRange” pattern — e.g. “AVP Dec 2022 - Present”, “Senior Engineer Jan 2020 - Dec 2022”
         // The line has a date range AND contains a role hint, but the role is the non-date part.
-        // Only match when the non-date part is a standalone role (no @ | “at” or company indicators).
+        // Only match when the non-date part is a standalone role (no @ | “at” or
+        // dash/em-dash company separator). The dash check applies to the role
+        // portion after dates have been stripped — otherwise the date range itself
+        // (e.g. "Jan 2022 - Present") would suppress every legitimate Role+Date line.
         if (isDateLine(normalizedLine) && !isStandaloneDateLine(normalizedLine) &&
             !/@|\sat\s|\s\|\s/i.test(normalizedLine)) {
             const strippedRole = cleanLooseText(stripDates(normalizedLine));
-            if (strippedRole && looksLikeRole(strippedRole) && looksLikeRoleTitle(strippedRole) &&
+            // If the stripped role still contains a delimiter, the line is really
+            // "Role - Company - Date" or similar; let parseExperienceHeader handle it.
+            const hasInnerSeparator = /\s-\s|\s—\s|\s–\s|\s\|\s|@|\sat\s/i.test(strippedRole);
+            if (!hasInnerSeparator && strippedRole && looksLikeRole(strippedRole) && looksLikeRoleTitle(strippedRole) &&
                 !looksLikeCompany(strippedRole) && !looksLikeEducationRoleLine(strippedRole) &&
                 strippedRole.split(/\s+/).length <= 6) {
                 const dates = extractDates(normalizedLine);
@@ -1115,16 +1121,24 @@ function buildExperienceSource(parsed) {
             .filter(([key]) => !['experience', 'employment', 'work', 'career', 'unmapped'].includes(key))
             .filter(([key]) => !skipSpillover.has(key));
         const otherLines = otherSections.flatMap(([, lines]) => lines);
-        // A line carries an experience-like role title even when an inline date
-        // attaches to it ("Associate Software Engineer Apr 2014 - Jul 2017").
-        // Strip dates before testing for a role-title shape so we don't miss
-        // entries that bled into LANGUAGES/HOBBIES/CERTIFICATIONS via page breaks.
-        const hasRoleCompany = otherLines.some((l) => {
+        // Detect a spillover-shaped section: it must contain either (a) at least
+        // two role-title lines (typical for an experience block that leaked into
+        // EDUCATION after a page break), or (b) a single role-title line that
+        // also carries a date range and is not a certification / award name.
+        // Otherwise legitimate sections (CERTIFICATIONS with "TensorFlow
+        // Developer Certificate (2022)") would trigger spillover and pollute
+        // experience.
+        const CERT_NOUN_RE = /\b(certificate|certification|certified|award|license|licensed|diploma|accreditation|nanodegree)\b/i;
+        const roleishLines = otherLines.filter((l) => {
             const stripped = cleanLooseText(stripDates(l));
             if (!stripped)
                 return false;
+            if (CERT_NOUN_RE.test(stripped))
+                return false;
             return looksLikeRole(stripped) && looksLikeRoleTitle(stripped) && !looksLikeEducationRoleLine(stripped);
         });
+        const datedRoleLine = roleishLines.find((l) => isDateLine(l));
+        const hasRoleCompany = roleishLines.length >= 2 || Boolean(datedRoleLine);
         if (hasRoleCompany) {
             const spillover = collectLikelyExperienceLines(otherLines);
             if (spillover.length)
@@ -1626,15 +1640,64 @@ function looksLikeCompany(line) {
     // e.g. TCS, IBM, SAP, HCL, KPMG, EY — but not role abbreviations like AVP, CTO, CEO
     if (/^[A-Z]{2,6}$/.test(cleaned) && !ROLE_HINT_RE.test(cleaned) && !ASSOCIATE_ROLE_RE.test(cleaned))
         return true;
+    // Reject "City, ST" / "City, Country" / "City, State" location-only lines —
+    // LinkedIn / Indeed PDF exports put a location line right under the date,
+    // and we don't want it to look like a company.
+    if (looksLikePureLocation(cleaned))
+        return false;
     // Handle "Company, Location" pattern (e.g. "Ernst & Young, Pune")
     const commaParts = cleaned.split(',').map((part) => part.trim()).filter(Boolean);
     const mainPart = commaParts.length >= 2 ? commaParts[0] : cleaned;
     const tokens = mainPart.split(/\s+/).filter(Boolean);
-    if (tokens.length >= 2 && tokens.length <= 7) {
+    if (tokens.length >= 1 && tokens.length <= 7) {
         const titleCaseTokens = tokens.filter((token) => /^[A-Z][A-Za-z0-9&'.-]*$/.test(token) || /^&$/.test(token)).length;
+        // Single-token brand names (e.g. "Contoso", "Citi", "Cognizant", "Stripe")
+        // are valid company names provided the token is title-case and at least
+        // 3 letters long so we don't pick up role abbreviations like "VP".
+        if (tokens.length === 1) {
+            return titleCaseTokens === 1 && tokens[0].length >= 3 && !ROLE_HINT_RE.test(tokens[0]) && !ASSOCIATE_ROLE_RE.test(tokens[0]);
+        }
         return titleCaseTokens >= Math.ceil(tokens.length * 0.6);
     }
     return false;
+}
+/**
+ * Detect "Pure location" lines like "San Francisco, CA", "London, UK",
+ * "Pune, Maharashtra, India". These follow the date in LinkedIn exports and
+ * would otherwise be misread as a company name.
+ */
+function looksLikePureLocation(line) {
+    const cleaned = cleanLooseText(line);
+    if (!cleaned)
+        return false;
+    // Must contain a comma — "City, State" / "City, Country" shape.
+    if (!cleaned.includes(','))
+        return false;
+    // Must not contain a company-suffix word.
+    if (/(inc|llc|ltd|corp|company|technologies|systems|labs|solutions|group|studio|partners|bank|consulting|digital|enterprises|pvt|limited|infotech)\b/i.test(cleaned))
+        return false;
+    // Each comma-separated part must look like a place: at least one must match
+    // our known-location regex, and the others must be short title-case tokens
+    // (state names like "California", or 2-letter codes like "CA", "UK").
+    const parts = cleaned.split(',').map((p) => p.trim()).filter(Boolean);
+    if (parts.length < 2 || parts.length > 4)
+        return false;
+    const knownLocation = parts.some((p) => looksLikeLocationFragment(p));
+    if (!knownLocation)
+        return false;
+    const everyPartLooksGeographic = parts.every((p) => {
+        if (looksLikeLocationFragment(p))
+            return true;
+        // Two-letter state/country code (CA, NY, UK, DE)
+        if (/^[A-Z]{2}$/.test(p))
+            return true;
+        // Short title-case place name like "Maharashtra" or "California"
+        const tokens = p.split(/\s+/).filter(Boolean);
+        if (tokens.length > 3)
+            return false;
+        return tokens.every((t) => /^[A-Z][a-z]+$/.test(t));
+    });
+    return everyPartLooksGeographic;
 }
 function mergeExperienceByCompany(experience) {
     const map = new Map();
@@ -1776,7 +1839,11 @@ function stripDates(line) {
         .replace(/\b(19\d{2}|20\d{2})[-/]\d{1,2}\b/gi, '') // YYYY-MM
         .replace(/\b\d{1,2}[/-](19\d{2}|20\d{2})\b/gi, '') // MM/YYYY
         .replace(/\b(20\d{2}|19\d{2})\b/g, '') // bare YYYY
-        .replace(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\b/gi, '')
+        // Strip month names — match abbreviation OR full form. We avoid the
+        // permissive "[a-z]*" suffix because with the /i flag it also matches
+        // uppercase letters and eats half of words like "NovaCorp" / "Marshalls"
+        // / "Junkers", silently corrupting non-date text.
+        .replace(/\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sept?(?:ember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\b/gi, '')
         .replace(/\b(present|current|now|till\s*date)\b/gi, '')
         .replace(/[-–—â€”â€”|@]\s*$/g, '')
         .replace(/\s{2,}/g, ' ')
