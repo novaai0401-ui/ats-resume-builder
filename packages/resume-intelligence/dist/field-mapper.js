@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.mapParsedResume = mapParsedResume;
+exports.shouldMergeWrappedLine = shouldMergeWrappedLine;
 const resume_schemas_1 = require("resume-schemas");
 const resume_parser_js_1 = require("./resume-parser.js");
 const experience_level_js_1 = require("./experience-level.js");
@@ -37,8 +38,16 @@ const TITLE_BLOCKLIST = new Set([
     'achievements',
 ]);
 const CONTACT_LABEL_RE = /\b(email|mobile|phone|contact|linkedin|github|portfolio|address|location)\b/i;
-const NAME_BLOCKLIST_RE = /\b(skills?|technical|soft|experience|employment|education|communication|teamwork|leadership|problem[-\s]?solving|languages|achievements?|summary|profile|objective)\b/i;
+// Used to prevent section heading words from being mistaken for a person's name.
+// NOTE: soft-skill words (communication, leadership, teamwork, problem-solving) are
+// intentionally NOT blocked here — they are legitimate skill tokens extracted from
+// the sidebar skills sections of two-column resumes.
+const NAME_BLOCKLIST_RE = /\b(skills?|technical|soft|experience|employment|education|languages|achievements?|summary|profile|objective)\b/i;
 const COMPANY_SUFFIX_RE = /\b(inc|llc|ltd|corp|company|technologies|systems|labs|solutions|group|studio|partners|bank|consulting|digital)\b/i;
+// Skill subsection labels (e.g. "Soft Skills:", "Technical Skills - ...") are never company names.
+// PDF extractors sometimes strip the parent SKILLS heading or break sublabels onto their own line,
+// causing these tokens to leak into experience extraction.
+const SKILL_SUBSECTION_LABEL_RE = /^\s*(?:soft|technical|hard|core|key|professional|relevant|additional|primary|secondary|computer|programming|functional|domain|business|interpersonal|transferable|cloud|devops|data|ai|ml|management)\s+(?:skills?|competencies|expertise|proficiencies|tools?|technologies)\b\s*[:\-—–]?/i;
 const HEADLINE_FRAGMENT_RE = /\b(system design|software design|web development|frontend|backend|full stack|machine learning|data science|cloud computing|devops|product management|project management|artificial intelligence|digital marketing|user experience|user interface|mobile development|database|networking|cybersecurity|blockchain|deep learning)\b/i;
 const LEGACY_BULLET_PREFIX_RE = /^\s*(?:[-*•·]+|\d{1,3}[.)]|[a-z][.)])?\s*(impact|achievement|result|highlights?|accomplishment)s?:\s*/i;
 function mapParsedResume(parsed) {
@@ -99,11 +108,13 @@ function mapParsedResume(parsed) {
         finalExperience.map((item) => `${item.role} ${item.company}`).join(' '),
     ].join(' ');
     const levelResult = (0, experience_level_js_1.computeExperienceLevel)({ resumeText, experience: finalExperience });
+    const languages = mapLanguages(effectiveParsed.sections);
     const validated = resume_schemas_1.ParsedResumeSchema.parse({
         title,
         contact,
         summary,
         skills: finalSkills,
+        languages,
         experience: finalExperience,
         education: educationSanitized.items,
         projects,
@@ -155,10 +166,20 @@ function mapSkills(sections) {
         ...(sections.core || []),
         ...(sections.technologies || []),
     ];
+    // Two-column sidebar resumes often list one skill per line with no delimiter.
+    // When the majority of non-empty lines are short and delimiter-free, treat
+    // each line as a single skill rather than splitting on delimiters.
+    const mostAreSingleItems = lines.length > 2
+        && lines.filter((l) => l.length < 35 && !/[,;|]/.test(l)).length / lines.length > 0.65;
     const tokens = lines
         .flatMap((line) => {
         // Remove common leading labels like "Skills:", "Technical Skills:", etc.
-        const cleaned = line.replace(/^(?:skills?|technical\s+skills?|core\s+skills?|key\s+skills?|technologies)\s*:?\s*/i, '');
+        const cleaned = line.replace(/^(?:skills?|technical\s+skills?|soft\s+skills?|core\s+skills?|key\s+skills?|technologies)\s*:?\s*/i, '')
+            .replace(/^[-*\u2022\u25e6\u25aa\u25cf\u25cb]\s*/, '');
+        if (mostAreSingleItems) {
+            const parts = cleaned.split(/,|;|\|/);
+            return parts.length > 1 ? parts : [cleaned];
+        }
         // Split on common delimiters: comma, semicolon, pipe, bullet, middot
         return cleaned.split(/,|;|\||\u00b7|\u2022|\u25e6|\u25aa|\u25cf|â€¢|Â·/);
     })
@@ -215,6 +236,16 @@ function mapSkills(sections) {
         }
     }
     return Array.from(new Set(tokens)).slice(0, 30);
+}
+function mapLanguages(sections) {
+    const lines = sections.languages || [];
+    if (!lines.length)
+        return [];
+    const tokens = lines
+        .flatMap((line) => line.replace(/^languages?\s*:?\s*/i, '').split(/,|;|\||·|•/))
+        .map((t) => cleanLooseText(t))
+        .filter((t) => t.length >= 2 && t.length <= 40 && !/^\d+$/.test(t) && /[a-z]/i.test(t));
+    return Array.from(new Set(tokens)).slice(0, 10);
 }
 const KNOWN_TECH_SKILLS = [
     'React', 'ReactJS', 'React.js', 'Angular', 'AngularJS', 'Vue', 'Vue.js', 'VueJS',
@@ -358,6 +389,12 @@ function mapExperience(parsed) {
             }
             continue;
         }
+        // Skip skill subsection labels (“Soft Skills:”, “Technical Skills - ...”) — these can
+        // bleed into experience source when PDF section detection is partial and otherwise
+        // get mis-classified as company names because of their title-case shape.
+        if (SKILL_SUBSECTION_LABEL_RE.test(normalizedLine)) {
+            continue;
+        }
         const bullet = extractBulletLine(normalizedSourceLine);
         if (bullet) {
             if (pendingRole && currentCompany && !current) {
@@ -480,8 +517,24 @@ function mapExperience(parsed) {
         }
         if (!current)
             continue;
-        if (normalizedLine.length > 10)
-            current.highlights.push(normalizedLine);
+        if (normalizedLine.length > 10) {
+            // Wrapped-line repair: when the previous highlight ends without
+            // a sentence terminator (".", "!", "?", ";"), the PDF parser
+            // probably broke a long bullet across two lines. Merging the
+            // continuation back into the previous bullet stops the editor
+            // from rendering fragments like
+            //     • Designed and implemented data models ... consistent data
+            //     • relationships.
+            // as two separate bullets — the production bug the project
+            // owner reported.
+            const last = current.highlights[current.highlights.length - 1];
+            if (last && shouldMergeWrappedLine(last, normalizedLine)) {
+                current.highlights[current.highlights.length - 1] = `${last.trimEnd()} ${normalizedLine.trimStart()}`;
+            }
+            else {
+                current.highlights.push(normalizedLine);
+            }
+        }
     }
     // Flush any remaining pending role with dates
     if (pendingRole && (pendingStartDate || pendingEndDate)) {
@@ -986,6 +1039,13 @@ function cleanLooseText(value) {
 function isPlaceholderValue(value) {
     return /^[-–—_*•·|/\\]+$/.test(value) || PLACEHOLDER_ONLY_RE.test(value);
 }
+function hasMeaningfulText(value) {
+    if (!value)
+        return false;
+    // Must contain at least two alphanumeric characters to be a real role/company.
+    const alnum = value.match(/[A-Za-z0-9]/g);
+    return Boolean(alnum && alnum.length >= 2);
+}
 function collectLikelyExperienceLines(lines) {
     const output = [];
     for (const rawLine of lines) {
@@ -1051,6 +1111,9 @@ function looksLikeExperienceHeader(line) {
         return false;
     const cleaned = cleanLooseText(normalizedLine);
     if (!cleaned)
+        return false;
+    // Skill subsection labels are not experience headers.
+    if (SKILL_SUBSECTION_LABEL_RE.test(cleaned))
         return false;
     const hasDate = isDateLine(cleaned);
     const stripped = stripDates(cleaned);
@@ -1164,6 +1227,50 @@ function extractBulletLine(line) {
         return '';
     return cleanLooseText(match[1] || '');
 }
+/**
+ * Decide whether a non-bullet `next` line is a continuation of the
+ * previous bullet `prev` (PDF wrap-around) rather than a new bullet.
+ *
+ * Heuristics, in order of decisiveness:
+ *   1. If prev ends with a sentence terminator (.!?;), it's complete —
+ *      treat next as a new bullet.
+ *   2. If next starts with a capital letter and is reasonably long
+ *      (>= 30 chars), it's likely a real new bullet someone forgot to
+ *      bullet-prefix. Don't merge.
+ *   3. If prev ends with a connector ("and", "or", "but", "of",
+ *      "with", "to", "for", "in", "on") OR a comma, it's almost
+ *      certainly a wrap. Merge.
+ *   4. If next starts with a lowercase word OR a clear continuation
+ *      ("relationships.", "and team productivity"), merge.
+ *   5. Otherwise, keep as a separate bullet (false negative is safer
+ *      than wrong-merge).
+ */
+function shouldMergeWrappedLine(prev, next) {
+    const p = String(prev || '').trim();
+    const n = String(next || '').trim();
+    if (!p || !n)
+        return false;
+    // 1. Sentence-terminated previous → new bullet.
+    if (/[.!?;]$/.test(p))
+        return false;
+    // 2. Long capitalised next → new bullet (false-negative is safe).
+    if (n.length >= 30 && /^[A-Z]/.test(n))
+        return false;
+    // 3. Connector or comma at end of prev → almost certainly a wrap.
+    if (/(?:^|\s)(and|or|but|of|with|to|for|in|on|the|a|an)$/i.test(p))
+        return true;
+    if (p.endsWith(','))
+        return true;
+    // 4. Lowercase start on next → continuation of the previous sentence.
+    if (/^[a-z]/.test(n))
+        return true;
+    // 5. Short next clauses ("relationships.", "fewer escalations.") that
+    //    do start with a capital but are too short to stand alone — merge
+    //    when prev didn't terminate.
+    if (n.length <= 28)
+        return true;
+    return false;
+}
 function cleanCompanyName(value) {
     const normalized = cleanLooseText(value);
     if (!normalized)
@@ -1190,13 +1297,25 @@ function splitRoleCompany(line) {
         return { role: '', company: '' };
     if (normalized.includes('@')) {
         const parts = normalized.split('@');
-        if (parts.length === 2)
-            return { role: cleanLooseText(parts[0]), company: cleanCompanyName(parts[1]) };
+        if (parts.length === 2) {
+            const role = cleanLooseText(parts[0]);
+            const company = cleanCompanyName(parts[1]);
+            // Reject splits where the role is just punctuation (e.g. "(" from "( @ FOO")
+            // or where the company looks like an email TLD (e.g. "gmail.com" from email leak)
+            if (hasMeaningfulText(role) && hasMeaningfulText(company)) {
+                return { role, company };
+            }
+        }
     }
     if (/\sat\s/i.test(normalized)) {
         const parts = normalized.split(/\sat\s/i);
-        if (parts.length === 2)
-            return { role: cleanLooseText(parts[0]), company: cleanCompanyName(parts[1]) };
+        if (parts.length === 2) {
+            const role = cleanLooseText(parts[0]);
+            const company = cleanCompanyName(parts[1]);
+            if (hasMeaningfulText(role) && hasMeaningfulText(company)) {
+                return { role, company };
+            }
+        }
     }
     // Try comma-based “Role, Company” split BEFORE dash-based splits.
     // ATS-exported PDFs use “AVP - Full Stack Engineer, Citi Corp” where the dash
@@ -1347,6 +1466,14 @@ function looksLikeCompany(line) {
         return false;
     // "Technologies - HTML, CSS, ..." or "Technologies: ..." is NOT a company
     if (/^Technologies\s*[-:]/i.test(cleaned))
+        return false;
+    // Skill subsection labels ("Soft Skills:", "TECHNICAL SKILLS - ...") are never companies.
+    if (SKILL_SUBSECTION_LABEL_RE.test(cleaned))
+        return false;
+    // Standalone skill-related labels (e.g. "Soft Skills", "SOFT SKILLS", "Technical Skills")
+    // collapse to a known title in TITLE_BLOCKLIST after normalization.
+    const normalizedTitle = cleaned.toLowerCase().replace(/[^a-z\s-]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (normalizedTitle && TITLE_BLOCKLIST.has(normalizedTitle))
         return false;
     if (looksLikeRole(cleaned)) {
         // "Systems Engineer", "Systems Analyst", etc. are role titles, not companies

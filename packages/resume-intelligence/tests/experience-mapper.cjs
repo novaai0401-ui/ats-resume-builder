@@ -316,4 +316,86 @@ Jul 2014 - Aug 2020
   }
 }
 
+// 12) Skill subsection labels must never be classified as companies/experience headers.
+// Repro for the seema_almas_shaikh.pdf bug: "SOFT SKILLS" was being mapped to
+// company, "(" to role, and an education date / certification highlight were
+// attached as if it were a real experience entry.
+{
+  const mapped = mapResume(`
+Work Experience
+AVP
+Citi Corp (Pune, India)
+- Owned frontend technical leadership for enterprise UI platforms.
+Dec 2022 - Present
+
+SKILLS
+SOFT SKILLS
+(
+2008-07 - 2012-07
+Azure AZ900 (Microsoft - 2022)
+Communication, Teamwork, Leadership, Problem-solving
+TECHNICAL SKILLS
+: HTML5, CSS3, JavaScript(ES6+), ReactJS
+
+Education
+B.E: Computer Science and Engineering
+(2008-07 - 2012-07)
+`);
+
+  // The only real experience here is Citi Corp; no "SOFT SKILLS" / "TECHNICAL SKILLS"
+  // phantom entry must surface.
+  for (const item of mapped.experience) {
+    const company = (item.company || '').toLowerCase();
+    const role = (item.role || '').toLowerCase();
+    assert.ok(
+      !/^\s*(soft|technical|hard|core|key)\s+(skills?|competencies)\b/.test(company),
+      `Skill subsection label leaked into company: "${item.company}"`,
+    );
+    assert.ok(
+      !/^\s*(soft|technical|hard|core|key)\s+(skills?|competencies)\b/.test(role),
+      `Skill subsection label leaked into role: "${item.role}"`,
+    );
+    // Role should never be just punctuation.
+    assert.ok(
+      /[a-z0-9]/i.test(item.role || '') || !(item.role || '').trim(),
+      `Role is punctuation-only: "${item.role}"`,
+    );
+  }
+  // Citi Corp must still be extracted.
+  assert.ok(
+    mapped.experience.some((item) => /citi/i.test(item.company || '')),
+    'Citi Corp must still be extracted',
+  );
+}
+
+// 13) Email addresses leaking into experience-eligible lines must not split
+// into role/company on the @ symbol.
+{
+  const { mapParsedResume, parseResumeText } = require('../dist/index.js');
+  const { enhanceExperienceExtraction } = require('../dist/experience-enhancer.js');
+  // Force the enhancer fallback by providing a 'broken' initial experience set
+  // — this is exactly what triggers in the upload pipeline when the field-mapper
+  // rejects a partial entry.
+  const text = `Work Experience
+Soft Skills
+(
+2008
+Azure AZ900 (Microsoft - 2022)
+`;
+  const parsed = parseResumeText(text);
+  const fallback = enhanceExperienceExtraction({
+    rawText: text,
+    parsed,
+    currentExperience: [],
+  });
+  for (const item of fallback) {
+    const company = (item.company || '').toLowerCase();
+    assert.ok(
+      !/^soft\s+skills?$/.test(company.trim()),
+      `Enhancer fabricated "Soft Skills" experience: ${JSON.stringify(item)}`,
+    );
+    assert.ok(item.role !== '(', `Enhancer produced "(" role: ${JSON.stringify(item)}`);
+  }
+}
+
 console.log('experience mapper tests passed');

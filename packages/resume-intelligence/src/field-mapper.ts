@@ -60,6 +60,10 @@ const CONTACT_LABEL_RE = /\b(email|mobile|phone|contact|linkedin|github|portfoli
 // the sidebar skills sections of two-column resumes.
 const NAME_BLOCKLIST_RE = /\b(skills?|technical|soft|experience|employment|education|languages|achievements?|summary|profile|objective)\b/i;
 const COMPANY_SUFFIX_RE = /\b(inc|llc|ltd|corp|company|technologies|systems|labs|solutions|group|studio|partners|bank|consulting|digital)\b/i;
+// Skill subsection labels (e.g. "Soft Skills:", "Technical Skills - ...") are never company names.
+// PDF extractors sometimes strip the parent SKILLS heading or break sublabels onto their own line,
+// causing these tokens to leak into experience extraction.
+const SKILL_SUBSECTION_LABEL_RE = /^\s*(?:soft|technical|hard|core|key|professional|relevant|additional|primary|secondary|computer|programming|functional|domain|business|interpersonal|transferable|cloud|devops|data|ai|ml|management)\s+(?:skills?|competencies|expertise|proficiencies|tools?|technologies)\b\s*[:\-—–]?/i;
 const HEADLINE_FRAGMENT_RE = /\b(system design|software design|web development|frontend|backend|full stack|machine learning|data science|cloud computing|devops|product management|project management|artificial intelligence|digital marketing|user experience|user interface|mobile development|database|networking|cybersecurity|blockchain|deep learning)\b/i;
 const LEGACY_BULLET_PREFIX_RE = /^\s*(?:[-*•·]+|\d{1,3}[.)]|[a-z][.)])?\s*(impact|achievement|result|highlights?|accomplishment)s?:\s*/i;
 
@@ -411,6 +415,13 @@ function mapExperience(parsed: ParsedResumeText) {
       if (current) {
         current.highlights.push(normalizedLine);
       }
+      continue;
+    }
+
+    // Skip skill subsection labels (“Soft Skills:”, “Technical Skills - ...”) — these can
+    // bleed into experience source when PDF section detection is partial and otherwise
+    // get mis-classified as company names because of their title-case shape.
+    if (SKILL_SUBSECTION_LABEL_RE.test(normalizedLine)) {
       continue;
     }
 
@@ -1028,6 +1039,13 @@ function isPlaceholderValue(value: string) {
   return /^[-–—_*•·|/\\]+$/.test(value) || PLACEHOLDER_ONLY_RE.test(value);
 }
 
+function hasMeaningfulText(value: string) {
+  if (!value) return false;
+  // Must contain at least two alphanumeric characters to be a real role/company.
+  const alnum = value.match(/[A-Za-z0-9]/g);
+  return Boolean(alnum && alnum.length >= 2);
+}
+
 function collectLikelyExperienceLines(lines: string[]) {
   const output: string[] = [];
   for (const rawLine of lines) {
@@ -1091,6 +1109,8 @@ function looksLikeExperienceHeader(line: string) {
   if (!normalizedLine || normalizedLine.startsWith('-')) return false;
   const cleaned = cleanLooseText(normalizedLine);
   if (!cleaned) return false;
+  // Skill subsection labels are not experience headers.
+  if (SKILL_SUBSECTION_LABEL_RE.test(cleaned)) return false;
   const hasDate = isDateLine(cleaned);
   const stripped = stripDates(cleaned);
   const hasSubstanceAfterDates = stripped.replace(/[@|]/g, ' ').replace(/\s+/g, ' ').trim().length >= 3;
@@ -1268,11 +1288,25 @@ function splitRoleCompany(line: string) {
   if (!normalized) return { role: '', company: '' };
   if (normalized.includes('@')) {
     const parts = normalized.split('@');
-    if (parts.length === 2) return { role: cleanLooseText(parts[0]), company: cleanCompanyName(parts[1]) };
+    if (parts.length === 2) {
+      const role = cleanLooseText(parts[0]);
+      const company = cleanCompanyName(parts[1]);
+      // Reject splits where the role is just punctuation (e.g. "(" from "( @ FOO")
+      // or where the company looks like an email TLD (e.g. "gmail.com" from email leak)
+      if (hasMeaningfulText(role) && hasMeaningfulText(company)) {
+        return { role, company };
+      }
+    }
   }
   if (/\sat\s/i.test(normalized)) {
     const parts = normalized.split(/\sat\s/i);
-    if (parts.length === 2) return { role: cleanLooseText(parts[0]), company: cleanCompanyName(parts[1]) };
+    if (parts.length === 2) {
+      const role = cleanLooseText(parts[0]);
+      const company = cleanCompanyName(parts[1]);
+      if (hasMeaningfulText(role) && hasMeaningfulText(company)) {
+        return { role, company };
+      }
+    }
   }
 
   // Try comma-based “Role, Company” split BEFORE dash-based splits.
@@ -1399,6 +1433,12 @@ function looksLikeCompany(line: string) {
   if (/\.\s*$/.test(cleaned) && !/\b(inc|ltd|corp|co|pvt|llc)\.\s*$/i.test(cleaned)) return false;
   // "Technologies - HTML, CSS, ..." or "Technologies: ..." is NOT a company
   if (/^Technologies\s*[-:]/i.test(cleaned)) return false;
+  // Skill subsection labels ("Soft Skills:", "TECHNICAL SKILLS - ...") are never companies.
+  if (SKILL_SUBSECTION_LABEL_RE.test(cleaned)) return false;
+  // Standalone skill-related labels (e.g. "Soft Skills", "SOFT SKILLS", "Technical Skills")
+  // collapse to a known title in TITLE_BLOCKLIST after normalization.
+  const normalizedTitle = cleaned.toLowerCase().replace(/[^a-z\s-]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (normalizedTitle && TITLE_BLOCKLIST.has(normalizedTitle)) return false;
   if (looksLikeRole(cleaned)) {
     // "Systems Engineer", "Systems Analyst", etc. are role titles, not companies
     if (/\bsystems?\s+(?:engineer|developer|analyst|administrator|architect|specialist)\b/i.test(cleaned)) {
