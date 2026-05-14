@@ -3697,6 +3697,18 @@ function renderTemplateBody(templateId: string, resume: any) {
   if (templateId === 'technical') return renderTechnicalTemplateArticle(resume);
   if (templateId === 'consultant') return renderConsultantTemplateArticle(resume);
   if (['minimal', 'graduate'].includes(templateId)) return renderMinimalTemplateArticle(resume);
+  // Non-default templates need custom section labels so the exported PDF
+  // mirrors the on-screen live preview (frontend React templates use
+  // template-specific labels like "Research Interest" / "Clinical
+  // Summary" / "Creative Statement"). Falling back to classic — which is
+  // the historical behaviour — meant the downloaded PDF silently dropped
+  // those labels and confused users who saw a different document than
+  // the one they previewed.
+  if (templateId === 'academic') return renderAcademicTemplateArticle(resume);
+  if (templateId === 'healthcare') return renderHealthcareTemplateArticle(resume);
+  if (templateId === 'creative') return renderCreativeTemplateArticle(resume);
+  if (templateId === 'sidebar-bold') return renderSidebarBoldTemplateArticle(resume);
+  if (templateId === 'accent-header') return renderAccentHeaderTemplateArticle(resume);
   return renderClassicTemplateArticle(resume);
 }
 
@@ -3761,6 +3773,101 @@ function renderConsultantTemplateArticle(resume: any) {
   `;
 }
 
+// The renderers below mirror the section labels used by the React
+// templates in the live preview (components/templates/*.tsx). Without
+// them, every non-default template silently fell back to "classic" and
+// users saw a different label set in the downloaded PDF than they had
+// just previewed.
+
+function renderAcademicTemplateArticle(resume: any) {
+  const normalized = normalizeTemplateResumeData(resume);
+  return `
+    <article class="ats-template ats-template--academic">
+      ${templateHeader(normalized)}
+      ${renderOrderedSections(normalized, {
+        companyJoiner: ', ',
+        uppercaseHeadings: true,
+        educationFirst: true,
+        labels: {
+          summary: 'Research Interest',
+          experience: 'Academic & Professional Appointments',
+          projects: 'Publications & Research Projects',
+          certifications: 'Grants, Awards & Certifications',
+          skills: 'Technical & Methodological Skills',
+        },
+      })}
+    </article>
+  `;
+}
+
+function renderHealthcareTemplateArticle(resume: any) {
+  const normalized = normalizeTemplateResumeData(resume);
+  return `
+    <article class="ats-template ats-template--healthcare">
+      ${templateHeader(normalized)}
+      ${renderOrderedSections(normalized, {
+        companyJoiner: ', ',
+        uppercaseHeadings: true,
+        certificationsFirst: true,
+        labels: {
+          summary: 'Clinical Summary',
+          certifications: 'Licensure & Certifications',
+          experience: 'Clinical Experience',
+          skills: 'Clinical Skills & Procedures',
+          projects: 'Research & Quality Improvement',
+        },
+      })}
+    </article>
+  `;
+}
+
+function renderCreativeTemplateArticle(resume: any) {
+  const normalized = normalizeTemplateResumeData(resume);
+  return `
+    <article class="ats-template ats-template--creative">
+      ${templateHeader(normalized, { bar: true })}
+      ${renderOrderedSections(normalized, {
+        companyJoiner: ' | ',
+        uppercaseHeadings: true,
+        labels: {
+          summary: 'Creative Statement',
+          projects: 'Featured Work & Portfolio',
+          skills: 'Tools & Craft',
+          certifications: 'Awards & Recognitions',
+        },
+      })}
+    </article>
+  `;
+}
+
+function renderSidebarBoldTemplateArticle(resume: any) {
+  const normalized = normalizeTemplateResumeData(resume);
+  return `
+    <article class="ats-template ats-template--sidebar-bold">
+      ${templateHeader(normalized, { bar: true })}
+      ${renderOrderedSections(normalized, {
+        companyJoiner: ' | ',
+        divided: true,
+        labels: { summary: 'Profile' },
+      })}
+    </article>
+  `;
+}
+
+function renderAccentHeaderTemplateArticle(resume: any) {
+  const normalized = normalizeTemplateResumeData(resume);
+  return `
+    <article class="ats-template ats-template--accent-header">
+      ${templateHeader(normalized, { bar: true })}
+      ${renderOrderedSections(normalized, {
+        companyJoiner: ' | ',
+        divided: true,
+        labels: { summary: 'About Me' },
+      })}
+    </article>
+  `;
+}
+
 function templateHeader(resume: any, options?: { bar?: boolean; executive?: boolean }) {
   const classes = ['ats-template__header'];
   if (options?.bar) classes.push('ats-template__header--bar');
@@ -3774,6 +3881,16 @@ function templateHeader(resume: any, options?: { bar?: boolean; executive?: bool
   `;
 }
 
+type SectionLabelOverrides = Partial<{
+  summary: string;
+  skills: string;
+  experience: string;
+  projects: string;
+  education: string;
+  certifications: string;
+  languages: string;
+}>;
+
 function renderOrderedSections(
   resume: any,
   options: {
@@ -3783,6 +3900,11 @@ function renderOrderedSections(
     uppercaseHeadings?: boolean;
     upperClassHeadings?: boolean;
     groupedSkillLine?: string;
+    labels?: SectionLabelOverrides;
+    /** Reorder sections to put education before experience (academic CV). */
+    educationFirst?: boolean;
+    /** Show certifications above experience (healthcare CV). */
+    certificationsFirst?: boolean;
   },
 ) {
   const summary = escapeHtml(String(resume.summary || '').trim() || 'Add a concise summary aligned to your target role.');
@@ -3804,62 +3926,81 @@ function renderOrderedSections(
   };
 
   const skillLine = options.groupedSkillLine || (mergedSkills.length ? mergedSkills.join(', ') : 'Add role-relevant skills.');
+  const labels = options.labels || {};
+  const summaryHeading = labels.summary || 'Summary';
+  const skillsHeading = labels.skills || 'Skills';
+  const experienceHeading = labels.experience || 'Experience';
+  const projectsHeading = labels.projects || 'Projects';
+  const educationHeading = labels.education || 'Education';
+  const certificationsHeading = labels.certifications || 'Certifications';
+  const languagesHeading = labels.languages || 'Languages';
+
   const sections: string[] = [];
 
-  sections.push(`
+  const summarySection = `
       <section class="${sectionClass}">
-        ${heading('Summary')}
+        ${heading(summaryHeading)}
         <p>${summary}</p>
       </section>
-  `);
-
-  sections.push(`
+  `;
+  const skillsSection = `
       <section class="${sectionClass}">
-        ${heading('Skills')}
+        ${heading(skillsHeading)}
         <p>${escapeHtml(skillLine)}</p>
       </section>
-  `);
-
-  sections.push(`
+  `;
+  const experienceSection = `
       <section class="${sectionClass}">
-        ${heading('Experience')}
+        ${heading(experienceHeading)}
         ${experience.length ? experience.map((item: TemplateExperienceItem) => renderRoleBlock(item, options.companyJoiner)).join('') : '<p>No experience added.</p>'}
       </section>
-  `);
-
-  if (projects.length) {
-    sections.push(`
+  `;
+  const projectsSection = projects.length ? `
       <section class="${sectionClass}">
-        ${heading('Projects')}
+        ${heading(projectsHeading)}
         ${projects.map((item: TemplateProjectItem) => renderProjectBlock(item)).join('')}
       </section>
-    `);
-  }
-
-  sections.push(`
+    ` : '';
+  const educationSection = `
       <section class="${sectionClass}">
-        ${heading('Education')}
+        ${heading(educationHeading)}
         ${education.length ? education.map((item: TemplateEducationItem) => renderEducationBlock(item)).join('') : '<p>No education added.</p>'}
       </section>
-  `);
-
-  if (certifications.length) {
-    sections.push(`
+  `;
+  const certificationsSection = certifications.length ? `
       <section class="${sectionClass}">
-        ${heading('Certifications')}
+        ${heading(certificationsHeading)}
         ${certifications.map((item: TemplateCertificationItem) => renderCertificationBlock(item)).join('')}
       </section>
-    `);
-  }
-
-  if (languages.length) {
-    sections.push(`
+    ` : '';
+  const languagesSection = languages.length ? `
       <section class="${sectionClass}">
-        ${heading('Languages')}
+        ${heading(languagesHeading)}
         <p>${escapeHtml(languages.join(', '))}</p>
       </section>
-    `);
+    ` : '';
+
+  sections.push(summarySection);
+  if (options.educationFirst) {
+    sections.push(educationSection);
+    sections.push(experienceSection);
+    if (projectsSection) sections.push(projectsSection);
+    if (certificationsSection) sections.push(certificationsSection);
+    sections.push(skillsSection);
+  } else if (options.certificationsFirst) {
+    if (certificationsSection) sections.push(certificationsSection);
+    sections.push(educationSection);
+    sections.push(experienceSection);
+    sections.push(skillsSection);
+    if (projectsSection) sections.push(projectsSection);
+  } else {
+    sections.push(skillsSection);
+    sections.push(experienceSection);
+    if (projectsSection) sections.push(projectsSection);
+    sections.push(educationSection);
+    if (certificationsSection) sections.push(certificationsSection);
   }
+  if (languagesSection) sections.push(languagesSection);
 
   return sections.join('');
 }
@@ -4073,7 +4214,10 @@ function normalizeTemplateId(value: unknown) {
     student: 'minimal',
     graduate: 'graduate',
     senior: 'executive',
-    portfolio: 'executive',
+    // Note: 'portfolio' used to alias to executive (legacy). The new
+    // catalog treats 'portfolio' as the creative portfolio template;
+    // route it there so the PDF matches the live preview.
+    portfolio: 'creative',
     product: 'modern',
     'modern-professional': 'modern',
     'classic-ats': 'classic',
@@ -4082,9 +4226,22 @@ function normalizeTemplateId(value: unknown) {
     'graduate-starter': 'graduate',
     'minimal-clean': 'minimal',
     'consultant-clean': 'consultant',
+    'academic-cv': 'academic',
+    'healthcare-cv': 'healthcare',
+    medical: 'healthcare',
+    clinical: 'healthcare',
+    'creative-portfolio': 'creative',
+    designer: 'creative',
+    'two-column-bold': 'sidebar-bold',
+    sidebar: 'sidebar-bold',
+    'accent-band': 'accent-header',
+    visual: 'accent-header',
   };
   const normalized = aliases[raw] || raw;
-  if (['classic', 'modern', 'executive', 'technical', 'minimal', 'consultant', 'graduate'].includes(normalized)) {
+  if ([
+    'classic', 'modern', 'executive', 'technical', 'minimal', 'consultant', 'graduate',
+    'academic', 'healthcare', 'creative', 'sidebar-bold', 'accent-header',
+  ].includes(normalized)) {
     return normalized;
   }
   return 'classic';

@@ -54,11 +54,22 @@ export function TemplatePreviewFrame({
     };
   }, [updateScale]);
 
+  // Deter casual copy/right-click/save-as on the preview. Browsers can't
+  // reliably block OS-level screenshots, but combined with the diagonal
+  // POCKET RESUME watermark, this discourages people from lifting the
+  // unpaid preview as a final document.
+  const blockCopyInteraction = useCallback((event: { preventDefault: () => void }) => {
+    event.preventDefault();
+  }, []);
+
   return (
     <div
       className={`template-preview-frame__container${clean ? ' template-preview-frame--clean' : ''}`}
       data-preview-frame-mode={mode}
       ref={containerRef}
+      onContextMenu={clean ? undefined : blockCopyInteraction}
+      onDragStart={clean ? undefined : blockCopyInteraction}
+      onCopy={clean ? undefined : blockCopyInteraction}
     >
       <div
         className="template-preview-frame__page"
