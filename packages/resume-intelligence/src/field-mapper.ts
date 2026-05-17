@@ -1146,14 +1146,29 @@ function buildExperienceSource(parsed: ParsedResumeText) {
     // Developer Certificate (2022)") would trigger spillover and pollute
     // experience.
     const CERT_NOUN_RE = /\b(certificate|certification|certified|award|license|licensed|diploma|accreditation|nanodegree)\b/i;
-    const roleishLines = otherLines.filter((l) => {
+    const isRoleishLine = (l: string) => {
       const stripped = cleanLooseText(stripDates(l));
       if (!stripped) return false;
       if (CERT_NOUN_RE.test(stripped)) return false;
       return looksLikeRole(stripped) && looksLikeRoleTitle(stripped) && !looksLikeEducationRoleLine(stripped);
-    });
-    const datedRoleLine = roleishLines.find((l) => isDateLine(l));
-    const hasRoleCompany = roleishLines.length >= 2 || Boolean(datedRoleLine);
+    };
+    const roleishLines = otherLines.filter(isRoleishLine);
+    // Either (a) ≥ 2 role-title lines in the section,
+    // or (b) one role-title line carrying a date range on the same line,
+    // or (c) one role-title line followed within 2 lines by a date-range
+    //     line — typical when a paginated PDF puts
+    //         "Associate Software Engineer\nApr 2014 - Jul 2017\nCompany"
+    //     after LANGUAGES.
+    let roleAdjacentToDate = false;
+    for (let i = 0; i < otherLines.length; i += 1) {
+      if (!isRoleishLine(otherLines[i])) continue;
+      if (isDateLine(otherLines[i])) { roleAdjacentToDate = true; break; }
+      for (let j = i + 1; j <= Math.min(i + 3, otherLines.length - 1); j += 1) {
+        if (isDateLine(otherLines[j])) { roleAdjacentToDate = true; break; }
+      }
+      if (roleAdjacentToDate) break;
+    }
+    const hasRoleCompany = roleishLines.length >= 2 || roleAdjacentToDate;
     if (hasRoleCompany) {
       const spillover = collectLikelyExperienceLines(otherLines);
       if (spillover.length) return [...sectionLines, ...spillover];

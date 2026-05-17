@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { TkxDrawer } from 'tekivex-ui';
 import { api, getAccessToken, isCurrentUserAdmin, startSessionHeartbeat } from '@/src/lib/api';
 import SessionWarningModal from './SessionWarningModal';
@@ -21,10 +21,23 @@ const PLAN_LABEL: Record<string, string> = {
 
 export default function TopNav() {
   const router = useRouter();
+  // usePathname returns null during SSR before the route is known —
+  // tolerate that so the nav still renders pre-hydration.
+  const pathname = usePathname() || '';
   const [authed, setAuthed] = useState(false);
   const [admin, setAdmin] = useState(false);
   const [plan, setPlan] = useState<string>('FREE');
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Returns aria-current="page" when the link's href matches the current
+  // pathname. Match is prefix-based for nested routes ("/resume" lights
+  // up for "/resume/start", "/resume/template", etc.) but the home link
+  // matches only the exact "/" so it doesn't light up on every page.
+  function navProps(href: string): { 'aria-current'?: 'page' } {
+    if (!pathname) return {};
+    if (href === '/') return pathname === '/' ? { 'aria-current': 'page' } : {};
+    return pathname === href || pathname.startsWith(href + '/') ? { 'aria-current': 'page' } : {};
+  }
   // TkxDrawer renders through a portal and touches `document` on mount —
   // rendering it during SSR produces markup the client can't match,
   // triggering a React hydration error. Wait for the first client-side
@@ -80,24 +93,24 @@ export default function TopNav() {
 
   const links = (
     <>
-      <Link href="/" onClick={closeDrawer}>Home</Link>
+      <Link href="/" onClick={closeDrawer} {...navProps('/')}>Home</Link>
       {authed && (
         <>
-          <Link href="/dashboard" onClick={closeDrawer}>Dashboard</Link>
-          <Link href="/resume/start" onClick={closeDrawer}>Resume</Link>
-          <Link href="/resume/versions" onClick={closeDrawer}>Versions</Link>
-          <Link href="/jobs" onClick={closeDrawer}>Jobs</Link>
-          <Link href="/cover-letter" onClick={closeDrawer}>Cover Letter</Link>
-          <Link href="/career" onClick={closeDrawer}>Career Navigator</Link>
-          <Link href="/mentor" onClick={closeDrawer}>Mentor</Link>
-          <Link href="/jd-match" onClick={closeDrawer}>JD Match</Link>
+          <Link href="/dashboard" onClick={closeDrawer} {...navProps('/dashboard')}>Dashboard</Link>
+          <Link href="/resume/start" onClick={closeDrawer} {...navProps('/resume')}>Resume</Link>
+          <Link href="/resume/versions" onClick={closeDrawer} {...navProps('/resume/versions')}>Versions</Link>
+          <Link href="/jobs" onClick={closeDrawer} {...navProps('/jobs')}>Jobs</Link>
+          <Link href="/cover-letter" onClick={closeDrawer} {...navProps('/cover-letter')}>Cover Letter</Link>
+          <Link href="/career" onClick={closeDrawer} {...navProps('/career')}>Career Navigator</Link>
+          <Link href="/mentor" onClick={closeDrawer} {...navProps('/mentor')}>Mentor</Link>
+          <Link href="/jd-match" onClick={closeDrawer} {...navProps('/jd-match')}>JD Match</Link>
           {plan === 'PRO' ? (
             <>
-              <Link href="/interview-prep" onClick={closeDrawer}>Interview Prep</Link>
-              <Link href="/mentor/chat" onClick={closeDrawer}>Mentor Chat</Link>
+              <Link href="/interview-prep" onClick={closeDrawer} {...navProps('/interview-prep')}>Interview Prep</Link>
+              <Link href="/mentor/chat" onClick={closeDrawer} {...navProps('/mentor/chat')}>Mentor Chat</Link>
             </>
           ) : null}
-          <Link href="/settings" onClick={closeDrawer}>Settings</Link>
+          <Link href="/settings" onClick={closeDrawer} {...navProps('/settings')}>Settings</Link>
           {/* Plan badge doubles as a billing-page link so users can see
               their tier at a glance and one-tap to manage. Free users
               see "Free → Upgrade" cue colours; paid users see green. */}
@@ -106,21 +119,22 @@ export default function TopNav() {
             onClick={closeDrawer}
             className={`plan-badge ${planTone}`}
             aria-label={`Current plan: ${planLabel}. Tap to manage.`}
+            {...navProps('/billing')}
           >
             {planLabel}
           </Link>
         </>
       )}
-      {authed && admin ? <Link href="/admin" onClick={closeDrawer}>Admin</Link> : null}
-      <Link href="/download" onClick={closeDrawer} className="nav-download-app">
+      {authed && admin ? <Link href="/admin" onClick={closeDrawer} {...navProps('/admin')}>Admin</Link> : null}
+      <Link href="/download" onClick={closeDrawer} className="nav-download-app" {...navProps('/download')}>
         Download App
       </Link>
       {authed ? (
         <button className="btn secondary" type="button" onClick={onLogout}>Logout</button>
       ) : (
         <>
-          <Link href="/auth/login" onClick={closeDrawer}>Login</Link>
-          <Link href="/auth/register" onClick={closeDrawer}>Register</Link>
+          <Link href="/auth/login" onClick={closeDrawer} {...navProps('/auth/login')}>Login</Link>
+          <Link href="/auth/register" onClick={closeDrawer} {...navProps('/auth/register')}>Register</Link>
         </>
       )}
     </>
