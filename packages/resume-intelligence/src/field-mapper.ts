@@ -788,6 +788,24 @@ function mapHeader(lines: string[]): HeaderMapping {
     bestName = candidate;
     bestNameIndex = index;
   }
+  // Fallback: in two-column DOCX exports (e.g. Canva sidebar), mammoth flattens
+  // the document so the sidebar contact block (phone/email/Linked­In/Contact)
+  // appears BEFORE the name, which lives at the top of the right column. The
+  // anchor-window search above only looks 2 lines past the anchor, so the
+  // name gets missed entirely. Widen the search post-anchor when no candidate
+  // surfaced — but keep the score-based pick so legitimate top-of-document
+  // names still win when present.
+  if (bestNameScore < 0 && anchorIndex >= 0) {
+    const fallbackEnd = Math.min(cleanLines.length - 1, anchorIndex + 12);
+    for (let i = anchorEnd + 1; i <= fallbackEnd; i += 1) {
+      const candidate = cleanLines[i];
+      const score = scoreNameCandidate(candidate, i, anchorIndex, cleanLines);
+      if (score <= bestNameScore) continue;
+      bestNameScore = score;
+      bestName = candidate;
+      bestNameIndex = i;
+    }
+  }
   if (bestNameScore < 0) {
     bestName = '';
     bestNameIndex = -1;

@@ -798,6 +798,21 @@ body.resume-embed-body .main-shell {
     display: none !important;
   }
 
+  /* When the user clicks Print on the template page, only the SELECTED
+     template should appear. Hide the template-catalog column (col-7) on
+     the left and the section headings around it so the print dialog
+     doesn't paginate every template card thumbnail. */
+  .template-grid-layout > .col-7 {
+    display: none !important;
+  }
+  .template-grid-layout {
+    grid-template-columns: 1fr !important;
+  }
+  .template-grid-layout > .col-5 {
+    width: 100% !important;
+    max-width: none !important;
+  }
+
   /* The template preview frame has aspect-ratio + overflow: hidden in
      the on-screen view. For print, let the content flow across pages
      instead of being clipped to a single A4 sheet. */
@@ -812,6 +827,59 @@ body.resume-embed-body .main-shell {
     transform: none !important;
     width: 100% !important;
     height: auto !important;
+  }
+}
+
+/* Screenshot / copy protection for the on-screen template preview.
+   Browsers can't reliably block screenshot APIs, but we can deter
+   casual copy/paste-and-print attempts: disable text selection in
+   the preview frame, block right-click context menus on it, and
+   prevent it from being dragged. The watermark above remains the
+   ultimate proof-of-origin if a screenshot does happen. */
+.template-preview-frame__container,
+.template-preview-frame__page,
+.template-preview-frame__content {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  -webkit-touch-callout: none;
+}
+
+/* Print-only shell — used when the user arrives at /resume/template
+   with ?print=1. The catalog/chrome is removed entirely (not just
+   hidden via @media print) so the browser's print dialog has no way
+   to capture them. Reuses the same ats-template CSS that powers the
+   on-screen live preview so the printed output matches it pixel-for-
+   pixel. */
+.template-print-shell {
+  width: 100%;
+  max-width: 794px; /* A4 width @ 96dpi */
+  margin: 0 auto;
+  padding: 24px;
+  background: #fff;
+  position: relative;
+}
+
+.template-print-page {
+  background: #fff;
+}
+
+@media print {
+  .template-print-shell {
+    width: 100% !important;
+    max-width: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  /* The top nav is `position: sticky` in places; force it gone in print
+     so the captured page has zero chrome above the template. */
+  body > nav,
+  .topbar,
+  .nav,
+  .nav--desktop {
+    display: none !important;
   }
 }
 
@@ -2878,6 +2946,39 @@ h2 {
   .dashboard-shell {
     padding: 24px;
     width: min(1400px, 94vw);
+  }
+}
+
+/* Desktop nav / topbar — allow many nav items to wrap to a second row
+ * rather than overflow horizontally on intermediate widths (1024-1280px
+ * is a common laptop size where the 11-item nav doesn't fit on one
+ * line). Mobile uses the burger and is unaffected because .nav--desktop
+ * is display:none below 768px. */
+@media (min-width: 768px) {
+  .topbar {
+    flex-wrap: wrap;
+    row-gap: 12px;
+  }
+  .nav {
+    flex-wrap: wrap;
+    row-gap: 8px;
+    justify-content: flex-end;
+  }
+}
+
+/* Inside a 12-column .grid wrapper, a lone .col-6 child would otherwise
+ * paint at 50% width with an empty half — visually breaking the card on
+ * desktop. Stretch a sole child to fill the row. */
+.grid > .col-6:only-child {
+  grid-column: 1 / -1;
+}
+
+/* Dashboard cards on desktop benefit from slightly tighter top margins
+ * so the page doesn't feel sparse at 1400px — and consistent padding so
+ * the green plan card and the white preview/profile card line up. */
+@media (min-width: 1024px) {
+  .dashboard-shell .card {
+    padding: 22px 24px;
   }
 }
 

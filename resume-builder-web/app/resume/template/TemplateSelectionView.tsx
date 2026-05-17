@@ -316,6 +316,31 @@ export default function TemplateSelectionView({
     );
   }
 
+  // Print mode: when the user arrived via "Print preview" (?print=1) we
+  // render ONLY the selected template at full width, with no catalog and
+  // no chrome. Relying purely on @media print CSS proved unreliable
+  // because the browser's print preview still captured the off-screen
+  // catalog column on some platforms. Hard-removing it from the DOM is
+  // both faster and reliable across browsers.
+  if (printRequested) {
+    return (
+      <main className="template-print-shell" data-print-mode="1">
+        {previewResume ? (
+          <div
+            className="template-print-page"
+            data-template-id={selectedTemplate}
+            data-render-context="print"
+          >
+            <span style={{ display: 'none' }}>{`TEMPLATE_FINGERPRINT:${selectedTemplate}`}</span>
+            <ActiveTemplateComponent resumeData={previewResume} />
+          </div>
+        ) : (
+          <div className="skeleton skeleton-preview-pane" data-testid="template-print-loading" />
+        )}
+      </main>
+    );
+  }
+
   return (
     <main className="grid template-grid-layout">
       <section className="card col-7">
