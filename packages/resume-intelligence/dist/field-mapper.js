@@ -150,12 +150,47 @@ function mapSummary(sections) {
         .join(' ')
         .replace(/\s+/g, ' ')
         .trim();
+    // Reject template placeholder text that the user forgot to replace. Canva,
+    // Indeed, Word, and most builders ship the same boilerplate prompts like
+    // "Showcase your most impressive accomplishments…" — they're instructions
+    // to the resume writer, not real content. Keeping them populates the
+    // summary field with garbage and triggers a misleading "Good" badge in
+    // the editor. Better to leave the field empty so the user is prompted
+    // to write a real summary.
+    if (looksLikePlaceholderText(raw))
+        return '';
     if (raw.length <= 600)
         return raw;
     // Truncate at word boundary to avoid cutting mid-word
     const truncated = raw.slice(0, 600);
     const lastSpace = truncated.lastIndexOf(' ');
     return lastSpace > 400 ? truncated.slice(0, lastSpace).trim() : truncated.trim();
+}
+// Common placeholder/boilerplate phrases shipped by resume builders
+// (Canva, Indeed, Word, Resume.io, …). When the user forgets to replace
+// the prompt, our extractor would otherwise persist it as the candidate's
+// summary. Match conservatively — only obvious "instructions-to-the-user"
+// phrasing, not real resume prose.
+const PLACEHOLDER_PHRASES = [
+    /\bshowcase your most impressive accomplishments\b/i,
+    /\bwithin seconds,? the reader should be able to\b/i,
+    /\bthe purpose of a professional profile is\b/i,
+    /\bwithout requiring them to read the rest of your resume\b/i,
+    /\b(?:click|tap) here to (?:add|edit|enter|write|insert)\b/i,
+    /\b(?:type|enter|add|write) your (?:professional )?summary here\b/i,
+    /\bdescribe your (?:professional )?experience here\b/i,
+    /\byour (?:professional )?profile goes here\b/i,
+    /\b(?:lorem ipsum|dolor sit amet)\b/i,
+    /\breplace this (?:text|placeholder)\b/i,
+];
+function looksLikePlaceholderText(value) {
+    const cleaned = String(value || '').trim();
+    if (!cleaned)
+        return false;
+    // A single placeholder phrase is a strong enough signal — these phrases
+    // are unique to template boilerplate and very unlikely to appear in real
+    // resume copy.
+    return PLACEHOLDER_PHRASES.some((re) => re.test(cleaned));
 }
 const HUMAN_LANGUAGES = new Set([
     'english', 'hindi', 'spanish', 'french', 'german', 'italian', 'portuguese',
@@ -693,6 +728,10 @@ function deduplicateEducation(items) {
     }
     return Array.from(seen.values());
 }
+// Publication/paper status markers — "[Published]", "[Accepted]", "[Under
+// Review]", "[In Draft]" etc. Each marker indicates the line is the title
+// of a paper/project entry rather than a description.
+const PUBLICATION_STATUS_RE = /\[(?:published|accepted|submitted|in\s*draft|under\s*review|working\s*paper|in\s*press|preprint|forthcoming|in\s*progress|presented)\]\s*\.?\s*$/i;
 function mapProjects(sections) {
     const lines = [
         ...(sections.projects || []),
@@ -700,12 +739,33 @@ function mapProjects(sections) {
     ];
     const projects = [];
     let current = null;
+    const pushIfMeaningful = () => {
+        if (!current)
+            return;
+        // Real project / paper entries either have a non-generic name OR carry
+        // some highlight content. Drop empty placeholders.
+        if (current.name && current.name !== 'Project') {
+            projects.push(current);
+        }
+        else if (current.highlights.length) {
+            projects.push(current);
+        }
+    };
     for (const line of lines) {
-        if (looksLikeProjectTitle(line) || isDateLine(line)) {
-            if (current && current.highlights.length)
-                projects.push(current);
+        // A line ending with a publication-status marker (e.g.
+        // "[Published]" / "[In Draft]") is a paper title — start a new
+        // project entry even without any "project / research" keyword in it.
+        const isPaperTitle = PUBLICATION_STATUS_RE.test(line);
+        if (isPaperTitle || looksLikeProjectTitle(line) || isDateLine(line)) {
+            pushIfMeaningful();
             const dates = extractDates(line);
-            current = { name: stripDates(line), role: '', startDate: dates.start, endDate: dates.end, highlights: [] };
+            current = {
+                name: stripDates(line).replace(/\s+/g, ' ').trim(),
+                role: '',
+                startDate: dates.start,
+                endDate: dates.end,
+                highlights: [],
+            };
             continue;
         }
         if (!current)
@@ -715,8 +775,7 @@ function mapProjects(sections) {
         else if (line.length > 10)
             current.highlights.push(line);
     }
-    if (current && current.highlights.length)
-        projects.push(current);
+    pushIfMeaningful();
     return projects;
 }
 function mapCertifications(sections) {
