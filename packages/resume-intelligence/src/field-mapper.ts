@@ -752,17 +752,49 @@ function mapCertifications(sections: Record<string, string[]>) {
     ...(sections.licenses || []),
   ];
   const items: CertificationItem[] = [];
-  for (const line of lines) {
+  for (const rawLine of lines) {
     // Stop if we hit a sub-section heading that was not split by the section normalizer
-    const heading = normalizeHeading(line);
+    const heading = normalizeHeading(rawLine);
     if (heading && heading !== 'certifications') break;
+    const line = String(rawLine || '').replace(/^[-*•·]\s*/, '').trim();
+    if (!line) continue;
     const dateMatch = line.match(/\b(20\d{2}|19\d{2})\b/);
-    const cleaned = line.replace(/[()]/g, '').replace(/\b(20\d{2}|19\d{2})\b/g, '').trim();
+    // Pull issuer out of trailing parens like "Azure AZ900 (Microsoft - 2022)"
+    // or "AWS Certified (Amazon, 2023)".  When the paren contents reduce to
+    // empty after stripping the year, treat it as a year-only paren and skip
+    // the issuer field.
+    let nameRaw = line;
+    let issuer: string | undefined;
+    const parenMatch = line.match(/^(.+?)\s*\(([^)]+)\)\s*$/);
+    if (parenMatch) {
+      const issuerCandidate = parenMatch[2]
+        .replace(/\b(20\d{2}|19\d{2})\b/g, '')
+        .replace(/^\s*[-–—|,]\s*/, '')
+        .replace(/\s*[-–—|,]\s*$/, '')
+        .replace(/\s{2,}/g, ' ')
+        .trim();
+      if (issuerCandidate) {
+        nameRaw = parenMatch[1].trim();
+        issuer = issuerCandidate;
+      }
+    }
+    const cleaned = nameRaw
+      .replace(/[()]/g, '')
+      .replace(/\b(20\d{2}|19\d{2})\b/g, '')
+      .replace(/\s*[-–—|,]\s*$/g, '')
+      .replace(/^\s*[-–—|,]\s*/g, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
     if (!cleaned) continue;
     // Skip lines that are clearly not certifications (hobby descriptions, long sentences)
     if (cleaned.length > 100) continue;
     if (/^(exploring|writing|playing|engaging|mentoring|reading|traveling|cooking|running|swimming|hiking|yoga)\b/i.test(cleaned)) continue;
-    items.push({ name: cleaned, date: dateMatch ? dateMatch[1] : undefined, details: [] });
+    items.push({
+      name: cleaned,
+      issuer,
+      date: dateMatch ? dateMatch[1] : undefined,
+      details: [],
+    });
   }
   return items;
 }
@@ -1820,7 +1852,21 @@ function stripDates(line: string) {
 }
 
 function looksLikeProjectTitle(line: string) {
-  return /project|capstone|thesis|research/i.test(line);
+  const cleaned = cleanLooseText(line);
+  if (!cleaned) return false;
+  if (!/\b(project|capstone|thesis|research)\b/i.test(cleaned)) return false;
+  // Sentence-style bullets (e.g. "Launched ... the innovative SpeedBoat project, ...")
+  // happen to contain the word "project" but are NOT new project titles. Reject:
+  // - long lines (real titles fit in a single short phrase)
+  // - lines that open with an action verb / past participle
+  // - lines ending with a comma (wrapped continuation of a bullet)
+  // - lines starting with a lowercase word (a wrapped sentence continuation,
+  //   never a title — real project titles are Title-Cased)
+  if (cleaned.length > 80) return false;
+  if (SENTENCE_OPENER_RE.test(cleaned)) return false;
+  if (/,\s*$/.test(cleaned)) return false;
+  if (!/^[A-Z0-9"']/.test(cleaned)) return false;
+  return true;
 }
 
 function isMeaningfulHighlight(line: string) {

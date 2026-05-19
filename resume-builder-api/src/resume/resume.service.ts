@@ -2399,6 +2399,14 @@ function restructureResumeText(text: string): string {
       // clearly mid-sentence (e.g. "...zero-defect UI projects, improving...")
       // But DO split if the before-text is long (> 100 chars = likely concatenated blocks)
       if (before && /[a-zA-Z]$/.test(before) && !/[.!?;:,]$/.test(before) && before.length < 100) continue;
+      // Trailing hyphen / apostrophe means we're INSIDE a compound word
+      // (e.g. "...self-projects, ..." must not split "PROJECTS" out of "self-projects",
+      //  "Lloyd's projects" must not split "PROJECTS" out of the possessive).
+      // Apply this guard regardless of `before` length — a 100+ char prose line
+      // with a hyphenated compound at the boundary is still prose, not concatenated
+      // section blocks. The "concatenated blocks" case is detected by trailing
+      // punctuation / colon, not by a hanging hyphen.
+      if (before && /[\-']$/.test(before)) continue;
 
       if (before) output.push(before);
       output.push('');

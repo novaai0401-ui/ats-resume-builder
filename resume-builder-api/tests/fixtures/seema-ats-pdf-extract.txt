@@ -1,0 +1,139 @@
+SEEMA ALMAS YUNUS SHAIKH
+TECHNICAL LEAD | FRONTEND ARCHITECT | ASPIRING SOLUTION ARCHITECT
+Mobile No: 9172780700 	E-mail: Seemaalmasshaikh@gmail.com 	Address: Pune, IN 	Date of Birth: 04-07-1990
+LinkedIn: https://www.linkedin.com/in/seema-almas-shaikh/
+Frontend-focused Technical Lead with 11+ years of experience building and modernizing enterprise-scale applications. Proven leader in
+frontend architecture, performance optimization, and zero-defect delivery, with growing ownership of system design and architectural
+decisions. Actively mentoring teams and evolving toward Solution Architecture and Engineering Leadership roles.
+PROFESSIONAL SUMMARY
+Technical Lead with 11+ years of experience delivering frontend-heavy enterprise applications across banking, consulting, and product
+domains.
+Demonstrated success in driving large-scale UI modernization initiatives, including framework upgrades, Redux enhancements, and
+performance tuning in high-visibility systems.
+Strong hands-on background in React, Redux, and frontend platform engineering, with proven results in stability, scalability, and
+zero-defect production releases.
+Experienced in building proofs of concept and innovation initiatives, including GenAI integrations, document automation, and Jira-
+based workflow enhancements.
+Applies system design and architectural thinking to frontend platforms, focusing on backend-driven UI, caching strategies, API
+integration, and long-term maintainability.
+Recognized as a dependable technical owner who partners effectively with product, backend, QA, and business teams to deliver
+predictable outcomes.
+WORK EXPERIENCE
+Citi Corp
+Assistant Vice President (Pune, India) (Dec 2022 - Present)
+As an Assistant Vice President, owned technical leadership for the UI platform, taking responsibility for frontend architecture, system
+modernization, and delivery quality. Led architectural initiatives including framework upgrades, performance optimization, backend-
+driven UI design, and microfrontend adoption, while mentoring engineers and ensuring alignment between business requirements, non-
+functional requirements, and long-term platform stability.
+Owned frontend technical leadership for enterprise UI platforms with accountability for architecture, performance, and stability.
+Led React and Redux framework upgrades, improving runtime performance and reducing technical debt.
+Designed and implemented client-side caching strategies, reducing redundant API calls and improving UI responsiveness.
+Delivered GenAI POCs integrating AI APIs with React applications for document analysis and automation use cases.
+Built a POC integrating Jira and AI pipelines to extract and enrich missing fields from editable PDF documents.
+Collaborated with backend teams on API contracts, data ownership, and backend-driven UI patterns.
+Actively applied system design principles including scalability, caching, synchronous vs asynchronous flows, and failure handling.
+Mentored engineers, conducted design and code reviews, and ensured adherence to architectural standards.
+Achievements:
+Initiated and delivered a React-Redux modernization program for a legacy enterprise application, significantly improving runtime
+performance and application stability while achieving zero production defects, an outcome formally appreciated by senior leadership.
+Implemented client-side caching strategies as part of the Redux upgrade, reducing redundant API calls and materially improving UI
+responsiveness in high-traffic and business-critical workflows.
+Designed and implemented a backend-driven UI rule engine, moving conditional UI logic to backend-controlled rules, enabling faster
+rule changes, reducing frontend complexity, and improving long-term maintainability across releases.
+Led the migration from a monolithic SPA to a Microfrontend architecture, enabling independent deployments, clearer module
+ownership, improved scalability, and faster parallel development across teams.
+Delivered a GenAI-based proof of concept for document analysis, integrating prompt-based AI APIs to identify missing or incomplete
+fields in editable PDF documents; the solution was recognized by management as a viable automation opportunity.
+Recognized by leadership for driving architectural improvements, improving delivery predictability, and consistently raising technical
+and engineering standards within the team.
+Ernst & Young
+Senior Technology Consultant (Pune, Maharashtra) (Oct 2021 - Nov 2022)
+Owned technical and delivery responsibility for UI-focused projects, including team guidance, task prioritization, and quality control.
+Responsible for translating project goals into executable technical plans, maintaining delivery discipline, and ensuring solutions met
+functional, performance, and stability expectations while working closely with cross-functional stakeholders.
+Led UI-centric projects with responsibility for technical design, delivery planning, and quality control.
+Designed reusable UI and API integration components, improving development efficiency.
+Owned end-to-end delivery from requirements to production with zero-defect releases.
+Actively participated in design discussions and architectural decision-making.
+Coordinated with cross-functional teams to ensure predictable and stable delivery.
+Achievements:
+Successfully delivered multiple zero-defect UI projects, improving delivery reliability and strengthening client confidence.
+Improved overall delivery consistency and team effectiveness by enforcing clear execution practices and technical ownership.
+Recognized for driving practical process improvements that reduced rework and improved project outcomes over successive releases.
+One Network Enterprises
+
+-- 1 of 3 --
+
+Senior Software Engineer (Pune, Maharashtra) (Sep 2020 - Sep 2021)
+Contributed as a frontend engineer within a cross-functional development team, with responsibility for implementing and improving UI
+components and user flows for client-facing applications, primarily in the supply chain management domain.
+Developed and optimized UI components for supply-chain enterprise applications.
+Collaborated with backend and product teams to align UI behavior with business workflows.
+Simplified complex domain requirements into usable and performant frontend solutions.
+Achievements:
+Delivered performant and reliable UI solutions within tight project timelines, meeting client expectations.
+Built strong working relationships with clients and internal teams, contributing to smoother execution and fewer requirement gaps.
+Recognized for simplifying complex domain requirements into clear, usable frontend implementations.
+Infosys Limited
+Lead UI Developer (Pune) (Aug 2017 - Aug 2020)
+Led a UI development team with responsibility for delivery planning, technical execution, and adherence to defined requirements and
+engineering standards. Accountable for translating requirements into implementable UI solutions, maintaining code quality, and
+coordinating with cross-functional teams to ensure reliable project execution.
+Led end-to-end UI development for the Speedboat project, owning requirement analysis, design decisions, and implementation of
+feature enhancements.
+Authored high-level design documents to define UI structure, data flow, and integration points with backend services.
+Defined and implemented API integration strategies to ensure reliable communication between frontend and backend systems.
+Designed and implemented data models using LoopbackJS to support efficient backend connectivity and maintain consistent data
+relationships.
+Mentored and supervised a team of 9 developers, reviewing code, enforcing standards, and supporting skill development.
+Built a custom Gulp utility to automate repetitive file system tasks, reducing manual effort and improving team productivity.
+Coordinated with product, backend, and QA teams across all phases of the SDLC to ensure aligned and predictable delivery.
+Achievements:
+Successfully delivered the Speedboat project with stable functionality and consistent UI quality, meeting client expectations and
+delivery commitments.
+Improved team execution and code quality through structured mentoring and clearer development standards.
+Received formal recognition for effective team leadership and measurable improvement in team performance.
+The Digital Group Infotech Pvt. Ltd
+Associate Software Engineer (Pune) (Apr 2014 - Jul 2017)
+Worked as a Full Stack Developer responsible for implementing frontend features, supporting backend functionality, and improving
+application performance and usability within an existing system.
+Contributed to frontend and backend development to enhance overall system functionality.
+Performed module-level testing and code optimization to improve application performance and reliability.
+Designed and implemented the application homepage, improving layout structure and navigation flow.
+Developed custom AngularJS directives to support reusable UI behavior.
+Implemented a date picker component to enable dynamic and user-friendly date input.
+Integrated Google Charts using AngularJS to provide interactive data visualizations.
+Participated in design discussions, development cycles, and module integration activities to support end-to-end delivery.
+Achievements:
+Improved application usability and functionality through consistent frontend and backend enhancements.
+Contributed to improved application stability by supporting testing, performance tuning, and code optimization efforts.
+SKILLS
+Technical Skills: HTML5, CSS3, JavaScript(ES6+), ReactJS, Redux, NodeJS, MongoDB, Polymer JS, Python, RTK Query,
+Micro-frontend Architecture, Frontend Performance Optimization & Caching, Component-driven UI Design,
+Rule-driven UI Architectures, API Design & Versioning, REST APIs
+Soft Skills: Communication, Teamwork, Leadership, Problem-solving, Communication, Agile / Scrum Delivery Leadership,
+Architecture Reviews & Design Discussions, Cross-team & Stakeholder Collaboration, Technical Mentorship & Code Reviews
+EDUCATION
+Babasaheb Naik college of engineering Pusad, Amravati University, Maharashtra
+B.E: Computer Science and Engineering
+(2008-07 - 2012-07)
+CERTIFICATIONS
+Azure AZ900 (Microsoft - 2022)
+ACHIEVEMENTS
+Consistently achieved near-perfect on-time delivery for assigned modules, significantly reducing defects, enhancing client
+satisfaction, and contributing to improved project KPIs.
+Launched and successfully led the innovative SpeedBoat project, earning recognition for its user-centric design approach, seamless
+execution, and efficient project management practices.
+HOBBIES
+Exploring emerging technologies like AI, Blockchain, and DevOps through online communities and self-projects,
+Writing technical blogs and tutorials to share knowledge and contribute to the developer community,
+
+-- 2 of 3 --
+
+Engaging in fitness activities like running and yoga to maintain focus and a healthy work-life balance,
+Volunteering for tech mentorship programs and coding workshops for young learners
+LANGUAGES
+English, Hindi, Marathi
+#CreatedByOutspark#
+
+-- 3 of 3 --
