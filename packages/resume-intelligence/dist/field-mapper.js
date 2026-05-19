@@ -11,6 +11,7 @@ const extraction_enhancements_js_1 = require("./extraction-enhancements.js");
 const extraction_config_js_1 = require("./extraction-config.js");
 const layout_detector_js_1 = require("./layout-detector.js");
 const deduplication_engine_js_1 = require("./deduplication-engine.js");
+const extraction_verifier_js_1 = require("./extraction-verifier.js");
 const ROLE_HINT_RE = /\b(engineer|developer|manager|designer|analyst|intern|lead|architect|specialist|consultant|director|head|officer|administrator|coordinator|principal|staff|qa|devops|product|owner|founder|avp|assistant vice president|vice president|scientist|researcher|professor|instructor|trainer|executive|president|cto|ceo|cfo|coo|cio|vp|svp|evp|partner|fellow|technologist|programmer|tester|strategist|planner|advisor|auditor|accountant|recruiter|editor|writer|nurse|physician|therapist|pharmacist|attorney|paralegal|clerk|secretary|receptionist|assistant|supervisor|foreman|mechanic|technician|operator|dispatcher|pilot|captain|chef|baker|bartender|waiter|teacher)\b/i;
 // "Associate" is ambiguous — it can mean a job role ("Associate Engineer") or an education degree ("Associate of Science").
 // Only match "associate" as a role when NOT followed by "of" or "degree".
@@ -110,6 +111,38 @@ function mapParsedResume(parsed) {
         });
         finalSkills = dedupResult.skills;
         finalExperience = dedupResult.experience;
+    }
+    // Verification safety-net: compare the structured fields against the raw
+    // text and, when confidence is poor, attempt a second-pass extraction via
+    // the enhancer.  We only accept the alternative if it scores higher than
+    // the primary — this way we minimise the risk of dropping a working
+    // extraction in favour of a worse one.
+    const rawText = effectiveParsed.lines.join('\n');
+    const primaryReport = (0, extraction_verifier_js_1.verifyExtraction)(rawText, {
+        contact,
+        experience: finalExperience,
+        education: educationSanitized.items,
+        skills: finalSkills,
+    });
+    if (primaryReport.shouldReExtract && !shouldEnhanceExperience) {
+        const fallbackExperience = (0, experience_enhancer_js_1.enhanceExperienceExtraction)({
+            rawText,
+            parsed: effectiveParsed,
+            currentExperience: finalExperience,
+        });
+        const fallbackSanitized = sanitizeExperienceForStrictSave(fallbackExperience).items;
+        if (fallbackSanitized.length) {
+            const fallbackReport = (0, extraction_verifier_js_1.verifyExtraction)(rawText, {
+                contact,
+                experience: fallbackSanitized,
+                education: educationSanitized.items,
+                skills: finalSkills,
+            });
+            const chosen = (0, extraction_verifier_js_1.pickBetterExtraction)({ contact, experience: finalExperience, education: educationSanitized.items, skills: finalSkills }, { contact, experience: fallbackSanitized, education: educationSanitized.items, skills: finalSkills }, primaryReport, fallbackReport);
+            if (chosen.usedAlternative) {
+                finalExperience = fallbackSanitized;
+            }
+        }
     }
     const unmappedText = mergeUnmappedText(mappedUnsorted, [...finalExperienceSanitized.rejected, ...educationSanitized.rejected]);
     const resumeText = [

@@ -16,6 +16,7 @@ import { ADDITIONAL_TECH_SKILLS, hardenString } from './extraction-enhancements.
 import { getExtractionConfig } from './extraction-config.js';
 import { detectLayout, deinterleaveColumns } from './layout-detector.js';
 import { runDeduplicationPipeline } from './deduplication-engine.js';
+import { pickBetterExtraction, verifyExtraction } from './extraction-verifier.js';
 
 export type MappedResumeResult = ParsedResume & {
   signals: {
@@ -138,6 +139,44 @@ export function mapParsedResume(parsed: ParsedResumeText): MappedResumeResult {
     });
     finalSkills = dedupResult.skills;
     finalExperience = dedupResult.experience;
+  }
+
+  // Verification safety-net: compare the structured fields against the raw
+  // text and, when confidence is poor, attempt a second-pass extraction via
+  // the enhancer.  We only accept the alternative if it scores higher than
+  // the primary — this way we minimise the risk of dropping a working
+  // extraction in favour of a worse one.
+  const rawText = effectiveParsed.lines.join('\n');
+  const primaryReport = verifyExtraction(rawText, {
+    contact,
+    experience: finalExperience,
+    education: educationSanitized.items,
+    skills: finalSkills,
+  });
+  if (primaryReport.shouldReExtract && !shouldEnhanceExperience) {
+    const fallbackExperience = enhanceExperienceExtraction({
+      rawText,
+      parsed: effectiveParsed,
+      currentExperience: finalExperience,
+    });
+    const fallbackSanitized = sanitizeExperienceForStrictSave(fallbackExperience).items;
+    if (fallbackSanitized.length) {
+      const fallbackReport = verifyExtraction(rawText, {
+        contact,
+        experience: fallbackSanitized,
+        education: educationSanitized.items,
+        skills: finalSkills,
+      });
+      const chosen = pickBetterExtraction(
+        { contact, experience: finalExperience, education: educationSanitized.items, skills: finalSkills },
+        { contact, experience: fallbackSanitized, education: educationSanitized.items, skills: finalSkills },
+        primaryReport,
+        fallbackReport,
+      );
+      if (chosen.usedAlternative) {
+        finalExperience = fallbackSanitized;
+      }
+    }
   }
 
   const unmappedText = mergeUnmappedText(
