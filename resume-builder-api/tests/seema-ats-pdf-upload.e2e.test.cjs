@@ -110,3 +110,75 @@ test('parse-upload: seema_almas_shaikh.pdf does not produce "( @ SOFT SKILLS" ph
       `hobby text leaked into projects: ${JSON.stringify(project)}`);
   }
 });
+
+// Two-page Outshine PDF — 7 jobs across pages, mid-sentence "projects" prose
+// that used to be split into a fake PROJECTS heading and silently drop the
+// last 4 experience entries into the projects section.
+test('parse-upload: 7-job paged Outshine PDF keeps every experience', async () => {
+  const text = fs.readFileSync(path.resolve(__dirname, 'fixtures', 'seema-7jobs-paged.txt'), 'utf8');
+  const service = new ResumeService({});
+  const result = await service.parseResumeUpload({
+    originalname: 'seema-7jobs-paged.txt',
+    mimetype: 'text/plain',
+    buffer: Buffer.from(text, 'utf8'),
+  });
+
+  assert.equal(result.parsed.contact?.fullName, 'Seema Almas Yunus Shaikh');
+  assert.ok(result.parsed.experience.length >= 7,
+    `expected ≥ 7 experiences, got ${result.parsed.experience.length}: ${JSON.stringify(result.parsed.experience.map((e) => `${e.role} @ ${e.company}`))}`);
+
+  // Each entry must have role AND company.
+  for (const exp of result.parsed.experience) {
+    assert.ok((exp.role || '').trim().length >= 2,
+      `missing role: ${JSON.stringify(exp)}`);
+    assert.ok((exp.company || '').trim().length >= 2,
+      `missing company: ${JSON.stringify(exp)}`);
+  }
+
+  // The two Infosys roles (Lead UI + Senior System Engineer) must both
+  // survive — they were the page-break casualty.
+  const infosys = result.parsed.experience.filter((e) => /infosys/i.test(e.company));
+  assert.ok(infosys.length >= 2,
+    `expected ≥ 2 Infosys roles, got ${infosys.length}`);
+
+  // The two Digital Group roles (Associate SE + Software Trainee) must
+  // both survive — also dropped before the restructure-prose fix.
+  const digital = result.parsed.experience.filter((e) => /digital group/i.test(e.company));
+  assert.ok(digital.length >= 2,
+    `expected ≥ 2 Digital Group roles, got ${digital.length}`);
+});
+
+// Multi-column sidebar PDF — EDUCATION heading sits empty because the actual
+// degree/institution lines flow into the right column and arrive after
+// HOBBIES.  The mapper must recover them.
+test('parse-upload: multi-column sidebar PDF recovers EDUCATION from end-of-file', async () => {
+  const text = fs.readFileSync(path.resolve(__dirname, 'fixtures', 'seema-multicol-sidebar.txt'), 'utf8');
+  const service = new ResumeService({});
+  const result = await service.parseResumeUpload({
+    originalname: 'seema-multicol-sidebar.txt',
+    mimetype: 'text/plain',
+    buffer: Buffer.from(text, 'utf8'),
+  });
+
+  assert.equal(result.parsed.contact?.fullName, 'Seema Almas Yunus Shaikh');
+  assert.ok(result.parsed.experience.length >= 5,
+    `expected ≥ 5 experiences, got ${result.parsed.experience.length}`);
+
+  // Education recovery — the B.E line is at the end of the file but must
+  // be classified into education.
+  assert.ok(result.parsed.education.length >= 1,
+    `expected ≥ 1 education entry, got ${result.parsed.education.length}`);
+  const eng = result.parsed.education.find((e) =>
+    /b\.?e\.?/i.test(e.degree || '') && /computer science/i.test(e.degree || ''));
+  assert.ok(eng, `B.E Computer Science entry missing; got: ${JSON.stringify(result.parsed.education)}`);
+  assert.ok(/babasaheb naik|amravati/i.test(eng.institution || ''),
+    `institution missing: ${JSON.stringify(eng)}`);
+
+  // Cert issuer merge — "Microsoft" on its own line must attach to the
+  // Azure AZ900 cert, not appear as a separate phantom cert.
+  const azure = (result.parsed.certifications || []).find((c) => /azure/i.test(c.name || ''));
+  assert.ok(azure, `Azure cert missing; got: ${JSON.stringify(result.parsed.certifications)}`);
+  const phantomMicrosoft = (result.parsed.certifications || []).find((c) =>
+    /^microsoft\s*$/i.test(c.name || ''));
+  assert.ok(!phantomMicrosoft, `phantom Microsoft cert: ${JSON.stringify(phantomMicrosoft)}`);
+});

@@ -109,6 +109,22 @@ const FIXTURE_CASES = [
     minExperiences: 1,
     minConfidence: 0.45,
   },
+  {
+    file: 'seema-multicol-sidebar.txt',
+    label: 'Multi-column ATS PDF — sidebar EDUCATION leaks past HOBBIES',
+    minExperiences: 5,
+    requiredCompanies: [/citi corp/i, /ernst.*young/i, /one network/i, /infosys/i, /digital group/i],
+    requiredFullName: 'Seema Almas Yunus Shaikh',
+    minConfidence: 0.85,
+  },
+  {
+    file: 'seema-7jobs-paged.txt',
+    label: 'Paged Outshine PDF — 7 jobs across 2 pages, mid-sentence "projects" prose',
+    minExperiences: 7,
+    requiredCompanies: [/citi corp/i, /\bey\b/i, /one network/i, /infosys/i, /digital group/i],
+    requiredFullName: 'Seema Almas Yunus Shaikh',
+    minConfidence: 0.85,
+  },
 ];
 
 for (const tc of FIXTURE_CASES) {

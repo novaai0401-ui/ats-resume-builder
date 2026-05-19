@@ -662,10 +662,42 @@ function mapExperience(parsed: ParsedResumeText) {
 }
 
 function mapEducation(sections: Record<string, string[]>) {
-  const lines = [
+  let lines = [
     ...(sections.education || []),
     ...(sections.academics || []),
   ];
+  // Multi-column / sidebar PDFs (pdf-parse reads the sidebar last) sometimes
+  // emit the EDUCATION heading at its normal position but the actual degree
+  // / institution / date lines appear later, after HOBBIES.  When that
+  // happens the education section is empty (or has only fragments) and the
+  // degree token lands in hobbies / unmapped.  Recover by scanning those
+  // sections for a degree-shaped line and its 2-line neighbourhood.
+  const degreeLooksMissing = !lines.some((line) => looksLikeEducationDegreeLine(line));
+  if (degreeLooksMissing) {
+    const fallbackSources = [
+      ...(sections.hobbies || []),
+      ...(sections.unmapped || []),
+      ...(sections.projects || []),
+    ];
+    const recovered: string[] = [];
+    for (let i = 0; i < fallbackSources.length; i += 1) {
+      const line = fallbackSources[i];
+      if (!looksLikeEducationDegreeLine(line)) continue;
+      // Pull this degree line plus up to 3 neighbours that look like
+      // institution / date lines.
+      recovered.push(line);
+      for (let j = i + 1; j < Math.min(fallbackSources.length, i + 4); j += 1) {
+        const neighbour = fallbackSources[j];
+        if (!neighbour) continue;
+        if (looksLikeEducationDegreeLine(neighbour)) break;
+        if (isStandaloneDateLine(neighbour) || looksLikeEducationInstitutionLine(neighbour)) {
+          recovered.push(neighbour);
+        }
+      }
+      break;
+    }
+    if (recovered.length) lines = [...lines, ...recovered];
+  }
   const blocks: EducationItem[] = [];
   let current: EducationItem | null = null;
   // When experience entries spill into the education section (e.g. multi-page
@@ -797,6 +829,21 @@ function mapCertifications(sections: Record<string, string[]>) {
     if (heading && heading !== 'certifications') break;
     const line = String(rawLine || '').replace(/^[-*•·]\s*/, '').trim();
     if (!line) continue;
+    // Two-column ATS templates sometimes emit the certification name+year on
+    // one line and the issuer ("Microsoft", "Amazon", "Google") on the next.
+    // Merge a stand-alone single-token title-cased line into the previous
+    // cert as its issuer rather than registering a phantom "Microsoft" cert.
+    if (items.length && !items[items.length - 1].issuer) {
+      const prev = items[items.length - 1];
+      const isShortIssuerToken = /^[A-Z][A-Za-z0-9&'.\-]+(?:\s+[A-Z][A-Za-z0-9&'.\-]+)?$/.test(line)
+        && line.length <= 30
+        && !/\d/.test(line)
+        && line.split(/\s+/).filter(Boolean).length <= 2;
+      if (isShortIssuerToken) {
+        prev.issuer = line;
+        continue;
+      }
+    }
     const dateMatch = line.match(/\b(20\d{2}|19\d{2})\b/);
     // Pull issuer out of trailing parens like "Azure AZ900 (Microsoft - 2022)"
     // or "AWS Certified (Amazon, 2023)".  When the paren contents reduce to

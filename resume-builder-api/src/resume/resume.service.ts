@@ -2407,6 +2407,19 @@ function restructureResumeText(text: string): string {
       // section blocks. The "concatenated blocks" case is detected by trailing
       // punctuation / colon, not by a hanging hyphen.
       if (before && /[\-']$/.test(before)) continue;
+      // Sentence-shaped prefix — three or more whitespace-separated words
+      // ending in a letter — is prose with the heading word appearing
+      // mid-sentence (e.g. "...optimizing user interfaces for client projects.").
+      // Real concatenated blocks have short prefixes (a date, a fragment),
+      // not multi-clause sentences.  Without this guard, a 124-char sentence
+      // ending with "for client projects." would be split into a fake
+      // PROJECTS heading and silently move job entries into the projects
+      // section. Apply regardless of length — the length-based escape was
+      // a proxy for "concatenated blocks" but mis-fires on long prose.
+      if (before && /[a-zA-Z]$/.test(before) && !/[.!?;:,]$/.test(before)) {
+        const beforeWordCount = before.split(/\s+/).filter(Boolean).length;
+        if (beforeWordCount >= 3) continue;
+      }
 
       if (before) output.push(before);
       output.push('');
