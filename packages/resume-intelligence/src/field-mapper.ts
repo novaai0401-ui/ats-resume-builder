@@ -1671,6 +1671,15 @@ function looksLikeEducationInstitutionLine(line: string) {
   if (isStandaloneDateLine(cleaned)) return false;
   if (looksLikeEducationDegreeLine(cleaned)) return false;
   if (/^[-•*]/.test(cleaned)) return false;
+  // Reject sentence-style bullets that leak into the education section from
+  // an adjacent ACHIEVEMENTS / SUMMARY block. These start with an action
+  // verb (Led, Built, Spearheaded, Launched, …) and would otherwise pass
+  // the title-case heuristic below.
+  if (SENTENCE_OPENER_RE.test(cleaned)) return false;
+  // Lines that end with a period are sentence-shaped descriptions, not
+  // institution names — unless they contain an explicit institution word
+  // (already handled above).
+  if (/\.\s*$/.test(cleaned)) return false;
   // Reject lines that look like job role titles or company names — in multi-page
   // PDFs, experience entries can spill into the education section after page breaks.
   // e.g. "Senior Technology Consultant", "Lead UI Developer" are roles, not institutions.
