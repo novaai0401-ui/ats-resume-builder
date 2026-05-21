@@ -16,6 +16,7 @@ import { ADDITIONAL_TECH_SKILLS, hardenString } from './extraction-enhancements.
 import { getExtractionConfig } from './extraction-config.js';
 import { detectLayout, deinterleaveColumns } from './layout-detector.js';
 import { runDeduplicationPipeline } from './deduplication-engine.js';
+import { pickBetterExtraction, verifyExtraction } from './extraction-verifier.js';
 
 export type MappedResumeResult = ParsedResume & {
   signals: {
@@ -138,6 +139,44 @@ export function mapParsedResume(parsed: ParsedResumeText): MappedResumeResult {
     });
     finalSkills = dedupResult.skills;
     finalExperience = dedupResult.experience;
+  }
+
+  // Verification safety-net: compare the structured fields against the raw
+  // text and, when confidence is poor, attempt a second-pass extraction via
+  // the enhancer.  We only accept the alternative if it scores higher than
+  // the primary — this way we minimise the risk of dropping a working
+  // extraction in favour of a worse one.
+  const rawText = effectiveParsed.lines.join('\n');
+  const primaryReport = verifyExtraction(rawText, {
+    contact,
+    experience: finalExperience,
+    education: educationSanitized.items,
+    skills: finalSkills,
+  });
+  if (primaryReport.shouldReExtract && !shouldEnhanceExperience) {
+    const fallbackExperience = enhanceExperienceExtraction({
+      rawText,
+      parsed: effectiveParsed,
+      currentExperience: finalExperience,
+    });
+    const fallbackSanitized = sanitizeExperienceForStrictSave(fallbackExperience).items;
+    if (fallbackSanitized.length) {
+      const fallbackReport = verifyExtraction(rawText, {
+        contact,
+        experience: fallbackSanitized,
+        education: educationSanitized.items,
+        skills: finalSkills,
+      });
+      const chosen = pickBetterExtraction(
+        { contact, experience: finalExperience, education: educationSanitized.items, skills: finalSkills },
+        { contact, experience: fallbackSanitized, education: educationSanitized.items, skills: finalSkills },
+        primaryReport,
+        fallbackReport,
+      );
+      if (chosen.usedAlternative) {
+        finalExperience = fallbackSanitized;
+      }
+    }
   }
 
   const unmappedText = mergeUnmappedText(
@@ -623,10 +662,42 @@ function mapExperience(parsed: ParsedResumeText) {
 }
 
 function mapEducation(sections: Record<string, string[]>) {
-  const lines = [
+  let lines = [
     ...(sections.education || []),
     ...(sections.academics || []),
   ];
+  // Multi-column / sidebar PDFs (pdf-parse reads the sidebar last) sometimes
+  // emit the EDUCATION heading at its normal position but the actual degree
+  // / institution / date lines appear later, after HOBBIES.  When that
+  // happens the education section is empty (or has only fragments) and the
+  // degree token lands in hobbies / unmapped.  Recover by scanning those
+  // sections for a degree-shaped line and its 2-line neighbourhood.
+  const degreeLooksMissing = !lines.some((line) => looksLikeEducationDegreeLine(line));
+  if (degreeLooksMissing) {
+    const fallbackSources = [
+      ...(sections.hobbies || []),
+      ...(sections.unmapped || []),
+      ...(sections.projects || []),
+    ];
+    const recovered: string[] = [];
+    for (let i = 0; i < fallbackSources.length; i += 1) {
+      const line = fallbackSources[i];
+      if (!looksLikeEducationDegreeLine(line)) continue;
+      // Pull this degree line plus up to 3 neighbours that look like
+      // institution / date lines.
+      recovered.push(line);
+      for (let j = i + 1; j < Math.min(fallbackSources.length, i + 4); j += 1) {
+        const neighbour = fallbackSources[j];
+        if (!neighbour) continue;
+        if (looksLikeEducationDegreeLine(neighbour)) break;
+        if (isStandaloneDateLine(neighbour) || looksLikeEducationInstitutionLine(neighbour)) {
+          recovered.push(neighbour);
+        }
+      }
+      break;
+    }
+    if (recovered.length) lines = [...lines, ...recovered];
+  }
   const blocks: EducationItem[] = [];
   let current: EducationItem | null = null;
   // When experience entries spill into the education section (e.g. multi-page
@@ -752,17 +823,64 @@ function mapCertifications(sections: Record<string, string[]>) {
     ...(sections.licenses || []),
   ];
   const items: CertificationItem[] = [];
-  for (const line of lines) {
+  for (const rawLine of lines) {
     // Stop if we hit a sub-section heading that was not split by the section normalizer
-    const heading = normalizeHeading(line);
+    const heading = normalizeHeading(rawLine);
     if (heading && heading !== 'certifications') break;
+    const line = String(rawLine || '').replace(/^[-*•·]\s*/, '').trim();
+    if (!line) continue;
+    // Two-column ATS templates sometimes emit the certification name+year on
+    // one line and the issuer ("Microsoft", "Amazon", "Google") on the next.
+    // Merge a stand-alone single-token title-cased line into the previous
+    // cert as its issuer rather than registering a phantom "Microsoft" cert.
+    if (items.length && !items[items.length - 1].issuer) {
+      const prev = items[items.length - 1];
+      const isShortIssuerToken = /^[A-Z][A-Za-z0-9&'.\-]+(?:\s+[A-Z][A-Za-z0-9&'.\-]+)?$/.test(line)
+        && line.length <= 30
+        && !/\d/.test(line)
+        && line.split(/\s+/).filter(Boolean).length <= 2;
+      if (isShortIssuerToken) {
+        prev.issuer = line;
+        continue;
+      }
+    }
     const dateMatch = line.match(/\b(20\d{2}|19\d{2})\b/);
-    const cleaned = line.replace(/[()]/g, '').replace(/\b(20\d{2}|19\d{2})\b/g, '').trim();
+    // Pull issuer out of trailing parens like "Azure AZ900 (Microsoft - 2022)"
+    // or "AWS Certified (Amazon, 2023)".  When the paren contents reduce to
+    // empty after stripping the year, treat it as a year-only paren and skip
+    // the issuer field.
+    let nameRaw = line;
+    let issuer: string | undefined;
+    const parenMatch = line.match(/^(.+?)\s*\(([^)]+)\)\s*$/);
+    if (parenMatch) {
+      const issuerCandidate = parenMatch[2]
+        .replace(/\b(20\d{2}|19\d{2})\b/g, '')
+        .replace(/^\s*[-–—|,]\s*/, '')
+        .replace(/\s*[-–—|,]\s*$/, '')
+        .replace(/\s{2,}/g, ' ')
+        .trim();
+      if (issuerCandidate) {
+        nameRaw = parenMatch[1].trim();
+        issuer = issuerCandidate;
+      }
+    }
+    const cleaned = nameRaw
+      .replace(/[()]/g, '')
+      .replace(/\b(20\d{2}|19\d{2})\b/g, '')
+      .replace(/\s*[-–—|,]\s*$/g, '')
+      .replace(/^\s*[-–—|,]\s*/g, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
     if (!cleaned) continue;
     // Skip lines that are clearly not certifications (hobby descriptions, long sentences)
     if (cleaned.length > 100) continue;
     if (/^(exploring|writing|playing|engaging|mentoring|reading|traveling|cooking|running|swimming|hiking|yoga)\b/i.test(cleaned)) continue;
-    items.push({ name: cleaned, date: dateMatch ? dateMatch[1] : undefined, details: [] });
+    items.push({
+      name: cleaned,
+      issuer,
+      date: dateMatch ? dateMatch[1] : undefined,
+      details: [],
+    });
   }
   return items;
 }
@@ -1553,6 +1671,15 @@ function looksLikeEducationInstitutionLine(line: string) {
   if (isStandaloneDateLine(cleaned)) return false;
   if (looksLikeEducationDegreeLine(cleaned)) return false;
   if (/^[-•*]/.test(cleaned)) return false;
+  // Reject sentence-style bullets that leak into the education section from
+  // an adjacent ACHIEVEMENTS / SUMMARY block. These start with an action
+  // verb (Led, Built, Spearheaded, Launched, …) and would otherwise pass
+  // the title-case heuristic below.
+  if (SENTENCE_OPENER_RE.test(cleaned)) return false;
+  // Lines that end with a period are sentence-shaped descriptions, not
+  // institution names — unless they contain an explicit institution word
+  // (already handled above).
+  if (/\.\s*$/.test(cleaned)) return false;
   // Reject lines that look like job role titles or company names — in multi-page
   // PDFs, experience entries can spill into the education section after page breaks.
   // e.g. "Senior Technology Consultant", "Lead UI Developer" are roles, not institutions.
@@ -1820,7 +1947,21 @@ function stripDates(line: string) {
 }
 
 function looksLikeProjectTitle(line: string) {
-  return /project|capstone|thesis|research/i.test(line);
+  const cleaned = cleanLooseText(line);
+  if (!cleaned) return false;
+  if (!/\b(project|capstone|thesis|research)\b/i.test(cleaned)) return false;
+  // Sentence-style bullets (e.g. "Launched ... the innovative SpeedBoat project, ...")
+  // happen to contain the word "project" but are NOT new project titles. Reject:
+  // - long lines (real titles fit in a single short phrase)
+  // - lines that open with an action verb / past participle
+  // - lines ending with a comma (wrapped continuation of a bullet)
+  // - lines starting with a lowercase word (a wrapped sentence continuation,
+  //   never a title — real project titles are Title-Cased)
+  if (cleaned.length > 80) return false;
+  if (SENTENCE_OPENER_RE.test(cleaned)) return false;
+  if (/,\s*$/.test(cleaned)) return false;
+  if (!/^[A-Z0-9"']/.test(cleaned)) return false;
+  return true;
 }
 
 function isMeaningfulHighlight(line: string) {
