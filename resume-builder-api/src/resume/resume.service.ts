@@ -1803,10 +1803,72 @@ async function extractPdfText(buffer: Buffer) {
  * pdf-parse reads left-to-right across both columns, interleaving them.
  * Detect this by checking if short lines (sidebar items) alternate with
  * long lines (main content) and attempt to separate them.
+ *
+ * IMPORTANT: this transform is destructive — when it fires it strips every
+ * short line out of the main flow and re-emits them under a synthetic
+ * "SKILLS" heading at the end. On a single-column ATS resume that has
+ * legitimate short lines (a wrapped sentence ending like "domains.", a
+ * company name like "Citi Corp", a section heading like
+ * "PROFESSIONAL SUMMARY") the alternating-length pattern fires false-
+ * positive and silently destroys the experience section.  Gate the
+ * heuristic on a *strong* sidebar signal: a standalone SOFT SKILLS /
+ * TECHNICAL SKILLS / KEY SKILLS heading on its own line near the top, OR
+ * a burst of consecutive single-token title-case lines (a real skills
+ * sidebar lists "ReactJS / Python / Redux …" one per line).
  */
 function repairTwoColumnPdfText(text: string): string {
   const lines = text.split('\n');
   if (lines.length < 10) return text;
+
+  // --- Strong sidebar signal -------------------------------------------------
+  // (a) Standalone "SOFT SKILLS" / "TECHNICAL SKILLS" / "KEY SKILLS" /
+  //     "CORE SKILLS" / "COMPETENCIES" line in the first 12 non-empty lines.
+  //     Single-column resumes that mention these labels do so on a line that
+  //     also carries content ("Soft Skills: Communication, …") — never on a
+  //     line by itself.
+  let standaloneSkillHeading = false;
+  {
+    let nonEmpty = 0;
+    for (let i = 0; i < lines.length && nonEmpty < 12; i += 1) {
+      const t = lines[i].trim();
+      if (!t) continue;
+      nonEmpty += 1;
+      if (/^(SOFT\s+SKILLS?|TECHNICAL\s+SKILLS?|KEY\s+SKILLS?|CORE\s+(SKILLS?|COMPETENCIES)|COMPETENCIES)\s*$/i.test(t)) {
+        standaloneSkillHeading = true;
+        break;
+      }
+    }
+  }
+  // (b) A run of ≥ 5 consecutive single-token title-case lines (the classic
+  //     vertical skills sidebar: "ReactJS / Python / Redux / Node.js / SQL").
+  let consecutiveSkillTokens = 0;
+  let hasSkillTokenBurst = false;
+  for (const line of lines) {
+    const t = line.trim();
+    if (!t) {
+      consecutiveSkillTokens = 0;
+      continue;
+    }
+    // 1–3 word, ≤ 24 char, title-case-y line with no end-punctuation, no
+    // sentence-shape (commas/periods), no digits and no dash separators.
+    const words = t.split(/\s+/);
+    const isSkillToken = words.length <= 3
+      && t.length <= 24
+      && /^[A-Za-z][A-Za-z0-9+#./'-]*( [A-Za-z][A-Za-z0-9+#./'-]*)*$/.test(t)
+      && /^[A-Z]/.test(t);
+    if (isSkillToken) {
+      consecutiveSkillTokens += 1;
+      if (consecutiveSkillTokens >= 5) { hasSkillTokenBurst = true; break; }
+    } else {
+      consecutiveSkillTokens = 0;
+    }
+  }
+
+  // No strong signal → do not attempt destructive reordering.  The
+  // alternating-length heuristic alone is unreliable on single-column ATS
+  // resumes (wrapped sentence endings + short company names look exactly
+  // like a sidebar to it).
+  if (!standaloneSkillHeading && !hasSkillTokenBurst) return text;
 
   // Skip the first 3 non-empty lines (name + contact header) when sampling,
   // since short contact lines can falsely trigger the two-column heuristic.
