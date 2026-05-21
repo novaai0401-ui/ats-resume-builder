@@ -922,6 +922,56 @@ body.resume-embed-body .main-shell {
 
 .template-print-page {
   background: #fff;
+  position: relative;
+}
+
+/* Watermark on the print-preview surface for the FREE tier.
+   Mirrors the live editor's POCKET RESUME diagonal overlay so the
+   page the user prints from already carries proof-of-origin even
+   before paper.  Paid users get a clean preview (data-plan="paid"
+   removes the overlay). The screen overlay sits at z-index 50 — same
+   layer as the live-editor watermark — and is hidden when the user
+   is on a paid plan.  See globals.css line ~820 for the live-preview
+   counterpart. */
+.template-print-shell[data-plan="free"] .template-print-page::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='420' height='240' viewBox='0 0 420 240'><g transform='rotate(-30 210 120)' fill='%231a3a5c' fill-opacity='0.18' font-family='IBM Plex Sans, Arial, sans-serif' font-weight='700' font-size='34'><text x='50%25' y='50%25' text-anchor='middle' dominant-baseline='middle'>POCKET RESUME</text></g></svg>");
+  background-repeat: repeat;
+  background-size: 420px 240px;
+}
+
+.template-print-shell[data-plan="paid"] .template-print-page::after {
+  display: none !important;
+}
+
+/* On-screen banner above the print preview for free users.  Removed
+   from print output via @media print below so it never appears in the
+   already-blocked print attempt. */
+.template-print-upgrade-banner {
+  margin: 0 auto 16px;
+  padding: 16px 20px;
+  border: 1px solid #f0d68c;
+  background: #fff7df;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.template-print-upgrade-banner__title {
+  font-weight: 700;
+  color: #6b4f00;
+}
+
+.template-print-upgrade-banner__body {
+  margin: 0;
+  color: #6b4f00;
+  font-size: 14px;
 }
 
 @media print {
@@ -938,6 +988,44 @@ body.resume-embed-body .main-shell {
   .nav,
   .nav--desktop {
     display: none !important;
+  }
+
+  /* Preserve the watermark across Save-as-PDF / printer output for
+     free users — mirrors the .template-preview-frame__container::after
+     print rule. */
+  .template-print-shell[data-plan="free"] .template-print-page::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide the in-page upgrade banner and the blocked-print modal
+     during any actual print invocation — neither belongs in the
+     printed artifact. */
+  .template-print-upgrade-banner,
+  .template-print-blocked-modal {
+    display: none !important;
+  }
+
+  /* Belt-and-braces print block for free users.  The JS keydown
+     handler in TemplateSelectionView already intercepts Ctrl/Cmd+P
+     and pops the upgrade modal, but if the print dialog is invoked
+     by some path the JS doesn't see (browser menu, OS shortcut on
+     uncommon layouts, a print extension) this CSS swaps the resume
+     for an upgrade-required notice so no clean copy ever reaches
+     paper or a saved PDF. */
+  .template-print-shell[data-plan="free"] .template-print-page {
+    display: none !important;
+  }
+  .template-print-shell[data-plan="free"]::before {
+    content: 'Printing is a Pro feature. Upgrade your plan at /billing to enable printing and PDF download.';
+    display: block;
+    padding: 64px 32px;
+    font-family: 'IBM Plex Sans', Arial, sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+    color: #1a3a5c;
+    text-align: center;
+    line-height: 1.5;
   }
 }
 

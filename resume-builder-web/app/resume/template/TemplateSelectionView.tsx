@@ -94,8 +94,26 @@ export default function TemplateSelectionView({
   const requestedTemplate = resolveTemplateId(templateQuery, 'classic');
   // ?print=1 flag is set when the user clicked "Print preview" in the
   // editor. We auto-open the browser print dialog once the resume has
-  // rendered so they don't have to hunt for a button on this page.
+  // rendered so they don't have to hunt for a button on this page —
+  // BUT only for paid users.  Free users get a watermarked, read-only
+  // preview with the OS print dialog blocked (see useEffect below).
   const printRequested = searchParams.get('print') === '1';
+  // Plan gate for printing.  Free users can VIEW the watermarked
+  // preview but cannot print; STUDENT / PRO get clean output + the
+  // auto-print dialog.  We start `null` (= unknown) so the print
+  // effect waits for hydration instead of racing it and treating
+  // every user as FREE on the first render.
+  const [isPaidUser, setIsPaidUser] = useState<boolean | null>(null);
+  const [showPrintBlockedModal, setShowPrintBlockedModal] = useState(false);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const plan = (window.localStorage.getItem('rb_plan') || 'FREE').toUpperCase();
+      setIsPaidUser(plan === 'STUDENT' || plan === 'PRO');
+    } catch {
+      setIsPaidUser(false);
+    }
+  }, []);
   const [resumeData, setResumeData] = useState<Resume | null>(null);
   const [resumeDraft, setResumeDraft] = useState<ResumeDraft | null>(null);
   const [loading, setLoading] = useState(Boolean(resumeId));
@@ -290,11 +308,19 @@ export default function TemplateSelectionView({
   // show — without this gate the dialog opens before
   // ActiveTemplateComponent has finished rendering and the user
   // gets blank pages, which is exactly the bug reported.
+  //
+  // Free users: do NOT auto-open the dialog. They see the watermarked
+  // preview only; printing is paid-only and blocked below.
   const hasPrintedRef = useRef(false);
   useEffect(() => {
     if (!printRequested) return;
     if (hasPrintedRef.current) return;
     if (!previewReady) return;
+    if (isPaidUser === null) return; // wait for plan hydration
+    if (!isPaidUser) {
+      hasPrintedRef.current = true;
+      return;
+    }
     hasPrintedRef.current = true;
     // Two RAFs: one to flush React commit, one to flush layout. Without
     // this the print dialog often races the browser's first paint and
@@ -304,7 +330,29 @@ export default function TemplateSelectionView({
         try { window.print(); } catch { /* user-cancelled is fine */ }
       });
     });
-  }, [printRequested, previewReady]);
+  }, [printRequested, previewReady, isPaidUser]);
+
+  // Free-tier print block. The watermark CSS (globals.css @media print
+  // rule on .template-print-shell[data-plan="free"]) already swaps the
+  // resume for an upgrade-required message in any actual print output,
+  // so a free user who bypasses everything still cannot get a clean
+  // copy onto paper.  This effect is the front-line UX layer: catch
+  // Ctrl/Cmd+P, suppress the OS print dialog, and surface the
+  // "Upgrade to print" modal instead.
+  useEffect(() => {
+    if (!printRequested) return;
+    if (isPaidUser !== false) return;
+    const handler = (e: KeyboardEvent) => {
+      const isPrintKey = (e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey
+        && (e.key === 'p' || e.key === 'P');
+      if (!isPrintKey) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setShowPrintBlockedModal(true);
+    };
+    window.addEventListener('keydown', handler, { capture: true });
+    return () => window.removeEventListener('keydown', handler, { capture: true });
+  }, [printRequested, isPaidUser]);
   if (!resumeId && !loading) {
     return (
       <main className="grid">
@@ -322,9 +370,39 @@ export default function TemplateSelectionView({
   // because the browser's print preview still captured the off-screen
   // catalog column on some platforms. Hard-removing it from the DOM is
   // both faster and reliable across browsers.
+  //
+  // data-plan drives two things in globals.css:
+  //   • `free`  → a diagonal POCKET RESUME watermark is overlaid on the
+  //               preview, AND the @media print rule swaps the resume
+  //               for an upgrade-required message so the print output
+  //               can never carry a clean copy
+  //   • `paid`  → no watermark, no print block, normal printable layout
+  // While plan is still hydrating we render `free` defensively so a
+  // race never lets a free user grab a clean copy before the effect
+  // has finished reading localStorage.
   if (printRequested) {
+    const planAttr: 'paid' | 'free' = isPaidUser === true ? 'paid' : 'free';
+    const showFreeBanner = isPaidUser === false;
     return (
-      <main className="template-print-shell" data-print-mode="1">
+      <main className="template-print-shell" data-print-mode="1" data-plan={planAttr}>
+        {showFreeBanner && (
+          <aside className="template-print-upgrade-banner" role="status" aria-live="polite">
+            <div className="template-print-upgrade-banner__title">Print is a Pro feature</div>
+            <p className="template-print-upgrade-banner__body">
+              Free preview shows a watermarked view of your resume. Upgrade to remove the
+              watermark and unlock printing or PDF download.
+            </p>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => {
+                if (typeof window !== 'undefined') window.location.href = '/billing';
+              }}
+            >
+              Upgrade to print
+            </button>
+          </aside>
+        )}
         {previewResume ? (
           <div
             className="template-print-page"
@@ -336,6 +414,48 @@ export default function TemplateSelectionView({
           </div>
         ) : (
           <div className="skeleton skeleton-preview-pane" data-testid="template-print-loading" />
+        )}
+        {showPrintBlockedModal && (
+          <div
+            className="modal-backdrop template-print-blocked-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="template-print-blocked-title"
+            onClick={() => setShowPrintBlockedModal(false)}
+          >
+            <div
+              className="card"
+              style={{ maxWidth: 420, margin: '10vh auto', padding: 24 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 id="template-print-blocked-title" style={{ marginTop: 0 }}>
+                Printing is a Pro feature
+              </h3>
+              <p className="small" style={{ color: '#5a6778' }}>
+                Your current plan can preview the resume with a watermark, but printing and
+                PDF export are reserved for paid plans. Upgrade to remove the watermark and
+                unlock printing.
+              </p>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
+                <button
+                  type="button"
+                  className="btn secondary"
+                  onClick={() => setShowPrintBlockedModal(false)}
+                >
+                  Close
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => {
+                    if (typeof window !== 'undefined') window.location.href = '/billing';
+                  }}
+                >
+                  Upgrade plan
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </main>
     );
