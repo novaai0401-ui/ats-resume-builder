@@ -945,11 +945,17 @@ export function crossVerifyUpload(
   const hasName = Boolean(parsed.contact?.fullName && parsed.contact.fullName.trim().length >= 2);
   if (!hasName) warnings.push('Full name was not detected from the resume header.');
 
+  // Date ranges in the resume are consumed by BOTH experience and education
+  // entries ("B.E (Jan 2010 - Jun 2014)" is a dated education line, not a job),
+  // so the count is compared against experience + education — otherwise a
+  // resume that lists several degrees would falsely look like it is missing
+  // roles.
   const rawDateRanges = countDateRanges(text);
-  if (experience.length === 0 && rawDateRanges >= 1) {
-    warnings.push(`Resume appears to contain ${rawDateRanges} dated role(s) but no experience entries were extracted.`);
-  } else if (experience.length > 0 && rawDateRanges >= experience.length + 2) {
-    warnings.push(`Resume has ~${rawDateRanges} date ranges but only ${experience.length} experience entr${experience.length === 1 ? 'y' : 'ies'} were extracted — some roles may be missing.`);
+  const accountedDated = experience.length + education.length;
+  if (experience.length === 0 && rawDateRanges > education.length) {
+    warnings.push(`Resume appears to contain ${rawDateRanges} dated entr${rawDateRanges === 1 ? 'y' : 'ies'} but no experience entries were extracted.`);
+  } else if (experience.length > 0 && rawDateRanges >= accountedDated + 2) {
+    warnings.push(`Resume has ~${rawDateRanges} date ranges but only ${experience.length} experience + ${education.length} education entries were extracted — some roles may be missing.`);
   }
 
   for (const entry of experience) {

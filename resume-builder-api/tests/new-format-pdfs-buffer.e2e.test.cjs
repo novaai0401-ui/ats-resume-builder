@@ -141,6 +141,35 @@ test('new-format: chaitanya-clustered-headings.pdf — experience + education re
   }
 });
 
+test('new-format: chandan-multi-degree.pdf — all three education entries recovered, no false "missing roles" warning', async (t) => {
+  const file = fixture('chandan-multi-degree.pdf');
+  if (!fs.existsSync(file)) { t.skip(`fixture missing: ${file}`); return; }
+  const result = await parse(file, 'chandankumar.pdf');
+
+  assert.equal(result.parsed.contact?.fullName, 'Chandan Kumar');
+
+  // Four real jobs (the resume lists 4; the older date ranges belong to
+  // education, which previously made the experience count look short).
+  const exp = result.parsed.experience || [];
+  assert.equal(exp.length, 4, `expected 4 experiences, got ${exp.length}: ${JSON.stringify(exp.map((e) => `${e.role} @ ${e.company}`))}`);
+  for (const company of [/citi/i, /ernst\s*&\s*young/i, /one network/i, /infosys/i]) {
+    assert.ok(exp.some((e) => company.test(e.company || '')), `missing company ${company}; got ${exp.map((e) => e.company).join(' | ')}`);
+  }
+
+  // All THREE degrees are recovered (they leaked into the hobbies/interests
+  // section; the fallback previously stopped after the first one).
+  const edu = result.parsed.education || [];
+  assert.ok(edu.length >= 3, `expected ≥ 3 education entries, got ${edu.length}: ${JSON.stringify(edu.map((e) => e.degree))}`);
+  const eduText = edu.map((e) => `${e.degree} ${e.institution}`).join(' | ');
+  assert.match(eduText, /telecommunication|siddaganga/i, 'B.E. degree missing');
+  assert.match(eduText, /associate of science|a\.n\.s\.m/i, 'Associate degree missing');
+  assert.match(eduText, /high school|d\.a\.v/i, 'High School entry missing');
+
+  // The cross-check must NOT false-flag missing roles: the extra date ranges
+  // are accounted for by the education entries.
+  assert.equal(result.verification.ok, true, `verification flagged: ${JSON.stringify(result.verification.warnings)}`);
+});
+
 test('new-format: cross-verification reports clean (ok=true) for all three resumes', async (t) => {
   for (const name of ['nikhil-pipe-header.pdf', 'muskan-fragmented-role-title.pdf', 'chaitanya-clustered-headings.pdf']) {
     const file = fixture(name);

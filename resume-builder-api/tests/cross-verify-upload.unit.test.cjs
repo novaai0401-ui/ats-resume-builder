@@ -98,6 +98,30 @@ test('chooseBetterExtraction: keeps primary when the retry was not attempted (nu
   assert.equal(reExtracted, false);
 });
 
+test('crossVerify: does NOT flag missing roles when extra date ranges belong to education', () => {
+  // 4 job ranges + 3 education ranges = 7 ranges; 4 experience + 3 education
+  // entries account for all of them, so there should be no "missing roles".
+  const text = [
+    'EXPERIENCE',
+    'AVP, Citi  Dec 2022 - Present',
+    'Consultant, EY  Oct 2021 - Dec 2022',
+    'Developer, One Network  Sep 2020 - Sep 2021',
+    'Lead, Infosys  Jul 2014 - Aug 2020',
+    'EDUCATION',
+    'B.E Telecom  Jan 2010 - Jun 2014',
+    'Associate of Science  Jan 2007 - May 2010',
+    'High School Diploma  Apr 2006 - Apr 2007',
+  ].join('\n');
+  const v = crossVerifyUpload(text, {
+    contact: { fullName: 'Chandan Kumar', email: 'c@x.com', phone: '9307003382' },
+    experience: [{ role: 'AVP', company: 'Citi' }, { role: 'Consultant', company: 'EY' }, { role: 'Developer', company: 'One Network' }, { role: 'Lead', company: 'Infosys' }],
+    education: [{ degree: 'B.E' }, { degree: 'Associate' }, { degree: 'High School' }],
+    skills: ['JS'],
+  });
+  assert.equal(v.ok, true, `should be clean, got: ${v.warnings.join(' | ')}`);
+  assert.ok(v.stats.rawDateRanges >= 7, `expected ≥7 ranges, got ${v.stats.rawDateRanges}`);
+});
+
 test('crossVerify: clean parse reports ok=true with no warnings', () => {
   const text = [
     'Jane Roe',

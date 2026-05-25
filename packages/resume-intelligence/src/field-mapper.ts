@@ -718,7 +718,8 @@ function mapEducation(sections: Record<string, string[]>) {
       // Pull this degree line plus up to 3 neighbours that look like
       // institution / date lines.
       recovered.push(line);
-      for (let j = i + 1; j < Math.min(fallbackSources.length, i + 4); j += 1) {
+      let j = i + 1;
+      for (; j < Math.min(fallbackSources.length, i + 4); j += 1) {
         const neighbour = fallbackSources[j];
         if (!neighbour) continue;
         if (looksLikeEducationDegreeLine(neighbour)) break;
@@ -726,7 +727,11 @@ function mapEducation(sections: Record<string, string[]>) {
           recovered.push(neighbour);
         }
       }
-      break;
+      // Continue scanning for further degree blocks (a resume can list several
+      // degrees — B.E. + Associate + High School — that all leaked into the
+      // same mis-assigned section). Resume the outer loop just before the next
+      // unconsumed line instead of stopping after the first block.
+      i = j - 1;
     }
     if (recovered.length) lines = [...lines, ...recovered];
   }
