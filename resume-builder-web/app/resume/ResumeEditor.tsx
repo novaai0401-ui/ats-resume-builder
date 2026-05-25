@@ -3755,13 +3755,12 @@ export default function ResumeEditor() {
                       // the resume in the chosen layout) and pass
                       // `?print=1`.  That page reads `rb_plan` from
                       // localStorage: paid users (STUDENT / PRO) get a
-                      // clean view and the auto-opened print dialog;
-                      // free users get a diagonal POCKET RESUME
-                      // watermark, an "Upgrade to print" banner, and
-                      // Ctrl/Cmd+P intercepted with an upgrade modal —
-                      // plus a CSS print-block that swaps the resume
-                      // for an upgrade notice so no clean copy can
-                      // reach paper if they bypass the JS layer.
+                      // clean view and clean print/PDF output; free
+                      // users get a diagonal POCKET RESUME watermark on
+                      // both the preview AND the printed / Saved-as-PDF
+                      // output (a fixed overlay Chrome repaints on every
+                      // page), plus a nudge banner pointing to the paid
+                      // Download for a clean copy.
                       if (!resumeId) {
                         showSnackbar('error', 'Save the resume first to preview it.');
                         return;

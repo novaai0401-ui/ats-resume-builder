@@ -104,7 +104,6 @@ export default function TemplateSelectionView({
   // effect waits for hydration instead of racing it and treating
   // every user as FREE on the first render.
   const [isPaidUser, setIsPaidUser] = useState<boolean | null>(null);
-  const [showPrintBlockedModal, setShowPrintBlockedModal] = useState(false);
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
@@ -309,18 +308,18 @@ export default function TemplateSelectionView({
   // ActiveTemplateComponent has finished rendering and the user
   // gets blank pages, which is exactly the bug reported.
   //
-  // Free users: do NOT auto-open the dialog. They see the watermarked
-  // preview only; printing is paid-only and blocked below.
+  // We also wait for plan hydration (isPaidUser !== null) so the
+  // free-tier watermark overlay is committed to the DOM BEFORE the
+  // print dialog snapshots the page — otherwise a free user could
+  // race the localStorage read and capture a clean, un-watermarked
+  // copy. Printing itself is allowed for everyone; free output simply
+  // carries the watermark, which nudges users to the paid Download.
   const hasPrintedRef = useRef(false);
   useEffect(() => {
     if (!printRequested) return;
     if (hasPrintedRef.current) return;
     if (!previewReady) return;
     if (isPaidUser === null) return; // wait for plan hydration
-    if (!isPaidUser) {
-      hasPrintedRef.current = true;
-      return;
-    }
     hasPrintedRef.current = true;
     // Two RAFs: one to flush React commit, one to flush layout. Without
     // this the print dialog often races the browser's first paint and
@@ -331,28 +330,6 @@ export default function TemplateSelectionView({
       });
     });
   }, [printRequested, previewReady, isPaidUser]);
-
-  // Free-tier print block. The watermark CSS (globals.css @media print
-  // rule on .template-print-shell[data-plan="free"]) already swaps the
-  // resume for an upgrade-required message in any actual print output,
-  // so a free user who bypasses everything still cannot get a clean
-  // copy onto paper.  This effect is the front-line UX layer: catch
-  // Ctrl/Cmd+P, suppress the OS print dialog, and surface the
-  // "Upgrade to print" modal instead.
-  useEffect(() => {
-    if (!printRequested) return;
-    if (isPaidUser !== false) return;
-    const handler = (e: KeyboardEvent) => {
-      const isPrintKey = (e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey
-        && (e.key === 'p' || e.key === 'P');
-      if (!isPrintKey) return;
-      e.preventDefault();
-      e.stopPropagation();
-      setShowPrintBlockedModal(true);
-    };
-    window.addEventListener('keydown', handler, { capture: true });
-    return () => window.removeEventListener('keydown', handler, { capture: true });
-  }, [printRequested, isPaidUser]);
   if (!resumeId && !loading) {
     return (
       <main className="grid">
@@ -371,35 +348,47 @@ export default function TemplateSelectionView({
   // catalog column on some platforms. Hard-removing it from the DOM is
   // both faster and reliable across browsers.
   //
-  // data-plan drives two things in globals.css:
-  //   • `free`  → a diagonal POCKET RESUME watermark is overlaid on the
-  //               preview, AND the @media print rule swaps the resume
-  //               for an upgrade-required message so the print output
-  //               can never carry a clean copy
-  //   • `paid`  → no watermark, no print block, normal printable layout
-  // While plan is still hydrating we render `free` defensively so a
-  // race never lets a free user grab a clean copy before the effect
-  // has finished reading localStorage.
+  // Plan-driven watermark:
+  //   • free → a fixed POCKET RESUME overlay sits over the preview and
+  //            (because position: fixed repaints per page in Chrome's
+  //            print path) over every printed / Saved-as-PDF sheet. The
+  //            clean, watermark-free copy comes only from the paid
+  //            Download flow.
+  //   • paid → no watermark, clean printable layout.
+  // While plan is still hydrating we treat the user as free defensively
+  // so a race never lets a free user grab a clean copy before the
+  // effect has finished reading localStorage.
   if (printRequested) {
     const planAttr: 'paid' | 'free' = isPaidUser === true ? 'paid' : 'free';
     const showFreeBanner = isPaidUser === false;
+    const cleanDownloadHref = resumeId
+      ? `/resume/template?resumeId=${encodeURIComponent(resumeId)}&template=${encodeURIComponent(selectedTemplate)}`
+      : '/resume/template';
     return (
       <main className="template-print-shell" data-print-mode="1" data-plan={planAttr}>
+        {/* Watermark overlay for free users. position: fixed so Chrome
+            repaints it on EVERY printed page (a pseudo-element on the
+            multi-page .template-print-page only covers page 1). Rendered
+            while plan is still hydrating too (planAttr defaults to
+            "free") so the dialog can never snapshot a clean copy. */}
+        {planAttr === 'free' && (
+          <div className="template-print-watermark" aria-hidden="true" />
+        )}
         {showFreeBanner && (
           <aside className="template-print-upgrade-banner" role="status" aria-live="polite">
-            <div className="template-print-upgrade-banner__title">Print is a Pro feature</div>
+            <div className="template-print-upgrade-banner__title">Free preview — watermarked</div>
             <p className="template-print-upgrade-banner__body">
-              Free preview shows a watermarked view of your resume. Upgrade to remove the
-              watermark and unlock printing or PDF download.
+              Printing or saving this page produces a watermarked copy. Use Download for a
+              clean, ATS-ready PDF without the watermark.
             </p>
             <button
               type="button"
               className="btn"
               onClick={() => {
-                if (typeof window !== 'undefined') window.location.href = '/billing';
+                if (typeof window !== 'undefined') window.location.href = cleanDownloadHref;
               }}
             >
-              Upgrade to print
+              Download clean copy
             </button>
           </aside>
         )}
@@ -414,48 +403,6 @@ export default function TemplateSelectionView({
           </div>
         ) : (
           <div className="skeleton skeleton-preview-pane" data-testid="template-print-loading" />
-        )}
-        {showPrintBlockedModal && (
-          <div
-            className="modal-backdrop template-print-blocked-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="template-print-blocked-title"
-            onClick={() => setShowPrintBlockedModal(false)}
-          >
-            <div
-              className="card"
-              style={{ maxWidth: 420, margin: '10vh auto', padding: 24 }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h3 id="template-print-blocked-title" style={{ marginTop: 0 }}>
-                Printing is a Pro feature
-              </h3>
-              <p className="small" style={{ color: '#5a6778' }}>
-                Your current plan can preview the resume with a watermark, but printing and
-                PDF export are reserved for paid plans. Upgrade to remove the watermark and
-                unlock printing.
-              </p>
-              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
-                <button
-                  type="button"
-                  className="btn secondary"
-                  onClick={() => setShowPrintBlockedModal(false)}
-                >
-                  Close
-                </button>
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={() => {
-                    if (typeof window !== 'undefined') window.location.href = '/billing';
-                  }}
-                >
-                  Upgrade plan
-                </button>
-              </div>
-            </div>
-          </div>
         )}
       </main>
     );

@@ -925,32 +925,33 @@ body.resume-embed-body .main-shell {
   position: relative;
 }
 
-/* Watermark on the print-preview surface for the FREE tier.
-   Mirrors the live editor's POCKET RESUME diagonal overlay so the
-   page the user prints from already carries proof-of-origin even
-   before paper.  Paid users get a clean preview (data-plan="paid"
-   removes the overlay). The screen overlay sits at z-index 50 — same
-   layer as the live-editor watermark — and is hidden when the user
-   is on a paid plan.  See globals.css line ~820 for the live-preview
-   counterpart. */
-.template-print-shell[data-plan="free"] .template-print-page::after {
-  content: '';
-  position: absolute;
+/* Watermark overlay for the FREE tier print-preview page.
+   Rendered as a real <div className="template-print-watermark"> (not a
+   pseudo-element) so it works across multiple printed pages: it is
+   position: fixed, and Chrome repaints fixed elements on EVERY printed
+   sheet — a pseudo-element anchored to the multi-page .template-print-
+   page only paints over the first sheet.  The element is only present
+   in the DOM for free users (TemplateSelectionView renders it when
+   data-plan !== "paid"), so paid users need no override.
+
+   This is the deterrent that makes the free browser-print / Save-as-PDF
+   output undesirable: the clean, watermark-free copy comes only from
+   the paid Download flow. */
+.template-print-watermark {
+  position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: 50;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='420' height='240' viewBox='0 0 420 240'><g transform='rotate(-30 210 120)' fill='%231a3a5c' fill-opacity='0.18' font-family='IBM Plex Sans, Arial, sans-serif' font-weight='700' font-size='34'><text x='50%25' y='50%25' text-anchor='middle' dominant-baseline='middle'>POCKET RESUME</text></g></svg>");
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='360' height='200' viewBox='0 0 360 200'><g transform='rotate(-30 180 100)' fill='%231a3a5c' fill-opacity='0.22' font-family='IBM Plex Sans, Arial, sans-serif' font-weight='700' font-size='30'><text x='50%25' y='50%25' text-anchor='middle' dominant-baseline='middle'>POCKET RESUME</text></g></svg>");
   background-repeat: repeat;
-  background-size: 420px 240px;
+  background-size: 360px 200px;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
 }
 
-.template-print-shell[data-plan="paid"] .template-print-page::after {
-  display: none !important;
-}
-
-/* On-screen banner above the print preview for free users.  Removed
+/* On-screen banner above the print preview for free users. Removed
    from print output via @media print below so it never appears in the
-   already-blocked print attempt. */
+   printed artifact. */
 .template-print-upgrade-banner {
   margin: 0 auto 16px;
   padding: 16px 20px;
@@ -990,42 +991,18 @@ body.resume-embed-body .main-shell {
     display: none !important;
   }
 
-  /* Preserve the watermark across Save-as-PDF / printer output for
-     free users — mirrors the .template-preview-frame__container::after
-     print rule. */
-  .template-print-shell[data-plan="free"] .template-print-page::after {
+  /* Keep the watermark in Save-as-PDF / printer output. print-color-
+     adjust: exact stops Chrome from dropping the background fill when
+     "Background graphics" defaults off. */
+  .template-print-watermark {
+    display: block !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
 
-  /* Hide the in-page upgrade banner and the blocked-print modal
-     during any actual print invocation — neither belongs in the
-     printed artifact. */
-  .template-print-upgrade-banner,
-  .template-print-blocked-modal {
+  /* The in-page nudge banner is screen-only; never print it. */
+  .template-print-upgrade-banner {
     display: none !important;
-  }
-
-  /* Belt-and-braces print block for free users.  The JS keydown
-     handler in TemplateSelectionView already intercepts Ctrl/Cmd+P
-     and pops the upgrade modal, but if the print dialog is invoked
-     by some path the JS doesn't see (browser menu, OS shortcut on
-     uncommon layouts, a print extension) this CSS swaps the resume
-     for an upgrade-required notice so no clean copy ever reaches
-     paper or a saved PDF. */
-  .template-print-shell[data-plan="free"] .template-print-page {
-    display: none !important;
-  }
-  .template-print-shell[data-plan="free"]::before {
-    content: 'Printing is a Pro feature. Upgrade your plan at /billing to enable printing and PDF download.';
-    display: block;
-    padding: 64px 32px;
-    font-family: 'IBM Plex Sans', Arial, sans-serif;
-    font-size: 18px;
-    font-weight: 600;
-    color: #1a3a5c;
-    text-align: center;
-    line-height: 1.5;
   }
 }
 
