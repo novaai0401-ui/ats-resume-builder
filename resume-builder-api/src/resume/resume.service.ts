@@ -693,69 +693,46 @@ export class ResumeService {
       });
     }
 
-    const normalized = normalizeUploadText(trimmed);
-    const parsed = parseResumeText(normalized);
     try {
-      const dateMatches = collectDateMatches(normalized);
-      const mapped = mapParsedResume(parsed);
-      const sanitized = sanitizeImportedResume({
-        title: options?.title?.trim() || mapped.title,
-        contact: mapped.contact,
-        summary: mapped.summary,
-        skills: mapped.skills,
-        experience: mapped.experience,
-        education: mapped.education,
-        projects: mapped.projects,
-        certifications: mapped.certifications,
-        unmappedText: mapped.unmappedText,
-      }, { mode: 'upload', sourceText: normalized });
-      const finalizedExperience = finalizeExperience({
-        experience: sanitized.experience,
-        parsed,
-        fullText: normalized,
-        dateMatches,
-      });
-      sanitized.experience = finalizedExperience;
-      const normalizedParsed = normalizeResumeForAtsOutput({
-        title: sanitized.title,
-        contact: sanitized.contact,
-        summary: sanitized.summary,
-        skills: sanitized.skills,
-        experience: sanitized.experience,
-        education: sanitized.education,
-        projects: sanitized.projects,
-        certifications: sanitized.certifications,
-      });
-      const parsedPayload = {
-        title: normalizedParsed.title,
-        contact: normalizedParsed.contact,
-        summary: normalizedParsed.summary,
-        skills: normalizedParsed.skills,
-        experience: normalizedParsed.experience,
-        education: normalizedParsed.education,
-        projects: normalizedParsed.projects,
-        certifications: normalizedParsed.certifications,
-        roleLevel: mapped.roleLevel,
-        signals: mapped.signals,
-        unmappedText: sanitized.unmappedText,
-      };
-      // Cross-verify the structured result against the raw text and surface
-      // any likely misinterpretation in the response + logs (non-destructive).
-      const verification = crossVerifyUpload(normalized, parsedPayload);
+      // Primary extraction over the fully normalized text.
+      const primary = this.buildStructuredResume(normalizeUploadText(trimmed), options?.title);
+
+      // SELF-HEALING: if the cross-check between the raw resume text and the
+      // structured result fails, re-run extraction internally over an
+      // ALTERNATIVE normalization of the same text (the raw trimmed text;
+      // parseResumeText applies its own lighter normalization, bypassing the
+      // heavier restructure / merge / two-column-repair passes that can
+      // occasionally mangle an unusual layout). chooseBetterExtraction keeps
+      // whichever pass the cross-check scores better — never the worse one.
+      let alt: typeof primary | null = null;
+      if (!primary.verification.ok) {
+        try {
+          alt = this.buildStructuredResume(trimmed, options?.title);
+        } catch {
+          // Alternative pass failed (e.g. its sanitized payload didn't
+          // validate) — keep the primary result.
+          alt = null;
+        }
+      }
+      const { chosen, reExtracted } = chooseBetterExtraction(primary, alt);
+
+      const verification = chosen.verification;
       if (!verification.ok && process.env.NODE_ENV !== 'production') {
-        console.warn(`[parse-upload] verification warnings for ${file.originalname}: ${verification.warnings.join(' | ')}`);
+        console.warn(`[parse-upload] verification warnings (reExtracted=${reExtracted}) for ${file.originalname}: ${verification.warnings.join(' | ')}`);
       }
       const debugPayload = {
-        experienceSignals: mapped.signals,
-        sectionHits: summarizeSectionHits(parsed.sections),
-        dateMatches,
+        experienceSignals: chosen.mapped.signals,
+        sectionHits: summarizeSectionHits(chosen.parsed.sections),
+        dateMatches: chosen.dateMatches,
         verification,
+        reExtracted,
+        primaryWarningCount: primary.verification.warnings.length,
       };
       return {
-        text: normalized,
+        text: chosen.normalizedText,
         fileName: file.originalname,
-        parsed: parsedPayload,
-        ...parsedPayload,
+        parsed: chosen.parsedPayload,
+        ...chosen.parsedPayload,
         verification,
         debug: debugPayload,
         mode: options?.mode || 'extract-and-map',
@@ -770,6 +747,60 @@ export class ResumeService {
       }
       throw error;
     }
+  }
+
+  /**
+   * Run the full structured extraction over one normalized-text variant and
+   * cross-verify the result. Returned so parseResumeUpload can run it more than
+   * once (primary vs. self-healing retry) and pick whichever cross-check scores
+   * better.
+   */
+  private buildStructuredResume(normalizedText: string, title?: string) {
+    const parsed = parseResumeText(normalizedText);
+    const dateMatches = collectDateMatches(normalizedText);
+    const mapped = mapParsedResume(parsed);
+    const sanitized = sanitizeImportedResume({
+      title: title?.trim() || mapped.title,
+      contact: mapped.contact,
+      summary: mapped.summary,
+      skills: mapped.skills,
+      experience: mapped.experience,
+      education: mapped.education,
+      projects: mapped.projects,
+      certifications: mapped.certifications,
+      unmappedText: mapped.unmappedText,
+    }, { mode: 'upload', sourceText: normalizedText });
+    sanitized.experience = finalizeExperience({
+      experience: sanitized.experience,
+      parsed,
+      fullText: normalizedText,
+      dateMatches,
+    });
+    const normalizedParsed = normalizeResumeForAtsOutput({
+      title: sanitized.title,
+      contact: sanitized.contact,
+      summary: sanitized.summary,
+      skills: sanitized.skills,
+      experience: sanitized.experience,
+      education: sanitized.education,
+      projects: sanitized.projects,
+      certifications: sanitized.certifications,
+    });
+    const parsedPayload = {
+      title: normalizedParsed.title,
+      contact: normalizedParsed.contact,
+      summary: normalizedParsed.summary,
+      skills: normalizedParsed.skills,
+      experience: normalizedParsed.experience,
+      education: normalizedParsed.education,
+      projects: normalizedParsed.projects,
+      certifications: normalizedParsed.certifications,
+      roleLevel: mapped.roleLevel,
+      signals: mapped.signals,
+      unmappedText: sanitized.unmappedText,
+    };
+    const verification = crossVerifyUpload(normalizedText, parsedPayload);
+    return { parsed, mapped, dateMatches, parsedPayload, normalizedText, verification };
   }
 
   private async areProductFlowRestrictionsEnabled() {
@@ -824,6 +855,26 @@ function collectDateMatches(text: string, limit = 40) {
     .map((match) => String(match[0] || '').trim())
     .filter(Boolean);
   return Array.from(new Set(matches)).slice(0, limit);
+}
+
+/**
+ * Decide whether the self-healing retry result should replace the primary one.
+ * Pure + exported so the pick-the-better-extraction policy can be unit-tested
+ * directly: keep the primary unless it failed the cross-check AND the retry
+ * produced strictly fewer warnings. We never switch to an equal-or-worse retry.
+ */
+export function chooseBetterExtraction<T extends { verification: UploadVerification }>(
+  primary: T,
+  alt: T | null | undefined,
+): { chosen: T; reExtracted: boolean } {
+  if (
+    !primary.verification.ok &&
+    alt &&
+    alt.verification.warnings.length < primary.verification.warnings.length
+  ) {
+    return { chosen: alt, reExtracted: true };
+  }
+  return { chosen: primary, reExtracted: false };
 }
 
 type ExperienceExtractionEntry = {

@@ -9,7 +9,9 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { crossVerifyUpload } = require('../dist/resume/resume.service.js');
+const { crossVerifyUpload, chooseBetterExtraction } = require('../dist/resume/resume.service.js');
+
+const mk = (ok, warnings) => ({ id: Math.random(), verification: { ok, warnings, stats: {} } });
 
 test('crossVerify: flags experience missing when text has dated roles', () => {
   const text = [
@@ -59,6 +61,41 @@ test('crossVerify: flags a degree present in text but no education extracted', (
     skills: ['JS'],
   });
   assert.ok(v.warnings.some((w) => /degree appears/i.test(w)), v.warnings.join(' | '));
+});
+
+// ── Self-healing retry decision (chooseBetterExtraction) ──────────────────────
+
+test('chooseBetterExtraction: keeps primary when its cross-check passes (no retry)', () => {
+  const primary = mk(true, []);
+  const alt = mk(true, []); // even if an alt exists, a passing primary wins
+  const { chosen, reExtracted } = chooseBetterExtraction(primary, alt);
+  assert.equal(chosen, primary);
+  assert.equal(reExtracted, false);
+});
+
+test('chooseBetterExtraction: switches to the retry when primary failed and retry has fewer warnings', () => {
+  const primary = mk(false, ['no experience entries were extracted', 'full name not detected']);
+  const alt = mk(true, []);
+  const { chosen, reExtracted } = chooseBetterExtraction(primary, alt);
+  assert.equal(chosen, alt);
+  assert.equal(reExtracted, true);
+});
+
+test('chooseBetterExtraction: keeps primary when the retry is equal or worse', () => {
+  const primary = mk(false, ['one warning']);
+  const worse = mk(false, ['one warning', 'two warning']);
+  assert.equal(chooseBetterExtraction(primary, worse).chosen, primary);
+  assert.equal(chooseBetterExtraction(primary, worse).reExtracted, false);
+
+  const equal = mk(false, ['something else']);
+  assert.equal(chooseBetterExtraction(primary, equal).chosen, primary, 'ties keep primary');
+});
+
+test('chooseBetterExtraction: keeps primary when the retry was not attempted (null)', () => {
+  const primary = mk(false, ['a warning']);
+  const { chosen, reExtracted } = chooseBetterExtraction(primary, null);
+  assert.equal(chosen, primary);
+  assert.equal(reExtracted, false);
 });
 
 test('crossVerify: clean parse reports ok=true with no warnings', () => {

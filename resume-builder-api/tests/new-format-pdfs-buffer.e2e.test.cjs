@@ -152,5 +152,10 @@ test('new-format: cross-verification reports clean (ok=true) for all three resum
       true,
       `verification flagged ${name}: ${JSON.stringify(result.verification.warnings)}`,
     );
+    // Self-healing loop fields are exposed on the response. The primary pass
+    // already succeeds for these (the real fixes live in the primary path), so
+    // the retry stays dormant.
+    assert.equal(typeof result.debug.reExtracted, 'boolean', 'debug.reExtracted should be present');
+    assert.equal(result.debug.reExtracted, false, `${name} should not need a self-healing retry`);
   }
 });
