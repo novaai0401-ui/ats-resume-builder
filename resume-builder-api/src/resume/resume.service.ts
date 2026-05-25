@@ -739,16 +739,24 @@ export class ResumeService {
         signals: mapped.signals,
         unmappedText: sanitized.unmappedText,
       };
+      // Cross-verify the structured result against the raw text and surface
+      // any likely misinterpretation in the response + logs (non-destructive).
+      const verification = crossVerifyUpload(normalized, parsedPayload);
+      if (!verification.ok && process.env.NODE_ENV !== 'production') {
+        console.warn(`[parse-upload] verification warnings for ${file.originalname}: ${verification.warnings.join(' | ')}`);
+      }
       const debugPayload = {
         experienceSignals: mapped.signals,
         sectionHits: summarizeSectionHits(parsed.sections),
         dateMatches,
+        verification,
       };
       return {
         text: normalized,
         fileName: file.originalname,
         parsed: parsedPayload,
         ...parsedPayload,
+        verification,
         debug: debugPayload,
         mode: options?.mode || 'extract-and-map',
       };
@@ -825,6 +833,110 @@ type ExperienceExtractionEntry = {
   endDate: string;
   highlights: string[];
 };
+
+export type UploadVerification = {
+  ok: boolean;
+  warnings: string[];
+  stats: {
+    rawDateRanges: number;
+    experienceCount: number;
+    educationCount: number;
+    skillCount: number;
+    hasEmail: boolean;
+    hasPhone: boolean;
+    hasName: boolean;
+  };
+};
+
+/** Count "Mon YYYY - Mon YYYY" / "YYYY - Present" style date ranges in raw text. */
+function countDateRanges(text: string): number {
+  const token = '(?:(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\\s+\\d{4}|\\b(?:19|20)\\d{2}\\b)';
+  const re = new RegExp(`${token}\\s*(?:-|to|–|—|â€"|â€"|−)\\s*(?:present|current|now|till\\s*date|${token})`, 'gi');
+  return (text.match(re) || []).length;
+}
+
+/**
+ * Cross-verify the structured resume the API is about to return against the
+ * raw extracted text. This is a non-destructive audit layer: it never changes
+ * the parse, it only reports likely misinterpretations ("resume has 5 dated
+ * roles but only 1 experience entry was extracted", "email present in text but
+ * not captured", "a SKILLS heading leaked into a company name") so the issue
+ * is visible in the response/logs instead of silently shipping bad data to the
+ * editor.
+ */
+export function crossVerifyUpload(
+  sourceText: string,
+  parsed: {
+    contact?: { fullName?: string; email?: string; phone?: string } | undefined;
+    experience?: Array<{ role?: string; company?: string }>;
+    education?: unknown[];
+    skills?: unknown[];
+  },
+): UploadVerification {
+  const warnings: string[] = [];
+  const text = String(sourceText || '');
+  const experience = parsed.experience || [];
+  const education = parsed.education || [];
+  const skills = parsed.skills || [];
+
+  const emailInText = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.exec(text);
+  const hasEmail = Boolean(parsed.contact?.email);
+  if (emailInText && !hasEmail) {
+    warnings.push(`Email "${emailInText[0]}" is present in the resume but was not captured in contact.`);
+  }
+
+  const phoneInText = /(?:\+?\d[\d\s().-]{8,}\d)/.test(text);
+  const hasPhone = Boolean(parsed.contact?.phone);
+  if (phoneInText && !hasPhone) {
+    warnings.push('A phone number appears in the resume but was not captured in contact.');
+  }
+
+  const hasName = Boolean(parsed.contact?.fullName && parsed.contact.fullName.trim().length >= 2);
+  if (!hasName) warnings.push('Full name was not detected from the resume header.');
+
+  const rawDateRanges = countDateRanges(text);
+  if (experience.length === 0 && rawDateRanges >= 1) {
+    warnings.push(`Resume appears to contain ${rawDateRanges} dated role(s) but no experience entries were extracted.`);
+  } else if (experience.length > 0 && rawDateRanges >= experience.length + 2) {
+    warnings.push(`Resume has ~${rawDateRanges} date ranges but only ${experience.length} experience entr${experience.length === 1 ? 'y' : 'ies'} were extracted — some roles may be missing.`);
+  }
+
+  for (const entry of experience) {
+    const role = String(entry.role || '').trim();
+    const company = String(entry.company || '').trim();
+    if (!role && !company) {
+      warnings.push('An experience entry has neither a role nor a company.');
+      continue;
+    }
+    if (role && !/[A-Za-z]{2,}/.test(role)) warnings.push(`An experience role looks malformed: "${role}".`);
+    if (/^[:\s(]*(soft|technical|key|core)\s+skills?\b/i.test(company) || /^projects?\b/i.test(company)) {
+      warnings.push(`A section heading leaked into a company name: "${company}".`);
+    }
+  }
+
+  const hasDegreeInText = /\b(bachelor|master|b\.?e\.?|b\.?tech|b\.?sc|b\.?a\.?|b\.?com|m\.?tech|m\.?sc|m\.?a\.?|mba|mca|bca|ph\.?d|doctorate)\b/i.test(text);
+  if (hasDegreeInText && education.length === 0) {
+    warnings.push('A degree appears in the resume but no education entry was extracted.');
+  }
+
+  if (/\b(technical skills|key skills|core skills|^skills|\nskills)\b/i.test(text) && skills.length === 0) {
+    warnings.push('A skills section appears in the resume but no skills were extracted.');
+  }
+
+  return {
+    ok: warnings.length === 0,
+    warnings,
+    stats: {
+      rawDateRanges,
+      experienceCount: experience.length,
+      educationCount: education.length,
+      skillCount: skills.length,
+      hasEmail,
+      hasPhone,
+      hasName,
+    },
+  };
+}
 
 export function finalizeExperience(input: {
   experience: ExperienceExtractionEntry[];
@@ -1822,14 +1934,18 @@ function repairTwoColumnPdfText(text: string): string {
 
   // --- Strong sidebar signal -------------------------------------------------
   // (a) Standalone "SOFT SKILLS" / "TECHNICAL SKILLS" / "KEY SKILLS" /
-  //     "CORE SKILLS" / "COMPETENCIES" line in the first 12 non-empty lines.
-  //     Single-column resumes that mention these labels do so on a line that
-  //     also carries content ("Soft Skills: Communication, …") — never on a
-  //     line by itself.
+  //     "CORE SKILLS" / "COMPETENCIES" line among the FIRST 2 non-empty lines.
+  //     The genuine two-column interleave we repair here reads the sidebar
+  //     column first, so the skills heading lands *before the name* (e.g.
+  //     "SOFT SKILLS\n\nTECHNICAL SKILLS\nChandan Kumar…"). A normal
+  //     single-column resume puts its name first and the TECHNICAL SKILLS
+  //     heading further down (line 5–10); restricting to the first 2
+  //     non-empty lines stops this destructive reorder from false-firing on
+  //     those (Muskan Gupta's resume regressed exactly this way).
   let standaloneSkillHeading = false;
   {
     let nonEmpty = 0;
-    for (let i = 0; i < lines.length && nonEmpty < 12; i += 1) {
+    for (let i = 0; i < lines.length && nonEmpty < 2; i += 1) {
       const t = lines[i].trim();
       if (!t) continue;
       nonEmpty += 1;
@@ -1840,15 +1956,20 @@ function repairTwoColumnPdfText(text: string): string {
     }
   }
   // (b) A run of ≥ 5 consecutive single-token title-case lines (the classic
-  //     vertical skills sidebar: "ReactJS / Python / Redux / Node.js / SQL").
+  //     vertical skills sidebar: "ReactJS / Python / Redux / Node.js / SQL")
+  //     that BEGINS within the first 6 non-empty lines — i.e. the sidebar
+  //     column rendered first. A vertical skills list further down a normal
+  //     single-column resume must not trigger the reorder.
   let consecutiveSkillTokens = 0;
   let hasSkillTokenBurst = false;
+  let nonEmptySeen = 0;
   for (const line of lines) {
     const t = line.trim();
     if (!t) {
       consecutiveSkillTokens = 0;
       continue;
     }
+    nonEmptySeen += 1;
     // 1–3 word, ≤ 24 char, title-case-y line with no end-punctuation, no
     // sentence-shape (commas/periods), no digits and no dash separators.
     const words = t.split(/\s+/);
@@ -1858,7 +1979,7 @@ function repairTwoColumnPdfText(text: string): string {
       && /^[A-Z]/.test(t);
     if (isSkillToken) {
       consecutiveSkillTokens += 1;
-      if (consecutiveSkillTokens >= 5) { hasSkillTokenBurst = true; break; }
+      if (consecutiveSkillTokens >= 5 && nonEmptySeen <= 10) { hasSkillTokenBurst = true; break; }
     } else {
       consecutiveSkillTokens = 0;
     }
@@ -2578,6 +2699,14 @@ function restructureResumeText(text: string): string {
 function mergeFragmentedLines(text: string): string {
   const ROLE_KEYWORD_RE = /^(?:Vice\s+President|President|Director|Manager|Engineer|Developer|Consultant|Analyst|Architect|Specialist|Executive|Officer|Coordinator|Administrator|Trainee|Intern)\b/i;
   const ROLE_PREFIX_RE = /^(?:Senior|Junior|Lead|Associate|Principal|Staff|Chief|Assistant|Systems?|Technical\s+Support\s*\/?\s*)(?:\s+\S+)?$/i;
+  // Leading fragment of a wrapped job title: 1–3 title-case words whose first
+  // word is a common role-leading word. The trailing words must also be
+  // title-case so prose fragments don't qualify.
+  const ROLE_LEAD_FRAGMENT_RE = /^(?:Senior|Sr\.?|Junior|Jr\.?|Lead|Associate|Principal|Staff|Chief|Assistant|Asst\.?|Systems?|Software|Hardware|Graduate|Data|Cloud|DevOps|Full|Frontend|Front|Backend|Back|Site|Solutions?|Solution|Technical|Product|Project|Program|Web|Mobile|Quality|Research|Application|Platform|Network|Security|Database|Business|Machine|Information)(?:\s+[A-Z][A-Za-z./&-]*){0,2}$/;
+  // The continuation line must START with a role noun (it may carry a level,
+  // "- Company", ", Company" or dates after it — anything goes once the noun
+  // anchors the start).
+  const NEXT_ROLE_NOUN_RE = /^(?:Vice\s+President|President|Director|Manager|Engineer|Developer|Consultant|Analyst|Architect|Specialist|Executive|Officer|Coordinator|Administrator|Trainee|Intern|Scientist|Designer|Programmer|Tester|Lead|Administrator)\b/i;
   const KNOWN_MULTI_WORD_HEADINGS: Record<string, string> = {
     'professional': 'EXPERIENCE',
     'work': 'EXPERIENCE',
@@ -2628,23 +2757,35 @@ function mergeFragmentedLines(text: string): string {
     }
 
     // --- Rule 2: Merge split role titles ---
-    // Pattern: short line that looks like a role prefix, followed by a line
-    // with a role keyword and optional trailing dash/date
-    // e.g. "Assistant" + "Vice President -" → "Assistant Vice President -"
-    //      "Senior Technology" + "Consultant -" → "Senior Technology Consultant -"
-    //      "Lead UI" + "Developer-" → "Lead UI Developer-"
-    //      "Senior Software" + "Developer -" → "Senior Software Developer -"
-    if (line.length <= 30 && !line.startsWith('-') && ROLE_PREFIX_RE.test(line)) {
+    // pdf-parse frequently breaks a wrapped job-title line into two text
+    // lines: a short leading fragment, then a line that begins with the role
+    // noun (often carrying the "- Company" / ", Company" / dates on the same
+    // line). Merge them so the experience parser sees one header.
+    //   "Assistant" + "Vice President -"        → "Assistant Vice President -"
+    //   "Senior Technology" + "Consultant -"    → "Senior Technology Consultant -"
+    //   "Software" + "Engineer I - Klearnow.ai" → "Software Engineer I - Klearnow.ai"
+    //   "Graduate" + "Analyst - Barclays"        → "Graduate Analyst - Barclays"
+    //   "Software" + "Engineer, Bajaj Finserv"   → "Software Engineer, Bajaj Finserv"
+    //
+    // Guards: the leading fragment must be a short (≤ 28 char) run of 1–3
+    // title-case role-leading words with no trailing punctuation and no year,
+    // and the next line must START with a role noun. Both halves being role
+    // pieces is what makes the merge safe — a bare company name on its own
+    // line won't match the leading-word set.
+    if (
+      line.length <= 28 &&
+      !line.startsWith('-') &&
+      !/[,.;:]$/.test(line) &&
+      !/\b(?:19|20)\d{2}\b/.test(line) &&
+      (ROLE_PREFIX_RE.test(line) || ROLE_LEAD_FRAGMENT_RE.test(line))
+    ) {
       // Look ahead (skip empty lines)
       let nextIdx = i + 1;
       while (nextIdx < lines.length && !lines[nextIdx].trim()) nextIdx++;
       if (nextIdx < lines.length) {
         const nextLine = lines[nextIdx].trim();
-        // Check if next line starts with a role keyword (possibly with trailing " -" or "-")
-        const rolePartMatch = nextLine.match(/^((?:Vice\s+President|President|Director|Manager|Engineer|Developer|Consultant|Analyst|Architect|Specialist|Executive|Officer|Coordinator|Administrator|Trainee|Intern)(?:\s*\([^)]*\))?)\s*(-.*)?$/i);
-        if (rolePartMatch) {
-          const mergedRole = `${line} ${nextLine}`;
-          merged.push(mergedRole);
+        if (NEXT_ROLE_NOUN_RE.test(nextLine)) {
+          merged.push(`${line} ${nextLine}`);
           i = nextIdx + 1;
           continue;
         }
