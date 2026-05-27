@@ -94,8 +94,25 @@ export default function TemplateSelectionView({
   const requestedTemplate = resolveTemplateId(templateQuery, 'classic');
   // ?print=1 flag is set when the user clicked "Print preview" in the
   // editor. We auto-open the browser print dialog once the resume has
-  // rendered so they don't have to hunt for a button on this page.
+  // rendered so they don't have to hunt for a button on this page —
+  // BUT only for paid users.  Free users get a watermarked, read-only
+  // preview with the OS print dialog blocked (see useEffect below).
   const printRequested = searchParams.get('print') === '1';
+  // Plan gate for printing.  Free users can VIEW the watermarked
+  // preview but cannot print; STUDENT / PRO get clean output + the
+  // auto-print dialog.  We start `null` (= unknown) so the print
+  // effect waits for hydration instead of racing it and treating
+  // every user as FREE on the first render.
+  const [isPaidUser, setIsPaidUser] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const plan = (window.localStorage.getItem('rb_plan') || 'FREE').toUpperCase();
+      setIsPaidUser(plan === 'STUDENT' || plan === 'PRO');
+    } catch {
+      setIsPaidUser(false);
+    }
+  }, []);
   const [resumeData, setResumeData] = useState<Resume | null>(null);
   const [resumeDraft, setResumeDraft] = useState<ResumeDraft | null>(null);
   const [loading, setLoading] = useState(Boolean(resumeId));
@@ -290,11 +307,19 @@ export default function TemplateSelectionView({
   // show — without this gate the dialog opens before
   // ActiveTemplateComponent has finished rendering and the user
   // gets blank pages, which is exactly the bug reported.
+  //
+  // We also wait for plan hydration (isPaidUser !== null) so the
+  // free-tier watermark overlay is committed to the DOM BEFORE the
+  // print dialog snapshots the page — otherwise a free user could
+  // race the localStorage read and capture a clean, un-watermarked
+  // copy. Printing itself is allowed for everyone; free output simply
+  // carries the watermark, which nudges users to the paid Download.
   const hasPrintedRef = useRef(false);
   useEffect(() => {
     if (!printRequested) return;
     if (hasPrintedRef.current) return;
     if (!previewReady) return;
+    if (isPaidUser === null) return; // wait for plan hydration
     hasPrintedRef.current = true;
     // Two RAFs: one to flush React commit, one to flush layout. Without
     // this the print dialog often races the browser's first paint and
@@ -304,7 +329,7 @@ export default function TemplateSelectionView({
         try { window.print(); } catch { /* user-cancelled is fine */ }
       });
     });
-  }, [printRequested, previewReady]);
+  }, [printRequested, previewReady, isPaidUser]);
   if (!resumeId && !loading) {
     return (
       <main className="grid">
@@ -322,9 +347,51 @@ export default function TemplateSelectionView({
   // because the browser's print preview still captured the off-screen
   // catalog column on some platforms. Hard-removing it from the DOM is
   // both faster and reliable across browsers.
+  //
+  // Plan-driven watermark:
+  //   • free → a fixed POCKET RESUME overlay sits over the preview and
+  //            (because position: fixed repaints per page in Chrome's
+  //            print path) over every printed / Saved-as-PDF sheet. The
+  //            clean, watermark-free copy comes only from the paid
+  //            Download flow.
+  //   • paid → no watermark, clean printable layout.
+  // While plan is still hydrating we treat the user as free defensively
+  // so a race never lets a free user grab a clean copy before the
+  // effect has finished reading localStorage.
   if (printRequested) {
+    const planAttr: 'paid' | 'free' = isPaidUser === true ? 'paid' : 'free';
+    const showFreeBanner = isPaidUser === false;
+    const cleanDownloadHref = resumeId
+      ? `/resume/template?resumeId=${encodeURIComponent(resumeId)}&template=${encodeURIComponent(selectedTemplate)}`
+      : '/resume/template';
     return (
-      <main className="template-print-shell" data-print-mode="1">
+      <main className="template-print-shell" data-print-mode="1" data-plan={planAttr}>
+        {/* Watermark overlay for free users. position: fixed so Chrome
+            repaints it on EVERY printed page (a pseudo-element on the
+            multi-page .template-print-page only covers page 1). Rendered
+            while plan is still hydrating too (planAttr defaults to
+            "free") so the dialog can never snapshot a clean copy. */}
+        {planAttr === 'free' && (
+          <div className="template-print-watermark" aria-hidden="true" />
+        )}
+        {showFreeBanner && (
+          <aside className="template-print-upgrade-banner" role="status" aria-live="polite">
+            <div className="template-print-upgrade-banner__title">Free preview — watermarked</div>
+            <p className="template-print-upgrade-banner__body">
+              Printing or saving this page produces a watermarked copy. Use Download for a
+              clean, ATS-ready PDF without the watermark.
+            </p>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => {
+                if (typeof window !== 'undefined') window.location.href = cleanDownloadHref;
+              }}
+            >
+              Download clean copy
+            </button>
+          </aside>
+        )}
         {previewResume ? (
           <div
             className="template-print-page"

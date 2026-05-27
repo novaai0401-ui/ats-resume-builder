@@ -3745,16 +3745,22 @@ export default function ResumeEditor() {
                     className="btn secondary"
                     onClick={() => {
                       // Print preview is a free read-only experience that
-                      // shows a watermarked view of the resume. The editor
-                      // page itself doesn't render a full-page preview —
-                      // it's a form, not a canvas — so window.print() here
-                      // produces the empty pages users reported.
+                      // shows a watermarked view of the resume.  The
+                      // editor page itself doesn't render a full-page
+                      // preview — it's a form, not a canvas — so
+                      // window.print() here produces the empty pages
+                      // users reported.
                       //
-                      // Route to the template page (which DOES render the
-                      // resume in the chosen layout, with the watermark
-                      // CSS already applied) and pass `?print=1` so that
-                      // page auto-opens the print dialog after first
-                      // render. Free, watermarked, predictable output.
+                      // Route to the template page (which DOES render
+                      // the resume in the chosen layout) and pass
+                      // `?print=1`.  That page reads `rb_plan` from
+                      // localStorage: paid users (STUDENT / PRO) get a
+                      // clean view and clean print/PDF output; free
+                      // users get a diagonal POCKET RESUME watermark on
+                      // both the preview AND the printed / Saved-as-PDF
+                      // output (a fixed overlay Chrome repaints on every
+                      // page), plus a nudge banner pointing to the paid
+                      // Download for a clean copy.
                       if (!resumeId) {
                         showSnackbar('error', 'Save the resume first to preview it.');
                         return;

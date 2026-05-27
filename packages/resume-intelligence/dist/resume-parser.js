@@ -57,6 +57,11 @@ function normalizeText(text) {
         .replace(/[\u2013\u2014]/g, '-')
         .replace(/â€¢|â—¦|â–ª|â—/g, '- ')
         .replace(/[\u2022\u25e6\u25aa\u25cf\u00b7]/g, '- ')
+        // Check-mark / arrow bullet markers (\u2713 \u2714 \u2705 \u27a4 \u25b8 \u25b9 \u2023 \u2043 \u25ba) \u2192 "- " so
+        // downstream bullet detection and highlight attachment work. Some ATS
+        // templates (e.g. Angular-dev resumes) use \u2713 as the bullet character,
+        // which previously leaked into the highlight text as a literal glyph.
+        .replace(/[\u2713\u2714\u2705\u27a4\u25b8\u25b9\u2023\u2043\u25ba]/g, '- ')
         .replace(/\r/g, '')
         // Convert any single tab to a space so "Company\tDate" becomes a normal
         // separator. PDF extractors and docx readers leak tab-separated columns

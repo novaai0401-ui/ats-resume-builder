@@ -467,6 +467,28 @@ function mapExperience(parsed: ParsedResumeText) {
       continue;
     }
 
+    // "Project: <name> | <client>" lines are project sub-headings inside a job
+    // entry, not company/role headers. Without this guard the "<client>" half
+    // (e.g. "AT&T Inc.") gets mis-detected as the company and overwrites the
+    // real one. Keep the line as a highlight so the project context survives.
+    if (/^Projects?\s*[-:]/i.test(normalizedLine)) {
+      if (current) current.highlights.push(normalizedLine);
+      continue;
+    }
+
+    // "Role - <functional role> <location>" / "Role: <functional role>" lines
+    // restate the role and append a location; they are NOT a new job header.
+    // Treat as the role for the current entry when it lacks one, otherwise
+    // skip so they don't spawn a phantom "Role - …" company entry.
+    const roleLabelMatch = normalizedLine.match(/^Role\s*[-:]\s*(.+)$/i);
+    if (roleLabelMatch) {
+      if (current && !current.role) {
+        const roleText = cleanLooseText(roleLabelMatch[1].replace(/\s{2,}.*$/, ''));
+        if (roleText && looksLikeRole(roleText)) current.role = roleText;
+      }
+      continue;
+    }
+
     // Skip skill subsection labels (“Soft Skills:”, “Technical Skills - ...”) — these can
     // bleed into experience source when PDF section detection is partial and otherwise
     // get mis-classified as company names because of their title-case shape.
@@ -506,11 +528,13 @@ function mapExperience(parsed: ParsedResumeText) {
     // portion after dates have been stripped — otherwise the date range itself
     // (e.g. "Jan 2022 - Present") would suppress every legitimate Role+Date line.
     if (isDateLine(normalizedLine) && !isStandaloneDateLine(normalizedLine) &&
-      !/@|\sat\s|\s\|\s/i.test(normalizedLine)) {
+      !/@|\sat\s|\|/i.test(normalizedLine)) {
       const strippedRole = cleanLooseText(stripDates(normalizedLine));
       // If the stripped role still contains a delimiter, the line is really
       // "Role - Company - Date" or similar; let parseExperienceHeader handle it.
-      const hasInnerSeparator = /\s-\s|\s—\s|\s–\s|\s\|\s|@|\sat\s/i.test(strippedRole);
+      // A bare "|" (even without surrounding spaces) is a company/role
+      // separator, so treat it as an inner separator too.
+      const hasInnerSeparator = /\s-\s|\s—\s|\s–\s|\||@|\sat\s/i.test(strippedRole);
       if (!hasInnerSeparator && strippedRole && looksLikeRole(strippedRole) && looksLikeRoleTitle(strippedRole) &&
         !looksLikeCompany(strippedRole) && !looksLikeEducationRoleLine(strippedRole) &&
         strippedRole.split(/\s+/).length <= 6) {
@@ -661,6 +685,33 @@ function mapExperience(parsed: ParsedResumeText) {
   return blocks;
 }
 
+/**
+ * Split a single-line education entry of the shape
+ *   "M.Tech. (Intelligent Systems and Analytics) - MIT-ADT University, Pune"
+ *   "B.Tech. (IT) - Walchand College of Engineering"
+ * into { degree, institution }. Returns null when the line is just a degree
+ * (institution on its own separate line) so the normal flow is unaffected —
+ * the right-hand side must carry an explicit institution keyword to qualify.
+ */
+function splitDegreeInstitution(degreeLine: string): { degree: string; institution: string } | null {
+  const stripped = cleanLooseText(stripDates(degreeLine));
+  if (!stripped) return null;
+  for (const sep of [' - ', ' – ', ' — ', ' | ', ' at ', ', ']) {
+    const idx = stripped.indexOf(sep);
+    if (idx <= 0) continue;
+    const left = cleanLooseText(stripped.slice(0, idx));
+    const right = cleanLooseText(stripped.slice(idx + sep.length));
+    if (
+      left && right &&
+      looksLikeEducationDegreeLine(left) &&
+      /\b(university|college|school|institute|academy|polytechnic|conservatory)\b/i.test(right)
+    ) {
+      return { degree: left, institution: right };
+    }
+  }
+  return null;
+}
+
 function mapEducation(sections: Record<string, string[]>) {
   let lines = [
     ...(sections.education || []),
@@ -678,15 +729,24 @@ function mapEducation(sections: Record<string, string[]>) {
       ...(sections.hobbies || []),
       ...(sections.unmapped || []),
       ...(sections.projects || []),
+      // Scrambled multi-column PDFs (clustered headings) can dump the degree /
+      // institution lines into CERTIFICATIONS. Scanned last so genuine
+      // education locations win first.
+      ...(sections.certifications || []),
     ];
     const recovered: string[] = [];
+    // A professional certificate often contains a degree-shaped token
+    // ("Azure Developer Associate"); never mistake one for a degree here.
+    const CERT_KEYWORD_RE = /\b(certified|certificate|certification|azure|aws|gcp|google\s+cloud|oracle|cisco|comptia|pmp|kubernetes|terraform|scrum\s+master)\b/i;
     for (let i = 0; i < fallbackSources.length; i += 1) {
       const line = fallbackSources[i];
+      if (CERT_KEYWORD_RE.test(line)) continue;
       if (!looksLikeEducationDegreeLine(line)) continue;
       // Pull this degree line plus up to 3 neighbours that look like
       // institution / date lines.
       recovered.push(line);
-      for (let j = i + 1; j < Math.min(fallbackSources.length, i + 4); j += 1) {
+      let j = i + 1;
+      for (; j < Math.min(fallbackSources.length, i + 4); j += 1) {
         const neighbour = fallbackSources[j];
         if (!neighbour) continue;
         if (looksLikeEducationDegreeLine(neighbour)) break;
@@ -694,7 +754,11 @@ function mapEducation(sections: Record<string, string[]>) {
           recovered.push(neighbour);
         }
       }
-      break;
+      // Continue scanning for further degree blocks (a resume can list several
+      // degrees — B.E. + Associate + High School — that all leaked into the
+      // same mis-assigned section). Resume the outer loop just before the next
+      // unconsumed line instead of stopping after the first block.
+      i = j - 1;
     }
     if (recovered.length) lines = [...lines, ...recovered];
   }
@@ -710,19 +774,23 @@ function mapEducation(sections: Record<string, string[]>) {
     if (looksLikeEducationDegreeLine(normalizedLine)) {
       skipSpillover = false;
       const dates = extractDates(normalizedLine);
+      // Split "Degree - Institution" / "Degree, Institution" when both sit on
+      // the same line (and strip the dates out of the degree text either way).
+      const split = splitDegreeInstitution(normalizedLine);
+      const degreeText = split ? split.degree : (cleanLooseText(stripDates(normalizedLine)) || normalizedLine);
       // If the current block has an institution but no degree yet, merge the
       // degree into the same block (common when institution appears on its own
       // line above the degree line).
       if (current && current.institution && !current.degree) {
-        current.degree = normalizedLine;
+        current.degree = degreeText;
         current.startDate = current.startDate || dates.start;
         current.endDate = current.endDate || dates.end;
         continue;
       }
       if (current && (current.institution || current.degree)) blocks.push(current);
       current = {
-        institution: '',
-        degree: normalizedLine,
+        institution: split ? split.institution : '',
+        degree: degreeText,
         startDate: dates.start,
         endDate: dates.end,
         details: [],
@@ -829,6 +897,31 @@ function mapCertifications(sections: Record<string, string[]>) {
     if (heading && heading !== 'certifications') break;
     const line = String(rawLine || '').replace(/^[-*•·]\s*/, '').trim();
     if (!line) continue;
+    // A scrambled multi-column PDF (clustered headings) can dump contact info,
+    // education and summary prose into the certifications section. Skip those
+    // so they don't surface as phantom certificates — the education lines are
+    // recovered separately by mapEducation's fallback scan.
+    if (/@/.test(line) || /\b\d{7,}\b/.test(line)) continue; // contact (email / phone)
+    if (/^(linkedin|github|portfolio|website|e-?mail|phone|mobile|contact|address)\b/i.test(line)) continue; // contact labels
+    if (isStandaloneDateLine(line)) continue;                // a bare date range is not a certificate
+    if (/^[a-z]/.test(line)) continue;                       // lowercase start → wrapped prose fragment, not a cert name
+    // Real degree lines (BE, B.Tech, Bachelor, Master, MBA, PhD…) — but NOT a
+    // certificate that merely contains "associate"/"diploma" (e.g.
+    // "Azure Developer Associate" must stay a certificate).
+    if (/\b(b\.?e\.?|b\.?tech|b\.?sc|b\.?a\.?|b\.?com|bba|bca|bachelor|m\.?e\.?|m\.?tech|m\.?sc|m\.?a\.?|m\.?com|mba|mca|master|ph\.?d|doctorate)\b/i.test(line)
+      && !/\b(certified|certificate|certification|course|training)\b/i.test(line)) continue;
+    if (/\b(university|college|institute|cgpa|gpa)\b/i.test(line)
+      && !/\b(certified|certificate|certification|course|training)\b/i.test(line)) continue;
+    {
+      // Sentence-style summary prose (many words, no credential keyword) is not
+      // a certificate. Credential keywords keep real multi-word certs.
+      const probe = line.replace(/[()]/g, '').replace(/\b(20\d{2}|19\d{2})\b/g, '').trim();
+      const wordCount = probe.split(/\s+/).filter(Boolean).length;
+      if (wordCount > 10
+        && !/\b(certified|certificate|certification|course|training|nanodegree|associate|professional|expert|specialist|fundamentals|practitioner|bootcamp|scrum|master|developer|architect|administrator|foundation)\b/i.test(probe)) {
+        continue;
+      }
+    }
     // Two-column ATS templates sometimes emit the certification name+year on
     // one line and the issuer ("Microsoft", "Amazon", "Google") on the next.
     // Merge a stand-alone single-token title-cased line into the previous
@@ -867,8 +960,8 @@ function mapCertifications(sections: Record<string, string[]>) {
     const cleaned = nameRaw
       .replace(/[()]/g, '')
       .replace(/\b(20\d{2}|19\d{2})\b/g, '')
-      .replace(/\s*[-–—|,]\s*$/g, '')
-      .replace(/^\s*[-–—|,]\s*/g, '')
+      .replace(/\s*[-–—|,:]\s*$/g, '')
+      .replace(/^\s*[-–—|,:]\s*/g, '')
       .replace(/\s{2,}/g, ' ')
       .trim();
     if (!cleaned) continue;
@@ -1238,6 +1331,102 @@ function collectLikelyExperienceLines(lines: string[]) {
   return output;
 }
 
+/**
+ * Surgically recover experience entries from lines that were mis-assigned to
+ * other sections because a multi-column PDF clustered the section headings
+ * together (leaving the real WORK EXPERIENCE section empty).
+ *
+ * Unlike collectLikelyExperienceLines (which greedily grabs every role/company/
+ * bullet-shaped line and would vacuum up education, awards and summary prose),
+ * this only emits a job header — a role/company line that is adjacent to a date
+ * range — plus the date line and any bullets that immediately follow it. That
+ * keeps the recovery precise instead of dumping the whole mis-assigned section
+ * into experience.
+ */
+function recoverClusteredExperienceBlocks(lines: string[]): string[] {
+  const CERT_NOUN_RE = /\b(certificate|certification|certified|award|license|licensed|diploma|accreditation|nanodegree)\b/i;
+  const isHeaderLine = (raw: string) => {
+    const stripped = cleanLooseText(stripDates(raw));
+    if (!stripped || stripped.length < 4) return false;
+    if (CERT_NOUN_RE.test(stripped)) return false;
+    if (looksLikeEducationRoleLine(stripped) || looksLikeEducationDegreeLine(stripped)) return false;
+    if (parseRoleCompanyPair(stripped)) return true;
+    return looksLikeRole(stripped) && looksLikeRoleTitle(stripped);
+  };
+  // When walking backward to gather a role's preceding bullets, STOP only at a
+  // hard boundary — a date, an education degree/institution line, a contact
+  // line, or a section heading. We deliberately do NOT stop on header-shaped
+  // sentences here: a long bullet like "Automated … using Azure DevOps,
+  // Jenkins" pattern-matches as role+company and would otherwise truncate the
+  // bullet run. Backward collection only runs for the single mis-clustered job
+  // (no bullets followed its header), so over-collection isn't a concern.
+  const stopsBackwardScan = (raw: string) => {
+    const t = cleanLooseText(raw);
+    if (!t || t.length < 10) return true;
+    if (isDateLine(t)) return true;
+    if (CERT_NOUN_RE.test(t)) return true;
+    if (looksLikeEducationDegreeLine(t) || looksLikeEducationInstitutionLine(t)) return true;
+    if (/@|\b\d{7,}\b/.test(t)) return true; // contact
+    if (normalizeHeading(t)) return true;    // section heading
+    return false;
+  };
+  const out: string[] = [];
+  const usedDate = new Set<number>();
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = cleanLooseText(lines[i]);
+    if (!line || !isHeaderLine(line)) continue;
+    // Require a date range on the header itself or within the next two lines.
+    let dateIdx = isDateLine(line) ? i : -1;
+    if (dateIdx < 0) {
+      for (let j = i + 1; j <= Math.min(i + 2, lines.length - 1); j += 1) {
+        if (isStandaloneDateLine(cleanLooseText(lines[j]))) { dateIdx = j; break; }
+      }
+    }
+    if (dateIdx < 0) continue;
+    out.push(line);
+    if (dateIdx !== i && !usedDate.has(dateIdx)) {
+      out.push(cleanLooseText(lines[dateIdx]));
+      usedDate.add(dateIdx);
+    }
+    // Pull bullets that immediately follow the header/date block; stop at the
+    // first non-bullet line so prose never leaks in.
+    let forwardCount = 0;
+    for (let k = Math.max(i, dateIdx) + 1; k < lines.length; k += 1) {
+      if (!cleanLooseText(lines[k])) break;
+      if (!extractBulletLine(lines[k]) && !/^\s*[-*•·]/.test(lines[k])) break;
+      out.push(lines[k]);
+      forwardCount += 1;
+    }
+    // Scrambled layouts (clustered headings) sometimes place the role's bullets
+    // BEFORE its header. When nothing followed the header, walk backward over
+    // the contiguous run of description lines that precede it and emit them as
+    // highlights (after the header) so the role isn't left with no detail.
+    if (forwardCount === 0) {
+      const backward: string[] = [];
+      for (let b = i - 1; b >= 0 && backward.length < 30; b -= 1) {
+        if (stopsBackwardScan(lines[b])) break;
+        backward.push(cleanLooseText(lines[b]));
+      }
+      backward.reverse();
+      // Merge PDF-wrapped sentence fragments into logical bullets, then emit
+      // each as a "- " bullet. Emitting raw sentences would let the experience
+      // mapper re-parse a line like "… using Azure DevOps, Jenkins" as a brand
+      // new job header and split the run; a "- " prefix forces bullet handling.
+      const bullets: string[] = [];
+      for (const dl of backward) {
+        if (!dl) continue;
+        if (bullets.length && shouldMergeWrappedLine(bullets[bullets.length - 1], dl)) {
+          bullets[bullets.length - 1] = `${bullets[bullets.length - 1]} ${dl}`;
+        } else {
+          bullets.push(dl);
+        }
+      }
+      for (const b of bullets) out.push(`- ${b}`);
+    }
+  }
+  return out;
+}
+
 function buildExperienceSource(parsed: ParsedResumeText) {
   const sectionLines = [
     ...(parsed.sections.experience || []),
@@ -1245,54 +1434,54 @@ function buildExperienceSource(parsed: ParsedResumeText) {
     ...(parsed.sections.work || []),
     ...(parsed.sections.career || []),
   ];
+  // Detect experience content that leaked into other sections (e.g. EDUCATION
+  // after a page break, or — when section headings are clustered together at
+  // the top by a multi-column PDF — the whole experience block landing under
+  // the wrong heading). Collected once so it can recover experience both when
+  // the experience section has lines AND when it is empty.
+  const skipSpillover = new Set(['skills', 'summary', 'profile', 'objective']);
+  const otherSections = Object.entries(parsed.sections)
+    .filter(([key]) => !['experience', 'employment', 'work', 'career', 'unmapped'].includes(key))
+    .filter(([key]) => !skipSpillover.has(key));
+  const otherLines = otherSections.flatMap(([, lines]) => lines);
+  // A spillover-shaped section must contain either (a) at least two role-title
+  // lines, or (b) a role line adjacent to a date range. Otherwise legitimate
+  // sections (CERTIFICATIONS with "TensorFlow Developer Certificate (2022)")
+  // would trigger spillover and pollute experience.
+  const CERT_NOUN_RE = /\b(certificate|certification|certified|award|license|licensed|diploma|accreditation|nanodegree)\b/i;
+  const isRoleishLine = (l: string) => {
+    const stripped = cleanLooseText(stripDates(l));
+    if (!stripped) return false;
+    if (CERT_NOUN_RE.test(stripped)) return false;
+    return looksLikeRole(stripped) && looksLikeRoleTitle(stripped) && !looksLikeEducationRoleLine(stripped);
+  };
+  const roleishLines = otherLines.filter(isRoleishLine);
+  let roleAdjacentToDate = false;
+  for (let i = 0; i < otherLines.length; i += 1) {
+    if (!isRoleishLine(otherLines[i])) continue;
+    if (isDateLine(otherLines[i])) { roleAdjacentToDate = true; break; }
+    for (let j = i + 1; j <= Math.min(i + 3, otherLines.length - 1); j += 1) {
+      if (isDateLine(otherLines[j])) { roleAdjacentToDate = true; break; }
+    }
+    if (roleAdjacentToDate) break;
+  }
+  const hasRoleCompany = roleishLines.length >= 2 || roleAdjacentToDate;
+  const spillover = hasRoleCompany ? collectLikelyExperienceLines(otherLines) : [];
+
   // Prefer section-parsed lines when available — the tail approach leaks
   // education/certification content into the experience mapper.
   if (sectionLines.length) {
-    // Also collect experience-like lines from other sections (e.g. education)
-    // that may contain experience entries due to PDF page breaks — but only
-    // if those sections contain clear role+company patterns.
-    const skipSpillover = new Set(['skills', 'summary', 'profile', 'objective']);
-    const otherSections = Object.entries(parsed.sections)
-      .filter(([key]) => !['experience', 'employment', 'work', 'career', 'unmapped'].includes(key))
-      .filter(([key]) => !skipSpillover.has(key));
-    const otherLines = otherSections.flatMap(([, lines]) => lines);
-    // Detect a spillover-shaped section: it must contain either (a) at least
-    // two role-title lines (typical for an experience block that leaked into
-    // EDUCATION after a page break), or (b) a single role-title line that
-    // also carries a date range and is not a certification / award name.
-    // Otherwise legitimate sections (CERTIFICATIONS with "TensorFlow
-    // Developer Certificate (2022)") would trigger spillover and pollute
-    // experience.
-    const CERT_NOUN_RE = /\b(certificate|certification|certified|award|license|licensed|diploma|accreditation|nanodegree)\b/i;
-    const isRoleishLine = (l: string) => {
-      const stripped = cleanLooseText(stripDates(l));
-      if (!stripped) return false;
-      if (CERT_NOUN_RE.test(stripped)) return false;
-      return looksLikeRole(stripped) && looksLikeRoleTitle(stripped) && !looksLikeEducationRoleLine(stripped);
-    };
-    const roleishLines = otherLines.filter(isRoleishLine);
-    // Either (a) ≥ 2 role-title lines in the section,
-    // or (b) one role-title line carrying a date range on the same line,
-    // or (c) one role-title line followed within 2 lines by a date-range
-    //     line — typical when a paginated PDF puts
-    //         "Associate Software Engineer\nApr 2014 - Jul 2017\nCompany"
-    //     after LANGUAGES.
-    let roleAdjacentToDate = false;
-    for (let i = 0; i < otherLines.length; i += 1) {
-      if (!isRoleishLine(otherLines[i])) continue;
-      if (isDateLine(otherLines[i])) { roleAdjacentToDate = true; break; }
-      for (let j = i + 1; j <= Math.min(i + 3, otherLines.length - 1); j += 1) {
-        if (isDateLine(otherLines[j])) { roleAdjacentToDate = true; break; }
-      }
-      if (roleAdjacentToDate) break;
-    }
-    const hasRoleCompany = roleishLines.length >= 2 || roleAdjacentToDate;
-    if (hasRoleCompany) {
-      const spillover = collectLikelyExperienceLines(otherLines);
-      if (spillover.length) return [...sectionLines, ...spillover];
-    }
+    if (spillover.length) return [...sectionLines, ...spillover];
     return sectionLines;
   }
+  // Experience section is EMPTY. A multi-column PDF can cluster every section
+  // heading together at the top ("SUMMARY\nWORK EXPERIENCE\nEDUCATION") so the
+  // experience body lands under a later heading. Surgically recover just the
+  // job header(s) — a role/company line adjacent to a date range — plus their
+  // trailing bullets, WITHOUT vacuuming up the surrounding education / award /
+  // summary prose that also lives in those mis-assigned sections.
+  const clustered = recoverClusteredExperienceBlocks(otherLines);
+  if (clustered.length) return clustered;
   const firstExperienceHeading = parsed.lines.findIndex((line) => normalizeHeading(line) === 'experience');
   if (firstExperienceHeading >= 0) {
     const tail = parsed.lines.slice(firstExperienceHeading + 1);
@@ -1491,7 +1680,7 @@ export function shouldMergeWrappedLine(prev: string, next: string): boolean {
   // 2. Long capitalised next → new bullet (false-negative is safe).
   if (n.length >= 30 && /^[A-Z]/.test(n)) return false;
   // 3. Connector or comma at end of prev → almost certainly a wrap.
-  if (/(?:^|\s)(and|or|but|of|with|to|for|in|on|the|a|an)$/i.test(p)) return true;
+  if (/(?:^|\s)(and|or|but|of|with|to|for|in|on|the|a|an|by|from|into|at)$/i.test(p)) return true;
   if (p.endsWith(',')) return true;
   // 4. Lowercase start on next → continuation of the previous sentence.
   if (/^[a-z]/.test(n)) return true;
@@ -1524,7 +1713,11 @@ function looksLikeLocationFragment(value: string) {
 }
 
 function splitRoleCompany(line: string) {
-  const normalized = cleanLooseText(line.replace(/\s{2,}/g, ' '));
+  // Normalize pipe spacing so a delimiter pipe is recognised regardless of
+  // surrounding whitespace. PDF extraction often drops the space on one side
+  // ("Infosys Limited |Senior System Engineer"), which previously defeated the
+  // " | " delimiter match and left the whole string mis-classified as the role.
+  const normalized = cleanLooseText(line.replace(/\s*\|\s*/g, ' | ').replace(/\s{2,}/g, ' '));
   if (!normalized) return { role: '', company: '' };
   if (normalized.includes('@')) {
     const parts = normalized.split('@');
