@@ -685,6 +685,33 @@ function mapExperience(parsed: ParsedResumeText) {
   return blocks;
 }
 
+/**
+ * Split a single-line education entry of the shape
+ *   "M.Tech. (Intelligent Systems and Analytics) - MIT-ADT University, Pune"
+ *   "B.Tech. (IT) - Walchand College of Engineering"
+ * into { degree, institution }. Returns null when the line is just a degree
+ * (institution on its own separate line) so the normal flow is unaffected —
+ * the right-hand side must carry an explicit institution keyword to qualify.
+ */
+function splitDegreeInstitution(degreeLine: string): { degree: string; institution: string } | null {
+  const stripped = cleanLooseText(stripDates(degreeLine));
+  if (!stripped) return null;
+  for (const sep of [' - ', ' – ', ' — ', ' | ', ' at ', ', ']) {
+    const idx = stripped.indexOf(sep);
+    if (idx <= 0) continue;
+    const left = cleanLooseText(stripped.slice(0, idx));
+    const right = cleanLooseText(stripped.slice(idx + sep.length));
+    if (
+      left && right &&
+      looksLikeEducationDegreeLine(left) &&
+      /\b(university|college|school|institute|academy|polytechnic|conservatory)\b/i.test(right)
+    ) {
+      return { degree: left, institution: right };
+    }
+  }
+  return null;
+}
+
 function mapEducation(sections: Record<string, string[]>) {
   let lines = [
     ...(sections.education || []),
@@ -747,19 +774,23 @@ function mapEducation(sections: Record<string, string[]>) {
     if (looksLikeEducationDegreeLine(normalizedLine)) {
       skipSpillover = false;
       const dates = extractDates(normalizedLine);
+      // Split "Degree - Institution" / "Degree, Institution" when both sit on
+      // the same line (and strip the dates out of the degree text either way).
+      const split = splitDegreeInstitution(normalizedLine);
+      const degreeText = split ? split.degree : (cleanLooseText(stripDates(normalizedLine)) || normalizedLine);
       // If the current block has an institution but no degree yet, merge the
       // degree into the same block (common when institution appears on its own
       // line above the degree line).
       if (current && current.institution && !current.degree) {
-        current.degree = normalizedLine;
+        current.degree = degreeText;
         current.startDate = current.startDate || dates.start;
         current.endDate = current.endDate || dates.end;
         continue;
       }
       if (current && (current.institution || current.degree)) blocks.push(current);
       current = {
-        institution: '',
-        degree: normalizedLine,
+        institution: split ? split.institution : '',
+        degree: degreeText,
         startDate: dates.start,
         endDate: dates.end,
         details: [],
@@ -1322,6 +1353,23 @@ function recoverClusteredExperienceBlocks(lines: string[]): string[] {
     if (parseRoleCompanyPair(stripped)) return true;
     return looksLikeRole(stripped) && looksLikeRoleTitle(stripped);
   };
+  // When walking backward to gather a role's preceding bullets, STOP only at a
+  // hard boundary — a date, an education degree/institution line, a contact
+  // line, or a section heading. We deliberately do NOT stop on header-shaped
+  // sentences here: a long bullet like "Automated … using Azure DevOps,
+  // Jenkins" pattern-matches as role+company and would otherwise truncate the
+  // bullet run. Backward collection only runs for the single mis-clustered job
+  // (no bullets followed its header), so over-collection isn't a concern.
+  const stopsBackwardScan = (raw: string) => {
+    const t = cleanLooseText(raw);
+    if (!t || t.length < 10) return true;
+    if (isDateLine(t)) return true;
+    if (CERT_NOUN_RE.test(t)) return true;
+    if (looksLikeEducationDegreeLine(t) || looksLikeEducationInstitutionLine(t)) return true;
+    if (/@|\b\d{7,}\b/.test(t)) return true; // contact
+    if (normalizeHeading(t)) return true;    // section heading
+    return false;
+  };
   const out: string[] = [];
   const usedDate = new Set<number>();
   for (let i = 0; i < lines.length; i += 1) {
@@ -1342,10 +1390,38 @@ function recoverClusteredExperienceBlocks(lines: string[]): string[] {
     }
     // Pull bullets that immediately follow the header/date block; stop at the
     // first non-bullet line so prose never leaks in.
+    let forwardCount = 0;
     for (let k = Math.max(i, dateIdx) + 1; k < lines.length; k += 1) {
       if (!cleanLooseText(lines[k])) break;
       if (!extractBulletLine(lines[k]) && !/^\s*[-*•·]/.test(lines[k])) break;
       out.push(lines[k]);
+      forwardCount += 1;
+    }
+    // Scrambled layouts (clustered headings) sometimes place the role's bullets
+    // BEFORE its header. When nothing followed the header, walk backward over
+    // the contiguous run of description lines that precede it and emit them as
+    // highlights (after the header) so the role isn't left with no detail.
+    if (forwardCount === 0) {
+      const backward: string[] = [];
+      for (let b = i - 1; b >= 0 && backward.length < 30; b -= 1) {
+        if (stopsBackwardScan(lines[b])) break;
+        backward.push(cleanLooseText(lines[b]));
+      }
+      backward.reverse();
+      // Merge PDF-wrapped sentence fragments into logical bullets, then emit
+      // each as a "- " bullet. Emitting raw sentences would let the experience
+      // mapper re-parse a line like "… using Azure DevOps, Jenkins" as a brand
+      // new job header and split the run; a "- " prefix forces bullet handling.
+      const bullets: string[] = [];
+      for (const dl of backward) {
+        if (!dl) continue;
+        if (bullets.length && shouldMergeWrappedLine(bullets[bullets.length - 1], dl)) {
+          bullets[bullets.length - 1] = `${bullets[bullets.length - 1]} ${dl}`;
+        } else {
+          bullets.push(dl);
+        }
+      }
+      for (const b of bullets) out.push(`- ${b}`);
     }
   }
   return out;
@@ -1604,7 +1680,7 @@ export function shouldMergeWrappedLine(prev: string, next: string): boolean {
   // 2. Long capitalised next → new bullet (false-negative is safe).
   if (n.length >= 30 && /^[A-Z]/.test(n)) return false;
   // 3. Connector or comma at end of prev → almost certainly a wrap.
-  if (/(?:^|\s)(and|or|but|of|with|to|for|in|on|the|a|an)$/i.test(p)) return true;
+  if (/(?:^|\s)(and|or|but|of|with|to|for|in|on|the|a|an|by|from|into|at)$/i.test(p)) return true;
   if (p.endsWith(',')) return true;
   // 4. Lowercase start on next → continuation of the previous sentence.
   if (/^[a-z]/.test(n)) return true;

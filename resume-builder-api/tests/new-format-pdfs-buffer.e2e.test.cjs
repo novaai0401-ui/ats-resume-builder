@@ -42,16 +42,53 @@ function fixture(name) {
   return path.resolve(__dirname, 'fixtures', name);
 }
 
-async function parse(file, originalname) {
+async function parse(file, originalname, mimetype = 'application/pdf') {
   const buffer = fs.readFileSync(file);
   const service = new ResumeService({});
   return service.parseResumeUpload({
     originalname,
-    mimetype: 'application/pdf',
+    mimetype,
     size: buffer.length,
     buffer,
   });
 }
+
+const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
+test('new-format: krishnat-degree-institution.docx — "Degree - Institution" lines split into separate fields', async (t) => {
+  const file = fixture('krishnat-degree-institution.docx');
+  if (!fs.existsSync(file)) { t.skip(`fixture missing: ${file}`); return; }
+  const result = await parse(file, 'krishnatmolawade_javatechlead.docx', DOCX_MIME);
+
+  assert.equal(result.parsed.contact?.fullName, 'Krishnat Molawade');
+
+  const edu = result.parsed.education || [];
+  assert.equal(edu.length, 2, `expected 2 education entries, got ${edu.length}: ${JSON.stringify(edu)}`);
+
+  // Every entry must have BOTH a non-empty degree AND institution — the bug was
+  // the whole "Degree - Institution dates" string landing in degree with an
+  // empty institution ("Institution is required" in the editor).
+  for (const e of edu) {
+    assert.ok((e.degree || '').trim().length >= 2, `degree empty: ${JSON.stringify(e)}`);
+    assert.ok((e.institution || '').trim().length >= 2, `institution empty (the reported bug): ${JSON.stringify(e)}`);
+    // The institution keyword must not be left stuck inside the degree field.
+    assert.ok(!/\b(university|college)\b/i.test(e.degree || ''),
+      `institution leaked into degree: "${e.degree}"`);
+    // Dates must not remain in the degree text.
+    assert.ok(!/\b(19|20)\d{2}\b/.test(e.degree || ''), `date left in degree: "${e.degree}"`);
+  }
+
+  const mtech = edu.find((e) => /m\.?tech/i.test(e.degree || ''));
+  assert.ok(mtech, 'M.Tech entry missing');
+  assert.match(mtech.institution || '', /mit-adt university/i, `M.Tech institution wrong: "${mtech.institution}"`);
+
+  const btech = edu.find((e) => /b\.?tech/i.test(e.degree || ''));
+  assert.ok(btech, 'B.Tech entry missing');
+  assert.match(btech.institution || '', /walchand college/i, `B.Tech institution wrong: "${btech.institution}"`);
+
+  // Experience still intact (regression guard).
+  assert.equal((result.parsed.experience || []).length, 2);
+});
 
 test('new-format: nikhil-pipe-header.pdf — "Company |Role" headers split correctly, Project: lines are not companies', async (t) => {
   const file = fixture('nikhil-pipe-header.pdf');
@@ -121,6 +158,16 @@ test('new-format: chaitanya-clustered-headings.pdf — experience + education re
   assert.match(bajaj.role || '', /software engineer/i, `Bajaj role wrong: "${bajaj.role}"`);
   assert.match(bajaj.startDate || '', /2022/);
   assert.match(bajaj.endDate || '', /present/i);
+
+  // The work bullets sit BEFORE the header in this scrambled layout; they must
+  // still be recovered as highlights (the role was previously left empty).
+  assert.ok((bajaj.highlights || []).length >= 5,
+    `expected the role's bullets to be recovered, got ${(bajaj.highlights || []).length}: ${JSON.stringify(bajaj.highlights)}`);
+  assert.ok(bajaj.highlights.some((h) => /OTA delivery system/i.test(h)), 'first bullet (OTA) not recovered');
+  assert.ok(bajaj.highlights.some((h) => /Azure cloud resources/i.test(h)), 'last bullet not recovered');
+  // No bullet should be a split fragment ending in a dangling preposition.
+  assert.ok(!bajaj.highlights.some((h) => /\b(by|from|into|at)$/i.test(h.trim())),
+    `a bullet was left split on a trailing preposition: ${JSON.stringify(bajaj.highlights)}`);
 
   // Education is recovered from where the scramble dumped it.
   const edu = result.parsed.education || [];
