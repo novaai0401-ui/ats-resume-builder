@@ -176,7 +176,20 @@ function mapSummary(sections) {
         ...(sections.profile || []),
         ...(sections.objective || []),
     ];
-    const fallback = lines.length ? lines : (sections.unmapped || []).slice(0, 2);
+    // When the SUMMARY/PROFILE/OBJECTIVE heading exists but its body landed
+    // elsewhere (multi-column PDFs that cluster headings at the top leave the
+    // section empty), recover the professional-summary paragraph from wherever
+    // it leaked before falling back to the first unmapped lines — otherwise the
+    // fallback returns the name line as the "summary".
+    if (!lines.length) {
+        const recovered = recoverLeakedSummary(sections);
+        if (recovered)
+            return recovered;
+    }
+    const fallback = lines.length
+        ? lines
+        // Don't let the name / a contact line become the summary.
+        : (sections.unmapped || []).filter((l) => !isNameOrContactLine(l)).slice(0, 2);
     const raw = fallback
         .map((line) => line.replace(/^\s*[-•*·]\s*/, '').trim())
         .filter(Boolean)
@@ -189,6 +202,53 @@ function mapSummary(sections) {
     const truncated = raw.slice(0, 600);
     const lastSpace = truncated.lastIndexOf(' ');
     return lastSpace > 400 ? truncated.slice(0, lastSpace).trim() : truncated.trim();
+}
+/** A short line that is just the candidate's name or a contact line. */
+function isNameOrContactLine(line) {
+    const t = cleanLooseText(line);
+    if (!t)
+        return true;
+    if (/@|\b\d{7,}\b|linkedin|github|portfolio/i.test(t))
+        return true;
+    const words = t.split(/\s+/).filter(Boolean);
+    // 1–4 word ALL-CAPS or Title-Case line with no sentence punctuation → a name.
+    if (words.length <= 4 && !/[.;:]/.test(t) && /^[A-Z][A-Za-z.'-]*(\s+[A-Z][A-Za-z.'-]*)*$/.test(t))
+        return true;
+    return false;
+}
+/**
+ * Recover a professional-summary paragraph that was mis-filed into another
+ * section by a scrambled multi-column PDF. Conservative on purpose: it only
+ * fires when a line both opens like a summary AND carries an explicit
+ * experience signal ("X years of experience" / "experience in"), then gathers
+ * the contiguous prose that follows it.
+ */
+function recoverLeakedSummary(sections) {
+    const EXPERIENCE_SIGNAL = /\byears?\s+of\s+experience\b|\bexperience\s+in\b/i;
+    const SUMMARY_OPENER = /^(results?-driven|experienced|dedicated|accomplished|passionate|motivated|detail-oriented|highly|seasoned|proven|innovative|dynamic|self-motivated|skilled|professional|software|frontend|backend|full[- ]?stack|senior|lead|aspiring|technical)\b/i;
+    const skip = new Set(['skills', 'technical', 'core', 'technologies', 'languages', 'summary', 'profile', 'objective']);
+    for (const [key, vals] of Object.entries(sections)) {
+        if (skip.has(key) || !Array.isArray(vals))
+            continue;
+        for (let i = 0; i < vals.length; i += 1) {
+            const line = cleanLooseText(vals[i]);
+            if (!line || !EXPERIENCE_SIGNAL.test(line) || !SUMMARY_OPENER.test(line))
+                continue;
+            const para = [];
+            for (let j = i; j < vals.length && para.length < 12; j += 1) {
+                const l = cleanLooseText(vals[j]);
+                if (!l)
+                    break;
+                if (isDateLine(l) || (0, section_normalizer_js_1.normalizeHeading)(vals[j]) || /@|\b\d{7,}\b/.test(l)
+                    || extractBulletLine(vals[j]) || looksLikeEducationDegreeLine(l))
+                    break;
+                para.push(l);
+            }
+            if (para.length)
+                return para.join(' ').replace(/\s+/g, ' ').trim();
+        }
+    }
+    return '';
 }
 const HUMAN_LANGUAGES = new Set([
     'english', 'hindi', 'spanish', 'french', 'german', 'italian', 'portuguese',

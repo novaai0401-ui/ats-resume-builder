@@ -122,6 +122,30 @@ test('crossVerify: does NOT flag missing roles when extra date ranges belong to 
   assert.ok(v.stats.rawDateRanges >= 7, `expected ≥7 ranges, got ${v.stats.rawDateRanges}`);
 });
 
+test('crossVerify: flags a summary present in text but captured as the name', () => {
+  const text = 'CHAITANYA MUNJE\nSUMMARY\nResults-driven Software Engineer with approximately 3 years of experience in DevOps.';
+  const v = crossVerifyUpload(text, {
+    contact: { fullName: 'Chaitanya Munje', email: 'c@x.com', phone: '9284064503' },
+    experience: [{ role: 'Software Engineer', company: 'Bajaj Finserv' }],
+    education: [{ degree: 'BE' }],
+    skills: ['Angular'],
+    summary: 'Chaitanya Munje', // name mistaken for summary
+  });
+  assert.ok(v.warnings.some((w) => /professional summary.*not captured/i.test(w)), v.warnings.join(' | '));
+});
+
+test('crossVerify: does not flag summary when it is properly captured', () => {
+  const text = 'SUMMARY\nResults-driven engineer with 3 years of experience in DevOps automation.';
+  const v = crossVerifyUpload(text, {
+    contact: { fullName: 'Chaitanya Munje', email: 'c@x.com', phone: '9284064503' },
+    experience: [{ role: 'Software Engineer', company: 'Bajaj Finserv' }],
+    education: [{ degree: 'BE' }],
+    skills: ['Angular'],
+    summary: 'Results-driven Software Engineer with approximately 3 years of experience in DevOps automation and full-stack development.',
+  });
+  assert.ok(!v.warnings.some((w) => /professional summary/i.test(w)), `should not flag summary: ${v.warnings.join(' | ')}`);
+});
+
 test('crossVerify: clean parse reports ok=true with no warnings', () => {
   const text = [
     'Jane Roe',

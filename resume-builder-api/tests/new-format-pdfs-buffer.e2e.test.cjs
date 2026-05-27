@@ -151,6 +151,14 @@ test('new-format: chaitanya-clustered-headings.pdf — experience + education re
   assert.equal(result.parsed.contact?.fullName, 'Chaitanya Munje');
   assert.ok(/chaitanyamunje@gmail\.com/i.test(result.parsed.contact?.email || ''), 'email missing');
 
+  // Summary leaked into another section; it must be recovered as the real
+  // professional-summary paragraph, NOT the candidate's name.
+  const summary = String(result.parsed.summary || '');
+  assert.ok(!/^chaitanya munje$/i.test(summary.trim()), 'summary is the name, not the professional summary');
+  assert.match(summary, /results-driven/i, `summary not recovered: "${summary.slice(0, 60)}"`);
+  assert.match(summary, /years of experience/i, 'summary missing the experience sentence');
+  assert.ok(summary.length > 100, `summary too short: "${summary}"`);
+
   const exp = result.parsed.experience || [];
   assert.ok(exp.length >= 1, `expected ≥ 1 experience, got ${exp.length}`);
   const bajaj = exp.find((e) => /bajaj/i.test(e.company || ''));
