@@ -922,6 +922,7 @@ export function crossVerifyUpload(
     experience?: Array<{ role?: string; company?: string }>;
     education?: unknown[];
     skills?: unknown[];
+    summary?: string;
   },
 ): UploadVerification {
   const warnings: string[] = [];
@@ -929,6 +930,7 @@ export function crossVerifyUpload(
   const experience = parsed.experience || [];
   const education = parsed.education || [];
   const skills = parsed.skills || [];
+  const summary = String(parsed.summary || '').trim();
 
   const emailInText = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.exec(text);
   const hasEmail = Boolean(parsed.contact?.email);
@@ -978,6 +980,15 @@ export function crossVerifyUpload(
 
   if (/\b(technical skills|key skills|core skills|^skills|\nskills)\b/i.test(text) && skills.length === 0) {
     warnings.push('A skills section appears in the resume but no skills were extracted.');
+  }
+
+  // Summary: the resume clearly has a professional-summary paragraph ("X years
+  // of experience" / "experience in") but the captured summary is empty, too
+  // short, or just the candidate's name.
+  const hasSummaryProse = /\byears?\s+of\s+experience\b|\bexperience\s+in\b/i.test(text);
+  const summaryLooksLikeName = summary.length > 0 && summary.split(/\s+/).length <= 4 && !/[.;:]/.test(summary);
+  if (hasSummaryProse && (summary.length < 40 || summaryLooksLikeName)) {
+    warnings.push('Resume has a professional summary but it was not captured correctly.');
   }
 
   return {
