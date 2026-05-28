@@ -17,6 +17,7 @@ import { DownloadChargeService } from '../billing/download-charge.service';
 import { MulterUploadExceptionFilter } from './multer-upload-exception.filter';
 import { ResumeVersionsService } from './resume-versions.service';
 import { OutcomesService } from './outcomes.service';
+import { simulateAts } from './ats-simulator';
 import { z } from 'zod';
 
 const { memoryStorage } = require('multer');
@@ -73,6 +74,22 @@ export class ResumeController {
   @Get(':id/outcomes')
   outcomes(@Req() req: { user: { userId: string } }, @Param('id') id: string) {
     return this.outcomesService.forResume(req.user.userId, id);
+  }
+
+  @Get(':id/ats-simulate')
+  async atsSimulate(@Req() req: { user: { userId: string } }, @Param('id') id: string) {
+    const resume = await this.resumeService.get(req.user.userId, id);
+    const sections = (resume as { sections?: Record<string, unknown> }).sections || {};
+    return simulateAts({
+      title: (resume as { title?: string }).title,
+      contact: (resume as { contact?: unknown }).contact as Parameters<typeof simulateAts>[0]['contact'],
+      summary: (sections as { summary?: string }).summary,
+      skills: (resume as { skills?: string[] }).skills,
+      experience: (sections as { experience?: unknown }).experience as Parameters<typeof simulateAts>[0]['experience'],
+      education: (sections as { education?: unknown }).education as Parameters<typeof simulateAts>[0]['education'],
+      projects: (sections as { projects?: unknown }).projects as Parameters<typeof simulateAts>[0]['projects'],
+      certifications: (sections as { certifications?: unknown }).certifications as Parameters<typeof simulateAts>[0]['certifications'],
+    });
   }
 
   @Get(':id/versions')

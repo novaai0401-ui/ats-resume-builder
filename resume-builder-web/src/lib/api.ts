@@ -1436,6 +1436,26 @@ export const api = {
   // ---------------------------------------------------------------------------
   getResumeOutcomes: (resumeId: string) =>
     request<OutcomeReport>(`/resumes/${resumeId}/outcomes`),
+
+  // ---------------------------------------------------------------------------
+  // ATS Simulator — recruiter-view rendering of the resume.
+  // ---------------------------------------------------------------------------
+  simulateAts: (resumeId: string) =>
+    request<AtsSimulationResult>(`/resumes/${resumeId}/ats-simulate`),
+};
+
+export type AtsSimulationRisk = {
+  kind: string;
+  severity: 'low' | 'medium' | 'high';
+  detail: string;
+  path?: string;
+};
+
+export type AtsSimulationResult = {
+  recruiterView: string;
+  fields: Array<{ label: string; value: string; missing: boolean }>;
+  risks: AtsSimulationRisk[];
+  confidence: number;
 };
 
 export type OutcomeVersionStats = {

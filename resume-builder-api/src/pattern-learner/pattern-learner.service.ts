@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { GroqProvider } from '../ai/providers/groq.provider';
 import { XaiProvider } from '../ai/providers/xai.provider';
@@ -158,8 +159,10 @@ export class PatternLearnerService {
         flags: proposal.flags,
         patternType: 'regex',
         rationale: String(parsed?.rationale || '').slice(0, 500),
-        examples: (Array.isArray(parsed?.examples) ? parsed.examples.slice(0, 6) : null) as object | null,
-        metrics: validation.metrics as object,
+        examples: Array.isArray(parsed?.examples)
+          ? (parsed.examples.slice(0, 6) as Prisma.InputJsonValue)
+          : Prisma.JsonNull,
+        metrics: validation.metrics as unknown as Prisma.InputJsonValue,
         status: validation.ok ? 'proposed' : 'rejected',
         sourceSampleId: sample.id,
       },
