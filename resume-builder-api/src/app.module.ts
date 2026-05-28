@@ -17,6 +17,7 @@ import { JobsModule } from './jobs/jobs.module';
 import { AppMetaModule } from './app-meta/app-meta.module';
 import { PatternLearnerModule } from './pattern-learner/pattern-learner.module';
 import { SahaayakModule } from './sahaayak/sahaayak.module';
+import { VaultModule } from './vault/vault.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { SahaayakModule } from './sahaayak/sahaayak.module';
     AppMetaModule,
     PatternLearnerModule,
     SahaayakModule,
+    VaultModule,
   ],
   controllers: [HealthController],
 })

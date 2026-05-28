@@ -1442,6 +1442,62 @@ export const api = {
   // ---------------------------------------------------------------------------
   simulateAts: (resumeId: string) =>
     request<AtsSimulationResult>(`/resumes/${resumeId}/ats-simulate`),
+
+  // ---------------------------------------------------------------------------
+  // Phase 7 — Vault + encrypted resumes. The server is opaque to contents.
+  // ---------------------------------------------------------------------------
+  /** Returns the user's vault, or null if not set up yet. */
+  getVault: async (): Promise<VaultPublicResponse | null> => {
+    try {
+      return await request<VaultPublicResponse>('/vault');
+    } catch (err) {
+      if (isApiRequestError(err) && err.status === 404) return null;
+      throw err;
+    }
+  },
+  setupVault: (vault: VaultPublicResponse) =>
+    request<VaultPublicResponse>('/vault/setup', {
+      method: 'POST',
+      body: JSON.stringify(vault),
+    }),
+  rotateVaultPassphrase: (payload: { passphraseSalt: string; passphraseWrap: { iv: string; ciphertext: string } }) =>
+    request<VaultPublicResponse>('/vault/passphrase', {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+  destroyVault: () => request('/vault', { method: 'DELETE' }),
+
+  listEncryptedResumes: () => request<EncryptedResumeRow[]>('/encrypted-resumes'),
+  getEncryptedResume: (id: string) => request<EncryptedResumeRow>(`/encrypted-resumes/${id}`),
+  saveEncryptedResume: (id: string, payload: EncryptedResumeBody) =>
+    request<{ id: string; updatedAt: string }>(`/encrypted-resumes/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
+  deleteEncryptedResume: (id: string) =>
+    request(`/encrypted-resumes/${id}`, { method: 'DELETE' }),
+};
+
+export type VaultPublicResponse = {
+  schemaVersion: 1;
+  kdfParams: { algo: 'PBKDF2'; hash: 'SHA-256'; iterations: number };
+  passphraseSalt: string;
+  recoverySalt: string;
+  passphraseWrap: { iv: string; ciphertext: string };
+  recoveryWrap: { iv: string; ciphertext: string };
+};
+
+export type EncryptedResumeBody = {
+  ciphertext: string;
+  iv: string;
+  titleCipher: string;
+  titleIv: string;
+};
+
+export type EncryptedResumeRow = EncryptedResumeBody & {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type AtsSimulationRisk = {

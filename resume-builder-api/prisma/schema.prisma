@@ -67,6 +67,24 @@ model Resume {
   education  Json
   projects   Json?
   certifications Json?
+
+  // ---------------------------------------------------------------------------
+  // Phase 7 — zero-knowledge encrypted payload columns. When `ciphertext` is
+  // set, the plaintext columns above are deprecated for this row and should
+  // be considered untrusted (they get nulled-out once migration is complete).
+  // The server never holds the data-encryption key; it only stores wrapped
+  // blobs that the client decrypts after unlocking the vault.
+  // ---------------------------------------------------------------------------
+  /// AES-GCM ciphertext of the full resume payload (base64url).
+  ciphertext String?
+  /// AES-GCM IV used with `ciphertext` (base64url).
+  iv         String?
+  /// AES-GCM ciphertext of the title (base64url). Title encrypted separately
+  /// so list views can decrypt only what they render.
+  titleCipher String?
+  /// AES-GCM IV used with `titleCipher` (base64url).
+  titleIv    String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -358,4 +376,29 @@ model SahaayakMessage {
   createdAt    DateTime @default(now())
 
   @@index([userId, createdAt])
+}
+
+/// UserVault — public-side material for the zero-knowledge encrypted
+/// resume sync. Holds NO secrets: the wrapped data-encryption key
+/// cannot be unwrapped without the user's passphrase OR recovery code,
+/// neither of which the server ever sees in raw form.
+///
+/// One row per user. Schema-versioned so future KDF/cipher upgrades
+/// can land without breaking old vaults.
+model UserVault {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  schemaVersion   Int      @default(1)
+  /// JSON: { algo: "PBKDF2", hash: "SHA-256", iterations: number }
+  kdfParams       Json
+  /// base64url salt for the passphrase KDF
+  passphraseSalt  String
+  /// base64url salt for the recovery-code KDF
+  recoverySalt    String
+  /// DEK wrapped by the passphrase-derived KEK: { iv, ciphertext } base64url
+  passphraseWrap  Json
+  /// DEK wrapped by the recovery-code-derived KEK: { iv, ciphertext } base64url
+  recoveryWrap    Json
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }

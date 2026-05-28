@@ -131,6 +131,58 @@ passphrase yield independent DEKs.
 
 ---
 
+## Step 3 — Server schema + vault endpoints ✅
+
+The server side of zero-knowledge sync. Database holds ciphertext only.
+
+### What was built
+
+**Prisma schema additions** (`prisma/schema.prisma`):
+- `UserVault` — one row per user, holds public-side material. `kdfParams`, `passphraseSalt`, `recoverySalt`, `passphraseWrap`, `recoveryWrap`. No secrets — the DEK cannot be unwrapped without the user's passphrase or recovery code, neither of which the server ever sees.
+- `Resume.ciphertext`, `Resume.iv`, `Resume.titleCipher`, `Resume.titleIv` — encrypted columns added as nullable so legacy plaintext rows still work during the migration window.
+- Migration SQL at `prisma/migrations/20260528150000_add_vault/migration.sql`.
+
+**Vault module** (`src/vault/`):
+- `vault.dto.ts` — strict validators for the JSON payloads. Rejects unsupported KDF algorithms, sub-OWASP iteration counts (`< 100,000`), insanely large iteration counts (`> 10M`), and oversize fields.
+- `vault.service.ts` — `get`, `setup`, `rotatePassphrase`, `destroy`. `setup` is one-shot per user (returns 409 on second call) so accidental replacement can't lock the user out of every encrypted resume. `destroy` is transactional — vault + all encrypted resumes go in a single transaction.
+- `vault.controller.ts` — `GET /vault`, `POST /vault/setup`, `PATCH /vault/passphrase`, `DELETE /vault`. All behind `JwtAuthGuard`.
+
+**Encrypted resume module** (`src/resume/encrypted-resume.{service,controller}.ts`):
+- Runs in parallel with the legacy plaintext resume service. The two coexist so the migration can happen row-by-row without downtime.
+- `PUT /encrypted-resumes/:id` upserts ciphertext blobs. Server validates IDs are cuid-shaped, fields are non-empty strings within size caps (`ciphertext ≤ 256 KB`, `iv ≤ 64 B`, `titleCipher ≤ 4 KB`).
+- Writes through this path null out the legacy plaintext columns so every row is unambiguously "encrypted" or "legacy plaintext", never both.
+- `GET /encrypted-resumes` returns ciphertext-only rows. The client decrypts.
+
+**Web client** (`resume-builder-web/src/lib/api.ts`):
+- `api.getVault()`, `api.setupVault()`, `api.rotateVaultPassphrase()`, `api.destroyVault()`.
+- `api.listEncryptedResumes()`, `api.getEncryptedResume()`, `api.saveEncryptedResume()`, `api.deleteEncryptedResume()`.
+- Typed responses (`VaultPublicResponse`, `EncryptedResumeRow`, `EncryptedResumeBody`).
+
+### Security properties
+
+| Threat | Mitigation |
+| --- | --- |
+| Full DB compromise | Attacker gets ciphertext + per-user salts. Cannot derive any DEK without passphrase/recovery code. |
+| Replay or rollback of vault | `setup` is one-shot; passphrase rotation only touches passphrase wrapping. |
+| Sub-OWASP KDF parameters | Server enforces `iterations ≥ 100,000` and `algo = PBKDF2`, `hash = SHA-256`. Clients cannot register weak vaults. |
+| Cross-user payload injection | Path-id and body-id are reconciled in the controller (`{ ...body, id: pathId }`). Cannot create row X by smuggling id Y in the body. |
+| Oversize payload DoS | Hard size caps in the DTO validator. |
+| Title leakage via list endpoint | Title is stored in `titleCipher`; the plaintext `title` column is set to `"[encrypted]"` placeholder. |
+| Vault replacement locking users out of existing data | `setup` returns 409 if a vault already exists. |
+
+### Test results — 11 / 11 new tests pass
+
+```
+$ node --test tests/vault-dto.unit.test.cjs
+# tests 11   # pass 11   # fail 0
+```
+
+Covers: canonical params, sub-floor iterations rejection, unsupported algo / hash rejection, oversize-iterations rejection, wrapped-key shape, oversize field rejection, full vault shape, missing salts, schemaVersion drift, empty wrapped key, non-object input.
+
+Branch totals (cumulative): **34 / 34 unit tests pass** (9 store + 14 crypto + 11 vault DTO).
+
+---
+
 ## What's NOT done yet — explicit work list
 
 | Step | Status | Notes |
