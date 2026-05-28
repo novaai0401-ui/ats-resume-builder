@@ -1430,6 +1430,34 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({}),
     }),
+
+  // ---------------------------------------------------------------------------
+  // Outcome Loop — per-version response/interview/offer rates.
+  // ---------------------------------------------------------------------------
+  getResumeOutcomes: (resumeId: string) =>
+    request<OutcomeReport>(`/resumes/${resumeId}/outcomes`),
+};
+
+export type OutcomeVersionStats = {
+  versionId: string;
+  label: string;
+  createdAt: string;
+  applied: number;
+  responses: number;
+  interviews: number;
+  offers: number;
+  responseRate: number;
+  interviewRate: number;
+  offerRate: number;
+  significant: boolean;
+};
+
+export type OutcomeReport = {
+  versions: OutcomeVersionStats[];
+  top: OutcomeVersionStats | null;
+  baseline: OutcomeVersionStats | null;
+  lift: { multiplier: number | null; deltaPoints: number | null; headline: string };
+  unattributed: number;
 };
 
 // ---------------------------------------------------------------------------

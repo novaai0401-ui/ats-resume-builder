@@ -16,6 +16,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { DownloadChargeService } from '../billing/download-charge.service';
 import { MulterUploadExceptionFilter } from './multer-upload-exception.filter';
 import { ResumeVersionsService } from './resume-versions.service';
+import { OutcomesService } from './outcomes.service';
 import { z } from 'zod';
 
 const { memoryStorage } = require('multer');
@@ -66,7 +67,13 @@ export class ResumeController {
     private readonly resumeService: ResumeService,
     private readonly downloadCharge: DownloadChargeService,
     private readonly versionsService: ResumeVersionsService,
+    private readonly outcomesService: OutcomesService,
   ) {}
+
+  @Get(':id/outcomes')
+  outcomes(@Req() req: { user: { userId: string } }, @Param('id') id: string) {
+    return this.outcomesService.forResume(req.user.userId, id);
+  }
 
   @Get(':id/versions')
   listVersions(@Req() req: { user: { userId: string } }, @Param('id') id: string) {

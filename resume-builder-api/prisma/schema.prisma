@@ -195,6 +195,10 @@ model JobApplication {
   source       String?                                 // linkedin | referral | company-site | recruiter
   referral     String?                                 // name of referrer if applicable
   resumeId     String?                                 // linked tailored resume
+  /// Which ResumeVersion of `resumeId` was used. The Outcome Loop reads this
+  /// to attribute response/interview/offer rates back to a specific snapshot
+  /// so users can see "v3 got 2.4× more replies than v1".
+  resumeVersionId String?
   coverLetterId String?                                // linked tailored cover letter
   notes        String?
   nextActionAt DateTime?                               // follow-up / interview reminder
