@@ -16,6 +16,7 @@ import { MailModule } from './mail/mail.module';
 import { JobsModule } from './jobs/jobs.module';
 import { AppMetaModule } from './app-meta/app-meta.module';
 import { PatternLearnerModule } from './pattern-learner/pattern-learner.module';
+import { SahaayakModule } from './sahaayak/sahaayak.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { PatternLearnerModule } from './pattern-learner/pattern-learner.module';
     JobsModule,
     AppMetaModule,
     PatternLearnerModule,
+    SahaayakModule,
   ],
   controllers: [HealthController],
 })

@@ -295,3 +295,63 @@ model LearnedPattern {
   @@index([kind, status])
   @@index([status, createdAt])
 }
+
+/// Sahaayak — per-user opt-in profile + accumulated context the companion
+/// uses to remember the user's journey across sessions. One row per user.
+/// "Sahaayak" (सहायक) — a Sanskrit word for "companion / helper".
+model SahaayakProfile {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  /// User must opt in before any memory is recorded.
+  optedIn         Boolean  @default(false)
+  /// "witness" (default) | "coach" | "karmayoga" — controls tone.
+  mode            String   @default("witness")
+  /// Free-text preferences the user sets ("don't bring up my last layoff").
+  guardrails      String?
+  /// LLM-maintained running summary of facts worth remembering. Capped.
+  summary         String?
+  /// Last interaction timestamp, used for check-in cadence.
+  lastInteractionAt DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+/// Sahaayak — discrete events the user (or the system) logs. Used both to
+/// drive pattern reframes ("3 fintech rejections this month") and to seed
+/// the chat memory. Kept structured so we can analyze without LLM calls.
+model SahaayakEvent {
+  id          String   @id @default(cuid())
+  userId      String
+  /// rejection | interview | offer | layoff | win | mood | reflection
+  kind        String
+  /// Company / role / score / mood-rating / free-form. Schema varies by kind.
+  payload     Json
+  /// Optional short note from the user.
+  note        String?
+  /// 1..5 mood at time of event when the user supplies it.
+  moodRating  Int?
+  occurredAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  @@index([userId, kind, occurredAt])
+  @@index([userId, occurredAt])
+}
+
+/// Sahaayak — conversational turns. We keep the last N raw turns for
+/// context; older content is folded into SahaayakProfile.summary by the
+/// memory-summarizer.
+model SahaayakMessage {
+  id           String   @id @default(cuid())
+  userId       String
+  /// user | assistant | system
+  role         String
+  content      String
+  /// Crisis flag set by the detector when the message contained despair
+  /// language. We never delete these — they are the highest-signal moments.
+  crisisFlag   Boolean  @default(false)
+  /// Token estimate used for budgeting context windows.
+  tokens       Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
