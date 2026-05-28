@@ -238,6 +238,120 @@ providers.
 
 ---
 
+## Phase 6 — Browser extension (Manifest V3)
+
+**Goal.** Meet users where the stress happens — the job board itself —
+and close the Outcome Loop's data gap without manual backfill.
+
+### Three differentiators
+
+1. **Auto-attribute applications.** On supported job boards, when the
+   user clicks "Apply", the extension surfaces a one-click "track this"
+   prompt that creates a `JobApplication` with `resumeVersionId` already
+   set. The Outcome Loop populates without users having to remember.
+2. **Recruiter-view overlay.** On any job posting, the extension can
+   render the ATS Simulator output of the user's resume against THIS
+   specific JD (confidence + top risks + recruiter-view text).
+3. **Sahaayak in the corner.** The popup contains a small chat surface
+   so the emotional companion is reachable without leaving the page.
+
+### File layout
+
+```
+resume-builder-extension/
+├── manifest.json          Manifest V3
+├── background.js          Service worker — auth + API proxy + context menu
+├── popup.html / .css / .js   Action popup (Sahaayak chat)
+├── options.html / .js     API base + access token settings
+├── content/
+│   ├── job-board.js       Content script: JD capture + apply-button hook + overlay
+│   └── overlay.css        Namespaced .atsb-* styles
+├── lib/
+│   └── api.js             Shared ES-module API client
+└── README.md
+```
+
+### Permissions justification
+
+- `storage` — caches the access token and API base.
+- `activeTab` — read the JD only when the user explicitly clicks the
+  extension.
+- `scripting` — inject the overlay on demand.
+- `contextMenus` — right-click "Send selection to ATS Builder".
+- `host_permissions` — restricted to the job boards we support; the
+  `https://*/*` wildcard in the manifest is for local dev only and
+  should be tightened before publishing.
+
+### Privacy properties
+
+- Auth token lives in `chrome.storage.local` — sync-disabled, machine-local.
+- Content scripts NEVER hold the token; all authenticated API calls go
+  through the service worker via `chrome.runtime.sendMessage`.
+- We do not auto-submit, auto-click apply, or scrape resumes from sites.
+  We observe page text and offer actions; nothing happens without an
+  explicit user click.
+
+### How to load (dev)
+
+1. `chrome://extensions` → enable Developer mode.
+2. "Load unpacked" → pick `resume-builder-extension/`.
+3. Open the options page, paste the access token from the web app
+   (DevTools → Application → Local Storage → `accessToken`).
+
+---
+
+## Phase 7 — Local-first storage (DESIGN, NOT YET BUILT)
+
+**Goal.** Honor the privacy commitment: resumes live on the user's
+device, not in Postgres.
+
+### Current state (honest assessment)
+
+Today the `Resume` model in `prisma/schema.prisma` stores the full
+structured payload: contact (JSON), skills array, sections (JSON with
+summary / experience / education / projects / certifications),
+templateId, etc. `ResumeVersion` snapshots are also Postgres-backed.
+**The architecture as it stands does not meet the stated privacy goal.**
+
+### Plan: fully local-first (chosen direction)
+
+| Concern | Plan |
+| --- | --- |
+| Storage | IndexedDB (`atsbuilder` DB, `resumes` and `versions` object stores). Wrap with a tiny CRUD layer in `resume-builder-web/src/lib/local-resume-store.ts`. |
+| Server-side `Resume` model | Repurpose as a stable-ID-only stub: `id`, `userId`, `createdAt`. The PAYLOAD column moves out. Migration drops the JSON columns and the old data must be exported by users beforehand (one-time email + in-app banner). |
+| `ResumeVersion` | Same treatment: server keeps `id` + `resumeId` + `createdAt` as a stable reference target for `JobApplication.resumeVersionId`; the payload lives only on the device that created it. |
+| Server features that need resume content (ATS critique, cover letter, JD match) | Client sends `resumeText` in the request body each call — already supported by some endpoints, needs widening to others. |
+| ATS Simulator | Move `src/resume/ats-simulator.ts` into a shared package so it can run client-side against the local payload. The pure-function design from Phase 5 makes this trivial. |
+| Outcome Loop | Unaffected. `JobApplication.resumeVersionId` is a reference; the server never needed the content. |
+| PatternLearnerAgent | Unaffected. Captures redacted text at upload moment, before any persistence decision. |
+| Sahaayak | Unaffected. Has no coupling to the Resume model. |
+| Sync between devices | Out of scope for v1. Add later via the user's own cloud (Drive / Dropbox token), encrypted before upload. |
+
+### Risks and mitigations
+
+- **Device loss = data loss.** Add a one-click "export as .career.json"
+  in the editor, and remind users on first save. Optionally let them
+  paste a backup hash into their email.
+- **Existing users.** Current Postgres data must be migrated to the
+  device on first login post-deploy. Banner: "We are moving your resume
+  to your device for privacy. Click to import." A one-time GET fetches
+  the payload, then the server payload is wiped.
+- **Mobile native app.** When the React Native app ships, it will need
+  parity local storage (SQLite or AsyncStorage). Keep the local store
+  interface narrow so the implementation can vary per platform.
+
+### Why this does NOT affect the agent learning loop
+
+| Agent | Why it survives local-first |
+| --- | --- |
+| PatternLearner | Learns from parse failures captured at upload time. The redacted text + verification report are what it stores — independent of whether the parsed resume is later persisted to Postgres. |
+| Sahaayak | Uses `SahaayakEvent` and `SahaayakMessage`, which are activity, not resume content. No change. |
+| Outcome Loop | Uses `JobApplication.resumeVersionId` as a reference. The server needs only the ID, never the resume text. No change. |
+| ATS Simulator | Pure function — runs anywhere. Moving it client-side removes one server round-trip. |
+| AI Critique / Cover Letter | Already accept `resumeText` in the request body. The change is to make the client always send it, instead of relying on a server-side lookup by `resumeId`. |
+
+---
+
 ## Operating notes
 
 ### Deploying the changes

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>ATS Builder — Settings</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 520px; margin: 32px auto; color: #222; padding: 0 16px; }
+    label { display: block; margin: 14px 0 4px; font-weight: 600; font-size: 13px; }
+    input { width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; box-sizing: border-box; }
+    button { margin-top: 14px; padding: 8px 16px; background: #0a64dc; color: white; border: 0; border-radius: 5px; cursor: pointer; font-weight: 600; }
+    .muted { color: #888; font-size: 12px; margin-top: 4px; }
+    .status { margin-top: 12px; font-size: 13px; color: #147a3a; }
+    h1 { font-size: 18px; }
+  </style>
+</head>
+<body>
+  <h1>ATS Builder — Extension Settings</h1>
+  <label>API base URL</label>
+  <input id="apiBase" placeholder="http://localhost:4001">
+  <p class="muted">The URL of the ATS Builder API server. Production deployments use the public HTTPS URL.</p>
+
+  <label>Access token</label>
+  <input id="accessToken" type="password" placeholder="Paste your JWT here">
+  <p class="muted">In the web app: DevTools → Application → Local Storage → key <code>accessToken</code>. The token stays in chrome.storage.local and never leaves your machine except to authenticate API calls.</p>
+
+  <button id="save">Save</button>
+  <div id="status" class="status"></div>
+
+  <script src="options.js"></script>
+</body>
+</html>
