@@ -57,6 +57,80 @@ Covered scenarios:
 - `importAll` rejects unsupported `schemaVersion`.
 - `version` field bumps on every write (groundwork for conflict detection).
 
+## Step 2 — Zero-knowledge cryptographic core ✅
+
+Following the product decision that user-managed backup files are too
+fragile, we use **end-to-end encrypted cloud sync with zero-knowledge**.
+The server holds only ciphertext; it cannot read resumes even with full
+DB access. Recovery survives device loss, browser wipes, and Safari
+ITP eviction.
+
+### What was built
+
+| File | Purpose |
+| --- | --- |
+| `src/lib/crypto/key-derivation.ts` | PBKDF2-SHA256 (600k iterations, OWASP 2024), non-extractable KEK output |
+| `src/lib/crypto/aes-gcm.ts` | AES-GCM encrypt/decrypt for JSON + raw bytes, base64url wire format |
+| `src/lib/crypto/wrapping.ts` | DEK wrap/unwrap via WebCrypto `wrapKey`/`unwrapKey` |
+| `src/lib/crypto/recovery-code.ts` | 120-bit Crockford base32 recovery code; tolerant normalization (I→1, O→0, L→1, U→V, dashes / spaces) |
+| `src/lib/crypto/index.ts` | High-level orchestration: `setupVault`, `unlockWithPassphrase`, `unlockWithRecoveryCode`, `rotatePassphrase`, `InvalidUnlockError` |
+| `tests/crypto.test.ts` | 14 unit tests |
+
+### Crypto choices
+
+- **PBKDF2-SHA256, 600,000 iterations** (OWASP 2024 recommendation).
+  Chosen over Argon2 because it is native to WebCrypto — no WASM, no
+  bundle bloat, no audit surface. Swappable behind the module interface
+  if the threat model changes.
+- **AES-256-GCM** for both data encryption AND key wrapping.
+- **Per-user salt** for passphrase KDF, plaintext on the server (only
+  rainbow-table defense).
+- **Separate salt** for recovery-code KDF so passphrase rotation does
+  NOT invalidate the recovery code, and vice versa.
+- **DEK is generated fresh per user**, wrapped twice — once under the
+  passphrase-derived KEK, once under the recovery-code-derived KEK.
+- **Recovery code: 120 bits** of entropy in 24 Crockford base32 chars.
+  Brute-force-infeasible even before the PBKDF2 cost.
+- **WebCrypto `unwrapKey` is authenticated** — tampering with the
+  wrapped blob, the IV, or the salt all cause `OperationError`, which
+  we surface as `InvalidUnlockError`.
+
+### Vault shape the server stores
+
+```ts
+interface VaultPublic {
+  schemaVersion: 1;
+  kdfParams: { algo: 'PBKDF2'; hash: 'SHA-256'; iterations: number };
+  passphraseSalt: string;     // base64url
+  recoverySalt: string;       // base64url
+  passphraseWrap: { iv: string; ciphertext: string };
+  recoveryWrap:   { iv: string; ciphertext: string };
+}
+```
+
+That is the entire public-side material. None of it leaks plaintext.
+The DEK never reaches the server in unwrapped form.
+
+### Test results (14 / 14 pass)
+
+Covers: round-trip via passphrase, wrong-passphrase rejection,
+round-trip via recovery code (formatted and canonical forms),
+wrong-recovery-code rejection, `rotatePassphrase` invalidates the
+old passphrase but preserves the recovery code, **ciphertext tampering
+is detected**, short-passphrase rejection, Crockford normalization,
+recovery codes are unique across calls, two vaults with the same
+passphrase yield independent DEKs.
+
+### Product decisions locked in
+
+| Decision | Choice |
+| --- | --- |
+| Encrypt titles too | **Yes.** Server cannot see "Senior Backend Engineer at Stripe". Dashboard decrypts client-side to render. |
+| Lost both passphrase and recovery code | **Data is permanently unrecoverable.** Strict zero-knowledge. Documented loudly at setup. |
+| Default behavior | **Encryption + cloud sync ON at signup.** No "basic users got hacked" failure mode. |
+
+---
+
 ## What's NOT done yet — explicit work list
 
 | Step | Status | Notes |
