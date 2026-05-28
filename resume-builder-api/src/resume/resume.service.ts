@@ -17,6 +17,7 @@ import { SettingsService } from '../settings/settings.service';
 import { MailService } from '../mail/mail.service';
 import { renderResumeDocx, buildResumeFileName } from './docx-export';
 import { PatternLearnerService } from '../pattern-learner/pattern-learner.service';
+import { applyLearnedPatterns } from '../pattern-learner/pattern-applier';
 
 
 
@@ -747,6 +748,40 @@ export class ResumeService {
           trigger: 'low-confidence',
         });
       }
+      // Salvage pass: apply promoted LearnedPatterns to fill empty fields ONLY.
+      // Feature-flagged so we can roll out gradually. Never overwrites values
+      // the primary extractor produced. Logs a diff for observability.
+      let salvageReport: { applied: Array<{ kind: string; field: string; value: string }>; skipped: Array<{ kind: string; reason: string }> } | null = null;
+      const salvageEnabled = String(process.env.PATTERN_LEARNER_APPLY || '').toLowerCase() === 'true';
+      if (salvageEnabled && this.patternLearner && !verification.ok) {
+        try {
+          const promoted = await this.patternLearner.getPromotedPatterns();
+          if (promoted.length > 0) {
+            const before = JSON.stringify({
+              phone: chosen.parsedPayload.contact?.phone,
+              location: chosen.parsedPayload.contact?.location,
+              educationCount: chosen.parsedPayload.education?.length ?? 0,
+            });
+            salvageReport = applyLearnedPatterns(
+              chosen.normalizedText,
+              chosen.parsedPayload as Parameters<typeof applyLearnedPatterns>[1],
+              promoted,
+            );
+            if (salvageReport.applied.length > 0 && process.env.NODE_ENV !== 'production') {
+              const after = JSON.stringify({
+                phone: chosen.parsedPayload.contact?.phone,
+                location: chosen.parsedPayload.contact?.location,
+                educationCount: chosen.parsedPayload.education?.length ?? 0,
+              });
+              console.log(`[pattern-learner] salvage applied for ${file.originalname}: before=${before} after=${after}`);
+            }
+          }
+        } catch (error) {
+          if (process.env.NODE_ENV !== 'production') {
+            console.warn(`[pattern-learner] salvage pass failed: ${error instanceof Error ? error.message : String(error)}`);
+          }
+        }
+      }
       const debugPayload = {
         experienceSignals: chosen.mapped.signals,
         sectionHits: summarizeSectionHits(chosen.parsed.sections),
@@ -754,6 +789,7 @@ export class ResumeService {
         verification,
         reExtracted,
         primaryWarningCount: primary.verification.warnings.length,
+        salvageReport,
       };
       return {
         text: chosen.normalizedText,
