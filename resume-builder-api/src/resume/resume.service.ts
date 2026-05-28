@@ -16,6 +16,7 @@ import { ACTION_VERB_REQUIRED_RATIO, analyzeActionVerbRule, normalizeBulletText,
 import { SettingsService } from '../settings/settings.service';
 import { MailService } from '../mail/mail.service';
 import { renderResumeDocx, buildResumeFileName } from './docx-export';
+import { PatternLearnerService } from '../pattern-learner/pattern-learner.service';
 
 
 
@@ -130,6 +131,7 @@ export class ResumeService {
     private readonly prisma: PrismaService,
     @Optional() private readonly settingsService?: SettingsService,
     @Optional() private readonly mailService?: MailService,
+    @Optional() private readonly patternLearner?: PatternLearnerService,
   ) {}
 
   async create(userId: string, dto: CreateResumeDto) {
@@ -675,7 +677,7 @@ export class ResumeService {
 
   async parseResumeUpload(
     file: { originalname: string; mimetype: string; size?: number; buffer: Buffer },
-    options?: { resumeId?: string; title?: string; mode?: 'extract-only' | 'extract-and-map' },
+    options?: { resumeId?: string; title?: string; mode?: 'extract-only' | 'extract-and-map'; userId?: string },
   ) {
     const text = await extractTextFromFile(file);
     const trimmed = String(text || '').trim();
@@ -719,6 +721,31 @@ export class ResumeService {
       const verification = chosen.verification;
       if (!verification.ok && process.env.NODE_ENV !== 'production') {
         console.warn(`[parse-upload] verification warnings (reExtracted=${reExtracted}) for ${file.originalname}: ${verification.warnings.join(' | ')}`);
+      }
+      // PatternLearnerAgent capture (fire-and-forget; never blocks upload).
+      if (this.patternLearner && !verification.ok) {
+        const warnings = verification.warnings || [];
+        const confidence = Math.max(0, 1 - warnings.length * 0.15);
+        void this.patternLearner.captureFailure({
+          userId: options?.userId,
+          fileName: file.originalname,
+          rawText: chosen.normalizedText,
+          verification: {
+            ok: verification.ok,
+            confidence,
+            issues: warnings.map((w: string) => ({ kind: 'warning', detail: w })),
+          },
+          extractedShape: {
+            sectionHits: summarizeSectionHits(chosen.parsed.sections),
+            experienceCount: chosen.parsedPayload.experience?.length ?? 0,
+            educationCount: chosen.parsedPayload.education?.length ?? 0,
+            skillsCount: chosen.parsedPayload.skills?.length ?? 0,
+            hasContactEmail: Boolean(chosen.parsedPayload.contact?.email),
+            hasContactPhone: Boolean(chosen.parsedPayload.contact?.phone),
+            hasContactName: Boolean(chosen.parsedPayload.contact?.fullName),
+          },
+          trigger: 'low-confidence',
+        });
       }
       const debugPayload = {
         experienceSignals: chosen.mapped.signals,

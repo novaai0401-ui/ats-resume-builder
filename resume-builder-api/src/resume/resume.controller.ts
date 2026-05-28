@@ -324,12 +324,13 @@ export class ResumeController {
     }
     // Security: sanitize filename to prevent path traversal
     const sanitizedName = sanitizeFileName(file.originalname);
+    const userId = (req as Request & { user?: { userId?: string } }).user?.userId;
     return this.resumeService.parseResumeUpload({
       originalname: sanitizedName,
       mimetype: file.mimetype,
       size: file.size,
       buffer: file.buffer,
-    }, parsedBody.data);
+    }, { ...parsedBody.data, userId });
   }
 }
 
