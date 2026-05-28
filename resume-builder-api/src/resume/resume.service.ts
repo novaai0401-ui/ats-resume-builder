@@ -16,6 +16,8 @@ import { ACTION_VERB_REQUIRED_RATIO, analyzeActionVerbRule, normalizeBulletText,
 import { SettingsService } from '../settings/settings.service';
 import { MailService } from '../mail/mail.service';
 import { renderResumeDocx, buildResumeFileName } from './docx-export';
+import { PatternLearnerService } from '../pattern-learner/pattern-learner.service';
+import { applyLearnedPatterns } from '../pattern-learner/pattern-applier';
 
 
 
@@ -130,6 +132,7 @@ export class ResumeService {
     private readonly prisma: PrismaService,
     @Optional() private readonly settingsService?: SettingsService,
     @Optional() private readonly mailService?: MailService,
+    @Optional() private readonly patternLearner?: PatternLearnerService,
   ) {}
 
   async create(userId: string, dto: CreateResumeDto) {
@@ -675,7 +678,7 @@ export class ResumeService {
 
   async parseResumeUpload(
     file: { originalname: string; mimetype: string; size?: number; buffer: Buffer },
-    options?: { resumeId?: string; title?: string; mode?: 'extract-only' | 'extract-and-map' },
+    options?: { resumeId?: string; title?: string; mode?: 'extract-only' | 'extract-and-map'; userId?: string },
   ) {
     const text = await extractTextFromFile(file);
     const trimmed = String(text || '').trim();
@@ -720,6 +723,65 @@ export class ResumeService {
       if (!verification.ok && process.env.NODE_ENV !== 'production') {
         console.warn(`[parse-upload] verification warnings (reExtracted=${reExtracted}) for ${file.originalname}: ${verification.warnings.join(' | ')}`);
       }
+      // PatternLearnerAgent capture (fire-and-forget; never blocks upload).
+      if (this.patternLearner && !verification.ok) {
+        const warnings = verification.warnings || [];
+        const confidence = Math.max(0, 1 - warnings.length * 0.15);
+        void this.patternLearner.captureFailure({
+          userId: options?.userId,
+          fileName: file.originalname,
+          rawText: chosen.normalizedText,
+          verification: {
+            ok: verification.ok,
+            confidence,
+            issues: warnings.map((w: string) => ({ kind: 'warning', detail: w })),
+          },
+          extractedShape: {
+            sectionHits: summarizeSectionHits(chosen.parsed.sections),
+            experienceCount: chosen.parsedPayload.experience?.length ?? 0,
+            educationCount: chosen.parsedPayload.education?.length ?? 0,
+            skillsCount: chosen.parsedPayload.skills?.length ?? 0,
+            hasContactEmail: Boolean(chosen.parsedPayload.contact?.email),
+            hasContactPhone: Boolean(chosen.parsedPayload.contact?.phone),
+            hasContactName: Boolean(chosen.parsedPayload.contact?.fullName),
+          },
+          trigger: 'low-confidence',
+        });
+      }
+      // Salvage pass: apply promoted LearnedPatterns to fill empty fields ONLY.
+      // Feature-flagged so we can roll out gradually. Never overwrites values
+      // the primary extractor produced. Logs a diff for observability.
+      let salvageReport: { applied: Array<{ kind: string; field: string; value: string }>; skipped: Array<{ kind: string; reason: string }> } | null = null;
+      const salvageEnabled = String(process.env.PATTERN_LEARNER_APPLY || '').toLowerCase() === 'true';
+      if (salvageEnabled && this.patternLearner && !verification.ok) {
+        try {
+          const promoted = await this.patternLearner.getPromotedPatterns();
+          if (promoted.length > 0) {
+            const before = JSON.stringify({
+              phone: chosen.parsedPayload.contact?.phone,
+              location: chosen.parsedPayload.contact?.location,
+              educationCount: chosen.parsedPayload.education?.length ?? 0,
+            });
+            salvageReport = applyLearnedPatterns(
+              chosen.normalizedText,
+              chosen.parsedPayload as Parameters<typeof applyLearnedPatterns>[1],
+              promoted,
+            );
+            if (salvageReport.applied.length > 0 && process.env.NODE_ENV !== 'production') {
+              const after = JSON.stringify({
+                phone: chosen.parsedPayload.contact?.phone,
+                location: chosen.parsedPayload.contact?.location,
+                educationCount: chosen.parsedPayload.education?.length ?? 0,
+              });
+              console.log(`[pattern-learner] salvage applied for ${file.originalname}: before=${before} after=${after}`);
+            }
+          }
+        } catch (error) {
+          if (process.env.NODE_ENV !== 'production') {
+            console.warn(`[pattern-learner] salvage pass failed: ${error instanceof Error ? error.message : String(error)}`);
+          }
+        }
+      }
       const debugPayload = {
         experienceSignals: chosen.mapped.signals,
         sectionHits: summarizeSectionHits(chosen.parsed.sections),
@@ -727,6 +789,7 @@ export class ResumeService {
         verification,
         reExtracted,
         primaryWarningCount: primary.verification.warnings.length,
+        salvageReport,
       };
       return {
         text: chosen.normalizedText,

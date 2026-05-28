@@ -99,10 +99,13 @@ export default function TopNav() {
           <Link href="/dashboard" onClick={closeDrawer} {...navProps('/dashboard')}>Dashboard</Link>
           <Link href="/resume/start" onClick={closeDrawer} {...navProps('/resume')}>Resume</Link>
           <Link href="/resume/versions" onClick={closeDrawer} {...navProps('/resume/versions')}>Versions</Link>
+          <Link href="/resume/outcomes" onClick={closeDrawer} {...navProps('/resume/outcomes')}>Outcomes</Link>
+          <Link href="/resume/ats-simulate" onClick={closeDrawer} {...navProps('/resume/ats-simulate')}>ATS Simulator</Link>
           <Link href="/jobs" onClick={closeDrawer} {...navProps('/jobs')}>Jobs</Link>
           <Link href="/cover-letter" onClick={closeDrawer} {...navProps('/cover-letter')}>Cover Letter</Link>
           <Link href="/career" onClick={closeDrawer} {...navProps('/career')}>Career Navigator</Link>
           <Link href="/mentor" onClick={closeDrawer} {...navProps('/mentor')}>Mentor</Link>
+          <Link href="/sahaayak" onClick={closeDrawer} {...navProps('/sahaayak')}>Sahaayak</Link>
           <Link href="/jd-match" onClick={closeDrawer} {...navProps('/jd-match')}>JD Match</Link>
           {plan === 'PRO' ? (
             <>

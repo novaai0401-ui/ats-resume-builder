@@ -23,6 +23,7 @@ export interface JobApplicationInput {
   source?: string | null;
   referral?: string | null;
   resumeId?: string | null;
+  resumeVersionId?: string | null;
   coverLetterId?: string | null;
   notes?: string | null;
   nextActionAt?: string | null;
@@ -74,6 +75,7 @@ function sanitize(input: JobApplicationInput, { partial }: { partial: boolean })
   if ('source' in input) data.source = trimString(input.source, 100);
   if ('referral' in input) data.referral = trimString(input.referral, 200);
   if ('resumeId' in input) data.resumeId = trimString(input.resumeId, 100);
+  if ('resumeVersionId' in input) data.resumeVersionId = trimString(input.resumeVersionId, 100);
   if ('coverLetterId' in input) data.coverLetterId = trimString(input.coverLetterId, 100);
   if ('notes' in input) data.notes = trimString(input.notes, 5000);
   if ('status' in input) data.status = coerceStatus(input.status);

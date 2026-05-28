@@ -195,6 +195,10 @@ model JobApplication {
   source       String?                                 // linkedin | referral | company-site | recruiter
   referral     String?                                 // name of referrer if applicable
   resumeId     String?                                 // linked tailored resume
+  /// Which ResumeVersion of `resumeId` was used. The Outcome Loop reads this
+  /// to attribute response/interview/offer rates back to a specific snapshot
+  /// so users can see "v3 got 2.4× more replies than v1".
+  resumeVersionId String?
   coverLetterId String?                                // linked tailored cover letter
   notes        String?
   nextActionAt DateTime?                               // follow-up / interview reminder
@@ -237,6 +241,121 @@ model CoverLetter {
   provider     String?                                 // groq | xai | fallback
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  @@index([userId, createdAt])
+}
+
+/// PatternLearnerAgent — sample of a resume upload whose extraction confidence
+/// fell below threshold. Captured anonymously (redacted raw text + verification
+/// report + extracted snapshot) so the learner can propose new parsing rules.
+model ParseFailureSample {
+  id              String   @id @default(cuid())
+  userId          String?
+  fileName        String?
+  /// Redacted raw text. Emails / phones / long digit runs replaced with tokens.
+  redactedText    String
+  /// VerificationReport JSON (confidence, issues[]).
+  verification    Json
+  /// What the parser produced (section keys + counts) — NOT the full resume.
+  extractedShape  Json
+  /// "low-confidence" | "user-flagged" | "missing-section"
+  trigger         String   @default("low-confidence")
+  /// open | proposed | promoted | rejected | duplicate
+  status          String   @default("open")
+  proposalId      String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([status, createdAt])
+}
+
+/// PatternLearnerAgent — a parsing pattern (regex or heuristic) proposed by the
+/// LLM and optionally promoted to the live rule registry. Rules are DATA, not
+/// code, so the field-mapper can hot-load them without redeploy.
+model LearnedPattern {
+  id              String   @id @default(cuid())
+  /// What this pattern extracts. e.g. "experience.dateRange",
+  /// "education.degree", "contact.phone", "section.heading"
+  kind            String
+  /// JS regex source (without flags) OR named heuristic id.
+  pattern         String
+  flags           String   @default("i")
+  /// "regex" | "heuristic"
+  patternType     String   @default("regex")
+  /// Short human note from the LLM explaining why this pattern helps.
+  rationale       String?
+  /// Few-shot examples the LLM was given.
+  examples        Json?
+  /// Validator metrics: { precision, recall, sampleSize, regressionCount }
+  metrics         Json?
+  /// proposed | promoted | rejected | rolledback
+  status          String   @default("proposed")
+  sourceSampleId  String?
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([kind, status])
+  @@index([status, createdAt])
+}
+
+/// Sahaayak — per-user opt-in profile + accumulated context the companion
+/// uses to remember the user's journey across sessions. One row per user.
+/// "Sahaayak" (सहायक) — a Sanskrit word for "companion / helper".
+model SahaayakProfile {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  /// User must opt in before any memory is recorded.
+  optedIn         Boolean  @default(false)
+  /// "witness" (default) | "coach" | "karmayoga" — controls tone.
+  mode            String   @default("witness")
+  /// Free-text preferences the user sets ("don't bring up my last layoff").
+  guardrails      String?
+  /// LLM-maintained running summary of facts worth remembering. Capped.
+  summary         String?
+  /// Last interaction timestamp, used for check-in cadence.
+  lastInteractionAt DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+/// Sahaayak — discrete events the user (or the system) logs. Used both to
+/// drive pattern reframes ("3 fintech rejections this month") and to seed
+/// the chat memory. Kept structured so we can analyze without LLM calls.
+model SahaayakEvent {
+  id          String   @id @default(cuid())
+  userId      String
+  /// rejection | interview | offer | layoff | win | mood | reflection
+  kind        String
+  /// Company / role / score / mood-rating / free-form. Schema varies by kind.
+  payload     Json
+  /// Optional short note from the user.
+  note        String?
+  /// 1..5 mood at time of event when the user supplies it.
+  moodRating  Int?
+  occurredAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  @@index([userId, kind, occurredAt])
+  @@index([userId, occurredAt])
+}
+
+/// Sahaayak — conversational turns. We keep the last N raw turns for
+/// context; older content is folded into SahaayakProfile.summary by the
+/// memory-summarizer.
+model SahaayakMessage {
+  id           String   @id @default(cuid())
+  userId       String
+  /// user | assistant | system
+  role         String
+  content      String
+  /// Crisis flag set by the detector when the message contained despair
+  /// language. We never delete these — they are the highest-signal moments.
+  crisisFlag   Boolean  @default(false)
+  /// Token estimate used for budgeting context windows.
+  tokens       Int      @default(0)
+  createdAt    DateTime @default(now())
 
   @@index([userId, createdAt])
 }
