@@ -1361,4 +1361,141 @@ export const api = {
     request<{ ok: boolean }>(`/resumes/${resumeId}/versions/${versionId}`, {
       method: 'DELETE',
     }),
+
+  // ---------------------------------------------------------------------------
+  // Sahaayak — emotional companion with persistent memory.
+  // ---------------------------------------------------------------------------
+  getSahaayakProfile: () =>
+    request<SahaayakProfile>('/sahaayak/profile'),
+  optInSahaayak: (payload: { mode?: SahaayakMode; guardrails?: string }) =>
+    request<SahaayakProfile>('/sahaayak/opt-in', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  optOutSahaayak: () =>
+    request<{ ok: boolean }>('/sahaayak/opt-out', { method: 'POST' }),
+  forgetSahaayak: () =>
+    request<{ ok: boolean }>('/sahaayak/memory', { method: 'DELETE' }),
+  chatSahaayak: (message: string, region: string = 'IN') =>
+    request<SahaayakChatResult>('/sahaayak/chat', {
+      method: 'POST',
+      body: JSON.stringify({ message, region }),
+    }),
+  listSahaayakMessages: (limit = 30) =>
+    request<SahaayakMessage[]>(`/sahaayak/messages?limit=${limit}`),
+  recordSahaayakEvent: (payload: {
+    kind: string;
+    payload?: unknown;
+    note?: string;
+    moodRating?: number;
+    occurredAt?: string;
+  }) =>
+    request<SahaayakEvent>('/sahaayak/events', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  listSahaayakEvents: (limit = 50) =>
+    request<SahaayakEvent[]>(`/sahaayak/events?limit=${limit}`),
+  getSahaayakCheckIn: () =>
+    request<{ prompt: string }>('/sahaayak/check-in'),
+
+  // ---------------------------------------------------------------------------
+  // Admin — PatternLearner review queue.
+  // ---------------------------------------------------------------------------
+  listPatternFailures: (status?: string) =>
+    request<ParseFailureSample[]>(
+      `/admin/pattern-learner/failures${status ? `?status=${encodeURIComponent(status)}` : ''}`,
+    ),
+  listLearnedPatterns: (status?: string) =>
+    request<LearnedPattern[]>(
+      `/admin/pattern-learner/patterns${status ? `?status=${encodeURIComponent(status)}` : ''}`,
+    ),
+  proposeLearnedPattern: (sampleId: string, kind: string) =>
+    request<{ pattern: LearnedPattern; validation: { ok: boolean; reason?: string; metrics: Record<string, number> } }>(
+      `/admin/pattern-learner/failures/${sampleId}/propose`,
+      { method: 'POST', body: JSON.stringify({ kind }) },
+    ),
+  promoteLearnedPattern: (id: string) =>
+    request<LearnedPattern>(`/admin/pattern-learner/patterns/${id}/promote`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    }),
+  rejectLearnedPattern: (id: string) =>
+    request<LearnedPattern>(`/admin/pattern-learner/patterns/${id}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    }),
+  rollbackLearnedPattern: (id: string) =>
+    request<LearnedPattern>(`/admin/pattern-learner/patterns/${id}/rollback`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    }),
+};
+
+// ---------------------------------------------------------------------------
+// Sahaayak / PatternLearner types.
+// ---------------------------------------------------------------------------
+export type SahaayakMode = 'witness' | 'coach' | 'karmayoga';
+
+export type SahaayakProfile = {
+  optedIn: boolean;
+  mode?: SahaayakMode;
+  guardrails?: string | null;
+  summary?: string | null;
+  lastInteractionAt?: string | null;
+};
+
+export type SahaayakMessage = {
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  crisisFlag: boolean;
+  createdAt: string;
+};
+
+export type SahaayakEvent = {
+  id: string;
+  kind: string;
+  payload: Record<string, unknown>;
+  note?: string | null;
+  moodRating?: number | null;
+  occurredAt: string;
+};
+
+export type SahaayakChatResult = {
+  reply: string;
+  messageId: string;
+  crisis: {
+    flag: boolean;
+    signals: string[];
+    resources: Array<{ region: string; name: string; phone?: string; hours: string; notes?: string }>;
+  };
+};
+
+export type ParseFailureSample = {
+  id: string;
+  fileName?: string | null;
+  redactedText: string;
+  verification: { ok: boolean; confidence: number; issues: Array<{ kind: string; detail: string }> };
+  extractedShape: Record<string, unknown>;
+  trigger: string;
+  status: string;
+  proposalId?: string | null;
+  createdAt: string;
+};
+
+export type LearnedPattern = {
+  id: string;
+  kind: string;
+  pattern: string;
+  flags: string;
+  patternType: string;
+  rationale?: string | null;
+  examples?: unknown;
+  metrics?: { precision?: number; recall?: number; regressionCount?: number; sampleSize?: number } | null;
+  status: string;
+  sourceSampleId?: string | null;
+  reviewedBy?: string | null;
+  reviewedAt?: string | null;
+  createdAt: string;
 };
