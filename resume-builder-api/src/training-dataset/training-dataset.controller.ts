@@ -1,0 +1,63 @@
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Header,
+  Patch,
+  Req,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
+import type { Response } from 'express';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { AdminAuthGuard } from '../auth/admin-auth.guard';
+import { TrainingDatasetService } from './training-dataset.service';
+
+interface AuthedReq { user: { userId: string } }
+
+/**
+ * Two surfaces:
+ *   - User-facing: consent toggle + purge.
+ *   - Admin: stats + JSONL export.
+ *
+ * Capture endpoints are intentionally NOT exposed — capture is internal,
+ * triggered by the resume upload + save flows. Exposing it would let
+ * callers seed arbitrary text into the training corpus.
+ */
+@Controller()
+@UseGuards(JwtAuthGuard)
+export class TrainingDatasetController {
+  constructor(private readonly service: TrainingDatasetService) {}
+
+  @Patch('me/training-consent')
+  async setConsent(@Req() req: AuthedReq, @Body() body: { enabled?: unknown }) {
+    if (typeof body?.enabled !== 'boolean') {
+      throw new BadRequestException('enabled must be a boolean');
+    }
+    await this.service.setConsent(req.user.userId, body.enabled);
+    return { ok: true, enabled: body.enabled };
+  }
+
+  @Delete('me/training-samples')
+  purge(@Req() req: AuthedReq) {
+    return this.service.purgeUserSamples(req.user.userId);
+  }
+
+  @Get('admin/training-dataset/stats')
+  @UseGuards(AdminAuthGuard)
+  stats(@Req() req: AuthedReq) {
+    void req; // guard already enforces admin
+    return this.service.stats();
+  }
+
+  @Get('admin/training-dataset/export.jsonl')
+  @UseGuards(AdminAuthGuard)
+  @Header('Content-Type', 'application/x-ndjson')
+  @Header('Content-Disposition', 'attachment; filename="training.jsonl"')
+  async export(@Res() res: Response) {
+    const body = await this.service.exportLabeledJsonl();
+    res.send(body);
+  }
+}
