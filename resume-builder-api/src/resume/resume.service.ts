@@ -3904,6 +3904,8 @@ const ATS_TEMPLATE_EXPORT_CSS = `
       }
       .ats-item {
         margin-top: 8px;
+        page-break-inside: avoid;
+        break-inside: avoid;
       }
       .ats-item h3 {
         margin: 0;
@@ -3946,7 +3948,12 @@ export function renderResumeTemplateHtml(input: RenderResumeTemplateHtmlInput): 
   const resume = input?.resumeData || {};
   const templateId = resolveExportTemplateId(input?.templateId, resume?.templateId);
   const fingerprint = `TEMPLATE_FINGERPRINT:${templateId}`;
-  const title = escapeHtml(templateFullNameOrTitle(resume));
+  // The page <title> uses the resume's document title (what the user
+  // named the resume — e.g. "Principal Engineer Resume"). The h1
+  // inside the body still uses the person's full name so that
+  // pdf-parse can recover the candidate during ATS PDF round-trips.
+  const docTitle = String(resume?.title || '').trim() || templateFullNameOrTitle(resume);
+  const title = escapeHtml(docTitle);
   const body = renderTemplateBody(templateId, resume);
   const mode = input.mode;
   const html = `

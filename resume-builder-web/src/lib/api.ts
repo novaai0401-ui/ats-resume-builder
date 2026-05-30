@@ -535,10 +535,18 @@ export function startSessionHeartbeat() {
     }).catch(() => undefined);
   };
   pingNow();
-  window.setInterval(() => {
+  // In Node-based tests (jsdom + node:test) this interval would keep
+  // the event loop alive forever and force the runner to SIGKILL the
+  // file. Use Node's setInterval + unref so production browsers behave
+  // exactly as before, but the test process can exit cleanly when no
+  // other handles remain.
+  const handle = setInterval(() => {
     void ensureSessionActive();
     pingNow();
   }, 120_000);
+  if (typeof (handle as unknown as { unref?: () => void })?.unref === 'function') {
+    (handle as unknown as { unref: () => void }).unref();
+  }
 }
 
 function parseCsvSet(raw?: string) {
