@@ -49,16 +49,22 @@ model User {
   failedLoginCount Int @default(0)
   lockedUntil DateTime?
   lastActiveAt DateTime?
-  /// Phase 8 — explicit opt-in for contributing anonymized resume samples
-  /// to improve the parsing model. Default false; surfaced at signup and
-  /// in account settings. Withdrawal stops new captures; existing samples
-  /// are purged via a separate explicit action.
-  trainingConsent Boolean @default(false)
+  /// Phase 8 — consent for contributing anonymized resume PATTERNS (not
+  /// personal details) to improve the parsing model. Default true: new
+  /// users participate by default because the data we keep is PII-redacted
+  /// patterns only (no names, emails, phones, URLs). A one-time notice
+  /// in the UI explains this, and the user can toggle off in account
+  /// settings at any time. Withdrawal stops new captures; existing
+  /// samples are purged via a separate explicit action.
+  trainingConsent Boolean @default(true)
   trainingConsentAt DateTime?
   /// Which version of the consent copy the user agreed to. Bumped whenever
   /// the wording of the consent surface materially changes so we can prove
-  /// what each user actually agreed to.
-  trainingConsentVersion Int @default(0)
+  /// what each user actually agreed to. v1 = patterns-only, default-on.
+  trainingConsentVersion Int @default(1)
+  /// Whether the user has seen the one-time training-data notice modal.
+  /// Used to surface the explanation exactly once per account.
+  trainingConsentNoticeSeen Boolean @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   resumes      Resume[]

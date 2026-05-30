@@ -34,11 +34,53 @@ export interface CaptureConfirmationInput {
 
 const CONSENT_VERSION = 1;
 
+/**
+ * The exact text the user is shown when training participation is
+ * default-on. Stored here so it ships with the API and the migration
+ * record stays auditable: bumping `CONSENT_VERSION` requires updating
+ * this string in the same commit.
+ */
+export const TRAINING_CONSENT_NOTICE = {
+  version: 1,
+  title: 'Help improve resume parsing',
+  body:
+    'You are opted in by default to help improve our resume parser. ' +
+    'We only learn from PATTERNS and structure — never your personal ' +
+    'details. Names, emails, phone numbers, and links are stripped ' +
+    'before anything is saved for training. You can opt out any time ' +
+    'in Account Settings, or delete every sample we have from your ' +
+    'account with one click.',
+} as const;
+
 @Injectable()
 export class TrainingDatasetService {
   private readonly logger = new Logger(TrainingDatasetService.name);
 
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Returns current consent state plus whether the user still owes us
+   * an acknowledgement of the one-time notice. The client shows the
+   * modal when `noticeSeen` is false.
+   */
+  async getConsent(userId: string) {
+    const u = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        trainingConsent: true,
+        trainingConsentAt: true,
+        trainingConsentVersion: true,
+        trainingConsentNoticeSeen: true,
+      },
+    });
+    return {
+      enabled: u?.trainingConsent ?? true,
+      version: u?.trainingConsentVersion ?? CONSENT_VERSION,
+      noticeSeen: u?.trainingConsentNoticeSeen ?? false,
+      acceptedAt: u?.trainingConsentAt ?? null,
+      notice: TRAINING_CONSENT_NOTICE,
+    };
+  }
 
   /**
    * Record opt-in / opt-out. Withdrawal does NOT purge existing rows;
@@ -53,6 +95,17 @@ export class TrainingDatasetService {
         trainingConsentVersion: enabled ? CONSENT_VERSION : 0,
       },
     });
+  }
+
+  /**
+   * Mark the one-time notice as acknowledged. Idempotent.
+   */
+  async acknowledgeNotice(userId: string) {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { trainingConsentNoticeSeen: true },
+    });
+    return { ok: true };
   }
 
   /**

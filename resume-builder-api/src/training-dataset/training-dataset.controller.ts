@@ -6,6 +6,7 @@ import {
   Get,
   Header,
   Patch,
+  Post,
   Req,
   Res,
   UseGuards,
@@ -31,6 +32,11 @@ interface AuthedReq { user: { userId: string } }
 export class TrainingDatasetController {
   constructor(private readonly service: TrainingDatasetService) {}
 
+  @Get('me/training-consent')
+  getConsent(@Req() req: AuthedReq) {
+    return this.service.getConsent(req.user.userId);
+  }
+
   @Patch('me/training-consent')
   async setConsent(@Req() req: AuthedReq, @Body() body: { enabled?: unknown }) {
     if (typeof body?.enabled !== 'boolean') {
@@ -38,6 +44,16 @@ export class TrainingDatasetController {
     }
     await this.service.setConsent(req.user.userId, body.enabled);
     return { ok: true, enabled: body.enabled };
+  }
+
+  /**
+   * Mark the one-time training-data notice as seen. The client calls
+   * this after the user acknowledges the explanatory modal on first
+   * login (or first visit after policy bump). Idempotent.
+   */
+  @Post('me/training-consent/notice-seen')
+  ackNotice(@Req() req: AuthedReq) {
+    return this.service.acknowledgeNotice(req.user.userId);
   }
 
   @Delete('me/training-samples')
