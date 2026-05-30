@@ -6,9 +6,10 @@ import { OutcomesService } from './outcomes.service';
 import { SettingsModule } from '../settings/settings.module';
 import { BillingModule } from '../billing/billing.module';
 import { PatternLearnerModule } from '../pattern-learner/pattern-learner.module';
+import { TrainingDatasetModule } from '../training-dataset/training-dataset.module';
 
 @Module({
-  imports: [SettingsModule, BillingModule, PatternLearnerModule],
+  imports: [SettingsModule, BillingModule, PatternLearnerModule, TrainingDatasetModule],
   providers: [ResumeService, ResumeVersionsService, OutcomesService],
   controllers: [ResumeController],
   exports: [ResumeService, ResumeVersionsService, OutcomesService],
