@@ -228,6 +228,26 @@ export class TrainingDatasetService {
     return serializeJsonl(samples);
   }
 
+  /** Persist one evaluation run posted by the training harness. */
+  async recordEvaluation(input: {
+    modelName: string;
+    modelVersion: string;
+    sampleCount: number;
+    metrics: unknown;
+    trainingNote?: string;
+  }) {
+    const row = await this.prisma.modelEvaluation.create({
+      data: {
+        modelName: input.modelName,
+        modelVersion: input.modelVersion,
+        sampleCount: input.sampleCount,
+        metrics: input.metrics as Prisma.InputJsonValue,
+        trainingNote: input.trainingNote ?? null,
+      },
+    });
+    return { id: row.id, evaluatedAt: row.evaluatedAt };
+  }
+
   /** Admin gate. Throws unless the requesting user is flagged admin. */
   async assertAdmin(userId: string): Promise<void> {
     const u = await this.prisma.user.findUnique({ where: { id: userId }, select: { isAdmin: true } });

@@ -76,4 +76,30 @@ export class TrainingDatasetController {
     const body = await this.service.exportLabeledJsonl();
     res.send(body);
   }
+
+  /**
+   * Upload one ModelEvaluation row. Called by training/evaluate.py
+   * after a run completes so the metrics history lives next to the
+   * dataset that produced them.
+   */
+  @Post('admin/training-dataset/evaluations')
+  @UseGuards(AdminAuthGuard)
+  async recordEvaluation(@Body() body: {
+    modelName?: string;
+    modelVersion?: string;
+    sampleCount?: number;
+    metrics?: unknown;
+    trainingNote?: string;
+  }) {
+    if (!body?.modelName || !body?.modelVersion || typeof body.sampleCount !== 'number' || !body.metrics) {
+      throw new BadRequestException('modelName, modelVersion, sampleCount, metrics are required');
+    }
+    return this.service.recordEvaluation({
+      modelName: body.modelName,
+      modelVersion: body.modelVersion,
+      sampleCount: body.sampleCount,
+      metrics: body.metrics,
+      trainingNote: body.trainingNote,
+    });
+  }
 }
