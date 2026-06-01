@@ -3944,7 +3944,7 @@ type TemplateCertificationItem = {
   date: string;
 };
 
-const ATS_TEMPLATE_EXPORT_CSS_BUNDLE = 'inline:ats-template-css-v1';
+const ATS_TEMPLATE_EXPORT_CSS_BUNDLE = 'inline:ats-template-css-v2';
 const ATS_TEMPLATE_EXPORT_CSS = `
       @page { size: A4; margin: 15mm; }
       * { box-sizing: border-box; }
@@ -4039,6 +4039,8 @@ const ATS_TEMPLATE_EXPORT_CSS = `
       }
       .ats-item {
         margin-top: 8px;
+        page-break-inside: avoid;
+        break-inside: avoid;
       }
       .ats-item h3 {
         margin: 0;
@@ -4075,13 +4077,55 @@ const ATS_TEMPLATE_EXPORT_CSS = `
         break-before: avoid;
         page-break-before: avoid;
       }
+
+      /* ──────────────────────────────────────────────────────────────
+         Accent Header template — must match the React component
+         (components/templates/AccentHeader.tsx) byte-for-byte so the
+         downloaded PDF looks identical to the live preview. Earlier
+         versions of the export emitted plain "ats-template--accent-
+         header" markup with no chips and no header band; the
+         downloaded PDF looked like Classic ATS and confused users
+         who picked Accent Header for the visual style.
+         ─────────────────────────────────────────────────────────── */
+      .nb-accent-header { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 12px; line-height: 1.5; color: #1a2233; background: #ffffff; }
+      .nb-accent-header__band { background: linear-gradient(135deg, #1a3a6e 0%, #2563a8 100%); color: #ffffff; padding: 28px 32px 24px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .nb-accent-header__name { font-size: 26px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.02em; }
+      .nb-accent-header__title { font-size: 13px; opacity: 0.85; margin: 0 0 8px; font-weight: 400; }
+      .nb-accent-header__contact { font-size: 11px; opacity: 0.75; margin: 0; }
+      .nb-accent-header__body { padding: 24px 32px; }
+      .nb-accent-header__section { margin-bottom: 22px; page-break-inside: avoid; break-inside: avoid; }
+      .nb-accent-header__section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #2563a8; margin: 0 0 10px; display: flex; align-items: center; gap: 8px; }
+      .nb-accent-header__section-title::after { content: ''; flex: 1; height: 1px; background: #d0dff0; }
+      .nb-accent-header__summary { font-size: 11px; color: #3a4a5c; line-height: 1.7; margin: 0; }
+      .nb-accent-header__skills-wrap { display: flex; flex-wrap: wrap; gap: 6px; }
+      .nb-accent-header__skill-pill { background: #e8f0f8; color: #1a3a6e; border: 1px solid #c0d4ea; border-radius: 20px; padding: 3px 10px; font-size: 10px; font-weight: 500; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .nb-accent-header__skill-pill--soft { background: #f0f8ee; color: #1e5535; border-color: #b8dfb0; }
+      .nb-accent-header__item { margin-bottom: 14px; padding-left: 18px; position: relative; page-break-inside: avoid; break-inside: avoid; }
+      .nb-accent-header__item-header { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 4px; }
+      .nb-accent-header__item-dot { position: absolute; left: 0; top: 5px; width: 8px; height: 8px; border-radius: 50%; background: #2563a8; flex-shrink: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .nb-accent-header__item-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px; flex: 1; }
+      .nb-accent-header__item-role { font-size: 12px; font-weight: 600; color: #1a2e4a; }
+      .nb-accent-header__item-company { font-size: 11px; color: #5a7a9a; font-style: italic; }
+      .nb-accent-header__item-date { font-size: 10px; color: #8aa8c8; margin-left: auto; white-space: nowrap; }
+      .nb-accent-header__bullets { margin: 4px 0 0 4px; padding: 0 0 0 12px; list-style: disc; }
+      .nb-accent-header__bullets li { font-size: 10px; color: #3a4a5c; margin-bottom: 2px; line-height: 1.5; }
+      .nb-accent-header__lower { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+      .nb-accent-header__edu-item { margin-bottom: 8px; }
+      .nb-accent-header__edu-degree { font-size: 11px; font-weight: 600; color: #1a2e4a; margin: 0 0 2px; }
+      .nb-accent-header__edu-inst { font-size: 10px; color: #5a7a9a; margin: 0 0 2px; }
+      .nb-accent-header__edu-date { font-size: 10px; color: #8aa8c8; margin: 0; }
 `;
 
 export function renderResumeTemplateHtml(input: RenderResumeTemplateHtmlInput): RenderResumeTemplateHtmlOutput {
   const resume = input?.resumeData || {};
   const templateId = resolveExportTemplateId(input?.templateId, resume?.templateId);
   const fingerprint = `TEMPLATE_FINGERPRINT:${templateId}`;
-  const title = escapeHtml(templateFullNameOrTitle(resume));
+  // The page <title> uses the resume's document title (what the user
+  // named the resume — e.g. "Principal Engineer Resume"). The h1
+  // inside the body still uses the person's full name so that
+  // pdf-parse can recover the candidate during ATS PDF round-trips.
+  const docTitle = String(resume?.title || '').trim() || templateFullNameOrTitle(resume);
+  const title = escapeHtml(docTitle);
   const body = renderTemplateBody(templateId, resume);
   const mode = input.mode;
   const html = `
@@ -4282,15 +4326,144 @@ function renderSidebarBoldTemplateArticle(resume: any) {
 }
 
 function renderAccentHeaderTemplateArticle(resume: any) {
+  // Mirror the React component (components/templates/AccentHeader.tsx)
+  // byte-for-byte. The live preview renders that component; the PDF
+  // export used to emit a totally different "ats-template--accent-
+  // header" structure with comma-separated skills and no header band,
+  // so the downloaded resume looked like Classic ATS instead of the
+  // styled template the user picked. Same class names + same DOM
+  // shape here, paired with the CSS appended to ATS_TEMPLATE_EXPORT_
+  // CSS, give the puppeteer-printed PDF the same blue band, skill
+  // chips, timeline dots, and two-column lower grid as the preview.
   const normalized = normalizeTemplateResumeData(resume);
+  const fullName = escapeHtml(templateFullNameOrTitle(normalized));
+  const role = String(normalized.title || normalized?.contact?.title || '').trim();
+  const hasRoleSubtitle = role && normalized?.contact?.fullName;
+  const contact = templateContactLine(normalized);
+  const summary = String(normalized.summary || '').trim();
+
+  const skills = templateCleanList(normalized.skills);
+  const technicalSkills = templateCleanList(normalized.technicalSkills);
+  const softSkills = templateCleanList(normalized.softSkills);
+  const displaySkills = technicalSkills.length ? technicalSkills : skills;
+
+  const languages = templateCleanList(normalized.languages);
+  const experience = templateExperienceItems(normalized);
+  const projects = templateProjectItems(normalized);
+  const education = templateEducationItems(normalized);
+  const certifications = templateCertificationItems(normalized);
+
+  const renderTimelineItem = (
+    role: string,
+    company: string,
+    dateRange: string,
+    highlights: string[],
+  ) => `
+        <div class="nb-accent-header__item">
+          <div class="nb-accent-header__item-header">
+            <div class="nb-accent-header__item-dot"></div>
+            <div class="nb-accent-header__item-meta">
+              <span class="nb-accent-header__item-role">${escapeHtml(role || 'Role')}</span>
+              ${company ? `<span class="nb-accent-header__item-company"> · ${escapeHtml(company)}</span>` : ''}
+              ${dateRange ? `<span class="nb-accent-header__item-date">${escapeHtml(dateRange)}</span>` : ''}
+            </div>
+          </div>
+          ${highlights.length ? `
+          <ul class="nb-accent-header__bullets">
+            ${highlights.map((h) => `<li>${escapeHtml(h)}</li>`).join('')}
+          </ul>` : ''}
+        </div>`;
+
+  const summarySection = summary ? `
+      <section class="nb-accent-header__section">
+        <h2 class="nb-accent-header__section-title">About Me</h2>
+        <p class="nb-accent-header__summary">${escapeHtml(summary)}</p>
+      </section>` : '';
+
+  const skillsSection = displaySkills.length ? `
+      <section class="nb-accent-header__section">
+        <h2 class="nb-accent-header__section-title">Skills</h2>
+        <div class="nb-accent-header__skills-wrap">
+          ${displaySkills.map((s) => `<span class="nb-accent-header__skill-pill">${escapeHtml(s)}</span>`).join('')}
+          ${softSkills.map((s) => `<span class="nb-accent-header__skill-pill nb-accent-header__skill-pill--soft">${escapeHtml(s)}</span>`).join('')}
+        </div>
+      </section>` : '';
+
+  const experienceSection = experience.length ? `
+      <section class="nb-accent-header__section">
+        <h2 class="nb-accent-header__section-title">Experience</h2>
+        ${experience.map((it) => renderTimelineItem(
+          String(it.role || ''),
+          String(it.company || ''),
+          templateDateRange(it.startDate, it.endDate),
+          templateCleanList(it.highlights),
+        )).join('')}
+      </section>` : '';
+
+  const projectsSection = projects.length ? `
+      <section class="nb-accent-header__section">
+        <h2 class="nb-accent-header__section-title">Projects</h2>
+        ${projects.map((it) => renderTimelineItem(
+          String(it.name || 'Project'),
+          '',
+          templateDateRange(it.startDate || '', it.endDate || ''),
+          templateCleanList(it.highlights),
+        )).join('')}
+      </section>` : '';
+
+  const educationCol = education.length ? `
+        <section class="nb-accent-header__section">
+          <h2 class="nb-accent-header__section-title">Education</h2>
+          ${education.map((it) => {
+            const dateRange = templateDateRange(String(it.startDate || ''), String(it.endDate || ''));
+            return `
+            <div class="nb-accent-header__edu-item">
+              <p class="nb-accent-header__edu-degree">${escapeHtml(it.degree || 'Degree')}</p>
+              ${it.institution ? `<p class="nb-accent-header__edu-inst">${escapeHtml(it.institution)}</p>` : ''}
+              ${dateRange ? `<p class="nb-accent-header__edu-date">${escapeHtml(dateRange)}</p>` : ''}
+            </div>`;
+          }).join('')}
+        </section>` : '';
+
+  const certsBlock = certifications.length ? `
+          <section class="nb-accent-header__section">
+            <h2 class="nb-accent-header__section-title">Certifications</h2>
+            ${certifications.map((it) => `
+            <div class="nb-accent-header__edu-item">
+              <p class="nb-accent-header__edu-degree">${escapeHtml(it.name || '')}</p>
+              ${it.issuer ? `<p class="nb-accent-header__edu-inst">${escapeHtml(it.issuer)}</p>` : ''}
+            </div>`).join('')}
+          </section>` : '';
+
+  const languagesBlock = languages.length ? `
+          <section class="nb-accent-header__section">
+            <h2 class="nb-accent-header__section-title">Languages</h2>
+            <p class="nb-accent-header__summary">${escapeHtml(languages.join(' · '))}</p>
+          </section>` : '';
+
+  const lowerSection = (educationCol || certsBlock || languagesBlock) ? `
+      <div class="nb-accent-header__lower">
+        ${educationCol}
+        <div>
+          ${certsBlock}
+          ${languagesBlock}
+        </div>
+      </div>` : '';
+
   return `
-    <article class="ats-template ats-template--accent-header">
-      ${templateHeader(normalized, { bar: true })}
-      ${renderOrderedSections(normalized, {
-        companyJoiner: ' | ',
-        divided: true,
-        labels: { summary: 'About Me' },
-      })}
+    <article class="nb-accent-header">
+      <header class="nb-accent-header__band">
+        <h1 class="nb-accent-header__name">${fullName}</h1>
+        ${hasRoleSubtitle ? `<p class="nb-accent-header__title">${escapeHtml(role)}</p>` : ''}
+        ${contact ? `<p class="nb-accent-header__contact">${escapeHtml(contact)}</p>` : ''}
+      </header>
+      <div class="nb-accent-header__body">
+        ${summarySection}
+        ${skillsSection}
+        ${experienceSection}
+        ${projectsSection}
+        ${lowerSection}
+      </div>
     </article>
   `;
 }

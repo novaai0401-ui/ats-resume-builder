@@ -194,7 +194,9 @@ export function tokenizeForKeywords(text: string): Set<string> {
       .toLowerCase()
       .replace(/[`"'(){}\[\]]/g, ' ')
       .split(/[^a-z0-9.+#/\-]+/)
-      .map((s) => s.trim())
+      // Strip trailing/leading punctuation kept by the split regex
+      // ("node.js" is preserved, "aws." becomes "aws").
+      .map((s) => s.trim().replace(/^[.\-/]+|[.\-/]+$/g, ''))
       .filter((s) => s.length >= 2),
   );
 }
