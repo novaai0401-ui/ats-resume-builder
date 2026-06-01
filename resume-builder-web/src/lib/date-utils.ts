@@ -77,3 +77,42 @@ function toMonthIndex(value: string) {
   const [year, month] = value.split('-').map((part) => Number(part));
   return year * 12 + (month - 1);
 }
+
+/**
+ * Enforce the single-"Present" rule across resume experience entries.
+ *
+ * Background: an ATS resume can claim exactly one currently-held role.
+ * Moonlighting / overlapping current jobs trigger dedup heuristics in
+ * many ATSes and look dishonest to recruiters. When the user checks
+ * "Present" on one experience, we clear "Present" on every other and
+ * leave their end date blank for the user to fill in explicitly.
+ *
+ * Pure function — pass in the current experience list and the index
+ * the user just toggled. Returns the corrected list. Callers handle
+ * the snackbar/notification.
+ */
+export function applySinglePresentRule<T extends { endDate?: string | null }>(
+  experiences: ReadonlyArray<T>,
+  toggledIndex: number,
+  nextCheckedState: boolean,
+): { experiences: T[]; clearedIndexes: number[] } {
+  const out = experiences.map((e) => ({ ...e })) as T[];
+  const cleared: number[] = [];
+
+  if (!nextCheckedState) {
+    if (out[toggledIndex]) {
+      out[toggledIndex] = { ...out[toggledIndex], endDate: '' };
+    }
+    return { experiences: out, clearedIndexes: cleared };
+  }
+
+  for (let i = 0; i < out.length; i++) {
+    if (i === toggledIndex) {
+      out[i] = { ...out[i], endDate: 'Present' };
+    } else if (isPresentToken(String(out[i]?.endDate || ''))) {
+      out[i] = { ...out[i], endDate: '' };
+      cleared.push(i);
+    }
+  }
+  return { experiences: out, clearedIndexes: cleared };
+}

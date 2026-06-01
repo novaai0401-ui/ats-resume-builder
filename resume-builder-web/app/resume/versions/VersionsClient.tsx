@@ -164,6 +164,18 @@ export default function VersionsClient() {
         <Link href="/dashboard" className="btn tertiary">← Back to dashboard</Link>
       </header>
 
+      {/* Spell out WHY this page exists. Without this, a junior user
+          lands here, sees an empty list, and doesn't know what to do.
+          Concrete examples > abstract description. */}
+      <div className="alert alert-success" style={{ marginBottom: 16, lineHeight: 1.5 }}>
+        <strong>When to use this:</strong>
+        <ul style={{ margin: '6px 0 0', paddingLeft: 20 }}>
+          <li>Before you ask AI to rewrite a section — snapshot first so you can restore if the rewrite goes wrong.</li>
+          <li>Tailoring one resume to a senior role and another to a leadership role — save each as a labelled snapshot.</li>
+          <li>On the <strong>Outcomes</strong> tab, you can see which snapshot actually got the most replies.</li>
+        </ul>
+      </div>
+
       <div className="versions-controls">
         <label className="versions-control">
           Resume
