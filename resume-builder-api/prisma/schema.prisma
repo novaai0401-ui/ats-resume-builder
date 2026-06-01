@@ -49,6 +49,22 @@ model User {
   failedLoginCount Int @default(0)
   lockedUntil DateTime?
   lastActiveAt DateTime?
+  /// Phase 8 — consent for contributing anonymized resume PATTERNS (not
+  /// personal details) to improve the parsing model. Default true: new
+  /// users participate by default because the data we keep is PII-redacted
+  /// patterns only (no names, emails, phones, URLs). A one-time notice
+  /// in the UI explains this, and the user can toggle off in account
+  /// settings at any time. Withdrawal stops new captures; existing
+  /// samples are purged via a separate explicit action.
+  trainingConsent Boolean @default(true)
+  trainingConsentAt DateTime?
+  /// Which version of the consent copy the user agreed to. Bumped whenever
+  /// the wording of the consent surface materially changes so we can prove
+  /// what each user actually agreed to. v1 = patterns-only, default-on.
+  trainingConsentVersion Int @default(1)
+  /// Whether the user has seen the one-time training-data notice modal.
+  /// Used to surface the explanation exactly once per account.
+  trainingConsentNoticeSeen Boolean @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   resumes      Resume[]
@@ -358,4 +374,71 @@ model SahaayakMessage {
   createdAt    DateTime @default(now())
 
   @@index([userId, createdAt])
+}
+
+/// Phase 8 — TrainingSample.
+///
+/// One row per resume upload that the contributing user has explicitly
+/// consented to share for parser-model training. The raw text is PII-redacted
+/// before persistence (same redactor as PatternLearner). The structured label
+/// is populated in one of two ways:
+///   1. AUTO from the final Resume payload after the user has confirmed
+///      and edited the extraction in the editor (high signal — these are
+///      "the user agreed this is correct" labels).
+///   2. MANUAL via the admin labeling tool for samples where the auto
+///      pathway never landed (uploads where the user abandoned the editor).
+///
+/// `splitGroup` is assigned at insert time (stratified by source format)
+/// so train/val/test are stable across re-exports.
+model TrainingSample {
+  id                  String   @id @default(cuid())
+  /// Nullable for synthetic / seed samples that aren't tied to a user.
+  userId              String?
+  /// Hashed device fingerprint or `null` — used for dedup across uploads
+  /// without identifying the user beyond what `userId` already does.
+  sourceFingerprint   String?
+  sourceFileType      String   // pdf | docx | image | txt
+  sourceFileBytes     Int      // size of the original file (for stats only)
+  /// PII-redacted text from the upload. This is what the model trains on.
+  redactedText        String
+  /// Bounding boxes / layout signals if available (e.g. from pdf-parse +
+  /// position metadata). Optional — text-only samples still train.
+  layoutHints         Json?
+  /// Gold-standard structured extraction. Null until labeled.
+  structuredLabel     Json?
+  /// auto | manual | seed — how the label was produced.
+  labelSource         String?
+  /// pending | labeled | reviewed | excluded
+  status              String   @default("pending")
+  /// Stable train/val/test split assigned at insert time.
+  splitGroup          String   @default("train")
+  /// Which consent version applies to this row.
+  consentVersion      Int      @default(1)
+  /// Free-form admin notes for label review.
+  notes               String?
+  labeledAt           DateTime?
+  labeledBy           String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([status, splitGroup])
+  @@index([userId, createdAt])
+  @@index([sourceFileType])
+}
+
+/// Phase 8 — ModelEvaluation. Snapshot of one model version's metrics
+/// against a fixed evaluation slice of TrainingSample rows. Used to track
+/// whether new training runs are actually improving on prior baselines.
+model ModelEvaluation {
+  id              String   @id @default(cuid())
+  modelName       String   // e.g. "layoutlmv3-resume-v1"
+  modelVersion    String   // e.g. "2026.01.15-r3"
+  sampleCount     Int
+  /// Per-field precision/recall/F1 plus overall: { contact: {p, r, f1}, ... }
+  metrics         Json
+  /// Free-form note about training run (commit, hyperparams, etc.)
+  trainingNote    String?
+  evaluatedAt     DateTime @default(now())
+
+  @@index([modelName, evaluatedAt])
 }

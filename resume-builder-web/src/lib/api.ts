@@ -1547,3 +1547,34 @@ export type LearnedPattern = {
   reviewedAt?: string | null;
   createdAt: string;
 };
+
+// ---------------------------------------------------------------------------
+// Training-dataset consent (Phase 8).
+// ---------------------------------------------------------------------------
+
+export type TrainingConsentState = {
+  enabled: boolean;
+  version: number;
+  noticeSeen: boolean;
+  acceptedAt: string | null;
+  notice: { version: number; title: string; body: string };
+};
+
+export function getTrainingConsent() {
+  return request<TrainingConsentState>('/me/training-consent', { method: 'GET' });
+}
+
+export function setTrainingConsent(enabled: boolean) {
+  return request<{ ok: true; enabled: boolean }>('/me/training-consent', {
+    method: 'PATCH',
+    body: JSON.stringify({ enabled }),
+  });
+}
+
+export function acknowledgeTrainingNotice() {
+  return request<{ ok: true }>('/me/training-consent/notice-seen', { method: 'POST' });
+}
+
+export function purgeTrainingSamples() {
+  return request<{ deleted: number }>('/me/training-samples', { method: 'DELETE' });
+}
