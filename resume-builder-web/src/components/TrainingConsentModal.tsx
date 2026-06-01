@@ -14,6 +14,12 @@ import {
  * + default-on; the user can opt out from the same modal or later from
  * Account Settings.
  *
+ * Styling note: the app does NOT use Tailwind — it ships its own CSS in
+ * globals.css. This component therefore uses self-contained inline styles
+ * so it renders as a true centered overlay regardless of which page it
+ * mounts on. (The earlier Tailwind-class version produced no styling and
+ * fell through as static text at the bottom of the page.)
+ *
  * Renders nothing when:
  *   - the user is not authenticated (request fails silently),
  *   - the notice has already been acknowledged,
@@ -37,6 +43,16 @@ export default function TrainingConsentModal() {
       cancelled = true;
     };
   }, []);
+
+  // Lock background scroll while the modal is open.
+  useEffect(() => {
+    if (!state) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [state]);
 
   if (!state) return null;
 
@@ -66,21 +82,38 @@ export default function TrainingConsentModal() {
       role="dialog"
       aria-modal="true"
       aria-labelledby="training-consent-title"
-      className="fixed inset-0 z-[1000] flex items-end justify-center bg-black/40 p-4 sm:items-center"
+      aria-describedby="training-consent-body"
+      style={overlayStyle}
+      onClick={(e) => {
+        // Clicking the dim backdrop acknowledges (same as "Got it") so the
+        // user is never trapped — but it does NOT opt them out silently.
+        if (e.target === e.currentTarget && !busy) void close();
+      }}
     >
-      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
-        <h2 id="training-consent-title" className="text-lg font-semibold text-slate-900">
-          {state.notice.title}
-        </h2>
-        <p className="mt-3 whitespace-pre-line text-sm leading-6 text-slate-700">
+      <div style={cardStyle} role="document">
+        <div style={iconRowStyle}>
+          <span aria-hidden style={iconBadgeStyle}>🔒</span>
+          <h2 id="training-consent-title" style={titleStyle}>
+            {state.notice.title}
+          </h2>
+        </div>
+
+        <p id="training-consent-body" style={bodyStyle}>
           {state.notice.body}
         </p>
-        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+
+        <ul style={bulletListStyle}>
+          <li style={bulletItemStyle}>We learn from <strong>patterns and structure</strong> only.</li>
+          <li style={bulletItemStyle}>Names, emails, phone numbers and links are <strong>stripped before saving</strong>.</li>
+          <li style={bulletItemStyle}>Opt out anytime, or delete every sample with one click.</li>
+        </ul>
+
+        <div style={buttonRowStyle}>
           <button
             type="button"
             onClick={optOut}
             disabled={busy}
-            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            style={{ ...secondaryButtonStyle, ...(busy ? disabledStyle : null) }}
           >
             Opt out
           </button>
@@ -88,15 +121,121 @@ export default function TrainingConsentModal() {
             type="button"
             onClick={close}
             disabled={busy}
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+            style={{ ...primaryButtonStyle, ...(busy ? disabledStyle : null) }}
           >
             Got it
           </button>
         </div>
-        <p className="mt-3 text-xs text-slate-500">
-          You can change this in Account Settings anytime.
-        </p>
+
+        <p style={footnoteStyle}>You can change this in Account Settings anytime.</p>
       </div>
     </div>
   );
 }
+
+const overlayStyle: React.CSSProperties = {
+  position: 'fixed',
+  inset: 0,
+  zIndex: 1000,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: '16px',
+  background: 'rgba(15, 23, 42, 0.55)',
+  backdropFilter: 'blur(2px)',
+};
+
+const cardStyle: React.CSSProperties = {
+  width: '100%',
+  maxWidth: '440px',
+  background: '#ffffff',
+  borderRadius: '16px',
+  padding: '28px',
+  boxShadow: '0 24px 60px rgba(15, 23, 42, 0.28)',
+  fontFamily: '"Source Sans 3", "IBM Plex Sans", system-ui, -apple-system, sans-serif',
+  color: '#1b2b3c',
+  boxSizing: 'border-box',
+};
+
+const iconRowStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '10px',
+  marginBottom: '14px',
+};
+
+const iconBadgeStyle: React.CSSProperties = {
+  fontSize: '18px',
+  lineHeight: 1,
+};
+
+const titleStyle: React.CSSProperties = {
+  margin: 0,
+  fontSize: '19px',
+  fontWeight: 700,
+  letterSpacing: '-0.01em',
+};
+
+const bodyStyle: React.CSSProperties = {
+  margin: '0 0 14px',
+  fontSize: '14.5px',
+  lineHeight: 1.55,
+  color: '#3c4a5c',
+};
+
+const bulletListStyle: React.CSSProperties = {
+  margin: '0 0 22px',
+  padding: '0 0 0 18px',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '6px',
+};
+
+const bulletItemStyle: React.CSSProperties = {
+  fontSize: '13.5px',
+  lineHeight: 1.5,
+  color: '#3c4a5c',
+};
+
+const buttonRowStyle: React.CSSProperties = {
+  display: 'flex',
+  gap: '10px',
+  justifyContent: 'flex-end',
+  flexWrap: 'wrap',
+};
+
+const baseButtonStyle: React.CSSProperties = {
+  appearance: 'none',
+  border: '1px solid transparent',
+  borderRadius: '10px',
+  padding: '10px 18px',
+  fontSize: '14px',
+  fontWeight: 600,
+  cursor: 'pointer',
+  fontFamily: 'inherit',
+};
+
+const primaryButtonStyle: React.CSSProperties = {
+  ...baseButtonStyle,
+  background: '#1a3a5c',
+  color: '#ffffff',
+};
+
+const secondaryButtonStyle: React.CSSProperties = {
+  ...baseButtonStyle,
+  background: '#ffffff',
+  color: '#1b2b3c',
+  border: '1px solid #cbd5e1',
+};
+
+const disabledStyle: React.CSSProperties = {
+  opacity: 0.55,
+  cursor: 'default',
+};
+
+const footnoteStyle: React.CSSProperties = {
+  margin: '16px 0 0',
+  fontSize: '12px',
+  color: '#7a8aa0',
+  textAlign: 'center',
+};
