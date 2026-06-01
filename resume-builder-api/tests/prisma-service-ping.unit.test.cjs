@@ -28,9 +28,10 @@ async function withEnv(overrides, run) {
 test('PrismaService init connects and pings when DATABASE_URL is valid', async () => {
   await withEnv(
     {
-      DATABASE_URL: "postgresql://postgres.zjxeyicrmbnxmxbqzhvi:resume-builder1234@aws-1-ap-south-1.pooler.supabase.com:6543/postgres?pgbouncer=true",
-
-DIRECT_URL: "postgresql://postgres.zjxeyicrmbnxmxbqzhvi:resume-builder1234@aws-1-ap-south-1.pooler.supabase.com:5432/postgres"
+      // Test-only URL; assertions below verify the connection-info parser
+      // resolves localhost/5432/resume_builder from this string.
+      DATABASE_URL: 'postgresql://postgres:password@localhost:5432/resume_builder',
+      DIRECT_URL: 'postgresql://postgres:password@localhost:5432/resume_builder',
     },
     async () => {
       const service = new PrismaService();

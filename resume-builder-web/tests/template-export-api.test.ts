@@ -55,8 +55,10 @@ test('resume export waits for template persistence before download', () => {
     source.includes('await ensureTemplateSavedForExport();'),
     'Resume export should await template persistence before download/preview',
   );
+  // downloadPdf grew optional trailing args (token, fileBaseName) — match
+  // the prefix so future args don't break the assertion.
   assert(
-    source.includes('await api.downloadPdf(resumeId, exportTemplateId);'),
+    /await\s+api\.downloadPdf\(\s*resumeId\s*,\s*exportTemplateId\b/.test(source),
     'Resume export should call downloadPdf with resolved templateId after save guard',
   );
 });
