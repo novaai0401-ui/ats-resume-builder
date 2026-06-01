@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <strong>Sahaayak</strong>
+    <span class="muted">सहायक</span>
+    <a id="open-options" href="#" class="link-r">Settings</a>
+  </header>
+
+  <div id="not-configured" class="empty" hidden>
+    Paste your access token in <a id="open-options-2" href="#">Settings</a> to begin.
+  </div>
+
+  <div id="not-opted-in" class="empty" hidden>
+    Sahaayak is opt-in. Open the web app and enable it under
+    <a id="open-sahaayak" href="#">Sahaayak</a>.
+  </div>
+
+  <div id="thread" class="thread"></div>
+
+  <form id="composer">
+    <textarea id="msg" rows="2" placeholder="What's on your mind?" disabled></textarea>
+    <button id="send" type="submit" disabled>Send</button>
+  </form>
+
+  <footer>
+    In crisis? iCall <a href="tel:+919152987821">+91 9152987821</a> · Vandrevala <a href="tel:18602662345">1860-2662-345</a>
+  </footer>
+
+  <script src="popup.js" type="module"></script>
+</body>
+</html>

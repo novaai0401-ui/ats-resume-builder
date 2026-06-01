@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import TrainingConsentCard from '@/src/components/TrainingConsentCard';
 
 /**
  * User settings.
@@ -36,10 +37,14 @@ export default function SettingsPageView() {
         <h2 style={{ marginTop: 0 }}>Privacy</h2>
         <p className="small" style={{ color: '#5a6778' }}>
           Your resume stays on this device by default. Cloud sync is opt-in and configured
-          inside the editor. We never sell or train AI models on your resume content.
+          inside the editor. We never sell your resume content.
         </p>
         <Link className="btn secondary" href="/dashboard">Back to dashboard</Link>
       </section>
+
+      <div style={{ marginTop: 16 }}>
+        <TrainingConsentCard />
+      </div>
     </main>
   );
 }

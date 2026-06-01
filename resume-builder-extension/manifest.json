@@ -1,0 +1,44 @@
+{
+  "manifest_version": 3,
+  "name": "ATS Builder — Job Hunt Companion",
+  "version": "0.1.0",
+  "description": "Capture job descriptions, auto-track applications with the resume version you used, and reach Sahaayak from any job board.",
+  "permissions": ["storage", "activeTab", "scripting", "contextMenus"],
+  "host_permissions": [
+    "https://www.linkedin.com/*",
+    "https://www.indeed.com/*",
+    "https://*.naukri.com/*",
+    "https://*.lever.co/*",
+    "https://*.greenhouse.io/*",
+    "https://boards.greenhouse.io/*",
+    "https://*.workable.com/*",
+    "https://*.smartrecruiters.com/*",
+    "http://localhost:4001/*",
+    "https://*/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "ATS Builder",
+    "default_popup": "popup.html"
+  },
+  "options_page": "options.html",
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.linkedin.com/jobs/*",
+        "https://www.indeed.com/*",
+        "https://*.naukri.com/job-listings*",
+        "https://*.lever.co/*",
+        "https://boards.greenhouse.io/*",
+        "https://*.workable.com/*",
+        "https://*.smartrecruiters.com/*"
+      ],
+      "js": ["content/job-board.js"],
+      "css": ["content/overlay.css"],
+      "run_at": "document_idle"
+    }
+  ]
+}

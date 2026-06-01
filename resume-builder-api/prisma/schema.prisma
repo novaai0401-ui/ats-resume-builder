@@ -49,6 +49,22 @@ model User {
   failedLoginCount Int @default(0)
   lockedUntil DateTime?
   lastActiveAt DateTime?
+  /// Phase 8 — consent for contributing anonymized resume PATTERNS (not
+  /// personal details) to improve the parsing model. Default true: new
+  /// users participate by default because the data we keep is PII-redacted
+  /// patterns only (no names, emails, phones, URLs). A one-time notice
+  /// in the UI explains this, and the user can toggle off in account
+  /// settings at any time. Withdrawal stops new captures; existing
+  /// samples are purged via a separate explicit action.
+  trainingConsent Boolean @default(true)
+  trainingConsentAt DateTime?
+  /// Which version of the consent copy the user agreed to. Bumped whenever
+  /// the wording of the consent surface materially changes so we can prove
+  /// what each user actually agreed to. v1 = patterns-only, default-on.
+  trainingConsentVersion Int @default(1)
+  /// Whether the user has seen the one-time training-data notice modal.
+  /// Used to surface the explanation exactly once per account.
+  trainingConsentNoticeSeen Boolean @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   resumes      Resume[]
@@ -195,6 +211,10 @@ model JobApplication {
   source       String?                                 // linkedin | referral | company-site | recruiter
   referral     String?                                 // name of referrer if applicable
   resumeId     String?                                 // linked tailored resume
+  /// Which ResumeVersion of `resumeId` was used. The Outcome Loop reads this
+  /// to attribute response/interview/offer rates back to a specific snapshot
+  /// so users can see "v3 got 2.4× more replies than v1".
+  resumeVersionId String?
   coverLetterId String?                                // linked tailored cover letter
   notes        String?
   nextActionAt DateTime?                               // follow-up / interview reminder
@@ -239,4 +259,186 @@ model CoverLetter {
   updatedAt    DateTime @updatedAt
 
   @@index([userId, createdAt])
+}
+
+/// PatternLearnerAgent — sample of a resume upload whose extraction confidence
+/// fell below threshold. Captured anonymously (redacted raw text + verification
+/// report + extracted snapshot) so the learner can propose new parsing rules.
+model ParseFailureSample {
+  id              String   @id @default(cuid())
+  userId          String?
+  fileName        String?
+  /// Redacted raw text. Emails / phones / long digit runs replaced with tokens.
+  redactedText    String
+  /// VerificationReport JSON (confidence, issues[]).
+  verification    Json
+  /// What the parser produced (section keys + counts) — NOT the full resume.
+  extractedShape  Json
+  /// "low-confidence" | "user-flagged" | "missing-section"
+  trigger         String   @default("low-confidence")
+  /// open | proposed | promoted | rejected | duplicate
+  status          String   @default("open")
+  proposalId      String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([status, createdAt])
+}
+
+/// PatternLearnerAgent — a parsing pattern (regex or heuristic) proposed by the
+/// LLM and optionally promoted to the live rule registry. Rules are DATA, not
+/// code, so the field-mapper can hot-load them without redeploy.
+model LearnedPattern {
+  id              String   @id @default(cuid())
+  /// What this pattern extracts. e.g. "experience.dateRange",
+  /// "education.degree", "contact.phone", "section.heading"
+  kind            String
+  /// JS regex source (without flags) OR named heuristic id.
+  pattern         String
+  flags           String   @default("i")
+  /// "regex" | "heuristic"
+  patternType     String   @default("regex")
+  /// Short human note from the LLM explaining why this pattern helps.
+  rationale       String?
+  /// Few-shot examples the LLM was given.
+  examples        Json?
+  /// Validator metrics: { precision, recall, sampleSize, regressionCount }
+  metrics         Json?
+  /// proposed | promoted | rejected | rolledback
+  status          String   @default("proposed")
+  sourceSampleId  String?
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([kind, status])
+  @@index([status, createdAt])
+}
+
+/// Sahaayak — per-user opt-in profile + accumulated context the companion
+/// uses to remember the user's journey across sessions. One row per user.
+/// "Sahaayak" (सहायक) — a Sanskrit word for "companion / helper".
+model SahaayakProfile {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  /// User must opt in before any memory is recorded.
+  optedIn         Boolean  @default(false)
+  /// "witness" (default) | "coach" | "karmayoga" — controls tone.
+  mode            String   @default("witness")
+  /// Free-text preferences the user sets ("don't bring up my last layoff").
+  guardrails      String?
+  /// LLM-maintained running summary of facts worth remembering. Capped.
+  summary         String?
+  /// Last interaction timestamp, used for check-in cadence.
+  lastInteractionAt DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+/// Sahaayak — discrete events the user (or the system) logs. Used both to
+/// drive pattern reframes ("3 fintech rejections this month") and to seed
+/// the chat memory. Kept structured so we can analyze without LLM calls.
+model SahaayakEvent {
+  id          String   @id @default(cuid())
+  userId      String
+  /// rejection | interview | offer | layoff | win | mood | reflection
+  kind        String
+  /// Company / role / score / mood-rating / free-form. Schema varies by kind.
+  payload     Json
+  /// Optional short note from the user.
+  note        String?
+  /// 1..5 mood at time of event when the user supplies it.
+  moodRating  Int?
+  occurredAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  @@index([userId, kind, occurredAt])
+  @@index([userId, occurredAt])
+}
+
+/// Sahaayak — conversational turns. We keep the last N raw turns for
+/// context; older content is folded into SahaayakProfile.summary by the
+/// memory-summarizer.
+model SahaayakMessage {
+  id           String   @id @default(cuid())
+  userId       String
+  /// user | assistant | system
+  role         String
+  content      String
+  /// Crisis flag set by the detector when the message contained despair
+  /// language. We never delete these — they are the highest-signal moments.
+  crisisFlag   Boolean  @default(false)
+  /// Token estimate used for budgeting context windows.
+  tokens       Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+/// Phase 8 — TrainingSample.
+///
+/// One row per resume upload that the contributing user has explicitly
+/// consented to share for parser-model training. The raw text is PII-redacted
+/// before persistence (same redactor as PatternLearner). The structured label
+/// is populated in one of two ways:
+///   1. AUTO from the final Resume payload after the user has confirmed
+///      and edited the extraction in the editor (high signal — these are
+///      "the user agreed this is correct" labels).
+///   2. MANUAL via the admin labeling tool for samples where the auto
+///      pathway never landed (uploads where the user abandoned the editor).
+///
+/// `splitGroup` is assigned at insert time (stratified by source format)
+/// so train/val/test are stable across re-exports.
+model TrainingSample {
+  id                  String   @id @default(cuid())
+  /// Nullable for synthetic / seed samples that aren't tied to a user.
+  userId              String?
+  /// Hashed device fingerprint or `null` — used for dedup across uploads
+  /// without identifying the user beyond what `userId` already does.
+  sourceFingerprint   String?
+  sourceFileType      String   // pdf | docx | image | txt
+  sourceFileBytes     Int      // size of the original file (for stats only)
+  /// PII-redacted text from the upload. This is what the model trains on.
+  redactedText        String
+  /// Bounding boxes / layout signals if available (e.g. from pdf-parse +
+  /// position metadata). Optional — text-only samples still train.
+  layoutHints         Json?
+  /// Gold-standard structured extraction. Null until labeled.
+  structuredLabel     Json?
+  /// auto | manual | seed — how the label was produced.
+  labelSource         String?
+  /// pending | labeled | reviewed | excluded
+  status              String   @default("pending")
+  /// Stable train/val/test split assigned at insert time.
+  splitGroup          String   @default("train")
+  /// Which consent version applies to this row.
+  consentVersion      Int      @default(1)
+  /// Free-form admin notes for label review.
+  notes               String?
+  labeledAt           DateTime?
+  labeledBy           String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([status, splitGroup])
+  @@index([userId, createdAt])
+  @@index([sourceFileType])
+}
+
+/// Phase 8 — ModelEvaluation. Snapshot of one model version's metrics
+/// against a fixed evaluation slice of TrainingSample rows. Used to track
+/// whether new training runs are actually improving on prior baselines.
+model ModelEvaluation {
+  id              String   @id @default(cuid())
+  modelName       String   // e.g. "layoutlmv3-resume-v1"
+  modelVersion    String   // e.g. "2026.01.15-r3"
+  sampleCount     Int
+  /// Per-field precision/recall/F1 plus overall: { contact: {p, r, f1}, ... }
+  metrics         Json
+  /// Free-form note about training run (commit, hyperparams, etc.)
+  trainingNote    String?
+  evaluatedAt     DateTime @default(now())
+
+  @@index([modelName, evaluatedAt])
 }

@@ -16,6 +16,27 @@ import { ACTION_VERB_REQUIRED_RATIO, analyzeActionVerbRule, normalizeBulletText,
 import { SettingsService } from '../settings/settings.service';
 import { MailService } from '../mail/mail.service';
 import { renderResumeDocx, buildResumeFileName } from './docx-export';
+import { PatternLearnerService } from '../pattern-learner/pattern-learner.service';
+import { applyLearnedPatterns } from '../pattern-learner/pattern-applier';
+import { TrainingDatasetService } from '../training-dataset/training-dataset.service';
+
+/**
+ * Maps the raw file MIME / name to the short tags we store on
+ * TrainingSample.sourceFileType. Kept narrow so downstream stats / model
+ * stratification stay clean.
+ */
+function deriveTrainingFileType(originalname: string, mimetype: string): string {
+  const mt = (mimetype || '').toLowerCase();
+  if (mt.includes('pdf')) return 'pdf';
+  if (mt.includes('word') || mt.includes('officedocument') || mt.includes('msword')) return 'docx';
+  if (mt.startsWith('image/')) return 'image';
+  if (mt.includes('html')) return 'html';
+  const ext = String(originalname || '').toLowerCase().split('.').pop() || '';
+  if (ext === 'pdf' || ext === 'docx' || ext === 'doc' || ext === 'html' || ext === 'htm') {
+    return ext === 'doc' ? 'docx' : ext === 'htm' ? 'html' : ext;
+  }
+  return 'txt';
+}
 
 
 
@@ -130,6 +151,8 @@ export class ResumeService {
     private readonly prisma: PrismaService,
     @Optional() private readonly settingsService?: SettingsService,
     @Optional() private readonly mailService?: MailService,
+    @Optional() private readonly patternLearner?: PatternLearnerService,
+    @Optional() private readonly trainingDataset?: TrainingDatasetService,
   ) {}
 
   async create(userId: string, dto: CreateResumeDto) {
@@ -194,7 +217,36 @@ export class ResumeService {
         templateId,
       },
     });
+    this.fireTrainingConfirmation(userId, created.id, created);
     return decorateResumeWithSkillCategories(created);
+  }
+
+  /**
+   * Fire-and-forget promotion of the most recent pending TrainingSample
+   * for this user into a labeled sample using the just-saved Resume as
+   * the gold answer. Never throws into the caller path.
+   */
+  private fireTrainingConfirmation(userId: string, resumeId: string, resume: { contact: unknown; summary: string; skills: string[]; experience: unknown; education: unknown; projects: unknown; certifications: unknown; languages?: string[] }) {
+    if (!this.trainingDataset) return;
+    void this.trainingDataset
+      .captureConfirmation({
+        userId,
+        resumeId,
+        resumePayload: {
+          contact: (resume.contact as Record<string, unknown> | null) ?? null,
+          summary: resume.summary,
+          skills: Array.isArray(resume.skills) ? resume.skills : [],
+          experience: Array.isArray(resume.experience) ? (resume.experience as Array<Record<string, unknown>>) : [],
+          education: Array.isArray(resume.education) ? (resume.education as Array<Record<string, unknown>>) : [],
+          projects: Array.isArray(resume.projects) ? (resume.projects as Array<Record<string, unknown>>) : [],
+          certifications: Array.isArray(resume.certifications) ? (resume.certifications as Array<Record<string, unknown>>) : [],
+        },
+      })
+      .catch((error: unknown) => {
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn(`[training-dataset] captureConfirmation failed: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      });
   }
 
   private async enforceResumeCreateRateLimit(userId: string) {
@@ -310,6 +362,11 @@ export class ResumeService {
         templateId,
       },
     });
+    // Only fire the auto-label promotion on substantive edits — a pure
+    // templateId swap doesn't represent the user confirming structure.
+    if (!isTemplateOnlyUpdate) {
+      this.fireTrainingConfirmation(userId, id, updated);
+    }
     return decorateResumeWithSkillCategories(updated);
   }
 
@@ -675,7 +732,7 @@ export class ResumeService {
 
   async parseResumeUpload(
     file: { originalname: string; mimetype: string; size?: number; buffer: Buffer },
-    options?: { resumeId?: string; title?: string; mode?: 'extract-only' | 'extract-and-map' },
+    options?: { resumeId?: string; title?: string; mode?: 'extract-only' | 'extract-and-map'; userId?: string },
   ) {
     const text = await extractTextFromFile(file);
     const trimmed = String(text || '').trim();
@@ -720,6 +777,65 @@ export class ResumeService {
       if (!verification.ok && process.env.NODE_ENV !== 'production') {
         console.warn(`[parse-upload] verification warnings (reExtracted=${reExtracted}) for ${file.originalname}: ${verification.warnings.join(' | ')}`);
       }
+      // PatternLearnerAgent capture (fire-and-forget; never blocks upload).
+      if (this.patternLearner && !verification.ok) {
+        const warnings = verification.warnings || [];
+        const confidence = Math.max(0, 1 - warnings.length * 0.15);
+        void this.patternLearner.captureFailure({
+          userId: options?.userId,
+          fileName: file.originalname,
+          rawText: chosen.normalizedText,
+          verification: {
+            ok: verification.ok,
+            confidence,
+            issues: warnings.map((w: string) => ({ kind: 'warning', detail: w })),
+          },
+          extractedShape: {
+            sectionHits: summarizeSectionHits(chosen.parsed.sections),
+            experienceCount: chosen.parsedPayload.experience?.length ?? 0,
+            educationCount: chosen.parsedPayload.education?.length ?? 0,
+            skillsCount: chosen.parsedPayload.skills?.length ?? 0,
+            hasContactEmail: Boolean(chosen.parsedPayload.contact?.email),
+            hasContactPhone: Boolean(chosen.parsedPayload.contact?.phone),
+            hasContactName: Boolean(chosen.parsedPayload.contact?.fullName),
+          },
+          trigger: 'low-confidence',
+        });
+      }
+      // Salvage pass: apply promoted LearnedPatterns to fill empty fields ONLY.
+      // Feature-flagged so we can roll out gradually. Never overwrites values
+      // the primary extractor produced. Logs a diff for observability.
+      let salvageReport: { applied: Array<{ kind: string; field: string; value: string }>; skipped: Array<{ kind: string; reason: string }> } | null = null;
+      const salvageEnabled = String(process.env.PATTERN_LEARNER_APPLY || '').toLowerCase() === 'true';
+      if (salvageEnabled && this.patternLearner && !verification.ok) {
+        try {
+          const promoted = await this.patternLearner.getPromotedPatterns();
+          if (promoted.length > 0) {
+            const before = JSON.stringify({
+              phone: chosen.parsedPayload.contact?.phone,
+              location: chosen.parsedPayload.contact?.location,
+              educationCount: chosen.parsedPayload.education?.length ?? 0,
+            });
+            salvageReport = applyLearnedPatterns(
+              chosen.normalizedText,
+              chosen.parsedPayload as Parameters<typeof applyLearnedPatterns>[1],
+              promoted,
+            );
+            if (salvageReport.applied.length > 0 && process.env.NODE_ENV !== 'production') {
+              const after = JSON.stringify({
+                phone: chosen.parsedPayload.contact?.phone,
+                location: chosen.parsedPayload.contact?.location,
+                educationCount: chosen.parsedPayload.education?.length ?? 0,
+              });
+              console.log(`[pattern-learner] salvage applied for ${file.originalname}: before=${before} after=${after}`);
+            }
+          }
+        } catch (error) {
+          if (process.env.NODE_ENV !== 'production') {
+            console.warn(`[pattern-learner] salvage pass failed: ${error instanceof Error ? error.message : String(error)}`);
+          }
+        }
+      }
       const debugPayload = {
         experienceSignals: chosen.mapped.signals,
         sectionHits: summarizeSectionHits(chosen.parsed.sections),
@@ -727,7 +843,26 @@ export class ResumeService {
         verification,
         reExtracted,
         primaryWarningCount: primary.verification.warnings.length,
+        salvageReport,
       };
+      // TrainingDataset capture (fire-and-forget). Records the upload as a
+      // pending sample if the user has consented; auto-labeling happens
+      // later when the user saves the resume in the editor. Service
+      // internally checks consent and silently no-ops if disabled.
+      if (this.trainingDataset && options?.userId) {
+        void this.trainingDataset
+          .captureUpload({
+            userId: options.userId,
+            rawText: chosen.normalizedText,
+            sourceFileType: deriveTrainingFileType(file.originalname, file.mimetype),
+            sourceFileBytes: file.size ?? file.buffer.length,
+          })
+          .catch((error: unknown) => {
+            if (process.env.NODE_ENV !== 'production') {
+              console.warn(`[training-dataset] captureUpload failed: ${error instanceof Error ? error.message : String(error)}`);
+            }
+          });
+      }
       return {
         text: chosen.normalizedText,
         fileName: file.originalname,
