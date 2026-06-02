@@ -42,6 +42,7 @@ import FreeAiNotice from '@/src/components/FreeAiNotice';
 import PostDownloadSubscriptionPopup from '@/src/components/PostDownloadSubscriptionPopup';
 import DownloadChargeModal from '@/src/components/DownloadChargeModal';
 import { applySinglePresentRule, compareYearMonth, isPresentToken, isYearMonth, toMonthInputValue, toYearMonth } from '@/src/lib/date-utils';
+import { detectIncompleteText } from '@/src/lib/text-completeness';
 import {
   buildCompanySuggestions,
   mergeCompanyPools,
@@ -2103,10 +2104,49 @@ export default function ResumeEditor() {
                   </div>
                 </div>
                 <div className="section-actions">
-                  <button className="btn secondary" onClick={() => updateSectionOrder(idx, -1)} disabled={sectionLocked || idx === 0} aria-label="Move section up">Up</button>
-                  <button className="btn secondary" onClick={() => updateSectionOrder(idx, 1)} disabled={sectionLocked || idx === enabledSections.length - 1} aria-label="Move section down">Down</button>
+                  {/* Stop propagation on every action button — without it,
+                     a click on Up/Down/Remove bubbles up to the parent
+                     section card's onClick, which calls
+                     setActiveStepIndex(...) and renders the section as
+                     editable EVEN WHEN it is gated by the navigation
+                     gate ("Complete earlier required sections to
+                     unlock this step"). User-reported bug. */}
+                  <button
+                    className="btn secondary"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (sectionLocked) return;
+                      updateSectionOrder(idx, -1);
+                    }}
+                    disabled={sectionLocked || idx === 0}
+                    aria-label="Move section up"
+                  >
+                    Up
+                  </button>
+                  <button
+                    className="btn secondary"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (sectionLocked) return;
+                      updateSectionOrder(idx, 1);
+                    }}
+                    disabled={sectionLocked || idx === enabledSections.length - 1}
+                    aria-label="Move section down"
+                  >
+                    Down
+                  </button>
                   {!section.required && (
-                    <button className="btn secondary" onClick={() => disableSection(section.type)} disabled={sectionLocked}>Remove</button>
+                    <button
+                      className="btn secondary"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (sectionLocked) return;
+                        disableSection(section.type);
+                      }}
+                      disabled={sectionLocked}
+                    >
+                      Remove
+                    </button>
                   )}
                 </div>
               </div>
@@ -2202,6 +2242,32 @@ export default function ResumeEditor() {
                     </span>
                     <span className="hint">{SECTION_GUIDANCE.summary.helper}</span>
                   </div>
+                  {/* Truncation warning: an extracted summary that ends
+                     with a conjunction / preposition / hanging comma
+                     was almost certainly cut off (the bug users
+                     reported as "summary ends mid-sentence"). Surface
+                     this as a hard-to-miss orange callout so the user
+                     fixes it before saving. */}
+                  {(() => {
+                    const incomplete = detectIncompleteText(resume.summary);
+                    if (!incomplete.looksIncomplete) return null;
+                    return (
+                      <p
+                        role="alert"
+                        className="hint warn"
+                        style={{
+                          marginTop: 8,
+                          padding: '8px 10px',
+                          background: '#fff4e0',
+                          border: '1px solid #f0c878',
+                          borderRadius: 6,
+                          color: '#7a4a00',
+                        }}
+                      >
+                        ⚠ {incomplete.reason}
+                      </p>
+                    );
+                  })()}
                   {detectedRoleLevel === 'SENIOR' && (
                     <p className="hint">Senior tip: call out scope, team size, and strategic impact.</p>
                   )}

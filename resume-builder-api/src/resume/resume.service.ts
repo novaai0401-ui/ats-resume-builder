@@ -3309,7 +3309,15 @@ function mapResumeSections(text: string) {
   const summarySource = summaryLines.length
     ? summaryLines
     : buildFallbackSummaryLines(sections.unmapped || lines);
-  const summary = summarySource.join(' ').slice(0, 400).trim();
+  // The summary cap used to be 400 chars, which silently truncated
+  // legitimate paragraph-style summaries mid-sentence (the bug users
+  // reported as "summary ends with 'resulting in improved stakeholder
+  // satisfaction and' — no closing"). 2000 is more than enough room
+  // for a real professional summary; the editor's character counter
+  // and the AI critique already nudge users back toward the
+  // recommended 350-500 char range so this cap is purely a defence
+  // against pathologically long uploads.
+  const summary = summarySource.join(' ').slice(0, 2000).trim();
 
   const skills = extractSkills([
     ...(sections.skills || []),
