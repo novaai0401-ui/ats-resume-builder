@@ -345,3 +345,66 @@ test('accent-header alias "accent-band" resolves to the same nb-accent-header ma
   assert.equal(rendered.templateId, 'accent-header');
   assert.match(rendered.html, /<article class="nb-accent-header">/);
 });
+
+// ---------------------------------------------------------------------------
+// Duplicate-skills regression: visual templates used to render soft skills
+// twice — once in the main skills section (because allSkills() merges all
+// three buckets and that was used as the fallback when techSkills was
+// empty) and once in their own dedicated soft-skills row.
+// ---------------------------------------------------------------------------
+
+function createInMemoryPrismaWithSoftSkills(templateId) {
+  const base = createInMemoryPrisma(templateId);
+  const state = base.__getState();
+  state.resume.skills = ['React', 'TypeScript', 'Collaboration', 'Communication'];
+  state.resume.technicalSkills = [];
+  state.resume.softSkills = ['Collaboration', 'Communication'];
+  state.resume.contact.softSkills = ['Collaboration', 'Communication'];
+  state.resume.contact.technicalSkills = [];
+  return base;
+}
+
+test('accent-header export does not render soft skills twice', async () => {
+  const prisma = createInMemoryPrismaWithSoftSkills('accent-header');
+  const service = new ResumeService(prisma, {
+    isPaymentFeatureEnabled: async () => false,
+    isRateLimitEnabled: async () => false,
+  });
+  const rendered = await service.debugExportHtml('user-1', 'resume-1');
+  const html = rendered.html;
+  const collaborationChips = (html.match(/>Collaboration</g) || []).length;
+  const communicationChips = (html.match(/>Communication</g) || []).length;
+  assert.equal(collaborationChips, 1, `Collaboration appears ${collaborationChips} times, expected 1`);
+  assert.equal(communicationChips, 1, `Communication appears ${communicationChips} times, expected 1`);
+  assert.equal((html.match(/>React</g) || []).length, 1);
+  assert.equal((html.match(/>TypeScript</g) || []).length, 1);
+});
+
+test('sidebar-bold export does not render soft skills twice', async () => {
+  const prisma = createInMemoryPrismaWithSoftSkills('sidebar-bold');
+  const service = new ResumeService(prisma, {
+    isPaymentFeatureEnabled: async () => false,
+    isRateLimitEnabled: async () => false,
+  });
+  const rendered = await service.debugExportHtml('user-1', 'resume-1');
+  const html = rendered.html;
+  const collaboration = (html.match(/<li class="nb-sidebar-bold__skill-item">Collaboration</g) || []).length;
+  const communication = (html.match(/<li class="nb-sidebar-bold__skill-item">Communication</g) || []).length;
+  assert.equal(collaboration, 1);
+  assert.equal(communication, 1);
+});
+
+test('sidebar-bold export emits nb-sidebar-bold markup matching the React preview', async () => {
+  const prisma = createInMemoryPrisma('sidebar-bold');
+  const service = new ResumeService(prisma, {
+    isPaymentFeatureEnabled: async () => false,
+    isRateLimitEnabled: async () => false,
+  });
+  const rendered = await service.debugExportHtml('user-1', 'resume-1');
+  const html = rendered.html;
+  assert.match(html, /<article class="nb-sidebar-bold">/);
+  assert.match(html, /<aside class="nb-sidebar-bold__sidebar">/);
+  assert.match(html, /<main class="nb-sidebar-bold__main">/);
+  assert.match(html, /class="nb-sidebar-bold__content-title">Profile</);
+  assert.match(html, /\.nb-sidebar-bold__sidebar\s*\{[^}]*background:\s*#1a2e4a/);
+});

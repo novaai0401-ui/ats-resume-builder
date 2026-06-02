@@ -1828,6 +1828,24 @@ function resolveSkillCategories(input: {
   };
 }
 
+/**
+ * Resolve the list of skills to render as "main" (chips / bullets)
+ * without overlapping the soft-skills list. Same fix as the React
+ * helper nonOverlappingMainSkills in components/templates/template
+ * Utils.tsx — the visual templates used to render the same item
+ * twice when techSkills was empty (skills array would include
+ * everything, then soft skills got re-rendered separately).
+ */
+function nonOverlappingMainSkills(resume: any): string[] {
+  const tech = templateCleanList(resume?.technicalSkills);
+  if (tech.length) return tech;
+  const skills = templateCleanList(resume?.skills);
+  const soft = templateCleanList(resume?.softSkills);
+  if (!soft.length) return dedupeSkills(skills);
+  const softSet = new Set(soft.map((s) => s.toLowerCase()));
+  return dedupeSkills(skills.filter((s) => !softSet.has(s.toLowerCase())));
+}
+
 function dedupeSkills(values: string[]) {
   const seen = new Set<string>();
   const output: string[] = [];
@@ -3944,7 +3962,7 @@ type TemplateCertificationItem = {
   date: string;
 };
 
-const ATS_TEMPLATE_EXPORT_CSS_BUNDLE = 'inline:ats-template-css-v2';
+const ATS_TEMPLATE_EXPORT_CSS_BUNDLE = 'inline:ats-template-css-v3';
 const ATS_TEMPLATE_EXPORT_CSS = `
       @page { size: A4; margin: 15mm; }
       * { box-sizing: border-box; }
@@ -4114,6 +4132,39 @@ const ATS_TEMPLATE_EXPORT_CSS = `
       .nb-accent-header__edu-degree { font-size: 11px; font-weight: 600; color: #1a2e4a; margin: 0 0 2px; }
       .nb-accent-header__edu-inst { font-size: 10px; color: #5a7a9a; margin: 0 0 2px; }
       .nb-accent-header__edu-date { font-size: 10px; color: #8aa8c8; margin: 0; }
+
+      /* ──────────────────────────────────────────────────────────────
+         Sidebar Bold template — mirrors components/templates/Sidebar
+         Bold.tsx. Two-column dark-navy sidebar + white main area.
+         ─────────────────────────────────────────────────────────── */
+      .nb-sidebar-bold { display: grid; grid-template-columns: 220px 1fr; min-height: 100%; font-family: 'Segoe UI', system-ui, sans-serif; font-size: 12px; line-height: 1.5; color: #1a2233; }
+      .nb-sidebar-bold__sidebar { background: #1a2e4a; color: #e8edf5; padding: 28px 18px; display: flex; flex-direction: column; gap: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .nb-sidebar-bold__name-block { margin-bottom: 20px; }
+      .nb-sidebar-bold__name { font-size: 18px; font-weight: 700; color: #ffffff; line-height: 1.25; margin: 0 0 4px; word-break: break-word; }
+      .nb-sidebar-bold__role { font-size: 11px; color: #7eb8e8; text-transform: uppercase; letter-spacing: 0.06em; margin: 0; }
+      .nb-sidebar-bold__divider { height: 1px; background: rgba(255,255,255,0.15); margin: 0 0 16px; }
+      .nb-sidebar-bold__section { margin-bottom: 18px; page-break-inside: avoid; break-inside: avoid; }
+      .nb-sidebar-bold__section-title { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #7eb8e8; margin: 0 0 8px; padding-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+      .nb-sidebar-bold__contact-item { font-size: 10px; color: #c8d8ea; margin: 0 0 4px; word-break: break-all; }
+      .nb-sidebar-bold__contact-item--link { color: #7eb8e8; }
+      .nb-sidebar-bold__skill-list { list-style: none; margin: 0; padding: 0; }
+      .nb-sidebar-bold__skill-item { font-size: 10px; color: #e8edf5; padding: 2px 0; display: flex; align-items: center; gap: 6px; }
+      .nb-sidebar-bold__skill-item::before { content: ''; display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: #7eb8e8; flex-shrink: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .nb-sidebar-bold__edu-item { margin-bottom: 10px; }
+      .nb-sidebar-bold__edu-degree { font-size: 10px; font-weight: 600; color: #e8edf5; margin: 0 0 2px; }
+      .nb-sidebar-bold__edu-inst { font-size: 10px; color: #a8bdd0; margin: 0 0 2px; }
+      .nb-sidebar-bold__edu-date { font-size: 9px; color: #7eb8e8; margin: 0; }
+      .nb-sidebar-bold__main { padding: 28px 24px; background: #ffffff; }
+      .nb-sidebar-bold__content-section { margin-bottom: 22px; page-break-inside: avoid; break-inside: avoid; }
+      .nb-sidebar-bold__content-title { font-size: 13px; font-weight: 700; color: #1a2e4a; text-transform: uppercase; letter-spacing: 0.06em; margin: 0 0 10px; padding-bottom: 5px; border-bottom: 2px solid #1a2e4a; }
+      .nb-sidebar-bold__summary { font-size: 11px; color: #3a4a5c; line-height: 1.6; margin: 0; }
+      .nb-sidebar-bold__exp-item { margin-bottom: 14px; page-break-inside: avoid; break-inside: avoid; }
+      .nb-sidebar-bold__exp-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 5px; }
+      .nb-sidebar-bold__exp-role { font-size: 12px; font-weight: 600; color: #1a2e4a; margin: 0 0 2px; }
+      .nb-sidebar-bold__exp-company { font-size: 11px; color: #5a7a9a; margin: 0; font-style: italic; }
+      .nb-sidebar-bold__exp-date { font-size: 10px; color: #7a9ab8; white-space: nowrap; flex-shrink: 0; }
+      .nb-sidebar-bold__exp-bullets { margin: 4px 0 0 14px; padding: 0; list-style: disc; }
+      .nb-sidebar-bold__exp-bullets li { font-size: 10px; color: #3a4a5c; margin-bottom: 2px; line-height: 1.5; }
 `;
 
 export function renderResumeTemplateHtml(input: RenderResumeTemplateHtmlInput): RenderResumeTemplateHtmlOutput {
@@ -4312,15 +4363,155 @@ function renderCreativeTemplateArticle(resume: any) {
 }
 
 function renderSidebarBoldTemplateArticle(resume: any) {
+  // Mirror components/templates/SidebarBold.tsx byte-for-byte so the
+  // downloaded PDF matches the live preview. Previously emitted
+  // ats-template--sidebar-bold (single-column with a header band) —
+  // a completely different layout from the two-column React preview.
   const normalized = normalizeTemplateResumeData(resume);
+  const fullName = escapeHtml(templateFullNameOrTitle(normalized));
+  const role = String(normalized?.title || '').trim();
+  const hasRoleSubtitle = role && normalized?.contact?.fullName;
+  const summary = String(normalized.summary || '').trim();
+
+  const displaySkills = nonOverlappingMainSkills(normalized);
+  const softSkills = templateCleanList(normalized.softSkills);
+  const displaySoft = softSkills;
+
+  const languages = templateCleanList(normalized.languages);
+  const experience = templateExperienceItems(normalized);
+  const projects = templateProjectItems(normalized);
+  const education = templateEducationItems(normalized);
+  const certifications = templateCertificationItems(normalized);
+
+  const email = String(normalized?.contact?.email || '').trim();
+  const phone = String(normalized?.contact?.phone || '').trim();
+  const location = String(normalized?.contact?.location || '').trim();
+  const links = templateCleanList(normalized?.contact?.links);
+
+  const sidebarContact = `
+        <div class="nb-sidebar-bold__section">
+          <h2 class="nb-sidebar-bold__section-title">Contact</h2>
+          ${email ? `<p class="nb-sidebar-bold__contact-item">${escapeHtml(email)}</p>` : ''}
+          ${phone ? `<p class="nb-sidebar-bold__contact-item">${escapeHtml(phone)}</p>` : ''}
+          ${location ? `<p class="nb-sidebar-bold__contact-item">${escapeHtml(location)}</p>` : ''}
+          ${links.map((l) => `<p class="nb-sidebar-bold__contact-item nb-sidebar-bold__contact-item--link">${escapeHtml(l)}</p>`).join('')}
+        </div>`;
+
+  const sidebarSkills = displaySkills.length ? `
+        <div class="nb-sidebar-bold__section">
+          <h2 class="nb-sidebar-bold__section-title">Skills</h2>
+          <ul class="nb-sidebar-bold__skill-list">
+            ${displaySkills.map((s) => `<li class="nb-sidebar-bold__skill-item">${escapeHtml(s)}</li>`).join('')}
+          </ul>
+        </div>` : '';
+
+  const sidebarSoft = displaySoft.length ? `
+        <div class="nb-sidebar-bold__section">
+          <h2 class="nb-sidebar-bold__section-title">Soft Skills</h2>
+          <ul class="nb-sidebar-bold__skill-list">
+            ${displaySoft.map((s) => `<li class="nb-sidebar-bold__skill-item">${escapeHtml(s)}</li>`).join('')}
+          </ul>
+        </div>` : '';
+
+  const sidebarLanguages = languages.length ? `
+        <div class="nb-sidebar-bold__section">
+          <h2 class="nb-sidebar-bold__section-title">Languages</h2>
+          ${languages.map((l) => `<p class="nb-sidebar-bold__contact-item">${escapeHtml(l)}</p>`).join('')}
+        </div>` : '';
+
+  const sidebarEducation = education.length ? `
+        <div class="nb-sidebar-bold__section">
+          <h2 class="nb-sidebar-bold__section-title">Education</h2>
+          ${education.map((it) => {
+            const dateRange = templateDateRange(String(it.startDate || ''), String(it.endDate || ''));
+            return `
+            <div class="nb-sidebar-bold__edu-item">
+              <p class="nb-sidebar-bold__edu-degree">${escapeHtml(it.degree || 'Degree')}</p>
+              ${it.institution ? `<p class="nb-sidebar-bold__edu-inst">${escapeHtml(it.institution)}</p>` : ''}
+              ${dateRange ? `<p class="nb-sidebar-bold__edu-date">${escapeHtml(dateRange)}</p>` : ''}
+            </div>`;
+          }).join('')}
+        </div>` : '';
+
+  const sidebarCerts = certifications.length ? `
+        <div class="nb-sidebar-bold__section">
+          <h2 class="nb-sidebar-bold__section-title">Certifications</h2>
+          ${certifications.map((it) => `
+            <div class="nb-sidebar-bold__edu-item">
+              <p class="nb-sidebar-bold__edu-degree">${escapeHtml(it.name || '')}</p>
+              ${it.issuer ? `<p class="nb-sidebar-bold__edu-inst">${escapeHtml(it.issuer)}</p>` : ''}
+            </div>`).join('')}
+        </div>` : '';
+
+  const profileSection = summary ? `
+        <section class="nb-sidebar-bold__content-section">
+          <h2 class="nb-sidebar-bold__content-title">Profile</h2>
+          <p class="nb-sidebar-bold__summary">${escapeHtml(summary)}</p>
+        </section>` : '';
+
+  const experienceSection = experience.length ? `
+        <section class="nb-sidebar-bold__content-section">
+          <h2 class="nb-sidebar-bold__content-title">Experience</h2>
+          ${experience.map((it) => {
+            const dateRange = templateDateRange(String(it.startDate || ''), String(it.endDate || ''));
+            const highlights = templateCleanList(it.highlights);
+            return `
+            <div class="nb-sidebar-bold__exp-item">
+              <div class="nb-sidebar-bold__exp-header">
+                <div>
+                  <h3 class="nb-sidebar-bold__exp-role">${escapeHtml(it.role || 'Role')}</h3>
+                  ${it.company ? `<p class="nb-sidebar-bold__exp-company">${escapeHtml(it.company)}</p>` : ''}
+                </div>
+                ${dateRange ? `<span class="nb-sidebar-bold__exp-date">${escapeHtml(dateRange)}</span>` : ''}
+              </div>
+              ${highlights.length ? `
+              <ul class="nb-sidebar-bold__exp-bullets">
+                ${highlights.map((h) => `<li>${escapeHtml(h)}</li>`).join('')}
+              </ul>` : ''}
+            </div>`;
+          }).join('')}
+        </section>` : '';
+
+  const projectsSection = projects.length ? `
+        <section class="nb-sidebar-bold__content-section">
+          <h2 class="nb-sidebar-bold__content-title">Projects</h2>
+          ${projects.map((it) => {
+            const dateRange = templateDateRange(String(it.startDate || ''), String(it.endDate || ''));
+            const highlights = templateCleanList(it.highlights);
+            return `
+            <div class="nb-sidebar-bold__exp-item">
+              <div class="nb-sidebar-bold__exp-header">
+                <h3 class="nb-sidebar-bold__exp-role">${escapeHtml(it.name || 'Project')}</h3>
+                ${dateRange ? `<span class="nb-sidebar-bold__exp-date">${escapeHtml(dateRange)}</span>` : ''}
+              </div>
+              ${highlights.length ? `
+              <ul class="nb-sidebar-bold__exp-bullets">
+                ${highlights.map((h) => `<li>${escapeHtml(h)}</li>`).join('')}
+              </ul>` : ''}
+            </div>`;
+          }).join('')}
+        </section>` : '';
+
   return `
-    <article class="ats-template ats-template--sidebar-bold">
-      ${templateHeader(normalized, { bar: true })}
-      ${renderOrderedSections(normalized, {
-        companyJoiner: ' | ',
-        divided: true,
-        labels: { summary: 'Profile' },
-      })}
+    <article class="nb-sidebar-bold">
+      <aside class="nb-sidebar-bold__sidebar">
+        <div class="nb-sidebar-bold__name-block">
+          <h1 class="nb-sidebar-bold__name">${fullName}</h1>
+          ${hasRoleSubtitle ? `<p class="nb-sidebar-bold__role">${escapeHtml(role)}</p>` : ''}
+        </div>
+        <div class="nb-sidebar-bold__divider"></div>
+        ${sidebarContact}
+        ${sidebarSkills}
+        ${sidebarSoft}
+        ${sidebarLanguages}
+        ${sidebarEducation}
+        ${sidebarCerts}
+      </aside>
+      <main class="nb-sidebar-bold__main">
+        ${profileSection}
+        ${experienceSection}
+        ${projectsSection}
+      </main>
     </article>
   `;
 }
@@ -4342,10 +4533,8 @@ function renderAccentHeaderTemplateArticle(resume: any) {
   const contact = templateContactLine(normalized);
   const summary = String(normalized.summary || '').trim();
 
-  const skills = templateCleanList(normalized.skills);
-  const technicalSkills = templateCleanList(normalized.technicalSkills);
+  const displaySkills = nonOverlappingMainSkills(normalized);
   const softSkills = templateCleanList(normalized.softSkills);
-  const displaySkills = technicalSkills.length ? technicalSkills : skills;
 
   const languages = templateCleanList(normalized.languages);
   const experience = templateExperienceItems(normalized);

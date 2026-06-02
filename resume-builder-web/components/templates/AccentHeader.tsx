@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  allSkills,
   certificationItems,
   cleanList,
   contactLine,
@@ -8,6 +7,7 @@ import {
   educationItems,
   experienceItems,
   fullNameOrTitle,
+  nonOverlappingMainSkills,
   normalizeTemplateResume,
   projectItems,
   type TemplateProps,
@@ -16,16 +16,15 @@ import {
 export default function AccentHeader({ resumeData }: TemplateProps) {
   const normalized = normalizeTemplateResume(resumeData);
   const summary = String(normalized.summary || '').trim();
-  const skills = allSkills(normalized);
-  const techSkills = cleanList(normalized.technicalSkills);
+  // displaySkills MUST NOT overlap softSkills — otherwise both pills
+  // render the same item twice in the chip row.
+  const displaySkills = nonOverlappingMainSkills(normalized);
   const softSkills = cleanList(normalized.softSkills);
   const languages = cleanList(normalized.languages);
   const experience = experienceItems(normalized);
   const projects = projectItems(normalized);
   const education = educationItems(normalized);
   const certifications = certificationItems(normalized);
-
-  const displaySkills = techSkills.length ? techSkills : skills;
 
   return (
     <article className="nb-accent-header">

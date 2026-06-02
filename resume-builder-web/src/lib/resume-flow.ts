@@ -519,6 +519,22 @@ export function buildResumePayload(resume: ResumeDraft, sections: SectionState[]
     softSkills: resume.softSkills || [],
     languages: resume.languages || [],
   });
+
+  // For optional sections (languages / projects / certifications), if the
+  // user has actually entered data, persist it even when the section is
+  // currently toggled off in the section navigator. The toggle controls
+  // whether the section RENDERS in the resume; it should not silently
+  // discard user data on save. Users reported "I added certifications,
+  // saved, and they vanished" — that was the strict enabled.has() guard
+  // dropping the array.
+  const hasProjectsData = (resume.projects || []).some(
+    (p) => p && (String(p.name || '').trim() || (p.highlights || []).some((h) => String(h || '').trim())),
+  );
+  const hasCertificationsData = (resume.certifications || []).some(
+    (c) => c && (String(c.name || '').trim() || String(c.issuer || '').trim()),
+  );
+  const hasLanguagesData = skillCategories.languages.length > 0;
+
   const payload = {
     title: resume.title.trim() || resume.contact.fullName.trim() || 'Resume',
     contact: enabled.has('contact') ? trimmedContact : undefined,
@@ -526,7 +542,7 @@ export function buildResumePayload(resume: ResumeDraft, sections: SectionState[]
     skills: enabled.has('skills') ? skillCategories.skills : [],
     technicalSkills: enabled.has('skills') ? skillCategories.technicalSkills : [],
     softSkills: enabled.has('skills') ? skillCategories.softSkills : [],
-    languages: enabled.has('languages') || skillCategories.languages.length
+    languages: enabled.has('languages') || hasLanguagesData
       ? skillCategories.languages
       : [],
     experience: enabled.has('experience')
@@ -549,7 +565,7 @@ export function buildResumePayload(resume: ResumeDraft, sections: SectionState[]
         percentage: item.percentage ?? null,
       }))
       : [],
-    projects: enabled.has('projects')
+    projects: (enabled.has('projects') || hasProjectsData)
       ? resume.projects.map((item) => ({
         name: item.name.trim(),
         role: item.role?.trim(),
@@ -559,7 +575,7 @@ export function buildResumePayload(resume: ResumeDraft, sections: SectionState[]
         highlights: item.highlights.map((line) => line.trim()).filter(Boolean),
       }))
       : [],
-    certifications: enabled.has('certifications')
+    certifications: (enabled.has('certifications') || hasCertificationsData)
       ? resume.certifications.map((item) => ({
         name: item.name.trim(),
         issuer: item.issuer?.trim(),
