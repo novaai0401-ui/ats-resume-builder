@@ -3324,7 +3324,13 @@ html, body { max-width: 100%; overflow-x: hidden; }
 /* Resume Versions page */
 .versions-controls { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(200px, 2fr) auto; gap: .75rem; align-items: end; margin: .75rem 0 1rem; }
 .versions-control { display: flex; flex-direction: column; gap: .25rem; font-size: .85rem; }
-.versions-control input, .versions-control select { padding: .45rem .55rem; border: 1px solid #e5e7eb; border-radius: 6px; font-size: .9rem; }
+.versions-control input, .versions-control select { padding: .45rem .55rem; border: 1px solid #e5e7eb; border-radius: 6px; font-size: .9rem; width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box; }
+/* The resume <select> in the Versions controls can hold long titles
+   (full role names with companies). Constrain the rendered button to
+   its grid cell and ellipsis the overflow so it doesn't visually
+   overlap the "Save snapshot" button. The dropdown popup itself still
+   shows the full title. */
+.versions-control select { text-overflow: ellipsis; white-space: nowrap; overflow: hidden; }
 .versions-control--grow { min-width: 0; }
 .versions-actions { display: flex; gap: .5rem; flex-wrap: wrap; }
 .versions-empty { padding: 1.25rem; border: 1px dashed #e5e7eb; border-radius: 10px; text-align: center; }

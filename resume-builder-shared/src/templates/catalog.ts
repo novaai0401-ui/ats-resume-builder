@@ -11,11 +11,33 @@ export type TemplateCatalogId =
   | 'sidebar-bold'
   | 'accent-header';
 
+/**
+ * How well a template actually survives ATS parsers. We previously
+ * tagged 9 of 11 templates "ATS-safe" because they were single-column,
+ * but real ATS systems (Workday, Greenhouse, iCIMS, Taleo, BambooHR)
+ * differ in what they accept. Only a plain single-column layout with
+ * standard section headers and no visual flourishes parses cleanly
+ * across all of them.
+ *
+ *   - 'high':   Plain single-column, standard headings, plain bullets.
+ *               Tested to parse cleanly across the major ATS systems.
+ *   - 'medium': Single-column with light visual styling (dividers,
+ *               subtle colour). Most ATS scrape it fine; a few may
+ *               drop the styled bits but the content survives.
+ *   - 'low':    Visual / multi-column / chip-style. Recruiters
+ *               sourcing manually love these; ATS scrapers often
+ *               miss sections or merge content incorrectly. Use only
+ *               for direct networking or printed CVs.
+ */
+export type AtsSafetyLevel = 'high' | 'medium' | 'low';
+
 export type TemplateCatalogItem = {
   id: TemplateCatalogId;
   name: string;
   description: string;
   tags: string[];
+  /** Honest ATS-survival classification — see AtsSafetyLevel docs. */
+  atsSafety: AtsSafetyLevel;
   recommendedFor?: string[];
   /** Industry ids (from professions.ts) this template is suited to. */
   industries?: string[];
@@ -27,8 +49,9 @@ export const TEMPLATE_CATALOG: readonly TemplateCatalogItem[] = [
   {
     id: 'classic',
     name: 'Classic ATS',
-    description: 'Single-column ATS-safe structure with bold section headers.',
+    description: 'Single-column ATS-safe structure with bold section headers. Tested across Workday, Greenhouse, iCIMS, Taleo, BambooHR.',
     tags: ['ATS-safe', 'Single-column', 'Default'],
+    atsSafety: 'high',
     recommendedFor: ['General professional resumes', 'High ATS compatibility'],
     industries: [
       'information-technology', 'ai-machine-learning', 'engineering', 'finance',
@@ -43,8 +66,9 @@ export const TEMPLATE_CATALOG: readonly TemplateCatalogItem[] = [
   {
     id: 'modern',
     name: 'Modern Professional',
-    description: 'Clean modern spacing with subtle divider lines and ATS-safe semantics.',
-    tags: ['ATS-safe', 'Modern (ATS-safe)'],
+    description: 'Single-column with subtle divider lines. Content parses cleanly; some ATS may drop the divider styling but never the text.',
+    tags: ['ATS-safe', 'Modern'],
+    atsSafety: 'high',
     recommendedFor: ['Product', 'Operations', 'Business-facing roles'],
     industries: [
       'business-management', 'sales-marketing', 'human-resources',
@@ -57,8 +81,9 @@ export const TEMPLATE_CATALOG: readonly TemplateCatalogItem[] = [
   {
     id: 'executive',
     name: 'Executive Impact',
-    description: 'Leadership-focused hierarchy with strong, results-first bullet structure.',
+    description: 'Leadership-focused single-column hierarchy with results-first bullet structure. Parses cleanly across major ATS.',
     tags: ['ATS-safe', 'Leadership'],
+    atsSafety: 'high',
     recommendedFor: ['Senior IC', 'Manager', 'Director'],
     industries: [
       'business-management', 'finance', 'sales-marketing',
@@ -70,8 +95,9 @@ export const TEMPLATE_CATALOG: readonly TemplateCatalogItem[] = [
   {
     id: 'technical',
     name: 'Technical Compact',
-    description: 'Dense but readable ATS-safe layout with grouped technical skills.',
+    description: 'Dense single-column layout with grouped technical skills. ATS-safe; the grouping helps keyword matching.',
     tags: ['ATS-safe', 'Engineering'],
+    atsSafety: 'high',
     recommendedFor: ['Engineering', 'Data', 'Platform teams'],
     industries: [
       'information-technology', 'ai-machine-learning', 'engineering',
@@ -83,8 +109,9 @@ export const TEMPLATE_CATALOG: readonly TemplateCatalogItem[] = [
   {
     id: 'minimal',
     name: 'Minimal Clean',
-    description: 'Ultra-minimal recruiter-friendly format with precise section rhythm.',
-    tags: ['ATS-safe', 'Minimal (ATS-safe)'],
+    description: 'Ultra-minimal single-column format. The safest visual choice for ATS — almost nothing for a parser to trip on.',
+    tags: ['ATS-safe', 'Minimal'],
+    atsSafety: 'high',
     recommendedFor: ['Early-career', 'One-page resumes'],
     industries: [
       'education', 'creative-design', 'media-communications',
@@ -95,8 +122,9 @@ export const TEMPLATE_CATALOG: readonly TemplateCatalogItem[] = [
   {
     id: 'consultant',
     name: 'Consultant Clean',
-    description: 'Crisp headings and metric-forward bullet readability in single-column flow.',
+    description: 'Crisp headings, metric-forward bullets, single-column. ATS-safe across the board.',
     tags: ['ATS-safe', 'Consulting style'],
+    atsSafety: 'high',
     recommendedFor: ['Consulting', 'Strategy', 'Client delivery'],
     industries: [
       'business-management', 'finance', 'legal', 'information-technology',
@@ -107,8 +135,9 @@ export const TEMPLATE_CATALOG: readonly TemplateCatalogItem[] = [
   {
     id: 'academic',
     name: 'Academic CV',
-    description: 'Publication-first layout with sections for research, teaching, and awards. ATS-safe single column.',
-    tags: ['ATS-safe', 'Academic', 'Research'],
+    description: 'Publication-first layout with sections for research, teaching, and awards. Single-column; parses cleanly but adds non-standard headings some ATS may not recognise.',
+    tags: ['Recruiter-friendly', 'Academic', 'Research'],
+    atsSafety: 'medium',
     recommendedFor: ['Researchers', 'Professors', 'PhD candidates', 'Scientists'],
     industries: [
       'education', 'science-research', 'government-public-sector',
@@ -119,8 +148,9 @@ export const TEMPLATE_CATALOG: readonly TemplateCatalogItem[] = [
   {
     id: 'healthcare',
     name: 'Healthcare CV',
-    description: 'Credentials-forward layout surfacing licensure, certifications, and clinical experience.',
+    description: 'Credentials-forward single-column layout surfacing licensure, certifications, and clinical experience. Parses cleanly; uses standard section names.',
     tags: ['ATS-safe', 'Healthcare', 'Clinical'],
+    atsSafety: 'medium',
     recommendedFor: ['Physicians', 'Nurses', 'Pharmacists', 'Allied health'],
     industries: ['healthcare', 'science-research'],
     componentKey: 'healthcare',
@@ -128,8 +158,9 @@ export const TEMPLATE_CATALOG: readonly TemplateCatalogItem[] = [
   {
     id: 'creative',
     name: 'Creative Portfolio',
-    description: 'Portfolio-friendly layout with highlighted links and visual rhythm while staying ATS-safe.',
-    tags: ['ATS-safe', 'Creative', 'Portfolio'],
+    description: 'Portfolio-friendly layout with highlighted links and visual rhythm. Recruiters love it for design-heavy roles; ATS systems sometimes mis-parse the styled link blocks. Use a Classic / Minimal variant for the actual application upload.',
+    tags: ['Recruiter-friendly', 'Creative', 'Portfolio'],
+    atsSafety: 'medium',
     recommendedFor: ['Designers', 'Writers', 'Marketers', 'Media'],
     industries: [
       'creative-design', 'media-communications', 'sales-marketing',
@@ -140,8 +171,9 @@ export const TEMPLATE_CATALOG: readonly TemplateCatalogItem[] = [
   {
     id: 'sidebar-bold',
     name: 'Sidebar Bold',
-    description: 'Two-column layout with a dark navy sidebar for skills and a clean white main area. Visual showcase template — not ATS-optimised.',
+    description: 'Two-column layout with a dark navy sidebar for skills and a clean white main area. Visual showcase only — most ATS scrapers merge the columns or drop the sidebar. Do not upload this to a job portal.',
     tags: ['Visual', 'Two-column', 'Showcase'],
+    atsSafety: 'low',
     recommendedFor: ['Portfolio sites', 'Direct networking', 'Printed CVs'],
     industries: [
       'creative-design', 'media-communications', 'information-technology',
@@ -152,8 +184,9 @@ export const TEMPLATE_CATALOG: readonly TemplateCatalogItem[] = [
   {
     id: 'accent-header',
     name: 'Accent Header',
-    description: 'Vivid gradient header band, colour-coded skill pills and a timeline-style experience section. Visual showcase template — not ATS-optimised.',
+    description: 'Vivid gradient header band, colour-coded skill pills and a timeline-style experience section. Visual showcase only — ATS scrapers usually drop the chip pills and may mis-parse the header band. Do not upload this to a job portal.',
     tags: ['Visual', 'Modern', 'Showcase'],
+    atsSafety: 'low',
     recommendedFor: ['Portfolio sites', 'Direct networking', 'Printed CVs'],
     industries: [
       'creative-design', 'media-communications', 'information-technology',

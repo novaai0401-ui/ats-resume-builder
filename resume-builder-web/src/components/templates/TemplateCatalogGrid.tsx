@@ -162,6 +162,37 @@ function TemplateCard({
         </div>
         <div className="template-card__meta-badges">
           <span className="pill">{isApplied ? 'Applied' : isPreviewing ? 'Previewing' : 'Available'}</span>
+          {/* Honest ATS-safety badge so the user knows up-front whether a
+             template will survive a real ATS upload. We previously tagged
+             everything not explicitly "Visual" as ATS-safe, which
+             overstated parser compatibility for academic / healthcare /
+             creative layouts. */}
+          {template.atsSafety === 'high' && (
+            <span
+              className="pill recommended"
+              title="Plain single-column layout. Tested to parse cleanly across Workday, Greenhouse, iCIMS, Taleo, BambooHR."
+            >
+              ATS-safe
+            </span>
+          )}
+          {template.atsSafety === 'medium' && (
+            <span
+              className="pill"
+              style={{ background: '#fff7e0', color: '#7a5a00', borderColor: '#e9d27a' }}
+              title="Single-column with light styling. Content parses, but some ATS may drop the styled bits — preview your upload before applying."
+            >
+              Recruiter-friendly
+            </span>
+          )}
+          {template.atsSafety === 'low' && (
+            <span
+              className="pill"
+              style={{ background: '#ffe8e8', color: '#a02020', borderColor: '#e9a0a0' }}
+              title="Visual / multi-column / chip-style. ATS scrapers often drop sections. Use for direct networking or printed CVs — switch to a Classic / Minimal variant before uploading to a job portal."
+            >
+              Not ATS-safe
+            </span>
+          )}
           {isRecommended && (
             <span className="pill recommended" title={(recommendation?.reasons || []).join(' ')}>
               Recommended

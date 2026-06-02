@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { TkxDrawer } from 'tekivex-ui';
 import { api, getAccessToken, isCurrentUserAdmin, startSessionHeartbeat } from '@/src/lib/api';
+import { isNavActive, RESUME_SUBROUTE_OWNED } from '@/src/lib/nav-active';
 import SessionWarningModal from './SessionWarningModal';
 
 // Map of internal plan keys → user-facing badge text. The plan value is
@@ -29,14 +30,8 @@ export default function TopNav() {
   const [plan, setPlan] = useState<string>('FREE');
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  // Returns aria-current="page" when the link's href matches the current
-  // pathname. Match is prefix-based for nested routes ("/resume" lights
-  // up for "/resume/start", "/resume/template", etc.) but the home link
-  // matches only the exact "/" so it doesn't light up on every page.
-  function navProps(href: string): { 'aria-current'?: 'page' } {
-    if (!pathname) return {};
-    if (href === '/') return pathname === '/' ? { 'aria-current': 'page' } : {};
-    return pathname === href || pathname.startsWith(href + '/') ? { 'aria-current': 'page' } : {};
+  function navProps(href: string, excludePrefixes: string[] = []): { 'aria-current'?: 'page' } {
+    return isNavActive(pathname, href, excludePrefixes) ? { 'aria-current': 'page' } : {};
   }
   // TkxDrawer renders through a portal and touches `document` on mount —
   // rendering it during SSR produces markup the client can't match,
@@ -97,7 +92,7 @@ export default function TopNav() {
       {authed && (
         <>
           <Link href="/dashboard" onClick={closeDrawer} {...navProps('/dashboard')}>Dashboard</Link>
-          <Link href="/resume/start" onClick={closeDrawer} {...navProps('/resume')}>Resume</Link>
+          <Link href="/resume/start" onClick={closeDrawer} {...navProps('/resume', RESUME_SUBROUTE_OWNED)}>Resume</Link>
           <Link href="/resume/versions" onClick={closeDrawer} {...navProps('/resume/versions')}>Versions</Link>
           <Link href="/resume/outcomes" onClick={closeDrawer} {...navProps('/resume/outcomes')}>Outcomes</Link>
           <Link href="/resume/ats-simulate" onClick={closeDrawer} {...navProps('/resume/ats-simulate')}>ATS Simulator</Link>

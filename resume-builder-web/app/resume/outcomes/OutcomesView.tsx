@@ -75,6 +75,20 @@ export default function OutcomesView() {
           <TkxCard style={{ marginBottom: 16 }}>
             <TkxCardBody>
               <div style={{ fontSize: 18, fontWeight: 600 }}>{report.lift.headline}</div>
+              {/* Always-visible explainer so a user who lands here with
+                  no data understands exactly what this page does and
+                  what they need to do to see numbers. Without this
+                  copy a junior user sees "Not enough data yet" with
+                  no path forward. */}
+              <div style={{ marginTop: 12, padding: 12, background: 'var(--surface-alt, #f5f7fa)', borderRadius: 8, fontSize: 13, color: 'var(--ink, #1b2b3c)' }}>
+                <strong style={{ display: 'block', marginBottom: 4 }}>How this page works</strong>
+                <ol style={{ margin: 0, paddingLeft: 20, lineHeight: 1.6 }}>
+                  <li>On the <strong>Versions</strong> tab, snapshot your resume before each rewrite (e.g. &quot;v1 senior pitch&quot;, &quot;v2 with AWS keywords&quot;).</li>
+                  <li>On the <strong>Jobs</strong> tab, when you log an application, link it to the version you used.</li>
+                  <li>As you move that application through <em>Phone screen → Interview → Offer</em>, this page tells you which version is actually winning replies.</li>
+                </ol>
+                <p style={{ margin: '8px 0 0', color: 'var(--muted, #5a6778)' }}>Nothing is calculated from anywhere except your own tracker — no scraping, no third parties.</p>
+              </div>
               {report.unattributed > 0 && (
                 <p style={{ marginTop: 10, color: 'var(--muted, #666)', fontSize: 13 }}>
                   {report.unattributed} application{report.unattributed === 1 ? '' : 's'} have no version attached.

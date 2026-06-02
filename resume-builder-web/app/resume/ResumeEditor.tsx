@@ -41,7 +41,7 @@ import { AutocompleteInput } from '@/src/components/AutocompleteInput';
 import FreeAiNotice from '@/src/components/FreeAiNotice';
 import PostDownloadSubscriptionPopup from '@/src/components/PostDownloadSubscriptionPopup';
 import DownloadChargeModal from '@/src/components/DownloadChargeModal';
-import { compareYearMonth, isPresentToken, isYearMonth, toMonthInputValue, toYearMonth } from '@/src/lib/date-utils';
+import { applySinglePresentRule, compareYearMonth, isPresentToken, isYearMonth, toMonthInputValue, toYearMonth } from '@/src/lib/date-utils';
 import {
   buildCompanySuggestions,
   mergeCompanyPools,
@@ -2467,10 +2467,22 @@ export default function ResumeEditor() {
                                   type="checkbox"
                                   checked={endIsPresent}
                                   onChange={(e) => {
-                                    const copy = [...resume.experience];
-                                    copy[expIdx] = { ...copy[expIdx], endDate: e.target.checked ? 'Present' : '' };
-                                    setResume((prev) => ({ ...prev, experience: copy }));
+                                    const { experiences: next, clearedIndexes } = applySinglePresentRule(
+                                      resume.experience,
+                                      expIdx,
+                                      e.target.checked,
+                                    );
+                                    setResume((prev) => ({ ...prev, experience: next }));
                                     markDirty();
+                                    if (clearedIndexes.length > 0) {
+                                      // Use 'success' (the editor's neutral-positive
+                                      // toast) — the rule was correctly enforced;
+                                      // it isn't an error from the user's POV.
+                                      showSnackbar(
+                                        'success',
+                                        'Only one role can be marked "Present". Other current roles were cleared — set their end dates explicitly.',
+                                      );
+                                    }
                                   }}
                                 />
                                 Present
@@ -3174,10 +3186,50 @@ export default function ResumeEditor() {
           </div>
         )}
 
-        <label className="label" style={{ marginTop: 16 }}>Target Job Description (optional)</label>
+        <label
+          className="label"
+          style={{ marginTop: 16, display: 'inline-flex', alignItems: 'center', gap: 6 }}
+        >
+          Target Job Description (optional)
+          {/* Plain native tooltip — no extra dep, works in every browser
+             and on mobile via long-press. Spells out what the JD is
+             actually used for so the user doesn't leave the box empty
+             out of confusion. */}
+          <span
+            tabIndex={0}
+            role="img"
+            aria-label="What is this for?"
+            title={
+              'Paste the job ad you are targeting. We use it to:\n' +
+              '  • compare against your resume and surface missing keywords (JD Match),\n' +
+              '  • tailor AI critique and bullet rewrites toward the role,\n' +
+              '  • generate a tailored cover letter that mirrors the JD language.\n\n' +
+              'Nothing here is required to save the resume or to get a base ATS score.\n' +
+              'The JD is not sent anywhere except our AI provider for the features above,\n' +
+              'and is not stored permanently on the server.'
+            }
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 18,
+              height: 18,
+              borderRadius: '50%',
+              background: '#e8edf2',
+              color: '#1a3a5c',
+              fontSize: 11,
+              fontWeight: 700,
+              cursor: 'help',
+              userSelect: 'none',
+            }}
+          >
+            ?
+          </span>
+        </label>
         <textarea className="input" style={{ minHeight: 120 }} value={jdText} onChange={(e) => setJdText(e.target.value)} />
         <p className="hint" style={{ marginTop: 8 }}>
-          Paste the job description to get ATS match suggestions. Leaving it blank won&apos;t affect your resume score.
+          Paste the job description to get ATS match suggestions and tailor AI rewrites + cover letter to this role.
+          Hover the <strong>?</strong> above for the full list. Leaving it blank won&apos;t affect your base ATS score.
         </p>
 
         <div style={{ display: 'flex', gap: 12, marginTop: 8, flexWrap: 'wrap' }}>
@@ -3744,23 +3796,17 @@ export default function ResumeEditor() {
                   <button
                     className="btn secondary"
                     onClick={() => {
-                      // Print preview is a free read-only experience that
-                      // shows a watermarked view of the resume.  The
-                      // editor page itself doesn't render a full-page
-                      // preview — it's a form, not a canvas — so
-                      // window.print() here produces the empty pages
-                      // users reported.
-                      //
-                      // Route to the template page (which DOES render
-                      // the resume in the chosen layout) and pass
-                      // `?print=1`.  That page reads `rb_plan` from
-                      // localStorage: paid users (STUDENT / PRO) get a
-                      // clean view and clean print/PDF output; free
-                      // users get a diagonal POCKET RESUME watermark on
-                      // both the preview AND the printed / Saved-as-PDF
-                      // output (a fixed overlay Chrome repaints on every
-                      // page), plus a nudge banner pointing to the paid
-                      // Download for a clean copy.
+                      // Print is rendered through a hidden, off-screen
+                      // iframe that loads the template page in print
+                      // mode. The iframe page auto-fires window.print()
+                      // once it has rendered the resume + (for free
+                      // users) committed the watermark overlay to the
+                      // DOM. The browser surfaces ITS print dialog over
+                      // the editor — no new tab, no second visible
+                      // resume render. The iframe is removed after the
+                      // dialog closes (or after a safety timeout, in
+                      // case the user dismisses it without focusing the
+                      // iframe).
                       if (!resumeId) {
                         showSnackbar('error', 'Save the resume first to preview it.');
                         return;
@@ -3768,13 +3814,50 @@ export default function ResumeEditor() {
                       const templateForPreview = String(
                         normalizedTemplateParam || resume.templateId || 'classic',
                       ).trim();
-                      // The template page reads `resumeId` from the
-                      // URL — passing `id` here previously caused it to
-                      // render the "Select a resume to preview" empty
-                      // state, then window.print() snapshotted the
-                      // empty state. Match the param name exactly.
                       const url = `/resume/template?resumeId=${encodeURIComponent(resumeId)}&template=${encodeURIComponent(templateForPreview)}&print=1`;
-                      window.open(url, '_blank', 'noopener');
+
+                      // Reuse the same iframe across clicks so we don't
+                      // accumulate detached frames if the user prints
+                      // multiple times in a session.
+                      const existing = document.getElementById('rb-print-frame') as HTMLIFrameElement | null;
+                      if (existing) existing.remove();
+
+                      const frame = document.createElement('iframe');
+                      frame.id = 'rb-print-frame';
+                      frame.setAttribute('aria-hidden', 'true');
+                      frame.setAttribute('tabindex', '-1');
+                      // Off-screen but still rendered — display:none would
+                      // prevent the iframe's window.print() from working in
+                      // Chromium because the document is treated as not
+                      // visible. Position fixed + 0×0 size works on every
+                      // engine and is invisible to the user.
+                      Object.assign(frame.style, {
+                        position: 'fixed',
+                        right: '0',
+                        bottom: '0',
+                        width: '0',
+                        height: '0',
+                        border: '0',
+                        opacity: '0',
+                        pointerEvents: 'none',
+                      });
+                      frame.src = url;
+                      document.body.appendChild(frame);
+
+                      // Cleanup: after the print dialog closes the
+                      // iframe's afterprint fires. If the dialog never
+                      // opens (popup blocked, plan-hydration stuck) we
+                      // still want to free the frame, so use a 60s
+                      // safety timeout as well.
+                      const cleanup = () => {
+                        try { frame.remove(); } catch { /* gone */ }
+                      };
+                      frame.addEventListener('load', () => {
+                        try {
+                          frame.contentWindow?.addEventListener('afterprint', cleanup);
+                        } catch { /* cross-origin shouldn't happen — same origin */ }
+                      });
+                      setTimeout(cleanup, 60_000);
                     }}
                   >
                     Print preview
@@ -4214,6 +4297,13 @@ function getEmptyResume(): ResumeDraft {
 }
 
 function getDefaultSections(): SectionState[] {
+  // Optional sections (Languages / Projects / Certifications) default to
+  // enabled so the data the user fills in is never silently discarded
+  // by the save guard in buildResumePayload. Section navigator still
+  // lets the user toggle any of them off if they don't want them in
+  // the final resume; an "off" with no data is harmless, an "off"
+  // with data was the bug users reported as "my certifications
+  // disappeared after I saved".
   return [
     { id: 'sec-contact', type: 'contact', enabled: true, required: true },
     { id: 'sec-summary', type: 'summary', enabled: true, required: true },
@@ -4221,8 +4311,8 @@ function getDefaultSections(): SectionState[] {
     { id: 'sec-education', type: 'education', enabled: true, required: true },
     { id: 'sec-skills', type: 'skills', enabled: true, required: true },
     { id: 'sec-languages', type: 'languages', enabled: true, required: false },
-    { id: 'sec-projects', type: 'projects', enabled: false, required: false },
-    { id: 'sec-certifications', type: 'certifications', enabled: false, required: false },
+    { id: 'sec-projects', type: 'projects', enabled: true, required: false },
+    { id: 'sec-certifications', type: 'certifications', enabled: true, required: false },
   ];
 }
 

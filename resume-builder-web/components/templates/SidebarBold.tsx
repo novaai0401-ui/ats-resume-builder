@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  allSkills,
   certificationItems,
   cleanList,
   contactLine,
@@ -8,6 +7,7 @@ import {
   educationItems,
   experienceItems,
   fullNameOrTitle,
+  nonOverlappingMainSkills,
   normalizeTemplateResume,
   projectItems,
   type TemplateProps,
@@ -16,17 +16,16 @@ import {
 export default function SidebarBold({ resumeData }: TemplateProps) {
   const normalized = normalizeTemplateResume(resumeData);
   const summary = String(normalized.summary || '').trim();
-  const skills = allSkills(normalized);
-  const techSkills = cleanList(normalized.technicalSkills);
+  // displaySkills MUST NOT overlap soft skills — otherwise the sidebar
+  // shows the same item in both the Skills list and Soft Skills list.
+  const displaySkills = nonOverlappingMainSkills(normalized);
   const softSkills = cleanList(normalized.softSkills);
   const languages = cleanList(normalized.languages);
   const experience = experienceItems(normalized);
   const projects = projectItems(normalized);
   const education = educationItems(normalized);
   const certifications = certificationItems(normalized);
-
-  const displaySkills = techSkills.length ? techSkills : skills;
-  const displaySoft = softSkills.length ? softSkills : [];
+  const displaySoft = softSkills;
 
   const email = String(normalized.contact?.email || '').trim();
   const phone = String(normalized.contact?.phone || '').trim();
