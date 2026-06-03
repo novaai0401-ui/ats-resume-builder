@@ -291,6 +291,11 @@ export default function ResumeEditor() {
   const [sections, setSections] = useState<SectionState[]>(() => getDefaultSections());
   const [jdText, setJdText] = useState('');
   const [message, setMessage] = useState('');
+  // True while api.getResume is in flight on initial mount. Prevents
+  // the "blank fields with validation warnings" flash users reported
+  // immediately after upload. Default true when we have a resume id
+  // to load, false otherwise.
+  const [isHydrating, setIsHydrating] = useState(false);
   const [loadingUpload, setLoadingUpload] = useState(false);
   const [loadingAtsNavigation, setLoadingAtsNavigation] = useState(false);
   const [uploadSummary, setUploadSummary] = useState<UploadSummary | null>(null);
@@ -575,6 +580,7 @@ export default function ResumeEditor() {
       return;
     }
     if (effectiveResumeId) {
+      setIsHydrating(true);
       api.getResume(effectiveResumeId)
         .then((r) => {
           setResumeId(r.id);
@@ -582,7 +588,8 @@ export default function ResumeEditor() {
           const loadedResume = resumeFromImportedApi(r);
           setResume(loadedResume);
         })
-        .catch((err) => setMessage(err instanceof Error ? err.message : 'Failed to load resume'));
+        .catch((err) => setMessage(err instanceof Error ? err.message : 'Failed to load resume'))
+        .finally(() => setIsHydrating(false));
       return;
     }
   }, [effectiveResumeId, normalizedTemplateParam]);
@@ -1117,7 +1124,20 @@ export default function ResumeEditor() {
     if (!isReviewAtsPage) return;
     if (!getAccessToken()) return;
     const hasContent = hasResumeDraftContent(resume);
-    if (!hasContent) return;
+    if (!hasContent) {
+      // Click silently did nothing before — the button looked broken.
+      // Manual clicks now surface a clear "upload first" message; the
+      // initial / debounce paths still no-op so we don't nag the user
+      // before they've started typing.
+      if (source === 'manual') {
+        setAtsReview((prev) => ({
+          ...prev,
+          loading: false,
+          error: 'Upload a resume or fill in the required sections (Contact, Summary, Experience, Education, Skills) before running an ATS check.',
+        }));
+      }
+      return;
+    }
     const runId = ++reviewAtsRunRef.current;
     setAtsReview((prev) => ({ ...prev, loading: true, error: source === 'manual' ? '' : prev.error }));
     try {
@@ -1642,6 +1662,39 @@ export default function ResumeEditor() {
     setShowTemplatePromptModal(false);
     router.push(templatePromptHref);
   };
+
+  // Hydration loader: shown while api.getResume is in flight on
+  // initial mount. Without this, users uploaded a resume, landed on
+  // the editor, and saw empty fields + red validation messages for
+  // ~2 seconds before content populated — which read as "the upload
+  // failed". The loader replaces the editor surface entirely so the
+  // user sees a calm spinner instead of a broken-looking form.
+  if (isHydrating) {
+    return (
+      <main className="grid">
+        <section className="card col-12" style={{ textAlign: 'center', padding: '60px 24px' }}>
+          <div
+            aria-label="Loading your resume"
+            role="status"
+            style={{
+              width: 40,
+              height: 40,
+              margin: '0 auto 18px',
+              border: '3px solid #e6ebf1',
+              borderTopColor: '#1a3a5c',
+              borderRadius: '50%',
+              animation: 'rb-spin 0.8s linear infinite',
+            }}
+          />
+          <h2 style={{ margin: '0 0 6px', fontSize: 18, color: '#1b2b3c' }}>Loading your resume…</h2>
+          <p className="small" style={{ margin: 0, color: '#5a6778' }}>
+            Pulling your saved sections so you can pick up where you left off.
+          </p>
+          <style>{`@keyframes rb-spin { to { transform: rotate(360deg); } }`}</style>
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main className={isReviewAtsPage ? 'grid review-grid' : 'grid'}>
@@ -3577,7 +3630,7 @@ export default function ResumeEditor() {
                     // it on 'success' (green) rather than the red 'error' tone.
                     showSnackbar(
                       'success',
-                      'No new suggestions to apply. Configure GROQ_API_KEY for AI-powered critique, or edit bullets manually.',
+                      'No new suggestions on the free tier. Upgrade your plan for AI-powered critique, or edit bullets manually.',
                     );
                     return;
                   }

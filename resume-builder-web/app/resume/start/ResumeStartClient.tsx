@@ -6,7 +6,6 @@ import {
   buildReviewAtsRoute,
   canContinueToReview,
   continueToReviewAtsFromStart,
-  continueToReviewFromStart,
   type PendingUploadSession,
   type SectionType,
   buildEditorRoute,
@@ -43,7 +42,6 @@ export default function ResumeStartClient() {
   const [pendingFileName, setPendingFileName] = useState('');
 
   const template = (searchParams.get('template') || '').trim();
-  const uploadEditorHref = buildEditorRoute('review', template);
   const reviewAtsHref = buildReviewAtsRoute(template);
   const scratchEditorHref = buildEditorRoute('scratch', template);
   const uploadButtonLabel = loadingUpload
@@ -147,27 +145,16 @@ export default function ResumeStartClient() {
               <p className="small">Sections populated: {populatedLabel}.</p>
             </div>
             <div className="upload-summary-panel__actions">
+              {/* Previously two buttons landed on the same editor;
+                 "Review & ATS" routed via /resume/review which also
+                 surfaces the section sidebar (Header / Summary /
+                 Experience / Education / Skills / Projects /
+                 Achievements / Certifications / Languages). That
+                 sidebar is strictly the better UX, so we kept that
+                 route and merged the two buttons into one labelled
+                 "Continue to Review". */}
               <button
                 className="btn"
-                onClick={() => {
-                  const navigation = continueToReviewFromStart({
-                    session,
-                    template,
-                    setResume: setResumeStore,
-                    setUploadedFileName,
-                  });
-                  if (!navigation.enabled) return;
-                  if (!navigation.cached) {
-                    setError('Continuing without browser session cache. Keep this tab open while reviewing.');
-                  }
-                  router.push(navigation.href || uploadEditorHref);
-                }}
-                disabled={!canContinueToReview(session) || loadingUpload}
-              >
-                Continue to Review
-              </button>
-              <button
-                className="btn secondary"
                 onClick={() => {
                   const navigation = continueToReviewAtsFromStart({
                     session,
@@ -183,7 +170,7 @@ export default function ResumeStartClient() {
                 }}
                 disabled={!canContinueToReview(session) || loadingUpload}
               >
-                Review & ATS
+                Continue to Review
               </button>
             </div>
           </div>

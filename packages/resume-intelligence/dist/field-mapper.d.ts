@@ -10,6 +10,14 @@ export type MappedResumeResult = ParsedResume & {
     };
 };
 export declare function mapParsedResume(parsed: ParsedResumeText): MappedResumeResult;
+export declare function extractInlineLanguages(bullets: string[]): string[];
+export declare function extractInlineCertifications(bullets: string[]): Array<{
+    name: string;
+    issuer?: string;
+    date?: string;
+    details: string[];
+}>;
+export declare function extractInlineAchievements(bullets: string[]): string[];
 /**
  * Decide whether a non-bullet `next` line is a continuation of the
  * previous bullet `prev` (PDF wrap-around) rather than a new bullet.

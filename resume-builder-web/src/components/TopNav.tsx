@@ -6,6 +6,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { TkxDrawer } from 'tekivex-ui';
 import { api, getAccessToken, isCurrentUserAdmin, startSessionHeartbeat } from '@/src/lib/api';
 import { isNavActive, RESUME_SUBROUTE_OWNED } from '@/src/lib/nav-active';
+import { classifyDevice, isInstallTargetDevice } from '@/src/lib/device';
 import SessionWarningModal from './SessionWarningModal';
 
 // Map of internal plan keys → user-facing badge text. The plan value is
@@ -39,8 +40,20 @@ export default function TopNav() {
   // effect before rendering it. The burger button is still present in
   // SSR so there's no visual flash.
   const [mounted, setMounted] = useState(false);
+  // Track whether this is a phone / tablet. The "Download App" link
+  // is hidden on desktop browsers because pointing the user at a Play
+  // Store / App Store install they cannot do anything useful with is
+  // confusing. Default to desktop pre-hydration so we never flash the
+  // link on a desktop browser before the UA classification runs.
+  const [installable, setInstallable] = useState(false);
   useEffect(() => {
     setMounted(true);
+    try {
+      const kind = classifyDevice(window.navigator?.userAgent, window.innerWidth);
+      setInstallable(isInstallTargetDevice(kind));
+    } catch {
+      setInstallable(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -124,9 +137,11 @@ export default function TopNav() {
         </>
       )}
       {authed && admin ? <Link href="/admin" onClick={closeDrawer} {...navProps('/admin')}>Admin</Link> : null}
-      <Link href="/download" onClick={closeDrawer} className="nav-download-app" {...navProps('/download')}>
-        Download App
-      </Link>
+      {installable ? (
+        <Link href="/download" onClick={closeDrawer} className="nav-download-app" {...navProps('/download')}>
+          Download App
+        </Link>
+      ) : null}
       {authed ? (
         <button className="btn secondary" type="button" onClick={onLogout}>Logout</button>
       ) : (
