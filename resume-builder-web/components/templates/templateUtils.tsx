@@ -113,3 +113,7 @@ export function certificationItems(resumeData: ResumeImportResult) {
     return Boolean(String(item.name || '').trim() || cleanList(item.details || []).length);
   });
 }
+
+export function achievementItems(resumeData: ResumeImportResult): string[] {
+  return cleanList((resumeData as { achievements?: string[] }).achievements || []);
+}

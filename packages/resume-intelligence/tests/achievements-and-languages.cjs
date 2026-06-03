@@ -1,9 +1,10 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const { parseResumeText, mapParsedResume } = require('../dist/index.js');
+const { normalizeHeading } = require('../dist/section-normalizer.js');
 
 // Regression fixtures from a real two-column resume (Chandan Kumar)
-// where the lower sections are interleaved by the PDF's reading order:
+// where the lower sections are interleaved by the PDF reading order:
 //
 //   EDUCATION
 //   ACHIEVEMENTS
@@ -12,14 +13,11 @@ const { parseResumeText, mapParsedResume } = require('../dist/index.js');
 //   LANGUAGES
 //   English, Hindi
 //   HOBBIES
-//   B.E: Telecommunication Engineering
 //   ...
 //
-// Bugs this pins down:
-//   - Languages ("English, Hindi") must be extracted, not dropped.
-//   - The standalone ACHIEVEMENTS prose must NOT surface as a project
-//     literally named "Project" with an empty role — it is labelled
-//     "Key Achievements" so the editor reads honestly.
+// Achievements are now a DEDICATED section (resume schema has an
+// `achievements: string[]` field). They must NOT be folded into
+// projects, and languages must still be extracted.
 
 const SAMPLE = [
   'CHANDAN KUMAR',
@@ -53,31 +51,52 @@ const SAMPLE = [
   'Playing chess to enhance strategic thinking.',
 ].join('\n');
 
-test('languages "English, Hindi" are extracted from the interleaved layout', () => {
-  const mapped = mapParsedResume(parseResumeText(SAMPLE));
-  assert.ok(Array.isArray(mapped.languages));
-  assert.ok(mapped.languages.includes('English'), `expected English in ${JSON.stringify(mapped.languages)}`);
-  assert.ok(mapped.languages.includes('Hindi'), `expected Hindi in ${JSON.stringify(mapped.languages)}`);
+test('"Achievements" / "Awards" / "Honors" headings normalise to the achievements section', () => {
+  assert.equal(normalizeHeading('Achievements'), 'achievements');
+  assert.equal(normalizeHeading('ACHIEVEMENTS'), 'achievements');
+  assert.equal(normalizeHeading('Awards & Honors'), 'achievements');
+  assert.equal(normalizeHeading('Awards and Recognition'), 'achievements');
+  assert.equal(normalizeHeading('Key Achievements'), 'achievements');
 });
 
-test('standalone ACHIEVEMENTS prose is labelled "Key Achievements", never a blank "Project"', () => {
+test('"Projects" still normalises to projects (not stolen by achievements)', () => {
+  assert.equal(normalizeHeading('Projects'), 'projects');
+  assert.equal(normalizeHeading('Notable Projects'), 'projects');
+  assert.equal(normalizeHeading('Open Source Contributions'), 'projects');
+});
+
+test('achievements are extracted into their own list, NOT into projects', () => {
   const mapped = mapParsedResume(parseResumeText(SAMPLE));
+  const achievements = mapped.achievements || [];
+  assert.ok(achievements.length >= 2, `expected >=2 achievements, got ${achievements.length}`);
+  assert.ok(
+    achievements.some((a) => /Speedboat Project/.test(a)),
+    'Speedboat achievement should be present',
+  );
+  assert.ok(
+    achievements.some((a) => /Rising Star/.test(a)),
+    'Rising Star award should be present',
+  );
+  // And crucially: no phantom project named "Project".
   const projects = mapped.projects || [];
-  // There should be no project literally named "Project" with an empty role.
-  const blankProject = projects.find((p) => p.name === 'Project');
-  assert.equal(blankProject, undefined, 'must not emit a generic "Project" entry');
-  // The achievement content should be captured under "Key Achievements".
-  const achievements = projects.find((p) => p.name === 'Key Achievements');
-  if (achievements) {
-    assert.ok(achievements.highlights.length > 0, 'Key Achievements should carry the bullet content');
-  }
+  assert.equal(
+    projects.find((p) => p.name === 'Project'),
+    undefined,
+    'achievements must not surface as a generic "Project"',
+  );
 });
 
-test('extracted achievement entry never carries an empty-string role from the mapper path', () => {
+test('languages "English, Hindi" are still extracted from the interleaved layout', () => {
   const mapped = mapParsedResume(parseResumeText(SAMPLE));
-  for (const p of mapped.projects || []) {
-    // role may be '' from the mapper, but it must be a string (the web
-    // save layer converts '' -> undefined). Guard the type contract.
-    assert.equal(typeof p.role, 'string');
+  assert.ok((mapped.languages || []).includes('English'));
+  assert.ok((mapped.languages || []).includes('Hindi'));
+});
+
+test('each extracted achievement is a non-empty trimmed string', () => {
+  const mapped = mapParsedResume(parseResumeText(SAMPLE));
+  for (const a of mapped.achievements || []) {
+    assert.equal(typeof a, 'string');
+    assert.equal(a, a.trim());
+    assert.ok(a.length > 0);
   }
 });

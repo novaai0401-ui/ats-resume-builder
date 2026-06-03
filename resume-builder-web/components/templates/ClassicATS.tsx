@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  achievementItems,
   allSkills,
   certificationItems,
   cleanList,
@@ -21,6 +22,7 @@ export default function ClassicATS({ resumeData }: TemplateProps) {
   const languages = cleanList(normalized.languages);
   const experience = experienceItems(normalized);
   const projects = projectItems(normalized);
+  const achievements = achievementItems(normalized);
   const education = educationItems(normalized);
   const certifications = certificationItems(normalized);
 
@@ -70,6 +72,17 @@ export default function ClassicATS({ resumeData }: TemplateProps) {
               </ul>
             </div>
           ))}
+        </section>
+      ) : null}
+
+      {achievements.length ? (
+        <section className="ats-section">
+          <h2>{sectionTitle('achievements').toUpperCase()}</h2>
+          <ul className="ats-item">
+            {achievements.map((line, idx) => (
+              <li key={`classic-achievement-${idx}`}>{line}</li>
+            ))}
+          </ul>
         </section>
       ) : null}
 

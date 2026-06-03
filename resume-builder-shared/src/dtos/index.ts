@@ -58,6 +58,7 @@ export type CreateResumeDto = {
     date?: string;
     details?: string[];
   }[];
+  achievements?: string[];
   templateId?: string;
 };
 
@@ -105,6 +106,7 @@ export type UpdateResumeDto = {
     date?: string;
     details?: string[];
   }[];
+  achievements?: string[];
   templateId?: string;
 };
 

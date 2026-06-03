@@ -187,6 +187,7 @@ export class ResumeService {
       education: dto.education ?? [],
       projects: dto.projects ?? [],
       certifications: dto.certifications ?? [],
+      achievements: dto.achievements ?? [],
     });
     const templateId = typeof dto.templateId === 'string'
       ? String(dto.templateId || '').trim() || undefined
@@ -214,6 +215,7 @@ export class ResumeService {
         education: normalized.education,
         projects: normalized.projects ?? [],
         certifications: normalized.certifications ?? [],
+        achievements: normalized.achievements ?? [],
         templateId,
       },
     });
@@ -324,6 +326,7 @@ export class ResumeService {
       education: dto.education ?? (Array.isArray(current.education) ? current.education as any[] : []),
       projects: dto.projects ?? (Array.isArray(current.projects) ? current.projects as any[] : []),
       certifications: dto.certifications ?? (Array.isArray(current.certifications) ? current.certifications as any[] : []),
+      achievements: dto.achievements ?? (Array.isArray((current as any).achievements) ? ((current as any).achievements as string[]) : []),
     });
     const categories = resolveSkillCategories({
       skills: normalized.skills,
@@ -359,6 +362,7 @@ export class ResumeService {
         education: normalized.education,
         projects: normalized.projects,
         certifications: normalized.certifications,
+        achievements: normalized.achievements ?? [],
         templateId,
       },
     });
@@ -404,6 +408,7 @@ export class ResumeService {
       education: Array.isArray(resume.education) ? resume.education as any[] : [],
       projects: Array.isArray(resume.projects) ? resume.projects as any[] : [],
       certifications: Array.isArray(resume.certifications) ? resume.certifications as any[] : [],
+      achievements: Array.isArray((resume as any).achievements) ? ((resume as any).achievements as string[]) : [],
     });
     const categories = resolveSkillCategories({
       skills: normalized.skills,
@@ -428,6 +433,7 @@ export class ResumeService {
         education: normalized.education,
         projects: normalized.projects ?? [],
         certifications: normalized.certifications ?? [],
+        achievements: normalized.achievements ?? [],
         templateId: resume.templateId ?? undefined,
       },
     });
@@ -1513,6 +1519,7 @@ function validateResumeSectionsOrThrow(input: {
   education: any[];
   projects?: any[];
   certifications?: any[];
+  achievements?: string[];
 }) {
   const parsed = ResumeSectionsSchema.safeParse({
     title: input.title,
@@ -1526,6 +1533,7 @@ function validateResumeSectionsOrThrow(input: {
     education: input.education,
     projects: input.projects ?? [],
     certifications: input.certifications ?? [],
+    achievements: (input.achievements ?? []).filter((a) => String(a || '').trim().length > 0),
   });
   if (!parsed.success) {
     throw new BadRequestException({
@@ -4683,6 +4691,7 @@ type SectionLabelOverrides = Partial<{
   skills: string;
   experience: string;
   projects: string;
+  achievements: string;
   education: string;
   certifications: string;
   languages: string;
@@ -4710,6 +4719,7 @@ function renderOrderedSections(
   const softSkills = templateCleanList(resume.softSkills);
   const mergedSkills = dedupeSkills([...skills, ...technicalSkills, ...softSkills]);
   const languages = templateCleanList(resume.languages);
+  const achievements = templateCleanList(resume.achievements);
   const experience = templateExperienceItems(resume);
   const projects = templateProjectItems(resume);
   const education = templateEducationItems(resume);
@@ -4776,12 +4786,22 @@ function renderOrderedSections(
         <p>${escapeHtml(languages.join(', '))}</p>
       </section>
     ` : '';
+  const achievementsHeading = labels.achievements || 'Achievements';
+  const achievementsSection = achievements.length ? `
+      <section class="${sectionClass}">
+        ${heading(achievementsHeading)}
+        <ul class="ats-item">
+          ${achievements.map((a) => `<li>${escapeHtml(a)}</li>`).join('')}
+        </ul>
+      </section>
+    ` : '';
 
   sections.push(summarySection);
   if (options.educationFirst) {
     sections.push(educationSection);
     sections.push(experienceSection);
     if (projectsSection) sections.push(projectsSection);
+    if (achievementsSection) sections.push(achievementsSection);
     if (certificationsSection) sections.push(certificationsSection);
     sections.push(skillsSection);
   } else if (options.certificationsFirst) {
@@ -4790,10 +4810,12 @@ function renderOrderedSections(
     sections.push(experienceSection);
     sections.push(skillsSection);
     if (projectsSection) sections.push(projectsSection);
+    if (achievementsSection) sections.push(achievementsSection);
   } else {
     sections.push(skillsSection);
     sections.push(experienceSection);
     if (projectsSection) sections.push(projectsSection);
+    if (achievementsSection) sections.push(achievementsSection);
     sections.push(educationSection);
     if (certificationsSection) sections.push(certificationsSection);
   }

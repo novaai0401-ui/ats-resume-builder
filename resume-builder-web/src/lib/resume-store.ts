@@ -58,6 +58,7 @@ export type ResumeDraft = {
   education: EducationItem[];
   projects: ProjectItem[];
   certifications: CertificationItem[];
+  achievements: string[];
   templateId?: string;
 };
 
@@ -86,6 +87,7 @@ export function getEmptyResumeDraft(): ResumeDraft {
     education: [],
     projects: [],
     certifications: [],
+    achievements: [],
     templateId: undefined,
   };
 }

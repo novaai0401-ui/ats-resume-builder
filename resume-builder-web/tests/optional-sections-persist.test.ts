@@ -24,6 +24,7 @@ const ALL_ENABLED = [
   { id: 'sec-skills', type: 'skills' as const, enabled: true, required: true },
   { id: 'sec-languages', type: 'languages' as const, enabled: true, required: false },
   { id: 'sec-projects', type: 'projects' as const, enabled: true, required: false },
+  { id: 'sec-achievements', type: 'achievements' as const, enabled: true, required: false },
   { id: 'sec-certifications', type: 'certifications' as const, enabled: true, required: false },
 ];
 
@@ -166,4 +167,35 @@ test('applySinglePresentRule still works (cross-suite sanity check)', () => {
     true,
   );
   assert.equal(experiences[1].endDate, '');
+});
+
+// --------------------------------------------------------------------
+// Achievements — the dedicated section
+// --------------------------------------------------------------------
+
+test('achievements persist when the section is enabled (default)', () => {
+  const draft = draftWith({
+    achievements: ['Won the Rising Star award twice', 'Shipped MVP 2 weeks early'],
+  } as Partial<Parameters<typeof buildResumePayload>[0]>);
+  const payload = buildResumePayload(draft, ALL_ENABLED) as { achievements: string[] };
+  assert.deepEqual(payload.achievements, ['Won the Rising Star award twice', 'Shipped MVP 2 weeks early']);
+});
+
+test('removing the Achievements section drops its data on save', () => {
+  const draft = draftWith({
+    achievements: ['Won an award'],
+  } as Partial<Parameters<typeof buildResumePayload>[0]>);
+  const disabled = ALL_ENABLED.map((s) =>
+    s.type === ('achievements' as typeof s.type) ? { ...s, enabled: false } : s,
+  );
+  const payload = buildResumePayload(draft, disabled) as { achievements: string[] };
+  assert.deepEqual(payload.achievements, []);
+});
+
+test('blank achievement lines are trimmed out on save', () => {
+  const draft = draftWith({
+    achievements: ['  Real achievement  ', '', '   ', 'Another one'],
+  } as Partial<Parameters<typeof buildResumePayload>[0]>);
+  const payload = buildResumePayload(draft, ALL_ENABLED) as { achievements: string[] };
+  assert.deepEqual(payload.achievements, ['Real achievement', 'Another one']);
 });

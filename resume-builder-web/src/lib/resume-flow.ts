@@ -20,6 +20,7 @@ export type SectionType =
   | 'experience'
   | 'education'
   | 'projects'
+  | 'achievements'
   | 'certifications';
 
 export type SectionState = {
@@ -225,6 +226,10 @@ export function draftFromImport(parsed: ResumeImportResult): { resume: ResumeDra
     }))
     .filter((item) => item.name);
 
+  const achievements = ((parsed as { achievements?: string[] }).achievements || [])
+    .map((a) => String(a || '').trim())
+    .filter(Boolean);
+
   const importNotes = [
     parsed.unmappedText || '',
     ...droppedExperience,
@@ -254,6 +259,7 @@ export function draftFromImport(parsed: ResumeImportResult): { resume: ResumeDra
       education: mappableEducation,
       projects,
       certifications,
+      achievements,
       templateId: '',
     },
     unmappedText: importNotes,
@@ -590,6 +596,9 @@ export function buildResumePayload(resume: ResumeDraft, sections: SectionState[]
       : [],
     projects: enabled.has('projects') ? cleanProjects : [],
     certifications: enabled.has('certifications') ? cleanCertifications : [],
+    achievements: enabled.has('achievements')
+      ? (resume.achievements || []).map((a) => a.trim()).filter(Boolean)
+      : [],
     templateId: resume.templateId?.trim() || undefined,
   };
   return normalizeResumeForAts(payload) as typeof payload;
@@ -648,6 +657,7 @@ export function buildResumePreview(resume: ResumeDraft): ResumeImportResult {
         details: (item.details || []).map((line) => line.trim()).filter(Boolean),
       }))
       .filter((item) => item.name),
+    achievements: (resume.achievements || []).map((a) => a.trim()).filter(Boolean),
   };
   return normalizeResumeForAts(preview);
 }
@@ -716,6 +726,9 @@ export function resumeFromApi(resume: Resume): ResumeDraft {
       date: item.date?.trim(),
       details: (item.details || []).map((line) => line.trim()).filter(Boolean),
     })),
+    achievements: ((resume as { achievements?: string[] }).achievements || [])
+      .map((a) => String(a || '').trim())
+      .filter(Boolean),
     templateId: resume.templateId || '',
   };
 }

@@ -88,7 +88,12 @@ const SECTION_SYNONYMS = {
         'engagements', 'client engagements', 'project assignments', 'assignments',
     ],
     education: ['education', 'academics', 'academic background', 'education history', 'qualifications', 'quali cations', 'educational qualifications', 'academic qualifications', 'academic details', 'educational background', 'degrees', 'academic record', 'academic credentials', 'schooling', 'college education', 'university education', 'studies', 'educational details', 'academic experience'],
-    projects: ['projects', 'notable projects', 'research', 'achievements', 'accomplishments', 'key projects', 'project experience', 'key achievements', 'personal projects', 'side projects', 'portfolio', 'portfolio projects', 'academic projects', 'research projects', 'open source', 'open source contributions', 'contributions', 'selected projects', 'major achievements', 'awards', 'awards and achievements', 'honors', 'honors and awards', 'publications', 'papers', 'research publications', 'research and publications', 'publications and research'],
+    projects: ['projects', 'notable projects', 'research', 'key projects', 'project experience', 'personal projects', 'side projects', 'portfolio', 'portfolio projects', 'academic projects', 'research projects', 'open source', 'open source contributions', 'contributions', 'selected projects', 'publications', 'papers', 'research publications', 'research and publications', 'publications and research'],
+    /// Achievements / awards / honors are now their own section (the resume
+    /// schema has a dedicated `achievements: string[]` field). Previously
+    /// these headings were folded into projects, producing a phantom
+    /// "Project" with the achievement text as bullets.
+    achievements: ['achievements', 'accomplishments', 'key achievements', 'major achievements', 'awards', 'awards and achievements', 'achievements and awards', 'honors', 'honours', 'honors and awards', 'honours and awards', 'awards and honors', 'awards and honours', 'awards honors', 'awards honours', 'honors awards', 'achievements awards', 'recognitions', 'recognition', 'awards and recognition', 'awards and recognitions', 'awards recognition', 'achievements and recognition', 'achievements recognition', 'notable achievements', 'career highlights', 'highlights', 'key accomplishments'],
     certifications: [
         'certifications', 'certi cations', 'licenses', 'certificates',
         'professional certifications', 'pro essional certi cations',

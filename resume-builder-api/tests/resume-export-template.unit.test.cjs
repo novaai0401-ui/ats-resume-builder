@@ -408,3 +408,41 @@ test('sidebar-bold export emits nb-sidebar-bold markup matching the React previe
   assert.match(html, /class="nb-sidebar-bold__content-title">Profile</);
   assert.match(html, /\.nb-sidebar-bold__sidebar\s*\{[^}]*background:\s*#1a2e4a/);
 });
+
+// ---------------------------------------------------------------------------
+// Achievements — dedicated section renders in the PDF export.
+// ---------------------------------------------------------------------------
+
+function createInMemoryPrismaWithAchievements(templateId) {
+  const base = createInMemoryPrisma(templateId);
+  const state = base.__getState();
+  state.resume.achievements = [
+    'Won the Rising Star award twice for high-impact delivery',
+    'Spearheaded the Speedboat Project, shipping the MVP 2 weeks early',
+  ];
+  return base;
+}
+
+test('classic export renders an Achievements section with the statements', async () => {
+  const prisma = createInMemoryPrismaWithAchievements('classic');
+  const service = new ResumeService(prisma, {
+    isPaymentFeatureEnabled: async () => false,
+    isRateLimitEnabled: async () => false,
+  });
+  const rendered = await service.debugExportHtml('user-1', 'resume-1');
+  const html = rendered.html;
+  assert.match(html, /ACHIEVEMENTS|Achievements/);
+  assert.match(html, /Rising Star award twice/);
+  assert.match(html, /Speedboat Project/);
+});
+
+test('export omits the Achievements section entirely when there are none', async () => {
+  const prisma = createInMemoryPrisma('classic'); // no achievements in fixture
+  const service = new ResumeService(prisma, {
+    isPaymentFeatureEnabled: async () => false,
+    isRateLimitEnabled: async () => false,
+  });
+  const rendered = await service.debugExportHtml('user-1', 'resume-1');
+  // No empty "Achievements" heading should appear.
+  assert.doesNotMatch(rendered.html, />\s*ACHIEVEMENTS\s*</);
+});

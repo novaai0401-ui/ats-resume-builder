@@ -102,6 +102,7 @@ export const ResumeSectionsSchema = z.object({
   education: z.array(EducationItemSchema).default([]),
   projects: z.array(ProjectItemSchema).default([]),
   certifications: z.array(CertificationItemSchema).default([]),
+  achievements: z.array(z.string().min(1)).default([]),
   unmappedText: z.string().optional(),
   roleLevel: RoleLevelSchema.optional(),
 });
@@ -118,6 +119,7 @@ export const ParsedResumeSchema = z.object({
   education: z.array(ParsedEducationItemSchema).default([]),
   projects: z.array(ParsedProjectItemSchema).default([]),
   certifications: z.array(ParsedCertificationItemSchema).default([]),
+  achievements: z.array(z.string()).default([]),
   unmappedText: z.string().optional(),
   roleLevel: RoleLevelSchema.optional(),
 });
