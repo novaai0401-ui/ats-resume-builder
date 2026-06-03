@@ -240,9 +240,24 @@ function SahaayakWorkspace({ profile, onProfileChange }: { profile: SahaayakProf
   return (
     <main style={{ ...pageStyle, maxWidth: 1100 }}>
       <header style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 16 }}>
-        <h2 style={{ margin: 0 }}>
-          Sahaayak <span style={{ fontWeight: 400, color: 'var(--muted, #888)', fontSize: 16 }}>· {profile.mode} mode</span>
-        </h2>
+        <div>
+          <h2 style={{ margin: 0 }}>
+            Sahaayak <span style={{ fontWeight: 400, color: 'var(--muted, #888)', fontSize: 16 }}>· {profile.mode} mode</span>
+          </h2>
+          {/* One-line purpose subtitle so users can tell Sahaayak apart
+             from Mentor at a glance. Sahaayak = companion for the
+             hard days; Mentor = career strategy. Adapted slightly per
+             mode so the framing matches what the user opted into. */}
+          <p style={{ margin: '4px 0 0', color: 'var(--muted, #5a6778)', fontSize: 13, lineHeight: 1.45 }}>
+            A companion for the hard days — listens, reflects, holds space.{' '}
+            {profile.mode === 'karmayoga' && 'Gita lens: focus on effort, release the outcome.'}
+            {profile.mode === 'coach' && 'May offer one small next step when it feels right.'}
+            {profile.mode === 'witness' && 'No advice unless you ask — just presence.'}{' '}
+            <span style={{ color: 'var(--muted, #8a98ac)' }}>
+              Not the same as Mentor (career strategy) or ATS / JD Match (resume tools).
+            </span>
+          </p>
+        </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <TkxButton variant="outline" onClick={onOptOut}>Pause</TkxButton>
           <TkxButton variant="outline" onClick={onForget}>Delete memory</TkxButton>

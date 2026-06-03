@@ -57,7 +57,15 @@ export default function ResumeAtsClient() {
         <div className="editor-header">
           <div>
             <h2>ATS Review</h2>
-            <p className="small">Resume id: {resumeId}</p>
+            <p className="small" style={{ margin: '4px 0 4px', color: '#1b2b3c', fontWeight: 600 }}>
+              Will an ATS <em>parse</em> your resume correctly?
+            </p>
+            <p className="small" style={{ margin: 0, color: '#5a6778' }}>
+              Checks format, structure, headings, dates, action verbs. JD is <em>optional</em> here — the score works without it.{' '}
+              <span style={{ color: '#8a98ac' }}>
+                Different from <a href="/jd-match" style={{ color: '#1a3a5c' }}>JD Match</a>, which compares your resume to a specific job&apos;s keywords.
+              </span>
+            </p>
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button className="btn secondary" onClick={() => router.push(`/resume?id=${encodeURIComponent(resumeId)}`)}>
