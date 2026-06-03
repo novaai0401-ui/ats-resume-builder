@@ -905,10 +905,19 @@ export class ResumeService {
       contact: mapped.contact,
       summary: mapped.summary,
       skills: mapped.skills,
+      // Forward the categorised skill buckets + languages + achievements
+      // so they survive the sanitiser. Previously they were dropped at
+      // this layer and never reached the client, which is why uploaded
+      // Languages / Achievements sections rendered as "0 languages"
+      // and "0 achievements" in the editor.
+      technicalSkills: (mapped as { technicalSkills?: string[] }).technicalSkills,
+      softSkills: (mapped as { softSkills?: string[] }).softSkills,
+      languages: (mapped as { languages?: string[] }).languages,
       experience: mapped.experience,
       education: mapped.education,
       projects: mapped.projects,
       certifications: mapped.certifications,
+      achievements: (mapped as { achievements?: string[] }).achievements,
       unmappedText: mapped.unmappedText,
     }, { mode: 'upload', sourceText: normalizedText });
     sanitized.experience = finalizeExperience({
@@ -922,20 +931,35 @@ export class ResumeService {
       contact: sanitized.contact,
       summary: sanitized.summary,
       skills: sanitized.skills,
+      technicalSkills: sanitized.technicalSkills,
+      softSkills: sanitized.softSkills,
+      languages: sanitized.languages,
       experience: sanitized.experience,
       education: sanitized.education,
       projects: sanitized.projects,
       certifications: sanitized.certifications,
+      achievements: sanitized.achievements,
     });
     const parsedPayload = {
       title: normalizedParsed.title,
       contact: normalizedParsed.contact,
       summary: normalizedParsed.summary,
       skills: normalizedParsed.skills,
+      // Plain string lists — preserved through normalisation so the
+      // client editor receives them and the editor's Languages /
+      // Achievements sections render the extracted data.
+      technicalSkills: (normalizedParsed as { technicalSkills?: string[] }).technicalSkills
+        ?? sanitized.technicalSkills,
+      softSkills: (normalizedParsed as { softSkills?: string[] }).softSkills
+        ?? sanitized.softSkills,
+      languages: (normalizedParsed as { languages?: string[] }).languages
+        ?? sanitized.languages,
       experience: normalizedParsed.experience,
       education: normalizedParsed.education,
       projects: normalizedParsed.projects,
       certifications: normalizedParsed.certifications,
+      achievements: (normalizedParsed as { achievements?: string[] }).achievements
+        ?? sanitized.achievements,
       roleLevel: mapped.roleLevel,
       signals: mapped.signals,
       unmappedText: sanitized.unmappedText,
@@ -1793,6 +1817,15 @@ function normalizeResumeForAtsOutput(input: any) {
     }))
     .filter((item: any) => item.name);
 
+  // Achievements are a plain string list — keep them as-is after the
+  // sanitiser has trimmed and uniqued them. Without this they got
+  // dropped between the sanitiser and parsedPayload, which is the
+  // root of "0 achievements" after upload.
+  const achievements = Array.isArray(input?.achievements)
+    ? input.achievements
+        .map((a: unknown) => String(a || '').trim())
+        .filter((a: string) => a.length > 0)
+    : [];
   return {
     ...input,
     summary: String(input?.summary || '').replace(/\s+/g, ' ').trim(),
@@ -1804,6 +1837,7 @@ function normalizeResumeForAtsOutput(input: any) {
     education,
     projects,
     certifications,
+    achievements,
   };
 }
 

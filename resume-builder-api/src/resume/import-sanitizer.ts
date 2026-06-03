@@ -42,10 +42,14 @@ export type SanitizedImportPayload = {
   contact?: ContactShape;
   summary: string;
   skills: string[];
+  technicalSkills?: string[];
+  softSkills?: string[];
+  languages?: string[];
   experience: ExperienceShape[];
   education: EducationShape[];
   projects: ProjectShape[];
   certifications: CertificationShape[];
+  achievements?: string[];
   unmappedText?: string;
   rejectedBlocks: string[];
 };
@@ -55,10 +59,14 @@ type ImportInput = {
   contact?: unknown;
   summary?: unknown;
   skills?: unknown;
+  technicalSkills?: unknown;
+  softSkills?: unknown;
+  languages?: unknown;
   experience?: unknown;
   education?: unknown;
   projects?: unknown;
   certifications?: unknown;
+  achievements?: unknown;
   unmappedText?: unknown;
 };
 
@@ -106,6 +114,15 @@ export function sanitizeImportedResume(
   const title = cleanText(input.title) || 'Resume';
   const summary = cleanText(input.summary);
   const skills = uniqueStrings(cleanStringArray(input.skills));
+  // Languages + achievements flow through as plain string lists, like
+  // skills. Previous version of this sanitizer silently dropped them,
+  // which is why uploaded Languages / Achievements sections never
+  // surfaced in the editor regardless of how cleanly the parser
+  // extracted them — fixed now.
+  const technicalSkills = uniqueStrings(cleanStringArray(input.technicalSkills));
+  const softSkills = uniqueStrings(cleanStringArray(input.softSkills));
+  const languages = uniqueStrings(cleanStringArray(input.languages));
+  const achievements = uniqueStrings(cleanStringArray(input.achievements));
 
   const contact = sanitizeContact(input.contact, rejectedBlocks);
   const experience = deduplicateExperience(sanitizeExperience(input.experience, rejectedBlocks, mode));
@@ -120,10 +137,14 @@ export function sanitizeImportedResume(
     contact,
     summary,
     skills,
+    technicalSkills,
+    softSkills,
+    languages,
     experience,
     education,
     projects,
     certifications,
+    achievements,
     unmappedText: unmappedText || undefined,
     rejectedBlocks,
   };

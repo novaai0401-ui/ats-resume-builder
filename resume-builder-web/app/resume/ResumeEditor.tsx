@@ -580,7 +580,15 @@ export default function ResumeEditor() {
       return;
     }
     if (effectiveResumeId) {
-      setIsHydrating(true);
+      // Only show the hydration loader on the FIRST load (when the
+      // editor is empty). Subsequent re-fetches — e.g. after autosave
+      // assigns a resume id and effectiveResumeId flips from '' to
+      // that id — must refresh silently in the background. Otherwise
+      // the loader blanks the editor mid-flow and the screen flickers
+      // editor → loader → editor → editor (regression users reported
+      // as "Continue to Review flickers and reloads multiple times").
+      const isInitialLoad = !hasResumeDraftContent(resume);
+      if (isInitialLoad) setIsHydrating(true);
       api.getResume(effectiveResumeId)
         .then((r) => {
           setResumeId(r.id);
@@ -589,7 +597,9 @@ export default function ResumeEditor() {
           setResume(loadedResume);
         })
         .catch((err) => setMessage(err instanceof Error ? err.message : 'Failed to load resume'))
-        .finally(() => setIsHydrating(false));
+        .finally(() => {
+          if (isInitialLoad) setIsHydrating(false);
+        });
       return;
     }
   }, [effectiveResumeId, normalizedTemplateParam]);
