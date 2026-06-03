@@ -5,24 +5,31 @@ import {
 } from '../src/lib/date-utils';
 import { buildResumePayload } from '../src/lib/resume-flow';
 
-// Bug users reported as "I added certifications and languages, saved
-// the resume, and they were gone on next open" — the strict
-// `enabled.has('certifications')` guard in buildResumePayload was
-// dropping the arrays whenever the section navigator hadn't been
-// flipped on. Optional sections must persist their data whenever the
-// user has actually entered some, even if the section is currently
-// disabled in the navigator.
+// Correct save semantics (after the "phantom project" + "can't remove
+// section" bug fix):
+//   - Optional sections default to ENABLED (getDefaultSections), so a
+//     normal upload never loses extracted languages / projects / certs.
+//   - When the user EXPLICITLY removes a section, the data is dropped —
+//     that is what "Remove" means.
+//   - Empty / phantom entries (a project with no name and no
+//     highlights, a cert with no name, an empty optional role/issuer)
+//     are dropped or sent as undefined so the server's ">=2 chars if
+//     present" rules never make the save un-completable.
 
-const SECTIONS_ALL_OPTIONAL_DISABLED = [
+const ALL_ENABLED = [
   { id: 'sec-contact', type: 'contact' as const, enabled: true, required: true },
   { id: 'sec-summary', type: 'summary' as const, enabled: true, required: true },
   { id: 'sec-experience', type: 'experience' as const, enabled: true, required: true },
   { id: 'sec-education', type: 'education' as const, enabled: true, required: true },
   { id: 'sec-skills', type: 'skills' as const, enabled: true, required: true },
-  { id: 'sec-languages', type: 'languages' as const, enabled: false, required: false },
-  { id: 'sec-projects', type: 'projects' as const, enabled: false, required: false },
-  { id: 'sec-certifications', type: 'certifications' as const, enabled: false, required: false },
+  { id: 'sec-languages', type: 'languages' as const, enabled: true, required: false },
+  { id: 'sec-projects', type: 'projects' as const, enabled: true, required: false },
+  { id: 'sec-certifications', type: 'certifications' as const, enabled: true, required: false },
 ];
+
+function withSectionDisabled(type: 'languages' | 'projects' | 'certifications') {
+  return ALL_ENABLED.map((s) => (s.type === type ? { ...s, enabled: false } : s));
+}
 
 function draftWith(overrides: Partial<Parameters<typeof buildResumePayload>[0]>) {
   return {
@@ -42,50 +49,113 @@ function draftWith(overrides: Partial<Parameters<typeof buildResumePayload>[0]>)
   } as Parameters<typeof buildResumePayload>[0];
 }
 
-test('certifications survive save even when the section is toggled off', () => {
+// --------------------------------------------------------------------
+// Default-enabled sections persist their data
+// --------------------------------------------------------------------
+
+test('certifications persist when the section is enabled (default)', () => {
   const draft = draftWith({
     certifications: [
       { name: 'AWS Certified Solutions Architect', issuer: 'Amazon', date: '2024-03', details: [] },
     ],
   });
-  const payload = buildResumePayload(draft, SECTIONS_ALL_OPTIONAL_DISABLED);
+  const payload = buildResumePayload(draft, ALL_ENABLED);
   assert.equal(payload.certifications.length, 1);
   assert.equal(payload.certifications[0].name, 'AWS Certified Solutions Architect');
 });
 
-test('languages survive save even when the section is toggled off', () => {
+test('languages persist when the section is enabled (default)', () => {
   const draft = draftWith({ languages: ['English', 'Hindi', 'Marathi'] });
-  const payload = buildResumePayload(draft, SECTIONS_ALL_OPTIONAL_DISABLED);
+  const payload = buildResumePayload(draft, ALL_ENABLED);
   assert.deepEqual(payload.languages, ['English', 'Hindi', 'Marathi']);
 });
 
-test('projects survive save even when the section is toggled off', () => {
+test('projects persist when the section is enabled (default)', () => {
   const draft = draftWith({
     projects: [
       { name: 'PocketResume', role: 'Founder', startDate: '', endDate: '', url: '', highlights: ['Shipped v1'] },
     ],
   });
-  const payload = buildResumePayload(draft, SECTIONS_ALL_OPTIONAL_DISABLED);
+  const payload = buildResumePayload(draft, ALL_ENABLED);
   assert.equal(payload.projects.length, 1);
   assert.equal(payload.projects[0].name, 'PocketResume');
 });
 
-test('empty optional arrays stay empty — the lenient guard only kicks in for real data', () => {
-  const draft = draftWith({});
-  const payload = buildResumePayload(draft, SECTIONS_ALL_OPTIONAL_DISABLED);
+// --------------------------------------------------------------------
+// Explicit Remove drops the data (this is what the user asked for —
+// removing the Projects section must let the resume save)
+// --------------------------------------------------------------------
+
+test('removing the Projects section drops its data on save', () => {
+  const draft = draftWith({
+    projects: [
+      { name: 'Key Achievements', role: '', startDate: '', endDate: '', url: '', highlights: ['Won an award'] },
+    ],
+  });
+  const payload = buildResumePayload(draft, withSectionDisabled('projects'));
+  assert.deepEqual(payload.projects, []);
+});
+
+test('removing the Certifications section drops its data on save', () => {
+  const draft = draftWith({
+    certifications: [{ name: 'AWS', issuer: 'Amazon', date: '', details: [] }],
+  });
+  const payload = buildResumePayload(draft, withSectionDisabled('certifications'));
+  assert.deepEqual(payload.certifications, []);
+});
+
+// --------------------------------------------------------------------
+// Phantom / empty entries are dropped or made schema-safe so the save
+// never fails with "Too small: expected string to have >=2 characters"
+// --------------------------------------------------------------------
+
+test('a phantom project with empty role does not send an empty-string role', () => {
+  // The extractor can emit { name: "Key Achievements", role: "" } from
+  // an ACHIEVEMENTS section. role:"" fails the server's >=2 rule, so we
+  // must omit it (undefined), never send "".
+  const draft = draftWith({
+    projects: [
+      { name: 'Key Achievements', role: '', startDate: '', endDate: '', url: '', highlights: ['Won the Rising Star award'] },
+    ],
+  });
+  const payload = buildResumePayload(draft, ALL_ENABLED);
+  assert.equal(payload.projects.length, 1);
+  assert.equal(payload.projects[0].role, undefined, 'empty role must be undefined, not ""');
+  assert.equal(payload.projects[0].url, undefined, 'empty url must be undefined, not ""');
+});
+
+test('a fully empty project (no name, no highlights) is dropped entirely', () => {
+  const draft = draftWith({
+    projects: [
+      { name: '', role: '', startDate: '', endDate: '', url: '', highlights: [] },
+    ],
+  });
+  const payload = buildResumePayload(draft, ALL_ENABLED);
+  assert.deepEqual(payload.projects, []);
+});
+
+test('a certification with empty issuer omits issuer instead of sending ""', () => {
+  const draft = draftWith({
+    certifications: [{ name: 'Some Cert', issuer: '', date: '', details: [] }],
+  });
+  const payload = buildResumePayload(draft, ALL_ENABLED);
+  assert.equal(payload.certifications.length, 1);
+  assert.equal(payload.certifications[0].issuer, undefined, 'empty issuer must be undefined, not ""');
+});
+
+test('a certification with no name is dropped', () => {
+  const draft = draftWith({
+    certifications: [{ name: '   ', issuer: 'Amazon', date: '', details: [] }],
+  });
+  const payload = buildResumePayload(draft, ALL_ENABLED);
+  assert.deepEqual(payload.certifications, []);
+});
+
+test('empty optional arrays stay empty', () => {
+  const payload = buildResumePayload(draftWith({}), ALL_ENABLED);
   assert.deepEqual(payload.certifications, []);
   assert.deepEqual(payload.projects, []);
   assert.deepEqual(payload.languages, []);
-});
-
-test('certifications with only whitespace name/issuer do NOT count as data', () => {
-  // Catch the case where the row exists but the user typed nothing —
-  // we should not persist a noisy empty-ish entry.
-  const draft = draftWith({
-    certifications: [{ name: '   ', issuer: '\t', date: '', details: [] }],
-  });
-  const payload = buildResumePayload(draft, SECTIONS_ALL_OPTIONAL_DISABLED);
-  assert.deepEqual(payload.certifications, []);
 });
 
 // Sanity: the single-Present rule helper from earlier still in scope.

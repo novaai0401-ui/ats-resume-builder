@@ -159,6 +159,11 @@ test('resume save payload builder remains backward-compatible for editor save', 
     { id: 'sec-experience', type: 'experience', enabled: true, required: true },
     { id: 'sec-education', type: 'education', enabled: true, required: true },
     { id: 'sec-skills', type: 'skills', enabled: true, required: true },
+    // Languages is part of the real editor's default section set
+    // (getDefaultSections). Include it so languages persist — saving
+    // now strictly follows the enabled section list (an explicitly
+    // removed section is dropped, which is what "Remove" must mean).
+    { id: 'sec-languages', type: 'languages', enabled: true, required: false },
     { id: 'sec-projects', type: 'projects', enabled: true, required: false },
     { id: 'sec-certifications', type: 'certifications', enabled: true, required: false },
   ];

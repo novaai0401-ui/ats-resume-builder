@@ -930,7 +930,15 @@ function mapProjects(sections: Record<string, string[]>) {
       current = { name: stripDates(line), role: '', startDate: dates.start, endDate: dates.end, highlights: [] };
       continue;
     }
-    if (!current) current = { name: 'Project', role: '', startDate: '', endDate: '', highlights: [] };
+    // Catch-all bucket for bullet content that has no project title of
+    // its own. In practice this is almost always an "Achievements" /
+    // "Awards" / "Honors" section (which the section-normalizer routes
+    // here because the resume schema has no dedicated achievements
+    // field). Name it "Key Achievements" rather than a generic
+    // "Project" so the editor labels it honestly — the user can rename
+    // or remove it. role stays empty and the save layer omits empty
+    // optional fields.
+    if (!current) current = { name: 'Key Achievements', role: '', startDate: '', endDate: '', highlights: [] };
     if (line.startsWith('-')) current.highlights.push(line.replace(/^[-*]\s*/, ''));
     else if (line.length > 10) current.highlights.push(line);
   }
