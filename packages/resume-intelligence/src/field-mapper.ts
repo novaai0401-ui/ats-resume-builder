@@ -193,17 +193,40 @@ export function mapParsedResume(parsed: ParsedResumeText): MappedResumeResult {
 
   const languages = mapLanguages(effectiveParsed.sections);
 
+  // Inline-fallback scan: when a DEDICATED section is empty, look for
+  // mentions inside the experience bullets / summary so a resume that
+  // says "Speaks English and Hindi" inside a bullet still surfaces
+  // those languages, and "AWS Certified Solutions Architect" inside
+  // a bullet still surfaces as a certification. The existing
+  // dedicated-section mappers are unchanged; this only fires when
+  // those mappers returned zero results.
+  const inlineBullets: string[] = [
+    summary,
+    ...finalExperience.flatMap((it) => it.highlights || []),
+    ...(effectiveParsed.sections.unmapped || []),
+  ].filter((s) => typeof s === 'string' && s.length > 0);
+
+  const languagesAugmented = languages.length
+    ? languages
+    : extractInlineLanguages(inlineBullets);
+  const certificationsAugmented = certifications.length
+    ? certifications
+    : extractInlineCertifications(inlineBullets);
+  const achievementsAugmented = achievements.length
+    ? achievements
+    : extractInlineAchievements(inlineBullets);
+
   const validated = ParsedResumeSchema.parse({
     title,
     contact,
     summary,
     skills: finalSkills,
-    languages,
+    languages: languagesAugmented,
     experience: finalExperience,
     education: educationSanitized.items,
     projects,
-    certifications,
-    achievements,
+    certifications: certificationsAugmented,
+    achievements: achievementsAugmented,
     unmappedText: unmappedText || undefined,
     roleLevel: levelResult.level,
   });
@@ -971,6 +994,119 @@ function mapAchievements(sections: Record<string, string[]>): string[] {
   }
   // Cap to a sane number so a mis-routed section can't explode the list.
   return out.slice(0, 30);
+}
+
+// ------------------------------------------------------------------
+// Inline-fallback extractors. Used ONLY when the dedicated section
+// returned zero rows. They never replace data — they only fill an
+// empty section by scanning experience-bullet / summary text.
+// ------------------------------------------------------------------
+
+const KNOWN_LANGUAGES = [
+  // Indian + South Asian
+  'English', 'Hindi', 'Marathi', 'Bengali', 'Tamil', 'Telugu', 'Kannada',
+  'Malayalam', 'Punjabi', 'Gujarati', 'Odia', 'Assamese', 'Urdu', 'Sanskrit',
+  'Sinhala', 'Nepali',
+  // Major world languages
+  'Spanish', 'French', 'German', 'Mandarin', 'Cantonese', 'Chinese', 'Japanese',
+  'Korean', 'Arabic', 'Portuguese', 'Italian', 'Russian', 'Dutch', 'Swedish',
+  'Norwegian', 'Danish', 'Finnish', 'Polish', 'Turkish', 'Greek', 'Hebrew',
+  'Thai', 'Vietnamese', 'Indonesian', 'Malay', 'Filipino', 'Tagalog', 'Swahili',
+];
+const LANGUAGE_INTRO_RE = /\b(speaks?|speaking|fluent in|fluent at|proficient in|conversational in|native(?: speaker of| in)?|languages?(?: known| spoken)?)\s*[:\-]?\s*/i;
+
+export function extractInlineLanguages(bullets: string[]): string[] {
+  const found = new Set<string>();
+  const tokens = new Set(KNOWN_LANGUAGES.map((l) => l.toLowerCase()));
+  for (const raw of bullets) {
+    const line = String(raw || '');
+    // Require either an explicit intro ("Speaks X, Y") or a tightly
+    // grouped list of language tokens. Without a guard we'd match
+    // "Java" as Javanese, "C" as Cantonese, etc. — false positives in
+    // tech bullets.
+    const introMatch = line.match(LANGUAGE_INTRO_RE);
+    if (!introMatch) continue;
+    const tail = line.slice(introMatch.index! + introMatch[0].length);
+    // Stop at the first sentence-end character so "Fluent in English.
+    // Built React apps." doesn't pull "Built React apps".
+    const segment = tail.split(/[.!?]/)[0] || '';
+    for (const word of segment.split(/[\s,;|/&]+/)) {
+      const w = word.trim().replace(/[^A-Za-z]/g, '');
+      if (!w) continue;
+      if (tokens.has(w.toLowerCase())) {
+        // Title-case for display: first capital, rest lower.
+        found.add(w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+      }
+    }
+  }
+  return Array.from(found).slice(0, 10);
+}
+
+// "<vendor> Certified <name> <level>" — captures the full credential
+// name. Vendor prefix + the word "Certified" anchor it strongly so
+// we don't accidentally pull "Built apps on AWS" as a cert.
+const CERT_VENDOR_RE = /\b(AWS|Azure|GCP|Google Cloud|Cisco|Microsoft|Oracle|Red Hat|RedHat|CompTIA|Salesforce|HashiCorp|VMware|Adobe|SAP|Kubernetes|Docker|MongoDB|Snowflake|Databricks)\s+Certified\s+([A-Z][\w\s\-]{2,60}?(?:Associate|Professional|Specialist|Expert|Foundation|Practitioner|Architect|Developer|Administrator|Engineer|Master|Operator|Designer|Consultant))\b/;
+// Standalone credential codes that don't follow the vendor pattern.
+const CERT_CODE_RE = /\b(PMP|PRINCE2|CSM|CSPO|CFA|CPA|FRM|CISSP|CISM|CISA|CEH|OSCP|CCNA|CCNP|CCIE|RHCSA|RHCE|CKA|CKAD|CKS|MCSA|MCSE|TOGAF|ITIL Foundation|ITIL Practitioner|ITIL Expert|ISTQB)\b/;
+const CERT_CREDENTIAL_VERB_RE = /\b(certified|certification|certificate|credential)\b/i;
+
+export function extractInlineCertifications(
+  bullets: string[],
+): Array<{ name: string; issuer?: string; date?: string; details: string[] }> {
+  const found: Array<{ name: string; issuer?: string; date?: string; details: string[] }> = [];
+  const seen = new Set<string>();
+  for (const raw of bullets) {
+    const line = String(raw || '').trim();
+    if (!line) continue;
+    // Try the vendor pattern first — captures "AWS Certified <X> <level>"
+    // as a whole credential name.
+    let name = '';
+    const vendorMatch = line.match(CERT_VENDOR_RE);
+    if (vendorMatch) {
+      name = `${vendorMatch[1]} Certified ${vendorMatch[2]}`.replace(/\s{2,}/g, ' ').trim();
+    } else {
+      // Standalone codes only count if the bullet also has a
+      // credential verb nearby — otherwise random "CFA" mentions in
+      // case-study bullets would pollute the list.
+      const codeMatch = line.match(CERT_CODE_RE);
+      if (codeMatch && CERT_CREDENTIAL_VERB_RE.test(line)) {
+        name = codeMatch[1];
+      }
+    }
+    if (!name || name.length < 3 || name.length > 80) continue;
+    const key = name.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const yearMatch = line.match(/\b(19|20)\d{2}\b/);
+    found.push({
+      name,
+      date: yearMatch ? yearMatch[0] : undefined,
+      details: [],
+    });
+    if (found.length >= 8) break;
+  }
+  return found;
+}
+
+// Bullets that LOOK like achievements (awards, recognitions, ranked
+// finishes) when no dedicated section was detected. We require an
+// explicit signal word — without it almost any bullet could pass.
+const ACHIEVEMENT_SIGNAL_RE = /\b(awarded|won|recognized|recognised|honou?red|received the|earned the|named the|ranked (?:#?\d|first|second|third|top)|finalist|runner[- ]up|champion|prize winner|gold medal|silver medal|bronze medal|distinction|top \d+%|hall of fame|nominee|nominated)\b/i;
+
+export function extractInlineAchievements(bullets: string[]): string[] {
+  const found: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of bullets) {
+    const line = String(raw || '').replace(/^[-*•·]\s*/, '').trim();
+    if (!line || line.length < 20 || line.length > 300) continue;
+    if (!ACHIEVEMENT_SIGNAL_RE.test(line)) continue;
+    const key = line.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    found.push(line);
+    if (found.length >= 10) break;
+  }
+  return found;
 }
 
 function mapCertifications(sections: Record<string, string[]>) {

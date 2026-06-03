@@ -191,7 +191,7 @@ export default function InterviewPrepClient() {
           <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
             <h2 style={{ margin: 0 }}>{cards.length} prep cards</h2>
             <span className="small" style={{ color: '#7a8a99' }}>
-              {provider === 'groq' ? 'Powered by AI' : 'Rule-based (configure GROQ_API_KEY for tailored cards)'}
+              {provider === 'groq' ? 'Powered by AI' : 'Rule-based — upgrade for tailored AI cards'}
             </span>
           </header>
           <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 10 }}>

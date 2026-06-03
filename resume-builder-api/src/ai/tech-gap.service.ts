@@ -205,12 +205,17 @@ export class TechGapService {
         reason: 'Mentioned in job description but not in resume.',
       })),
       estimatedRoleReadiness: {
-        overall: 'Partial match — configure AI provider for deeper analysis',
+        overall: 'Partial match — upgrade for deeper AI analysis',
         technical: `${input.skills?.length || 0} skills listed`,
         leadership: hasLeadership ? 'Some leadership signals present' : 'Leadership signals weak',
-        domain: 'Not assessed without AI provider',
+        domain: 'Deeper domain assessment unlocks on paid plans.',
       },
-      roleAlignmentSummary: 'Rule-based analysis. Configure GROQ_API_KEY for AI-powered gap analysis.',
+      // User-facing copy must not name internal env vars (GROQ_API_KEY)
+      // — that leaked implementation detail into a customer-visible
+      // string. Free users get rule-based gap analysis; the prompt to
+      // unlock LLM-powered analysis is "upgrade your plan", not
+      // "configure an env var".
+      roleAlignmentSummary: 'Rule-based analysis on the free tier. Upgrade to Student or Pro to unlock AI-powered gap analysis tailored to your resume + JD.',
     };
   }
 

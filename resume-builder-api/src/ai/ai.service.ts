@@ -256,7 +256,7 @@ export class AiService {
       provider: 'fallback',
       plan,
       critique: {
-        summary: 'AI provider is unavailable. Showing rule-based suggestions. Configure GROQ_API_KEY for AI-powered critique.',
+        summary: 'Showing rule-based suggestions. Upgrade to Student or Pro to unlock AI-powered critique on every section.',
         topIssues: issues,
         missingKeywords: input.missingKeywords?.slice(0, 8) || [],
         sectionSuggestions: { summary: [], skills: [], experience: [] },

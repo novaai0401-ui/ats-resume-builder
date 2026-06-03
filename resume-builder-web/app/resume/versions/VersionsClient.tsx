@@ -147,7 +147,12 @@ export default function VersionsClient() {
 
   function openInEditor() {
     if (!resumeId) return;
-    router.push(`/resume?resumeId=${resumeId}`);
+    // The editor reads its target resume from the `?id=` query
+    // parameter, not `?resumeId=`. The old route silently fell back
+    // to "no resume selected" — the page loaded blank and the user
+    // saw nothing happen. The Versions navigation now uses the same
+    // param the editor + dashboard already use everywhere else.
+    router.push(`/resume/review?id=${encodeURIComponent(resumeId)}`);
   }
 
   return (
