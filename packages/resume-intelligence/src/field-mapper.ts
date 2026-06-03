@@ -109,6 +109,7 @@ export function mapParsedResume(parsed: ParsedResumeText): MappedResumeResult {
   const educationRaw = mapEducation(effectiveParsed.sections);
   const projects = mapProjects(effectiveParsed.sections);
   const certifications = mapCertifications(effectiveParsed.sections);
+  const achievements = mapAchievements(effectiveParsed.sections);
   const header = mapHeader(effectiveParsed.lines);
   const contact = header.contact;
   const title = guessTitle(effectiveParsed.lines, header);
@@ -202,6 +203,7 @@ export function mapParsedResume(parsed: ParsedResumeText): MappedResumeResult {
     education: educationSanitized.items,
     projects,
     certifications,
+    achievements,
     unmappedText: unmappedText || undefined,
     roleLevel: levelResult.level,
   });
@@ -936,6 +938,39 @@ function mapProjects(sections: Record<string, string[]>) {
   }
   if (current && current.highlights.length) projects.push(current);
   return projects;
+}
+
+/**
+ * Achievements / awards / honors → a flat list of statement strings.
+ * Each non-empty line (bullet symbol stripped) becomes one achievement.
+ * Multi-line wrapped statements from a PDF are joined when a continuation
+ * line clearly belongs to the previous one (starts lowercase / no bullet).
+ */
+function mapAchievements(sections: Record<string, string[]>): string[] {
+  const lines = sections.achievements || [];
+  if (!lines.length) return [];
+  const out: string[] = [];
+  for (const rawLine of lines) {
+    // Stop if a different section heading leaked into this block.
+    const heading = normalizeHeading(rawLine);
+    if (heading && heading !== 'achievements') break;
+    const line = String(rawLine || '').replace(/^[-*•·]\s*/, '').trim();
+    if (!line) continue;
+    // Skip obvious non-achievement noise (contact lines, bare dates).
+    if (/@/.test(line) || /\b\d{7,}\b/.test(line)) continue;
+    const startsBullet = /^[-*•·]/.test(rawLine.trim());
+    const looksLikeContinuation =
+      out.length > 0
+      && !startsBullet
+      && /^[a-z]/.test(line); // lowercase start → wrapped from previous line
+    if (looksLikeContinuation) {
+      out[out.length - 1] = `${out[out.length - 1]} ${line}`.replace(/\s{2,}/g, ' ').trim();
+    } else if (line.length >= 3) {
+      out.push(line);
+    }
+  }
+  // Cap to a sane number so a mis-routed section can't explode the list.
+  return out.slice(0, 30);
 }
 
 function mapCertifications(sections: Record<string, string[]>) {

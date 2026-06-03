@@ -6,6 +6,7 @@ export type AtsSectionKey =
   | 'skills'
   | 'experience'
   | 'projects'
+  | 'achievements'
   | 'education'
   | 'certifications'
   | 'languages';
@@ -16,6 +17,7 @@ export const ATS_SECTION_ORDER: AtsSectionKey[] = [
   'skills',
   'experience',
   'projects',
+  'achievements',
   'education',
   'certifications',
   'languages',
@@ -26,6 +28,7 @@ const SECTION_TITLE_MAP: Record<Exclude<AtsSectionKey, 'header'>, string> = {
   skills: 'Skills',
   experience: 'Experience',
   projects: 'Projects',
+  achievements: 'Achievements',
   education: 'Education',
   certifications: 'Certifications',
   languages: 'Languages',
@@ -97,6 +100,7 @@ type ResumeLike = {
     date?: string;
     details?: string[];
   }>;
+  achievements?: string[];
 };
 
 export function sanitizeBulletText(value: string) {
@@ -140,6 +144,10 @@ export function sanitizeBullets<T extends ResumeLike>(resume: T): T {
     ...item,
     details: sanitizeLineList(item?.details || []),
   }));
+
+  next.achievements = sanitizeLineList(
+    Array.isArray(resume.achievements) ? resume.achievements : [],
+  );
 
   return next as T;
 }
@@ -256,6 +264,7 @@ export function normalizeSections<T extends ResumeLike>(resume: T): T {
     projects: Array.isArray(resume.projects) ? resume.projects : [],
     education: Array.isArray(resume.education) ? resume.education : [],
     certifications: Array.isArray(resume.certifications) ? resume.certifications : [],
+    achievements: normalizeStringList(resume.achievements || []),
   } as T;
 }
 
@@ -278,6 +287,7 @@ export function getAtsSectionOrder(resume: ResumeLike): AtsSectionKey[] {
   const hasEducation = (normalized.education || []).length > 0;
   const hasCertifications = (normalized.certifications || []).length > 0;
   const hasLanguages = (normalized.languages || []).length > 0;
+  const hasAchievements = (normalized.achievements || []).length > 0;
 
   return ATS_SECTION_ORDER.filter((section) => {
     if (section === 'header') return true;
@@ -285,6 +295,7 @@ export function getAtsSectionOrder(resume: ResumeLike): AtsSectionKey[] {
     if (section === 'skills') return hasSkills;
     if (section === 'experience') return hasExperience;
     if (section === 'projects') return hasProjects;
+    if (section === 'achievements') return hasAchievements;
     if (section === 'education') return hasEducation;
     if (section === 'certifications') return hasCertifications;
     if (section === 'languages') return hasLanguages;

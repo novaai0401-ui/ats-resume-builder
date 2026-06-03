@@ -27,6 +27,7 @@ const SECTION_LABELS: Record<SectionType, string> = {
   experience: 'Experience',
   education: 'Education',
   projects: 'Projects',
+  achievements: 'Achievements',
   certifications: 'Certifications',
 };
 

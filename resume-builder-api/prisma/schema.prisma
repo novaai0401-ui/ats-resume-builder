@@ -83,6 +83,9 @@ model Resume {
   education  Json
   projects   Json?
   certifications Json?
+  /// Standalone achievement statements (awards, recognitions, key wins).
+  /// Plain string list like skills / languages.
+  achievements String[] @default([])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

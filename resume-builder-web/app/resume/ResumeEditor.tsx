@@ -113,6 +113,7 @@ type ResumeDraft = {
   education: EducationItem[];
   projects: ProjectItem[];
   certifications: CertificationItem[];
+  achievements: string[];
   templateId?: string;
 };
 
@@ -124,6 +125,7 @@ type SectionType =
   | 'experience'
   | 'education'
   | 'projects'
+  | 'achievements'
   | 'certifications';
 
 type SectionState = {
@@ -153,6 +155,7 @@ const SECTION_LABELS: Record<SectionType, string> = {
   experience: 'Experience',
   education: 'Education',
   projects: 'Projects',
+  achievements: 'Achievements',
   certifications: 'Certifications',
 };
 
@@ -163,6 +166,7 @@ const SECTION_NAV_ORDER: SectionType[] = [
   'education',
   'skills',
   'projects',
+  'achievements',
   'certifications',
   'languages',
 ];
@@ -175,6 +179,7 @@ const SECTION_NAV_LABELS: Record<SectionType, string> = {
   experience: 'Experience',
   education: 'Education',
   projects: 'Projects',
+  achievements: 'Achievements',
   certifications: 'Certifications',
 };
 
@@ -206,6 +211,10 @@ const SECTION_GUIDANCE: Record<SectionType, { tip: string; helper?: string }> = 
   projects: {
     tip: 'Great for early-career or role-specific work.',
     helper: 'Highlight outcomes, tech stack, and measurable impact.',
+  },
+  achievements: {
+    tip: 'Awards, recognitions, and standout wins — one per line.',
+    helper: 'Each should be a single, results-focused statement (e.g. "Won the Rising Star award twice for high-impact delivery").',
   },
   certifications: {
     tip: 'Add current, relevant certifications.',
@@ -2414,6 +2423,56 @@ export default function ResumeEditor() {
                 </div>
               )}
 
+              {section.type === 'achievements' && (
+                <div style={{ marginTop: 12 }}>
+                  <div className="field-meta">
+                    <span className={resume.achievements.length ? 'hint good' : 'hint warn'}>
+                      {resume.achievements.length} {resume.achievements.length === 1 ? 'achievement' : 'achievements'}
+                    </span>
+                    <span className="hint">{SECTION_GUIDANCE.achievements.helper}</span>
+                  </div>
+                  {resume.achievements.map((achievement, achIdx) => (
+                    <div key={`achievement-${achIdx}`} style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'flex-start' }}>
+                      <textarea
+                        className="input"
+                        style={{ flex: 1, minHeight: 56 }}
+                        value={achievement}
+                        placeholder="e.g. Won the Rising Star award twice for high-impact delivery"
+                        onChange={(e) => {
+                          const copy = [...resume.achievements];
+                          copy[achIdx] = e.target.value;
+                          setResume((prev) => ({ ...prev, achievements: copy }));
+                          markDirty();
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="btn secondary"
+                        onClick={() => {
+                          const copy = resume.achievements.filter((_, i) => i !== achIdx);
+                          setResume((prev) => ({ ...prev, achievements: copy }));
+                          markDirty();
+                        }}
+                        aria-label="Remove achievement"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    className="btn secondary"
+                    style={{ marginTop: 10 }}
+                    onClick={() => {
+                      setResume((prev) => ({ ...prev, achievements: [...prev.achievements, ''] }));
+                      markDirty();
+                    }}
+                  >
+                    Add achievement
+                  </button>
+                </div>
+              )}
+
               {section.type === 'experience' && (
                 <div className="experience-section" style={{ marginTop: 12 }}>
                   <div className="field-meta" style={{ marginBottom: 8 }}>
@@ -4286,6 +4345,10 @@ function draftFromImport(parsed: ResumeImportResult): { resume: ResumeDraft; unm
     }))
     .filter((item) => item.name);
 
+  const achievements = ((parsed as { achievements?: string[] }).achievements || [])
+    .map((a) => String(a || '').trim())
+    .filter(Boolean);
+
   const importNotes = [
     parsed.unmappedText || '',
     ...droppedExperience,
@@ -4314,6 +4377,7 @@ function draftFromImport(parsed: ResumeImportResult): { resume: ResumeDraft; unm
       education: strictEducation,
       projects,
       certifications,
+      achievements,
     },
     unmappedText: importNotes,
   };
@@ -4359,6 +4423,7 @@ function getEmptyResume(): ResumeDraft {
     education: [],
     projects: [],
     certifications: [],
+    achievements: [],
   };
 }
 
@@ -4378,6 +4443,7 @@ function getDefaultSections(): SectionState[] {
     { id: 'sec-skills', type: 'skills', enabled: true, required: true },
     { id: 'sec-languages', type: 'languages', enabled: true, required: false },
     { id: 'sec-projects', type: 'projects', enabled: true, required: false },
+    { id: 'sec-achievements', type: 'achievements', enabled: true, required: false },
     { id: 'sec-certifications', type: 'certifications', enabled: true, required: false },
   ];
 }
@@ -4485,6 +4551,9 @@ function resumeFromApi(resume: Resume): ResumeDraft {
       date: item.date?.trim(),
       details: (item.details || []).map((line) => line.trim()).filter(Boolean),
     })),
+    achievements: ((resume as { achievements?: string[] }).achievements || [])
+      .map((a) => String(a || '').trim())
+      .filter(Boolean),
   };
 }
 
@@ -4498,6 +4567,7 @@ function validateResumeDraft(resume: ResumeDraft, sections: SectionState[]) {
     experience: { level: 'good', text: 'Bullets show action and impact.' },
     education: { level: 'good', text: 'Education is complete.' },
     projects: { level: 'good', text: 'Project outcomes are listed.' },
+    achievements: { level: 'good', text: 'Achievements are listed.' },
     certifications: { level: 'good', text: 'Certifications add credibility.' },
   };
 
@@ -4974,6 +5044,11 @@ function mergeImportedResume(current: ResumeDraft, parsed: ResumeImportResult): 
     education: mergeEducation(current.education, parsed.education || []),
     projects: mergeProjects(current.projects, parsed.projects || []),
     certifications: mergeCertifications(current.certifications, parsed.certifications || []),
+    achievements: (current.achievements && current.achievements.length)
+      ? current.achievements
+      : Array.from(new Set(((parsed as { achievements?: string[] }).achievements || [])
+          .map((a) => String(a || '').trim())
+          .filter(Boolean))),
   };
 }
 
