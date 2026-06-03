@@ -240,14 +240,31 @@ function SahaayakWorkspace({ profile, onProfileChange }: { profile: SahaayakProf
   return (
     <main style={{ ...pageStyle, maxWidth: 1100 }}>
       <header style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 16 }}>
-        <h2 style={{ margin: 0 }}>
-          Sahaayak <span style={{ fontWeight: 400, color: 'var(--muted, #888)', fontSize: 16 }}>· {profile.mode} mode</span>
-        </h2>
+        <div>
+          <h2 style={{ margin: 0 }}>
+            Sahaayak <span style={{ fontWeight: 400, color: 'var(--muted, #888)', fontSize: 16 }}>· {profile.mode} mode</span>
+          </h2>
+          {/* One-line purpose subtitle so users can tell Sahaayak apart
+             from Mentor at a glance. Sahaayak = companion for the
+             hard days; Mentor = career strategy. Adapted slightly per
+             mode so the framing matches what the user opted into. */}
+          <p style={{ margin: '4px 0 0', color: 'var(--muted, #5a6778)', fontSize: 13, lineHeight: 1.45 }}>
+            A companion for the hard days — listens, reflects, holds space.{' '}
+            {profile.mode === 'karmayoga' && 'Gita lens: focus on effort, release the outcome.'}
+            {profile.mode === 'coach' && 'May offer one small next step when it feels right.'}
+            {profile.mode === 'witness' && 'No advice unless you ask — just presence.'}{' '}
+            <span style={{ color: 'var(--muted, #8a98ac)' }}>
+              Not the same as Mentor (career strategy) or ATS / JD Match (resume tools).
+            </span>
+          </p>
+        </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <TkxButton variant="outline" onClick={onOptOut}>Pause</TkxButton>
           <TkxButton variant="outline" onClick={onForget}>Delete memory</TkxButton>
         </div>
       </header>
+
+      <ByokHintForFreeUsers />
 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 320px', gap: 20 }}>
         <TkxCard>
@@ -492,4 +509,58 @@ function extractErrorMessage(err: unknown): string {
   if (isApiRequestError(err)) return err.message || 'Something went wrong.';
   if (err instanceof Error) return err.message;
   return 'Something went wrong.';
+}
+
+/**
+ * Small banner shown above the conversation when:
+ *   - the user is on the FREE plan, AND
+ *   - they have NOT configured a BYOK AI key.
+ *
+ * Without an AI key on free tier, the chat falls back to the offline
+ * companion (warm but not a full dialogue). The banner explains the
+ * trade-off and points at Settings to plug in a Groq key (free).
+ * Hidden entirely for paid users and for free users who already
+ * added a key.
+ */
+function ByokHintForFreeUsers() {
+  const [show, setShow] = useState(false);
+
+  useEffect(() => {
+    try {
+      const plan = (window.localStorage.getItem('rb_plan') || 'FREE').toUpperCase();
+      if (plan === 'STUDENT' || plan === 'PRO') return;
+      const stored = window.localStorage.getItem('rb_user_ai_key');
+      if (!stored) setShow(true);
+    } catch {
+      setShow(false);
+    }
+  }, []);
+
+  if (!show) return null;
+
+  return (
+    <div
+      style={{
+        marginBottom: 16,
+        padding: '12px 14px',
+        background: '#fff7e0',
+        border: '1px solid #e9d27a',
+        borderRadius: 8,
+        color: '#5a4400',
+        fontSize: 14,
+        lineHeight: 1.5,
+      }}
+    >
+      <strong>Heads up:</strong> on the free plan, Sahaayak runs in offline mode — warm
+      replies but not a full conversation.{' '}
+      <a href="/settings" style={{ color: '#1a3a5c', fontWeight: 600 }}>
+        Add a free Groq key in Settings
+      </a>{' '}
+      to unlock the real dialogue, or{' '}
+      <a href="/billing" style={{ color: '#1a3a5c', fontWeight: 600 }}>
+        upgrade
+      </a>{' '}
+      to get it included.
+    </div>
+  );
 }

@@ -8,6 +8,8 @@ import { rateLimitOrThrow } from '../limits/rate-limit';
 import { detectCrisis, type CrisisDetection } from './crisis-detector';
 import { summarizeEvents } from './memory-summarizer';
 import { buildSahaayakSystemPrompt, type SahaayakMode } from './sahaayak.prompt';
+import { companionReply } from './companion-fallback';
+import { buildByokProvider } from '../ai/providers/byok-factory';
 
 const RECENT_MESSAGE_TURNS = 12;
 const RECENT_EVENT_LIMIT = 30;
@@ -91,7 +93,18 @@ export class SahaayakService {
     });
   }
 
-  async chat(userId: string, userMessage: string, opts?: { region?: string }): Promise<ChatResult> {
+  async chat(
+    userId: string,
+    userMessage: string,
+    opts?: {
+      region?: string;
+      /** BYOK provider name from the X-User-AI-Provider header. */
+      byokProvider?: string;
+      /** BYOK API key from the X-User-AI-Key header. Used in memory for
+       *  exactly one upstream call. Never logged, never persisted. */
+      byokKey?: string;
+    },
+  ): Promise<ChatResult> {
     rateLimitOrThrow({
       key: `sahaayak:chat:${userId}`,
       limit: 30,
@@ -132,10 +145,20 @@ export class SahaayakService {
       lastSeenAt: profile.lastInteractionAt?.toISOString(),
     });
 
-    const provider = this.resolveProvider();
+    // Prefer the user's BYOK key when present (free-tier users plug
+    // in their own provider via Settings). Falls back to the
+    // operator's shared key, then to the offline companion.
+    const provider =
+      buildByokProvider(opts?.byokProvider, opts?.byokKey)
+      ?? this.resolveProvider();
     let reply: string;
+    // Seed rotates the offline companion's wording so it never repeats
+    // the same sentence twice in a row. Message count is monotonic per
+    // user, so consecutive turns get different replies.
+    const turnSeed = recentMessages.length;
+    const mode = (profile.mode as SahaayakMode) || 'witness';
     if (!provider) {
-      reply = fallbackReply(text, crisis.flag);
+      reply = companionReply({ userText: text, mode, seed: turnSeed, crisis: crisis.flag });
     } else {
       try {
         const conversation = recentMessages
@@ -151,7 +174,7 @@ export class SahaayakService {
         reply = stripJsonFraming(reply);
       } catch (error) {
         this.logger.warn(`chat LLM failed: ${error instanceof Error ? error.message : String(error)}`);
-        reply = fallbackReply(text, crisis.flag);
+        reply = companionReply({ userText: text, mode, seed: turnSeed, crisis: crisis.flag });
       }
     }
 
@@ -231,14 +254,6 @@ function stripJsonFraming(raw: string): string {
   } catch {
     return trimmed;
   }
-}
-
-function fallbackReply(userText: string, crisisFlag: boolean): string {
-  if (crisisFlag) {
-    return "I hear you. What you're carrying is real, and you don't have to carry it alone right now.";
-  }
-  const snippet = userText.slice(0, 60).trim();
-  return `I'm listening. You said "${snippet}${userText.length > 60 ? '…' : ''}". Tell me more about what that's like for you.`;
 }
 
 function appendCrisisFooter(reply: string, crisis: CrisisDetection): string {
