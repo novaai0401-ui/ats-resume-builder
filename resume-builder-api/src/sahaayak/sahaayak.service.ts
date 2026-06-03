@@ -9,6 +9,7 @@ import { detectCrisis, type CrisisDetection } from './crisis-detector';
 import { summarizeEvents } from './memory-summarizer';
 import { buildSahaayakSystemPrompt, type SahaayakMode } from './sahaayak.prompt';
 import { companionReply } from './companion-fallback';
+import { buildByokProvider } from '../ai/providers/byok-factory';
 
 const RECENT_MESSAGE_TURNS = 12;
 const RECENT_EVENT_LIMIT = 30;
@@ -92,7 +93,18 @@ export class SahaayakService {
     });
   }
 
-  async chat(userId: string, userMessage: string, opts?: { region?: string }): Promise<ChatResult> {
+  async chat(
+    userId: string,
+    userMessage: string,
+    opts?: {
+      region?: string;
+      /** BYOK provider name from the X-User-AI-Provider header. */
+      byokProvider?: string;
+      /** BYOK API key from the X-User-AI-Key header. Used in memory for
+       *  exactly one upstream call. Never logged, never persisted. */
+      byokKey?: string;
+    },
+  ): Promise<ChatResult> {
     rateLimitOrThrow({
       key: `sahaayak:chat:${userId}`,
       limit: 30,
@@ -133,7 +145,12 @@ export class SahaayakService {
       lastSeenAt: profile.lastInteractionAt?.toISOString(),
     });
 
-    const provider = this.resolveProvider();
+    // Prefer the user's BYOK key when present (free-tier users plug
+    // in their own provider via Settings). Falls back to the
+    // operator's shared key, then to the offline companion.
+    const provider =
+      buildByokProvider(opts?.byokProvider, opts?.byokKey)
+      ?? this.resolveProvider();
     let reply: string;
     // Seed rotates the offline companion's wording so it never repeats
     // the same sentence twice in a row. Message count is monotonic per

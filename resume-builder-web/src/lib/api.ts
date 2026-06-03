@@ -40,6 +40,7 @@ export type {
   SkillGapResult,
   User,
 } from 'resume-builder-shared';
+import { getByokHeader } from './byok-storage';
 
 export type AuthResponse = { user: User; accessToken: string; refreshToken: string; expiresAt?: string };
 /** @deprecated Email OTP is no longer used for auth. Use social login or password. */
@@ -1379,6 +1380,10 @@ export const api = {
   chatSahaayak: (message: string, region: string = 'IN') =>
     request<SahaayakChatResult>('/sahaayak/chat', {
       method: 'POST',
+      // Attach BYOK headers when the free-tier user has plugged in
+      // their own AI key. The headers are absent for paid users (the
+      // helper returns null) so this is a no-op for them.
+      headers: { ...(getByokHeader() || {}) },
       body: JSON.stringify({ message, region }),
     }),
   listSahaayakMessages: (limit = 30) =>

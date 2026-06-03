@@ -264,6 +264,8 @@ function SahaayakWorkspace({ profile, onProfileChange }: { profile: SahaayakProf
         </div>
       </header>
 
+      <ByokHintForFreeUsers />
+
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 320px', gap: 20 }}>
         <TkxCard>
           <TkxCardHeader>
@@ -507,4 +509,58 @@ function extractErrorMessage(err: unknown): string {
   if (isApiRequestError(err)) return err.message || 'Something went wrong.';
   if (err instanceof Error) return err.message;
   return 'Something went wrong.';
+}
+
+/**
+ * Small banner shown above the conversation when:
+ *   - the user is on the FREE plan, AND
+ *   - they have NOT configured a BYOK AI key.
+ *
+ * Without an AI key on free tier, the chat falls back to the offline
+ * companion (warm but not a full dialogue). The banner explains the
+ * trade-off and points at Settings to plug in a Groq key (free).
+ * Hidden entirely for paid users and for free users who already
+ * added a key.
+ */
+function ByokHintForFreeUsers() {
+  const [show, setShow] = useState(false);
+
+  useEffect(() => {
+    try {
+      const plan = (window.localStorage.getItem('rb_plan') || 'FREE').toUpperCase();
+      if (plan === 'STUDENT' || plan === 'PRO') return;
+      const stored = window.localStorage.getItem('rb_user_ai_key');
+      if (!stored) setShow(true);
+    } catch {
+      setShow(false);
+    }
+  }, []);
+
+  if (!show) return null;
+
+  return (
+    <div
+      style={{
+        marginBottom: 16,
+        padding: '12px 14px',
+        background: '#fff7e0',
+        border: '1px solid #e9d27a',
+        borderRadius: 8,
+        color: '#5a4400',
+        fontSize: 14,
+        lineHeight: 1.5,
+      }}
+    >
+      <strong>Heads up:</strong> on the free plan, Sahaayak runs in offline mode — warm
+      replies but not a full conversation.{' '}
+      <a href="/settings" style={{ color: '#1a3a5c', fontWeight: 600 }}>
+        Add a free Groq key in Settings
+      </a>{' '}
+      to unlock the real dialogue, or{' '}
+      <a href="/billing" style={{ color: '#1a3a5c', fontWeight: 600 }}>
+        upgrade
+      </a>{' '}
+      to get it included.
+    </div>
+  );
 }

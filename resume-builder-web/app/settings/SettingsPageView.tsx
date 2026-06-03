@@ -2,17 +2,16 @@
 
 import Link from 'next/link';
 import TrainingConsentCard from '@/src/components/TrainingConsentCard';
+import ByokKeyCard from '@/src/components/ByokKeyCard';
 
 /**
  * User settings.
  *
- * The bring-your-own-LLM-key form lived here previously. We removed it
- * because the model is now: WE pay for one shared GROQ key; users pay
- * us a subscription. Asking users to manage API keys was confusing and
- * had no benefit for them. See docs/subscription-mechanics.md.
- *
- * This page now points to the surfaces that actually do something:
- * billing (plan + benefits), the dashboard, and the export flow.
+ * Bring-your-own-LLM-key was reintroduced in a different shape: it is
+ * visible ONLY to free-plan users and lets them plug in their own
+ * AI key (Groq is free) to enable Sahaayak / Mentor conversations.
+ * Paid users (STUDENT / PRO) see "AI included with your plan" instead
+ * — see ByokKeyCard for the plan branch.
  */
 export default function SettingsPageView() {
   return (
@@ -41,6 +40,10 @@ export default function SettingsPageView() {
         </p>
         <Link className="btn secondary" href="/dashboard">Back to dashboard</Link>
       </section>
+
+      <div style={{ marginTop: 16 }}>
+        <ByokKeyCard />
+      </div>
 
       <div style={{ marginTop: 16 }}>
         <TrainingConsentCard />
