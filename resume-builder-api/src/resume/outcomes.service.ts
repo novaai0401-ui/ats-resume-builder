@@ -14,7 +14,7 @@ export class OutcomesService {
     const [versions, applications] = await Promise.all([
       this.prisma.resumeVersion.findMany({
         where: { resumeId, userId },
-        select: { id: true, label: true, createdAt: true },
+        select: { id: true, label: true, createdAt: true, atsScoreSnapshot: true },
         orderBy: { createdAt: 'asc' },
       }),
       this.prisma.jobApplication.findMany({
@@ -23,6 +23,9 @@ export class OutcomesService {
       }),
     ]);
 
-    return computeOutcomeReport(versions, applications);
+    return computeOutcomeReport(
+      versions.map((v) => ({ id: v.id, label: v.label, createdAt: v.createdAt, atsScore: v.atsScoreSnapshot })),
+      applications,
+    );
   }
 }

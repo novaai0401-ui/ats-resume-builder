@@ -17,6 +17,7 @@ import { DownloadChargeService } from '../billing/download-charge.service';
 import { MulterUploadExceptionFilter } from './multer-upload-exception.filter';
 import { ResumeVersionsService } from './resume-versions.service';
 import { OutcomesService } from './outcomes.service';
+import { OutcomeShareService } from './outcome-share.service';
 import { simulateAts } from './ats-simulator';
 import { z } from 'zod';
 
@@ -69,11 +70,18 @@ export class ResumeController {
     private readonly downloadCharge: DownloadChargeService,
     private readonly versionsService: ResumeVersionsService,
     private readonly outcomesService: OutcomesService,
+    private readonly outcomeShareService: OutcomeShareService,
   ) {}
 
   @Get(':id/outcomes')
   outcomes(@Req() req: { user: { userId: string } }, @Param('id') id: string) {
     return this.outcomesService.forResume(req.user.userId, id);
+  }
+
+  /** Mint a public, signed, anonymized share link for this resume's outcomes. */
+  @Post(':id/outcomes/share')
+  shareOutcomes(@Req() req: { user: { userId: string } }, @Param('id') id: string) {
+    return this.outcomeShareService.createToken(req.user.userId, id);
   }
 
   @Get(':id/ats-simulate')

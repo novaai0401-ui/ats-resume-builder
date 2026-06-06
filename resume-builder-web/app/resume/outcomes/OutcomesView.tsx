@@ -1,14 +1,17 @@
 'use client';
 
 /**
- * Outcome Loop UI — surfaces per-version response/interview/offer rates so
- * the user can see which rewrite is actually working. Deliberately plain
- * and small: this is the "proof, not opinions" feature, so the numbers
- * carry the message — no decorative charts, no celebratory animations.
+ * Outcome Loop UI — the product's hero surface. Leads with the CALLBACK RATE
+ * (the one number the whole brand is built around), then a score-history trend
+ * that answers "did my ATS score going up actually move my callback rate?",
+ * then per-version detail. "Proof, not opinions."
  */
 
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import {
+  CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
+} from 'recharts';
 import { TkxAlert, TkxButton, TkxCard, TkxCardBody, TkxCardHeader } from 'tekivex-ui';
 import {
   api,
@@ -27,6 +30,9 @@ export default function OutcomesView() {
   const [report, setReport] = useState<OutcomeReport | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [sharing, setSharing] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -45,11 +51,34 @@ export default function OutcomesView() {
     if (!resumeId) return;
     setLoading(true);
     setError(null);
+    setShareUrl(null);
+    setCopied(false);
     api.getResumeOutcomes(resumeId)
       .then(setReport)
       .catch((err) => setError(extractErrorMessage(err)))
       .finally(() => setLoading(false));
   }, [resumeId]);
+
+  async function handleShare() {
+    if (!resumeId) return;
+    setSharing(true);
+    setError(null);
+    try {
+      const { token } = await api.shareResumeOutcomes(resumeId);
+      const url = `${window.location.origin}/share/outcome/${token}`;
+      setShareUrl(url);
+      try {
+        await navigator.clipboard.writeText(url);
+        setCopied(true);
+      } catch {
+        // Clipboard may be blocked; the link is shown for manual copy.
+      }
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    } finally {
+      setSharing(false);
+    }
+  }
 
   return (
     <main style={pageStyle}>
@@ -72,6 +101,68 @@ export default function OutcomesView() {
 
       {report && (
         <>
+          {/* HERO — the callback rate the entire product is built around. */}
+          <TkxCard style={{ marginBottom: 16 }}>
+            <TkxCardBody>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24, alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{ fontSize: 13, letterSpacing: 0.4, textTransform: 'uppercase', color: 'var(--muted, #5a6778)' }}>
+                    Your callback rate
+                  </div>
+                  <div style={{ fontSize: 56, fontWeight: 800, lineHeight: 1.05, color: 'var(--ink, #10243a)' }}>
+                    {report.overall.significant ? `${(report.overall.callbackRate * 100).toFixed(0)}%` : '—'}
+                  </div>
+                  <div style={{ fontSize: 13, color: 'var(--muted, #5a6778)' }}>
+                    {report.overall.applied} application{report.overall.applied === 1 ? '' : 's'} tracked
+                    {!report.overall.significant && ` · need ${5 - report.overall.applied} more for a stable rate`}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 18 }}>
+                  <HeroStat label="Responses" value={report.overall.responses} />
+                  <HeroStat label="Interviews" value={report.overall.interviews} />
+                  <HeroStat label="Offers" value={report.overall.offers} />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end' }}>
+                  <TkxButton onClick={handleShare} disabled={sharing || report.overall.applied === 0}>
+                    {sharing ? 'Creating link…' : 'Share my results'}
+                  </TkxButton>
+                  {shareUrl && (
+                    <div style={{ fontSize: 12, color: 'var(--muted, #5a6778)', maxWidth: 280, wordBreak: 'break-all', textAlign: 'right' }}>
+                      {copied ? '✓ Link copied — ' : ''}
+                      <a href={shareUrl} target="_blank" rel="noreferrer">{shareUrl}</a>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </TkxCardBody>
+          </TkxCard>
+
+          {/* SCORE HISTORY — ATS score vs. observed callback rate over versions. */}
+          {report.scoreHistory.length >= 2 && (
+            <TkxCard style={{ marginBottom: 16 }}>
+              <TkxCardHeader><strong>Score vs. callback rate over time</strong></TkxCardHeader>
+              <TkxCardBody>
+                <div style={{ width: '100%', height: 280 }}>
+                  <ResponsiveContainer>
+                    <LineChart data={scoreHistoryChartData(report)} margin={{ top: 8, right: 16, bottom: 8, left: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border, #eee)" />
+                      <XAxis dataKey="label" tick={{ fontSize: 12 }} />
+                      <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} />
+                      <Tooltip />
+                      <Legend />
+                      <Line type="monotone" dataKey="ATS score" stroke="#3b6cf6" strokeWidth={2} connectNulls dot />
+                      <Line type="monotone" dataKey="Callback %" stroke="#16a34a" strokeWidth={2} connectNulls dot />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+                <p style={{ marginTop: 8, fontSize: 12, color: 'var(--muted, #888)' }}>
+                  Callback % only plots versions with at least 5 applications. If your score climbs but callbacks don&apos;t,
+                  the resume is winning the robot and losing the recruiter.
+                </p>
+              </TkxCardBody>
+            </TkxCard>
+          )}
+
           <TkxCard style={{ marginBottom: 16 }}>
             <TkxCardBody>
               <div style={{ fontSize: 18, fontWeight: 600 }}>{report.lift.headline}</div>
@@ -152,6 +243,23 @@ function VersionRow({ v, isTop }: { v: OutcomeVersionStats; isTop: boolean }) {
 function formatRate(rate: number, significant: boolean): string {
   if (!significant) return '—';
   return `${(rate * 100).toFixed(0)}%`;
+}
+
+function HeroStat({ label, value }: { label: string; value: number }) {
+  return (
+    <div style={{ textAlign: 'center', minWidth: 64 }}>
+      <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--ink, #10243a)' }}>{value}</div>
+      <div style={{ fontSize: 12, color: 'var(--muted, #5a6778)' }}>{label}</div>
+    </div>
+  );
+}
+
+function scoreHistoryChartData(report: OutcomeReport) {
+  return report.scoreHistory.map((p) => ({
+    label: p.label.length > 14 ? `${p.label.slice(0, 13)}…` : p.label,
+    'ATS score': p.atsScore,
+    'Callback %': p.callbackRate === null ? null : Math.round(p.callbackRate * 100),
+  }));
 }
 
 const pageStyle: React.CSSProperties = { padding: '32px 20px', maxWidth: 960, margin: '0 auto' };

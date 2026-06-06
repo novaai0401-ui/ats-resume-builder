@@ -1455,6 +1455,28 @@ export const api = {
   // ---------------------------------------------------------------------------
   simulateAts: (resumeId: string) =>
     request<AtsSimulationResult>(`/resumes/${resumeId}/ats-simulate`),
+
+  // Mint a public, anonymized share link for the Outcome Loop card.
+  shareResumeOutcomes: (resumeId: string) =>
+    request<{ token: string }>(`/resumes/${resumeId}/outcomes/share`, { method: 'POST' }),
+
+  // Read a public Outcome Card by token. No auth — used by the share page.
+  getPublicOutcomeCard: async (token: string): Promise<OutcomeCard> => {
+    const res = await fetch(`${baseUrl}/public/outcome-card/${encodeURIComponent(token)}`);
+    if (!res.ok) {
+      throw new Error(res.status === 404 ? 'This share link is invalid or has expired.' : 'Could not load this card.');
+    }
+    return res.json() as Promise<OutcomeCard>;
+  },
+
+  // ---------------------------------------------------------------------------
+  // Recruiter-AI Simulator — simulate the LLM hiring screen against a JD.
+  // ---------------------------------------------------------------------------
+  recruiterSim: (input: { resumeText: string; jdText: string; currentSkills?: string[] }) =>
+    request<RecruiterSimResult>(`/ai/recruiter-sim`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
 };
 
 export type AtsSimulationRisk = {
@@ -1482,15 +1504,66 @@ export type OutcomeVersionStats = {
   responseRate: number;
   interviewRate: number;
   offerRate: number;
+  atsScore: number | null;
+  significant: boolean;
+};
+
+export type OutcomeOverallStats = {
+  applied: number;
+  responses: number;
+  interviews: number;
+  offers: number;
+  callbackRate: number;
+  interviewRate: number;
+  offerRate: number;
+  significant: boolean;
+};
+
+export type OutcomeScorePoint = {
+  versionId: string;
+  label: string;
+  createdAt: string;
+  atsScore: number | null;
+  callbackRate: number | null;
+  applied: number;
   significant: boolean;
 };
 
 export type OutcomeReport = {
   versions: OutcomeVersionStats[];
+  overall: OutcomeOverallStats;
+  scoreHistory: OutcomeScorePoint[];
   top: OutcomeVersionStats | null;
   baseline: OutcomeVersionStats | null;
   lift: { multiplier: number | null; deltaPoints: number | null; headline: string };
   unattributed: number;
+};
+
+// Anonymized, signed snapshot served by the public share endpoint.
+export type OutcomeCard = {
+  v: 1;
+  callbackRate: number;
+  applied: number;
+  responses: number;
+  interviews: number;
+  offers: number;
+  liftMultiplier: number | null;
+  liftDeltaPoints: number | null;
+  trend: Array<{ n: number; score: number | null; callback: number | null }>;
+  generatedAt: number;
+};
+
+// Recruiter-AI Simulator result.
+export type RecruiterVerdict = 'advance' | 'maybe' | 'reject';
+
+export type RecruiterSimResult = {
+  verdict: RecruiterVerdict;
+  score: number;
+  recruiterNote: string;
+  strengths: string[];
+  concerns: string[];
+  missingMustHaves: string[];
+  provider: 'groq' | 'rule-based';
 };
 
 // ---------------------------------------------------------------------------

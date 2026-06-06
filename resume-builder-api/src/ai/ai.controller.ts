@@ -16,6 +16,7 @@ import { BulletRewriterService, type RewriteBulletInput } from './bullet-rewrite
 import { JdMatchService, type JdMatchInput } from './jd-match.service';
 import { InterviewPrepService, type InterviewPrepInput } from './interview-prep.service';
 import { MentorChatService, type MentorChatInput } from './mentor-chat.service';
+import { RecruiterSimService, type RecruiterSimInput } from './recruiter-sim.service';
 
 @Controller('ai')
 @UseGuards(JwtAuthGuard)
@@ -28,6 +29,7 @@ export class AiController {
     private readonly jdMatchService: JdMatchService,
     private readonly interviewPrepService: InterviewPrepService,
     private readonly mentorChatService: MentorChatService,
+    private readonly recruiterSimService: RecruiterSimService,
   ) {}
 
   @Post('parse-jd')
@@ -113,6 +115,21 @@ export class AiController {
       throw new BadRequestException('resumeText and jdText are required');
     }
     return this.jdMatchService.match(req.user.userId, body);
+  }
+
+  /**
+   * Recruiter-AI Simulator — Student/Pro. Role-plays the LLM hiring screener
+   * that modern ATS pipelines run, returning a verdict + reasoning against a JD.
+   */
+  @Post('recruiter-sim')
+  recruiterSim(
+    @Req() req: { user: { userId: string } },
+    @Body() body: RecruiterSimInput,
+  ) {
+    if (!body || typeof body !== 'object' || !body.resumeText || !body.jdText) {
+      throw new BadRequestException('resumeText and jdText are required');
+    }
+    return this.recruiterSimService.simulate(req.user.userId, body);
   }
 
   /**
