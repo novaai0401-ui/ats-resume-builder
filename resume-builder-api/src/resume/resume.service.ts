@@ -196,6 +196,14 @@ export class ResumeService {
       skills: normalized.skills,
       technicalSkills: normalized.technicalSkills,
       softSkills: normalized.softSkills,
+      // Critical: pass the EXPLICIT languages array from the upload.
+      // Without this the resolver re-derives languages only from
+      // skill heuristics, dropping anything that was extracted from
+      // a real LANGUAGES section. This was the root cause of "0
+      // languages" in the editor after upload — extraction worked,
+      // sanitiser worked, but languages got discarded right here
+      // before persistence.
+      languages: normalized.languages,
     });
     enforceAtsResumeRules({
       summary: normalized.summary,
@@ -332,6 +340,10 @@ export class ResumeService {
       skills: normalized.skills,
       technicalSkills: normalized.technicalSkills,
       softSkills: normalized.softSkills,
+      // See create-path note — pass through the explicit languages
+      // array so an update doesn't accidentally erase languages the
+      // upload extracted.
+      languages: normalized.languages,
     });
     // Skip ATS validation when only templateId is being changed — the content
     // hasn't changed, so re-validating it blocks a simple template switch with
@@ -414,6 +426,14 @@ export class ResumeService {
       skills: normalized.skills,
       technicalSkills: normalized.technicalSkills,
       softSkills: normalized.softSkills,
+      // Critical: pass the EXPLICIT languages array from the upload.
+      // Without this the resolver re-derives languages only from
+      // skill heuristics, dropping anything that was extracted from
+      // a real LANGUAGES section. This was the root cause of "0
+      // languages" in the editor after upload — extraction worked,
+      // sanitiser worked, but languages got discarded right here
+      // before persistence.
+      languages: normalized.languages,
     });
     enforceAtsResumeRules({
       summary: normalized.summary,
