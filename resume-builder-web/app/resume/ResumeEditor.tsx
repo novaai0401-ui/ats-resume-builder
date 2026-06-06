@@ -43,6 +43,7 @@ import PostDownloadSubscriptionPopup from '@/src/components/PostDownloadSubscrip
 import DownloadChargeModal from '@/src/components/DownloadChargeModal';
 import { applySinglePresentRule, compareYearMonth, isPresentToken, isYearMonth, toMonthInputValue, toYearMonth } from '@/src/lib/date-utils';
 import { detectIncompleteText } from '@/src/lib/text-completeness';
+import { shouldSkipServerHydration } from '@/src/lib/load-effect-gate';
 import {
   buildCompanySuggestions,
   mergeCompanyPools,
@@ -367,6 +368,13 @@ export default function ResumeEditor() {
   const reviewAtsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const actionVerbTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reviewAtsRunRef = useRef(0);
+  // Tracks the resume id we already have content for locally. When
+  // autosave assigns a fresh id, we save it here so the load effect
+  // can skip the pointless round-trip back to api.getResume — that
+  // round-trip was the cause of the "ATS score appears, then vanishes,
+  // then re-appears" flicker. Hydrating from the server when we
+  // already have the same data only re-fires every dependent effect.
+  const locallySettledResumeIdRef = useRef<string>('');
   const snackbarTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingTemplateSaveRef = useRef<Promise<void> | null>(null);
   const templateSaveRunRef = useRef(0);
@@ -580,19 +588,28 @@ export default function ResumeEditor() {
       return;
     }
     if (effectiveResumeId) {
+      // Skip the re-fetch when the id was just assigned by autosave.
+      // The post-autosave flow goes: setResume(local) → autosave →
+      // setResumeId(<new id>) → persistActiveResumeSelection(<id>)
+      // → effectiveResumeId flips '' → '<id>' → THIS effect re-fires.
+      // At that point our local state IS the canonical copy. Re-fetching
+      // overwrites it with a structurally-identical normalized server
+      // copy, which cascades through every dependent effect (ATS panel
+      // resets and re-computes, etc.) — that's the flicker reported in
+      // the post-upload video.
+      if (shouldSkipServerHydration(effectiveResumeId, locallySettledResumeIdRef.current)) {
+        return;
+      }
       // Only show the hydration loader on the FIRST load (when the
-      // editor is empty). Subsequent re-fetches — e.g. after autosave
-      // assigns a resume id and effectiveResumeId flips from '' to
-      // that id — must refresh silently in the background. Otherwise
-      // the loader blanks the editor mid-flow and the screen flickers
-      // editor → loader → editor → editor (regression users reported
-      // as "Continue to Review flickers and reloads multiple times").
+      // editor is empty). Subsequent re-fetches — e.g. clicking into a
+      // saved resume from the dashboard — show the calm spinner.
       const isInitialLoad = !hasResumeDraftContent(resume);
       if (isInitialLoad) setIsHydrating(true);
       api.getResume(effectiveResumeId)
         .then((r) => {
           setResumeId(r.id);
           persistActiveResumeSelection(r.id);
+          locallySettledResumeIdRef.current = r.id;
           const loadedResume = resumeFromImportedApi(r);
           setResume(loadedResume);
         })
@@ -1073,6 +1090,11 @@ export default function ResumeEditor() {
         setResumeId(result.id);
       }
       persistActiveResumeSelection(result.id);
+      // Mark the id we just saved as already-settled locally so the
+      // load effect doesn't refetch the same resume and cascade a UI
+      // refresh through the ATS panel. Without this the user sees
+      // ATS score → vanish → re-appear after every autosave.
+      locallySettledResumeIdRef.current = result.id;
       clearPendingUploadSession();
       setStatus('saved');
       dirtyRef.current = false;
