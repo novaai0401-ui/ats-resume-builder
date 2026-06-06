@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useFocusTrap } from '@/src/lib/use-focus-trap';
 
 /**
  * Two-step post-download flow.
@@ -19,6 +20,9 @@ export default function PostDownloadSubscriptionPopup({
 }) {
   const router = useRouter();
   const [stage, setStage] = useState<'ask' | 'modal'>('ask');
+  // Single trap ref reused across the two stages; the underlying container
+  // unmounts/remounts between stages, so the hook re-runs with fresh focus.
+  const trapRef = useFocusTrap<HTMLDivElement>({ onClose });
 
   const handleYes = () => setStage('modal');
   const handleNo = () => onClose();
@@ -26,6 +30,7 @@ export default function PostDownloadSubscriptionPopup({
   if (stage === 'ask') {
     return (
       <div
+        ref={trapRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="post-dl-ask-title"
@@ -52,6 +57,7 @@ export default function PostDownloadSubscriptionPopup({
 
   return (
     <div
+      ref={trapRef}
       role="dialog"
       aria-modal="true"
       aria-labelledby="post-dl-sub-title"

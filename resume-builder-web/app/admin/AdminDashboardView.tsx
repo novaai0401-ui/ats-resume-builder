@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { api, isCurrentUserAdmin, isApiRequestError } from '@/src/lib/api';
+import DataLoader from '@/src/components/DataLoader';
 
 type Summary = Awaited<ReturnType<typeof api.getAdminAnalyticsSummary>>;
 type UsersResponse = Awaited<ReturnType<typeof api.getAdminUsers>>;
@@ -82,7 +83,7 @@ export default function AdminDashboardView() {
 
       {loading && (
         <section className="card" style={{ marginTop: 16 }}>
-          <p className="small">Loading…</p>
+          <DataLoader label="Loading admin dashboard…" />
         </section>
       )}
 

@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, getAccessToken } from '@/src/lib/api';
 import { PlanBenefitsCard } from '@/src/components/PlanBenefitsCard';
+import DataLoader from '@/src/components/DataLoader';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -326,7 +327,7 @@ export default function BillingPage() {
   if (loading || !authed) {
     return (
       <main className="grid">
-        <section className="card col-12"><p className="small">Loading...</p></section>
+        <section className="card col-12"><DataLoader label="Loading billing…" /></section>
       </main>
     );
   }
