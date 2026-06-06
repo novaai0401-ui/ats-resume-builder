@@ -17,6 +17,10 @@ type Rule = {
   rejectPlaceholder?: boolean;
   /** Reject values that look like weak secrets. */
   rejectWeak?: boolean;
+  /** Reject values matching a custom pattern (e.g. test-key prefixes). */
+  rejectPattern?: RegExp;
+  /** Custom message when rejectPattern fires. */
+  rejectPatternMessage?: string;
   /** Only required when this other env var is also set. */
   requiredWhen?: string;
   /** Human-readable description. */
@@ -32,6 +36,33 @@ const REQUIRED_IN_PRODUCTION: Rule[] = [
   // Stripe — only enforced if any Stripe key is set
   { key: 'STRIPE_SECRET_KEY', minLength: 20, rejectPlaceholder: true, requiredWhen: 'STRIPE_WEBHOOK_SECRET', label: 'Stripe secret key' },
   { key: 'STRIPE_WEBHOOK_SECRET', minLength: 20, rejectPlaceholder: true, requiredWhen: 'STRIPE_SECRET_KEY', label: 'Stripe webhook secret' },
+  // Razorpay — only enforced if any Razorpay key is set. The test-key
+  // prefix `rzp_test_` is HARD-blocked in production: the safest mistake
+  // is to refuse to boot rather than start collecting real card details
+  // against a sandbox merchant account.
+  {
+    key: 'RAZORPAY_KEY_ID',
+    minLength: 20,
+    rejectPlaceholder: true,
+    rejectPattern: /^rzp_test_/i,
+    rejectPatternMessage: 'starts with "rzp_test_" — refusing to boot in production with a sandbox key. Generate a live key at https://dashboard.razorpay.com/app/keys',
+    requiredWhen: 'RAZORPAY_KEY_SECRET',
+    label: 'Razorpay live Key Id',
+  },
+  {
+    key: 'RAZORPAY_KEY_SECRET',
+    minLength: 20,
+    rejectPlaceholder: true,
+    requiredWhen: 'RAZORPAY_KEY_ID',
+    label: 'Razorpay live Key Secret',
+  },
+  {
+    key: 'RAZORPAY_WEBHOOK_SECRET',
+    minLength: 12,
+    rejectPlaceholder: true,
+    requiredWhen: 'RAZORPAY_KEY_ID',
+    label: 'Razorpay webhook signing secret',
+  },
   // Redis
   { key: 'REDIS_URL', minLength: 10, rejectPlaceholder: true, label: 'Redis / Upstash URL' },
   { key: 'REDIS_TOKEN', minLength: 10, rejectPlaceholder: true, label: 'Redis / Upstash token' },
@@ -74,6 +105,15 @@ export function validateProductionEnv(): void {
 
     if (rule.rejectWeak && WEAK_JWT_RE.test(value)) {
       const msg = `${rule.key} looks like a weak/default secret — ${label}`;
+      isProduction ? errors.push(msg) : warnings.push(msg);
+      continue;
+    }
+
+    if (rule.rejectPattern && rule.rejectPattern.test(value)) {
+      const detail = rule.rejectPatternMessage || `matches a forbidden pattern (${rule.rejectPattern})`;
+      const msg = `${rule.key} ${detail} — ${label}`;
+      // Sandbox payment keys in production are ALWAYS a hard fail,
+      // even when this validator is otherwise dev-warning-only.
       isProduction ? errors.push(msg) : warnings.push(msg);
     }
   }

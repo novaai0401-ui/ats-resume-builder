@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { TkxBottomNav, TkxDrawer } from 'tekivex-ui';
 import useFeatureFlags from '@/src/hooks/use-feature-flags';
-import { RESUME_CREATE_RATE_LIMIT_CODE, api, Resume, ResumeImportResult, UploadResumeResponse, getAccessToken, isApiRequestError } from '@/src/lib/api';
+import { RESUME_CREATE_RATE_LIMIT_CODE, api, Resume, ResumeImportResult, UploadResumeResponse, getAccessToken, getCurrentUserEmail, isApiRequestError } from '@/src/lib/api';
 import { PrivacyBadge } from '@/src/components/PrivacyBadge';
 import { useResumeStore } from '@/src/lib/resume-store';
 import {
@@ -44,6 +44,7 @@ import DownloadChargeModal from '@/src/components/DownloadChargeModal';
 import { applySinglePresentRule, compareYearMonth, isPresentToken, isYearMonth, toMonthInputValue, toYearMonth } from '@/src/lib/date-utils';
 import { detectIncompleteText } from '@/src/lib/text-completeness';
 import { shouldSkipServerHydration } from '@/src/lib/load-effect-gate';
+import { buildDownloadHelpMailto, DOWNLOAD_HELP_BUTTON_LABEL } from '@/src/lib/download-help';
 import {
   buildCompanySuggestions,
   mergeCompanyPools,
@@ -305,6 +306,11 @@ export default function ResumeEditor() {
   const [importNotes, setImportNotes] = useState('');
   const [importRoleLevel, setImportRoleLevel] = useState<'FRESHER' | 'MID' | 'SENIOR' | ''>('');
   const [exportOpen, setExportOpen] = useState(false);
+  // Surfaced under the export buttons when a download throws. Carries
+  // the friendly error message plus the pre-built mailto link so the
+  // user can email support without re-typing their account email,
+  // resume id, or the error string. Cleared on next attempt.
+  const [downloadFailure, setDownloadFailure] = useState<{ message: string; mailto: string } | null>(null);
   const [exportLoading, setExportLoading] = useState(false);
   const [exportIssues, setExportIssues] = useState<string[]>([]);
   const [exportApproved, setExportApproved] = useState(false);
@@ -926,6 +932,27 @@ export default function ResumeEditor() {
     if (snackbarTimerRef.current) clearTimeout(snackbarTimerRef.current);
     snackbarTimerRef.current = setTimeout(() => setSnackbar(null), 3200);
   }, []);
+
+  // Surface a "Get help" mailto when a download throws. The link
+  // pre-fills the support inbox with the user's account email + the
+  // resume id + the friendly error message — everything an admin
+  // needs to run the Force-Export route. Support email is read from
+  // NEXT_PUBLIC_SUPPORT_EMAIL with a sensible product fallback.
+  const recordDownloadFailure = useCallback((errorMessage: string) => {
+    const supportEmail = String(
+      process.env.NEXT_PUBLIC_SUPPORT_EMAIL || 'support@pocketresume.app',
+    ).trim();
+    const userEmail = typeof window !== 'undefined' ? getCurrentUserEmail() : '';
+    const plan = (typeof window !== 'undefined' && window.localStorage.getItem('rb_plan')) || 'FREE';
+    const mailto = buildDownloadHelpMailto({
+      supportEmail,
+      resumeId: resumeId || '',
+      userEmail,
+      errorMessage,
+      plan,
+    });
+    setDownloadFailure({ message: errorMessage, mailto });
+  }, [resumeId]);
 
   // ── Per-bullet AI rewrite handlers ─────────────────────────────────
   // Declared after showSnackbar so the deps array can reference it
@@ -3834,6 +3861,8 @@ export default function ResumeEditor() {
                   await api.downloadPdf(resumeId, exportTemplateId, token, fileBaseName);
                   setMessage('PDF downloaded. A copy has also been emailed to you.');
                 }
+                // Clear any prior failure callout — this attempt succeeded.
+                setDownloadFailure(null);
                 setExportOpen(false);
                 const scoreNow = atsReview.result?.roleAdjustedScore ?? null;
                 setPostDownloadPopup({ score: typeof scoreNow === 'number' ? scoreNow : null });
@@ -3841,6 +3870,7 @@ export default function ResumeEditor() {
                 const errorMessage = friendlyPdfErrorMessage(err, 'Download PDF failed');
                 setMessage(errorMessage);
                 showSnackbar('error', errorMessage);
+                recordDownloadFailure(errorMessage);
               }
             }}
           />
@@ -3971,6 +4001,7 @@ export default function ResumeEditor() {
                         const errorMessage = friendlyPdfErrorMessage(err, 'Download PDF failed');
                         setMessage(errorMessage);
                         showSnackbar('error', errorMessage);
+                        recordDownloadFailure(errorMessage);
                       }
                     }}
                   >
@@ -3998,6 +4029,7 @@ export default function ResumeEditor() {
                         const errorMessage = friendlyPdfErrorMessage(err, 'Word export failed');
                         setMessage(errorMessage);
                         showSnackbar('error', errorMessage);
+                        recordDownloadFailure(errorMessage);
                       }
                     }}
                   >
@@ -4073,6 +4105,53 @@ export default function ResumeEditor() {
                     Print preview
                   </button>
                 </div>
+                {/* "I paid but my download failed" escape hatch. Shows
+                   immediately after a download throws and pre-fills the
+                   support mailto with the resume id + user email + the
+                   error so the admin can run the Force-Export route
+                   without the user re-typing anything. */}
+                {downloadFailure && (
+                  <div
+                    role="alert"
+                    style={{
+                      marginTop: 12,
+                      padding: '10px 12px',
+                      background: '#fff7e0',
+                      border: '1px solid #f0c878',
+                      borderRadius: 8,
+                      color: '#5a4400',
+                      fontSize: 14,
+                    }}
+                  >
+                    <strong>Download didn&apos;t go through?</strong>{' '}
+                    {downloadFailure.message ? <span>({downloadFailure.message}) </span> : null}
+                    {downloadFailure.mailto ? (
+                      <a
+                        href={downloadFailure.mailto}
+                        style={{ color: '#1a3a5c', fontWeight: 600 }}
+                      >
+                        {DOWNLOAD_HELP_BUTTON_LABEL}
+                      </a>
+                    ) : (
+                      <span>Email support and we&apos;ll send your file within 4 hours.</span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setDownloadFailure(null)}
+                      aria-label="Dismiss"
+                      style={{
+                        marginLeft: 12,
+                        background: 'none',
+                        border: 'none',
+                        color: '#5a4400',
+                        cursor: 'pointer',
+                        fontSize: 13,
+                      }}
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                )}
               </>
             )}
           </div>

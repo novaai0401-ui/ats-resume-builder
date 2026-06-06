@@ -598,8 +598,24 @@ export class ResumeService {
     };
   }
 
-  async generatePdf(userId: string, id: string, templateIdOverride?: string) {
-    const productFlowRestrictionsEnabled = await this.areProductFlowRestrictionsEnabled();
+  async generatePdf(
+    userId: string,
+    id: string,
+    templateIdOverride?: string,
+    opts?: {
+      /**
+       * Admin/support escape hatch. Skips rate limit, free-plan
+       * block, quota counter increment, and minimum-ATS-score gate.
+       * Used by the admin "Force Export" route when a paid user
+       * reports a failed download and we need to deliver their file
+       * manually — see admin/support.controller.ts. NEVER expose
+       * this through a user-facing endpoint.
+       */
+      bypassRestrictions?: boolean;
+    },
+  ) {
+    const bypass = Boolean(opts?.bypassRestrictions);
+    const productFlowRestrictionsEnabled = !bypass && (await this.areProductFlowRestrictionsEnabled());
     if (productFlowRestrictionsEnabled) {
       rateLimitOrThrow({
         key: `resume:pdf:${userId}`,
@@ -641,10 +657,16 @@ export class ResumeService {
       renderer: 'renderResumeTemplateHtml',
     });
 
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { pdfExportsUsed: updatedUser.pdfExportsUsed + 1 },
-    });
+    if (!bypass) {
+      // Admin force-export must NOT charge the user another export
+      // from their monthly quota — they already paid (and the
+      // original attempt failed). The bypass flag skips the
+      // increment but still produces the file.
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { pdfExportsUsed: updatedUser.pdfExportsUsed + 1 },
+      });
+    }
 
     const launchOptions = await resolveChromeLaunchOptions();
 
