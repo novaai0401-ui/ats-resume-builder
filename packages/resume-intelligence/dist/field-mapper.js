@@ -167,6 +167,14 @@ function mapParsedResume(parsed) {
         summary,
         ...finalExperience.flatMap((it) => it.highlights || []),
         ...(effectiveParsed.sections.unmapped || []),
+        // Also scan content the section-normaliser routed to OTHER
+        // optional sections, so e.g. a "Certifications: Azure Developer
+        // Associate (2025)" line that fell into the Achievements section
+        // (because the heading detector treats it as a content line, not
+        // a section break) still surfaces as a certification. The same
+        // for project bullets that name an award.
+        ...(effectiveParsed.sections.achievements || []),
+        ...(effectiveParsed.sections.projects || []),
     ].filter((s) => typeof s === 'string' && s.length > 0);
     const languagesAugmented = languages.length
         ? languages
@@ -373,7 +381,22 @@ function mapLanguages(sections) {
     const tokens = lines
         .flatMap((line) => line.replace(/^languages?\s*:?\s*/i, '').split(/,|;|\||·|•/))
         .map((t) => cleanLooseText(t))
-        .filter((t) => t.length >= 2 && t.length <= 40 && !/^\d+$/.test(t) && /[a-z]/i.test(t));
+        .filter((t) => 
+    // Length and "must contain a letter" stay the same, plus:
+    //   - reject tokens containing watermark / template characters
+    //     (#, @, /, \, etc.) — caught the "#CreatedByOutspark#" leak
+    //     a PDF template was injecting into the Languages section.
+    //   - reject CamelCase compound tokens like "CreatedByOutspark"
+    //     (4+ uppercase letters with no spacing) — real language
+    //     names are either single words or simple word pairs.
+    //   - reject obvious page-footer / divider markers like
+    //     "-- 4 of 4 --".
+    t.length >= 2 && t.length <= 40
+        && !/^\d+$/.test(t)
+        && /[a-z]/i.test(t)
+        && !/[#@\/\\*<>{}\[\]]/.test(t)
+        && !/^-{2,}/.test(t)
+        && !/^[A-Z][a-z]+[A-Z][a-z]+[A-Z]/.test(t));
     return Array.from(new Set(tokens)).slice(0, 10);
 }
 const KNOWN_TECH_SKILLS = [
@@ -1026,7 +1049,13 @@ function extractInlineLanguages(bullets) {
 // "<vendor> Certified <name> <level>" — captures the full credential
 // name. Vendor prefix + the word "Certified" anchor it strongly so
 // we don't accidentally pull "Built apps on AWS" as a cert.
-const CERT_VENDOR_RE = /\b(AWS|Azure|GCP|Google Cloud|Cisco|Microsoft|Oracle|Red Hat|RedHat|CompTIA|Salesforce|HashiCorp|VMware|Adobe|SAP|Kubernetes|Docker|MongoDB|Snowflake|Databricks)\s+Certified\s+([A-Z][\w\s\-]{2,60}?(?:Associate|Professional|Specialist|Expert|Foundation|Practitioner|Architect|Developer|Administrator|Engineer|Master|Operator|Designer|Consultant))\b/;
+// "<vendor> [Certified] <name> <level>" — captures full credential
+// name. "Certified" is OPTIONAL because many real resumes write the
+// shorter "Azure DevOps Engineer Expert" / "Azure Developer Associate"
+// forms. We anchor on either the "Certified" keyword OR a recognised
+// level word (Associate / Professional / Expert / etc.) so a generic
+// bullet like "Used Azure DevOps" never matches — it lacks a level.
+const CERT_VENDOR_RE = /\b(AWS|Azure|GCP|Google Cloud|Cisco|Microsoft|Oracle|Red Hat|RedHat|CompTIA|Salesforce|HashiCorp|VMware|Adobe|SAP|Kubernetes|Docker|MongoDB|Snowflake|Databricks)\s+(?:Certified\s+)?([A-Z][\w\s\-]{2,60}?(?:Associate|Professional|Specialist|Expert|Foundation|Practitioner|Architect|Developer|Administrator|Engineer|Master|Operator|Designer|Consultant))\b/g;
 // Standalone credential codes that don't follow the vendor pattern.
 const CERT_CODE_RE = /\b(PMP|PRINCE2|CSM|CSPO|CFA|CPA|FRM|CISSP|CISM|CISA|CEH|OSCP|CCNA|CCNP|CCIE|RHCSA|RHCE|CKA|CKAD|CKS|MCSA|MCSE|TOGAF|ITIL Foundation|ITIL Practitioner|ITIL Expert|ISTQB)\b/;
 const CERT_CREDENTIAL_VERB_RE = /\b(certified|certification|certificate|credential)\b/i;
@@ -1039,32 +1068,49 @@ function extractInlineCertifications(bullets) {
             continue;
         // Try the vendor pattern first — captures "AWS Certified <X> <level>"
         // as a whole credential name.
-        let name = '';
-        const vendorMatch = line.match(CERT_VENDOR_RE);
-        if (vendorMatch) {
-            name = `${vendorMatch[1]} Certified ${vendorMatch[2]}`.replace(/\s{2,}/g, ' ').trim();
+        const hasCertifiedWord = /\bcertified\b/i.test(line);
+        const hasYear = /\b(19|20)\d{2}\b/.test(line);
+        const hasCertLabel = /\bcertif/i.test(line) || /\bcredential/i.test(line);
+        const yearMatch = line.match(/\b(19|20)\d{2}\b/);
+        const candidates = [];
+        // matchAll so a comma-separated "Cert1 Associate (2025), Cert2
+        // Associate (2025)" line surfaces BOTH certs, not just the first.
+        for (const m of line.matchAll(CERT_VENDOR_RE)) {
+            // Vendor + level is a strong signal but not bulletproof — guard
+            // against false positives by requiring at least one of: the
+            // word "Certified" in the same line, a year-like token, or a
+            // "Certifications" label. Without this guard a generic bullet
+            // "Deployed via Azure DevOps Engineer Expert pipelines" would
+            // extract as a phantom credential.
+            if (!(hasCertifiedWord || hasYear || hasCertLabel))
+                continue;
+            const literal = `${m[1]} ${hasCertifiedWord ? 'Certified ' : ''}${m[2]}`;
+            candidates.push(literal.replace(/\s{2,}/g, ' ').trim());
         }
-        else {
+        if (!candidates.length) {
             // Standalone codes only count if the bullet also has a
             // credential verb nearby — otherwise random "CFA" mentions in
             // case-study bullets would pollute the list.
             const codeMatch = line.match(CERT_CODE_RE);
             if (codeMatch && CERT_CREDENTIAL_VERB_RE.test(line)) {
-                name = codeMatch[1];
+                candidates.push(codeMatch[1]);
             }
         }
-        if (!name || name.length < 3 || name.length > 80)
-            continue;
-        const key = name.toLowerCase();
-        if (seen.has(key))
-            continue;
-        seen.add(key);
-        const yearMatch = line.match(/\b(19|20)\d{2}\b/);
-        found.push({
-            name,
-            date: yearMatch ? yearMatch[0] : undefined,
-            details: [],
-        });
+        for (const name of candidates) {
+            if (name.length < 3 || name.length > 80)
+                continue;
+            const key = name.toLowerCase();
+            if (seen.has(key))
+                continue;
+            seen.add(key);
+            found.push({
+                name,
+                date: yearMatch ? yearMatch[0] : undefined,
+                details: [],
+            });
+            if (found.length >= 8)
+                break;
+        }
         if (found.length >= 8)
             break;
     }

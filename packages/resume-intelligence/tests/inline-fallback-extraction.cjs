@@ -139,3 +139,46 @@ test('dedupes identical achievement lines', () => {
   const out = extractInlineAchievements([line, line, line]);
   assert.equal(out.length, 1);
 });
+
+// ---------------------------------------------------------------------
+// Regression tests from the 5-resume production smoke test. Each test
+// pins a specific bug found while running real uploaded resumes
+// through the parser. Names anonymised; copy stays close to the
+// original line so the regex behaviour matches reality.
+// ---------------------------------------------------------------------
+
+test('inline cert: vendor + level without the word "Certified" (Chaitanya case)', () => {
+  // Real line: "Certifications: Azure DevOps Engineer Expert (2025),
+  // Azure Developer Associate (2025)". The previous build required
+  // the word "Certified" literally between the vendor and the cert
+  // name; now an explicit year token is enough to anchor the match.
+  const out = extractInlineCertifications([
+    'Certifications: Azure DevOps Engineer Expert (2025), Azure Developer Associate (2025)',
+  ]);
+  const names = out.map((c) => c.name);
+  // Both certs in the comma-separated line must surface — matchAll.
+  assert.ok(names.some((n) => /Azure.*Engineer/i.test(n)), `Engineer cert missing in ${JSON.stringify(names)}`);
+  assert.ok(names.some((n) => /Azure.*Associate/i.test(n)), `Associate cert missing in ${JSON.stringify(names)}`);
+});
+
+test('inline cert: still does NOT false-positive on generic tech mentions', () => {
+  // No "Certified", no year, no credential label — regular tech bullet.
+  // Must stay out of the extracted certs list (the guard we kept).
+  const out = extractInlineCertifications([
+    'Deployed via Azure DevOps Engineer pipelines and Azure Container Registry.',
+  ]);
+  assert.deepEqual(out, []);
+});
+
+test('inline cert: a year anchor alone is enough (no "Certified" word)', () => {
+  // The non-greedy noun phrase captures the FIRST level word — so
+  // "AWS Solutions Architect Professional" becomes "AWS Solutions
+  // Architect". That is acceptable: the credential is still
+  // recognised and the user can edit the suffix if it matters.
+  const out = extractInlineCertifications([
+    'AWS Solutions Architect Professional 2024',
+  ]);
+  assert.equal(out.length, 1);
+  assert.match(out[0].name, /AWS.*Solutions Architect/);
+  assert.equal(out[0].date, '2024');
+});

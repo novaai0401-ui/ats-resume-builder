@@ -102,7 +102,7 @@ const SECTION_SYNONYMS: Record<CanonicalSection, string[]> = {
   /// schema has a dedicated `achievements: string[]` field). Previously
   /// these headings were folded into projects, producing a phantom
   /// "Project" with the achievement text as bullets.
-  achievements: ['achievements', 'accomplishments', 'key achievements', 'major achievements', 'awards', 'awards and achievements', 'achievements and awards', 'honors', 'honours', 'honors and awards', 'honours and awards', 'awards and honors', 'awards and honours', 'awards honors', 'awards honours', 'honors awards', 'achievements awards', 'recognitions', 'recognition', 'awards and recognition', 'awards and recognitions', 'awards recognition', 'achievements and recognition', 'achievements recognition', 'notable achievements', 'career highlights', 'highlights', 'key accomplishments'],
+  achievements: ['achievements', 'accomplishments', 'key achievements', 'major achievements', 'awards', 'awards and achievements', 'achievements and awards', 'honors', 'honours', 'honors and awards', 'honours and awards', 'awards and honors', 'awards and honours', 'awards honors', 'awards honours', 'honors awards', 'achievements awards', 'awards achievements', 'recognitions', 'recognition', 'awards and recognition', 'awards and recognitions', 'awards recognition', 'achievements and recognition', 'achievements recognition', 'notable achievements', 'career highlights', 'highlights', 'key accomplishments'],
   certifications: [
     'certifications', 'certi cations', 'licenses', 'certificates',
     'professional certifications', 'pro essional certi cations',
