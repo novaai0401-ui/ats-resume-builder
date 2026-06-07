@@ -445,6 +445,37 @@ export class ResumeService {
     return this.prisma.resume.delete({ where: { id } });
   }
 
+  /**
+   * Compute just the JD-agnostic ATS score for an already-loaded resume
+   * object, with NO quota/limit side effects and no DB writes. Used to
+   * auto-stamp a score onto a version snapshot so the Outcome Loop's
+   * score-history chart fills in without the user running a manual scan.
+   * Returns null if scoring throws, so callers can treat it as best-effort.
+   */
+  computeAtsScoreValue(rawResume: unknown): number | null {
+    try {
+      const resume = normalizeResumeForAtsOutput(
+        rawResume as Parameters<typeof normalizeResumeForAtsOutput>[0],
+      );
+      const result = computeAtsScore({
+        resumeText: buildResumeText(resume),
+        jdText: '',
+        skills: resume.skills,
+        sections: {
+          summary: Boolean(resume.summary?.trim()),
+          experience: Array.isArray(resume.experience) && resume.experience.length > 0,
+          education: Array.isArray(resume.education) && resume.education.length > 0,
+          skills: Array.isArray(resume.skills) && resume.skills.length >= 3,
+        },
+        bullets: collectBullets(resume),
+        experienceCount: Array.isArray(resume.experience) ? resume.experience.length : 0,
+      });
+      return result.atsScore;
+    } catch {
+      return null;
+    }
+  }
+
   async atsScoreForResume(userId: string, id: string, jdText?: string) {
     const productFlowRestrictionsEnabled = await this.areProductFlowRestrictionsEnabled();
     if (productFlowRestrictionsEnabled) {

@@ -18,6 +18,7 @@ import { getSampleResumeForIndustry } from '@/src/lib/sample-resume-data';
 import { recommendTemplates } from '@/src/lib/template-recommendation';
 import { PrivacyBadge } from '@/src/components/PrivacyBadge';
 import { PlanBenefitsCard } from '@/src/components/PlanBenefitsCard';
+import { CallbackRateCard } from '@/src/components/CallbackRateCard';
 import { defaultTemplateId, resolveTemplateId, templateRegistry, type TemplateId } from '@/shared/templateRegistry';
 
 const DASHBOARD_TEMPLATE_OPTIONS = TEMPLATE_CATALOG.map((template) => templateRegistry[template.id]);
@@ -299,6 +300,7 @@ export default function DashboardPageView({
 
       <PrivacyBadge variant="dashboard" />
       <PlanBenefitsCard />
+      <CallbackRateCard resumeId={activeResume?.id || sortedResumes[0]?.id} />
 
       <section
         data-testid="dashboard-preview-profile"
