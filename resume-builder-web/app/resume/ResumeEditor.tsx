@@ -408,6 +408,18 @@ export default function ResumeEditor() {
     if (!effectiveResumeId && isReviewFlow && readPendingUploadSession()) {
       return;
     }
+    // Skip the reset when the id was just assigned by our own autosave.
+    // Sequence: pending upload populates → autosave succeeds →
+    // setResumeId(newId) + persistActiveResumeSelection(newId) +
+    // clearPendingUploadSession() → effectiveResumeId flips '' → '<newId>'
+    // → THIS effect re-fires. The pending-upload guard above is now
+    // false (we just cleared it) so without this second guard
+    // resetResumeStore() would wipe every field the user just saw,
+    // and nothing repopulates because the load effect correctly
+    // short-circuits when locallySettledResumeIdRef matches.
+    if (shouldSkipServerHydration(effectiveResumeId, locallySettledResumeIdRef.current)) {
+      return;
+    }
     resetResumeStore();
     setImportNotes('');
     setImportRoleLevel('');
