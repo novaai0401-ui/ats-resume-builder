@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, getAccessToken } from '@/src/lib/api';
 import { PlanBenefitsCard } from '@/src/components/PlanBenefitsCard';
+import PlanFeatureComparison, { MicroPaymentExplainer } from '@/src/components/PlanFeatureComparison';
 import DataLoader from '@/src/components/DataLoader';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -499,6 +500,14 @@ export default function BillingPage() {
           </div>
         )}
       </section>
+
+      {/* ─── Free vs Paid feature matrix ─────────────────────────────────── */}
+      <PlanFeatureComparison />
+
+      {/* ─── ₹49 micro-payment explainer ─────────────────────────────────── */}
+      {/* Always rendered: free users see "what your ₹49 buys", paid users
+          see it as context for the FREE downgrade option. */}
+      <MicroPaymentExplainer />
 
       {/* ─── Usage Dashboard ──────────────────────────────────────────────── */}
       {isPaid && (

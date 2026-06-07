@@ -69,8 +69,8 @@ const PLAN_LABEL: Record<Plan, string> = {
 };
 
 const NEXT_TIER: Record<Plan, { plan: Plan; cta: string } | null> = {
-  FREE: { plan: 'STUDENT', cta: 'Upgrade to Student — ₹399/mo' },
-  STUDENT: { plan: 'PRO', cta: 'Upgrade to Pro — ₹799/mo' },
+  FREE: { plan: 'STUDENT', cta: 'Upgrade to Student — ₹199/mo' },
+  STUDENT: { plan: 'PRO', cta: 'Upgrade to Pro — ₹499/mo' },
   PRO: null,
 };
 
@@ -135,7 +135,7 @@ export function PlanBenefitsCard({ defaultPlan }: { defaultPlan?: Plan } = {}) {
       {isFree ? (
         <p className="small" style={{ marginTop: 14, color: '#5a6778' }}>
           Pocket Resume stays free forever for the basics. The Student plan adds AI critique,
-          tech-gap analysis, and Mentor Mode for ₹399/mo — cancel anytime.
+          tech-gap analysis, and Mentor Mode for ₹199/mo — cancel anytime.
         </p>
       ) : null}
     </section>
