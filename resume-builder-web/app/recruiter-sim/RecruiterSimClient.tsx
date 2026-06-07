@@ -10,6 +10,8 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { api, type RecruiterSimResult } from '@/src/lib/api';
 import { useResumeStore } from '@/src/lib/resume-store';
+import { buildAddKeywordLink } from '@/src/lib/bullet-deeplink';
+import { readActiveResumeSelection } from '@/src/lib/resume-flow';
 
 function buildResumeText(resume: { summary?: string; skills?: string[]; experience?: Array<{ company?: string; role?: string; highlights?: string[] }> } | null): string {
   if (!resume) return '';
@@ -138,10 +140,21 @@ export default function RecruiterSimClient() {
             {result.missingMustHaves.length > 0 && (
               <>
                 <h4 style={{ marginBottom: 4, color: '#a8412c' }}>Missing must-haves</h4>
+                <p className="small" style={{ margin: '0 0 6px', color: '#7a8aa0' }}>
+                  Tap one to jump into the editor and work it into a bullet with the AI rewriter.
+                </p>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {result.missingMustHaves.map((m, i) => (
-                    <span key={i} style={{ padding: '2px 10px', borderRadius: 999, background: 'rgba(168,65,44,0.1)', color: '#a8412c', fontSize: 12 }}>{m}</span>
-                  ))}
+                  {result.missingMustHaves.map((m, i) => {
+                    const href = buildAddKeywordLink(m, readActiveResumeSelection() || undefined);
+                    const pill = (
+                      <span style={{ padding: '2px 10px', borderRadius: 999, background: 'rgba(168,65,44,0.1)', color: '#a8412c', fontSize: 12, cursor: href ? 'pointer' : 'default' }}>
+                        {m} {href ? '→' : ''}
+                      </span>
+                    );
+                    return href
+                      ? <Link key={i} href={href} style={{ textDecoration: 'none' }}>{pill}</Link>
+                      : <span key={i}>{pill}</span>;
+                  })}
                 </div>
               </>
             )}
