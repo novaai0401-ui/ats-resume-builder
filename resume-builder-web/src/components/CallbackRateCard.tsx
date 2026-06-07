@@ -9,6 +9,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { formatCallbackRate } from 'resume-builder-shared';
 import { api, type OutcomeReport } from '@/src/lib/api';
 
 export function CallbackRateCard({ resumeId }: { resumeId?: string }) {
@@ -32,7 +33,7 @@ export function CallbackRateCard({ resumeId }: { resumeId?: string }) {
 
   const overall = report?.overall;
   const hasData = Boolean(overall && overall.applied > 0);
-  const rate = overall?.significant ? `${(overall.callbackRate * 100).toFixed(0)}%` : '—';
+  const rate = overall ? formatCallbackRate(overall.callbackRate, overall.applied) : '—';
 
   return (
     <section

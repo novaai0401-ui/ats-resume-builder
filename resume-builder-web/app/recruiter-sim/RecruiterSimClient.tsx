@@ -8,6 +8,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { presentVerdict } from 'resume-builder-shared';
 import { api, type RecruiterSimResult } from '@/src/lib/api';
 import { useResumeStore } from '@/src/lib/resume-store';
 import { buildAddKeywordLink } from '@/src/lib/bullet-deeplink';
@@ -23,12 +24,6 @@ function buildResumeText(resume: { summary?: string; skills?: string[]; experien
   }
   return parts.filter(Boolean).join('\n');
 }
-
-const VERDICT_META: Record<RecruiterSimResult['verdict'], { label: string; color: string; bg: string; blurb: string }> = {
-  advance: { label: 'Advance', color: '#147a3a', bg: 'rgba(22,163,74,0.12)', blurb: 'The AI screen would forward you to a human.' },
-  maybe: { label: 'Borderline', color: '#b07906', bg: 'rgba(176,121,6,0.12)', blurb: 'On the fence — a recruiter would have to take a closer look.' },
-  reject: { label: 'Reject', color: '#a8412c', bg: 'rgba(168,65,44,0.12)', blurb: 'The AI screen would likely filter you out for this role.' },
-};
 
 export default function RecruiterSimClient() {
   const resume = useResumeStore((state) => state.resume);
@@ -109,15 +104,17 @@ export default function RecruiterSimClient() {
         </section>
       )}
 
-      {result && (
+      {result && (() => {
+        const v = presentVerdict(result.verdict);
+        return (
         <>
           <section className="card col-12">
             <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-              <span style={{ padding: '6px 14px', borderRadius: 999, fontWeight: 700, color: VERDICT_META[result.verdict].color, background: VERDICT_META[result.verdict].bg }}>
-                {VERDICT_META[result.verdict].label}
+              <span style={{ padding: '6px 14px', borderRadius: 999, fontWeight: 700, color: v.color, background: v.background }}>
+                {v.label}
               </span>
               <span style={{ fontSize: 32, fontWeight: 800 }}>{result.score}<span style={{ fontSize: 16, color: '#7a8aa0' }}> / 100 fit</span></span>
-              <span className="small" style={{ color: '#5a6778' }}>{VERDICT_META[result.verdict].blurb}</span>
+              <span className="small" style={{ color: '#5a6778' }}>{v.blurb}</span>
             </div>
             <blockquote style={{ margin: '14px 0 0', padding: '10px 14px', borderLeft: '3px solid #3b6cf6', background: 'var(--surface-alt, #f5f7fa)', borderRadius: 6 }}>
               <strong>What the AI would tell the recruiter:</strong><br />“{result.recruiterNote}”
@@ -160,7 +157,8 @@ export default function RecruiterSimClient() {
             )}
           </section>
         </>
-      )}
+        );
+      })()}
     </main>
   );
 }

@@ -63,6 +63,9 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         case 'SIMULATE_ATS':
           sendResponse({ ok: true, data: await api.simulateAts(msg.resumeId) });
           break;
+        case 'RECRUITER_SIM':
+          sendResponse({ ok: true, data: await api.recruiterSim(msg.resumeText, msg.jdText, msg.currentSkills) });
+          break;
         case 'CREATE_APPLICATION':
           sendResponse({ ok: true, data: await api.createJobApplication(msg.payload) });
           break;

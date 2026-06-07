@@ -1,0 +1,10 @@
+{
+  "name": "resume-builder-extension",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Browser extension (Manifest V3) for ATS Resume Builder. package.json exists for ESM + node --test; the extension itself loads as unpacked.",
+  "scripts": {
+    "test": "node --test tests/**/*.test.js"
+  }
+}

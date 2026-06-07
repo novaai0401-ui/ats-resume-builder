@@ -22,6 +22,7 @@ import DashboardScreen from './screens/DashboardScreen';
 import TemplateSelectionScreen from './screens/TemplateSelectionScreen';
 import ResumeEditorScreen from './screens/ResumeEditorScreen';
 import AtsScoreScreen from './screens/AtsScoreScreen';
+import RecruiterAiScreen from './screens/RecruiterAiScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import JobTrackerScreen from './screens/JobTrackerScreen';
 import CoverLetterScreen from './screens/CoverLetterScreen';
@@ -38,6 +39,7 @@ export type AppStackParamList = {
   TemplateSelection: { templateId: string };
   ResumeEditor: { resumeId: string };
   AtsScore: { resumeId: string };
+  RecruiterAi: { resumeId: string };
   CoverLetter: { resumeId?: string } | undefined;
   Settings: undefined;
 };
@@ -111,6 +113,7 @@ function AppFlow() {
       <AppStack.Screen name="TemplateSelection" component={TemplateSelectionScreen} options={{ title: 'Pick a template' }} />
       <AppStack.Screen name="ResumeEditor" component={ResumeEditorScreen} options={{ title: 'Edit Resume' }} />
       <AppStack.Screen name="AtsScore" component={AtsScoreScreen} options={{ title: 'ATS Score' }} />
+      <AppStack.Screen name="RecruiterAi" component={RecruiterAiScreen} options={{ title: 'Recruiter AI' }} />
       <AppStack.Screen name="CoverLetter" component={CoverLetterScreen} options={{ title: 'Cover Letter' }} />
       <AppStack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Settings' }} />
     </AppStack.Navigator>
@@ -227,6 +230,7 @@ const linking = {
       },
       ResumeEditor: 'resume/:resumeId',
       AtsScore: 'resume/:resumeId/ats',
+      RecruiterAi: 'resume/:resumeId/recruiter-ai',
       CoverLetter: 'cover-letter',
       Settings: 'settings',
     },
