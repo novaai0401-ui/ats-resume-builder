@@ -3,52 +3,57 @@
 import { useState } from 'react';
 
 /**
- * Small, dismissable banner that surfaces our local-first privacy
- * promise. Drop it on any surface where the user is about to upload,
- * download, or hand us data — they shouldn't have to read the privacy
- * page to know what's happening.
+ * Small, dismissable banner that surfaces our privacy promise on
+ * surfaces where the user is about to hand us their resume.
  *
- * Variants pick the message; the underlying contract is the same:
- *   • Resumes you create stay on this device by default.
- *   • Cloud sync is opt-in (Settings).
- *   • We never sell or train on your data.
+ * IMPORTANT — the copy below describes our ACTUAL data flow today,
+ * not the aspirational "local-first" pitch from earlier scaffolding:
+ *   • Parsing runs on our servers (NestJS API → resume-intelligence).
+ *   • Saved resumes live in our Postgres database, scoped to your account.
+ *   • Everything in transit is TLS; at rest it sits behind the database
+ *     provider's encryption.
+ *   • We do not sell your data and do not train AI on your resume
+ *     unless you opt in (Settings → Training data).
  *
- * The dismissal is per-variant and per-browser (localStorage), so a
- * user who's already seen the upload banner doesn't see it again on
- * every visit. The download banner is intentionally non-dismissable —
- * we want users to see it every time they hit Export, because that's
- * the moment trust matters most.
+ * The earlier "stays on this device / Cloud sync is opt-in" wording
+ * was inherited from a local-first foundation that isn't wired up
+ * yet (no UI toggle, vault endpoints unused). Shipping it as-is would
+ * be a deceptive-practice problem under the DPDP Act + Play Store
+ * data-safety rules — so it's been replaced with copy that matches
+ * what the code actually does. When the vault flow ships end-to-end,
+ * revisit this file and the COPY map.
  */
 
 type Variant = 'upload' | 'dashboard' | 'download' | 'login';
 
 const COPY: Record<Variant, { title: string; body: string; dismissable: boolean }> = {
   upload: {
-    title: 'Your resume stays on this device',
+    title: 'How we handle your resume',
     body:
-      'When you upload, we parse it in your browser and store it on your phone or laptop only. ' +
-      'We never copy it to our servers unless you turn on Cloud sync in Settings.',
+      'We parse your resume on our servers and store it in your account so you can come back to it. ' +
+      'Everything is sent over HTTPS and encrypted at rest. We never sell your data, and we never use ' +
+      'your resume to train AI unless you opt in.',
     dismissable: true,
   },
   dashboard: {
-    title: 'Local-first by default',
+    title: 'Your resumes, your account',
     body:
-      'Your resumes are saved on this device. Sign in on a different device → empty dashboard, ' +
-      'until you flip on Cloud sync. We never read your resume on our servers.',
+      'Saved resumes live in your Pocket Resume account so they show up when you sign in on another device. ' +
+      'You can delete any resume — or your entire account — from Settings.',
     dismissable: true,
   },
   download: {
-    title: 'We don’t store a copy',
+    title: 'We don’t keep a copy of the file',
     body:
-      'Your downloaded resume goes straight to your device. We render the PDF in memory, ' +
-      'send it to you, and discard it. Nothing is written to our database.',
+      'The PDF/Word file is rendered on demand from your saved resume and streamed straight to you. ' +
+      'The generated file isn’t stored on our servers — only the editable resume in your account is.',
     dismissable: false,
   },
   login: {
-    title: 'Your resume never leaves your device',
+    title: 'A short word on privacy',
     body:
-      'Pocket Resume keeps your resumes on the device you create them on. Cloud sync is opt-in. ' +
-      'We never sell your data, never train AI on it.',
+      'Your resume is processed and stored on our servers (HTTPS in transit, encrypted at rest). ' +
+      'We never sell your data and never train AI on your resume unless you opt in.',
     dismissable: true,
   },
 };

@@ -600,18 +600,23 @@ export class ResumeService {
 
   async generatePdf(userId: string, id: string, templateIdOverride?: string) {
     const productFlowRestrictionsEnabled = await this.areProductFlowRestrictionsEnabled();
-    if (productFlowRestrictionsEnabled) {
-      rateLimitOrThrow({
-        key: `resume:pdf:${userId}`,
-        limit: 8,
-        windowMs: 60_000,
-        message: 'Rate limit exceeded for PDF export.',
-      });
-    }
+    // Per-minute burst limit — always on. Prevents a runaway script from
+    // a paid user from melting Chrome.
+    rateLimitOrThrow({
+      key: `resume:pdf:${userId}`,
+      limit: 8,
+      windowMs: 60_000,
+      message: 'Too many PDF exports in a short window. Please wait a moment and try again.',
+    });
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
       throw new NotFoundException('User not found');
     }
+    // The "FREE plan entirely blocked" path is opt-in via the product-flow
+    // feature flag. By default the billing page advertises FREE users get
+    // 5 exports per month, enforced by the quota check below — so we do
+    // NOT hard-block FREE here unless the operator has explicitly turned
+    // restrictions on.
     if (productFlowRestrictionsEnabled && user.plan === 'FREE') {
       throw new ForbiddenException('Free plan does not allow PDF export.');
     }
@@ -620,8 +625,17 @@ export class ResumeService {
     if (!updatedUser) {
       throw new NotFoundException('User not found');
     }
-    if (productFlowRestrictionsEnabled && updatedUser.pdfExportsUsed + 1 > updatedUser.pdfExportsLimit) {
-      throw new ForbiddenException('PDF export limit exceeded');
+    // Monthly export quota — ENFORCED UNCONDITIONALLY. This is the
+    // contract the billing page makes to every plan ("5 / 25 / 200 PDF
+    // exports per month"). Previously this check was gated behind the
+    // product-flow feature flag, which defaulted to false, so users on
+    // any plan could download unlimited PDFs. (Reported: a FREE user
+    // pulled more than 5 exports.) The flag now only controls the
+    // FREE-plan hard-block above; the quota itself is law.
+    if (updatedUser.pdfExportsUsed + 1 > updatedUser.pdfExportsLimit) {
+      throw new ForbiddenException(
+        `Monthly export limit reached (${updatedUser.pdfExportsLimit}). Upgrade your plan or wait for next month's reset.`,
+      );
     }
     const resume = await this.get(userId, id);
     // Mismatch root-cause: preview uses React template components + app CSS, while
@@ -701,17 +715,41 @@ export class ResumeService {
    * ATS parsers. The text-first DOCX builder lives in `./docx-export`.
    */
   async generateDocx(userId: string, id: string): Promise<Buffer> {
-    const productFlowRestrictionsEnabled = await this.areProductFlowRestrictionsEnabled();
-    if (productFlowRestrictionsEnabled) {
-      rateLimitOrThrow({
-        key: `resume:docx:${userId}`,
-        limit: 8,
-        windowMs: 60_000,
-        message: 'Rate limit exceeded for Word export.',
-      });
+    // DOCX shares the PDF export quota — both are "exports of your
+    // finished resume" from the user's perspective and the billing
+    // page promises a single "PDF + Word exports / month" counter.
+    // Previously this method had ONLY rate-limiting (and even that was
+    // gated behind an off-by-default flag), so paid + free users alike
+    // could pull unlimited .docx files. Now mirrors generatePdf.
+    rateLimitOrThrow({
+      key: `resume:docx:${userId}`,
+      limit: 8,
+      windowMs: 60_000,
+      message: 'Too many Word exports in a short window. Please wait a moment and try again.',
+    });
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    await ensureUsagePeriod(this.prisma, user);
+    const updatedUser = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!updatedUser) {
+      throw new NotFoundException('User not found');
+    }
+    if (updatedUser.pdfExportsUsed + 1 > updatedUser.pdfExportsLimit) {
+      throw new ForbiddenException(
+        `Monthly export limit reached (${updatedUser.pdfExportsLimit}). Upgrade your plan or wait for next month's reset.`,
+      );
     }
     const resume = await this.get(userId, id);
-    return renderResumeDocx(resume as Parameters<typeof renderResumeDocx>[0]);
+    const docx = await renderResumeDocx(resume as Parameters<typeof renderResumeDocx>[0]);
+    // Increment AFTER successful render so a render failure doesn't
+    // burn one of the user's allotted exports.
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { pdfExportsUsed: updatedUser.pdfExportsUsed + 1 },
+    });
+    return docx;
   }
 
   /**
