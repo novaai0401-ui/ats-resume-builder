@@ -189,3 +189,68 @@ production URL:
 - Mobile Safari upload UX hasn't been re-verified after fix #2.
 - Razorpay live keys (`rzp_live_…`) must be present in prod env; the startup guard refuses to boot with `rzp_test_…`.
 - Stale `dashboard-auth-flow.test.tsx` failure should be triaged once we have time, but it's a jsdom matchMedia issue, not a real bug.
+
+---
+
+## 7. Additional findings from full-app audit
+
+These came out of the page-by-page inventory and deserve their own
+sign-off before launch. Some are now fixed in this branch; others are
+documented for the manual smoke pass.
+
+### Fixed in this commit
+
+- **`/templates` route 404.** The homepage CTA "Browse templates" pointed at `/templates`, but only `/templates/preview` was shipped. Added a redirect at `app/templates/page.tsx` so the link, sitemap entry, and any bookmarks resolve cleanly.
+
+### Investigated and confirmed safe
+
+- **`?embed=1` on `/resume/review` bypasses the page-level `AuthGate`.** Looked at it. The embed component itself short-circuits if `getAccessToken()` returns nothing (`ResumeReviewEmbedPreview.tsx:48`), and `api.getResume` round-trips through the API's `JwtAuthGuard`. So the worst an unauthenticated visitor can do is render an empty iframe shell. The API guard is the real boundary — re-confirm it's `JwtAuthGuard`-protected before launch.
+
+### Worth a manual check, not a code change
+
+| Area | Concern | What to check |
+|---|---|---|
+| `/resume/ats` | `runScore()` auto-fires on mount (`ResumeAtsClient.tsx:38`). FREE users get 2 scans/month; visiting this page twice could exhaust the quota. | Verify the API returns a 402 with the friendly quota message instead of throwing. The page already handles quota errors elsewhere, but the auto-run path specifically should not silently retry. |
+| `/auth/callback` | `describeCallbackError` is the only thing between the user and raw backend error text (per the comment at `:29`). | Social-login routes were removed in commit `fbc8176`, so this page is dormant. If you ever re-enable OAuth, audit the error-code map first. |
+| `/admin/settings` | Toggles `paymentEnabled` and `rateLimitEnabled` flags directly. Flipping `paymentEnabled=false` must cleanly disable billing CTAs without 500s. | Manual: flip off in staging, hit `/billing`, confirm upgrade buttons go to a friendly "billing disabled" state and not a checkout 500. |
+| `/admin/pattern-review` | Depends on backend pattern endpoints; if not deployed, the page shows an error banner instead of a friendly message. | Confirm the API routes (`/admin/pattern-learner/*`) are actually live in prod. |
+| `/sahaayak` | Privacy promise hinges on `OptInGate` showing whenever `profile.optedIn !== true`. | Manual: log in, opt in, then opt back out via Settings. Re-visit `/sahaayak` — the gate must reappear, not the chat. |
+| `/download` | Silently degrades to "Build not yet published" if `/app/version` 404s. | Confirm the API serves `/app/version` in prod and the Android APK URL + SHA-256 in env actually match a real build. |
+| Download charge modal on `/resume/template` | Historic bug where the modal was bypassed and the API returned 403 instead of opening checkout (per comment at `:20`). | Manual: FREE user → click Download → modal opens → complete ₹49 → file downloads. Then try to skip the modal by URL — should bounce, not crash. |
+| Mentor-tier gating | Mentor/Chat is PRO-only (`mentor-chat.service.ts:142` is a hard gate), Interview Prep is PRO-only with no rule-based fallback. | Manual: log in as FREE → both pages should show the upgrade card, no broken AI call, no GROQ_API_KEY leak in user copy. |
+| BYOK visibility | `ByokKeyCard` only shows on FREE plan (per `08aa472`/`539f0fc`). | Manual: log in as STUDENT/PRO → confirm BYOK card hidden and "AI included with your plan" copy shown. |
+
+### Inventory paths cited
+
+For convenience when re-running the manual pass, the page-level
+clients (one per route) live at:
+
+```
+app/page.tsx
+app/admin/AdminDashboardView.tsx
+app/admin/pattern-review/PatternReviewView.tsx
+app/admin/settings/page.tsx
+app/auth/login/LoginPageView.tsx
+app/auth/callback/page.tsx
+app/billing/page.tsx
+app/career/CareerNavigatorClient.tsx
+app/cover-letter/CoverLetterClient.tsx
+app/dashboard/DashboardPageView.tsx
+app/download/page.tsx
+app/interview-prep/InterviewPrepClient.tsx
+app/jd-match/JdMatchClient.tsx
+app/jobs/JobsTrackerClient.tsx
+app/mentor/MentorClient.tsx
+app/mentor/chat/MentorChatClient.tsx
+app/resume/ResumeEditor.tsx
+app/resume/start/ResumeStartClient.tsx
+app/resume/review/page.tsx
+app/resume/template/TemplateSelectionView.tsx
+app/resume/versions/VersionsClient.tsx
+app/resume/outcomes/OutcomesView.tsx
+app/resume/ats/ResumeAtsClient.tsx
+app/resume/ats-simulate/AtsSimulateView.tsx
+app/sahaayak/SahaayakClient.tsx
+app/settings/SettingsPageView.tsx
+app/templates/preview/TemplatePreviewPageClient.tsx
+```
