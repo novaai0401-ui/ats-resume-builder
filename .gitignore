@@ -141,6 +141,6 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
 
-# Python bytecode caches
+# Python bytecode from training/
 __pycache__/
 *.pyc

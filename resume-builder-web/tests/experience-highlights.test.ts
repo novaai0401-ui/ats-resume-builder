@@ -22,9 +22,19 @@ test('long highlights show helper text when warning is active', () => {
   assert.equal(state.helperText, 'Too long: 29 words (max 28).');
 });
 
-test('short highlights remain quiet even if warning is active', () => {
-  const warningActive = shouldShowBulletLengthWarning('Experience bullets must be 28 words or fewer.');
-  const state = getHighlightLengthState('Deliver results fast', warningActive);
+test('fragment-length highlights surface a too-short helper even without a server warning', () => {
+  // 3 words is below BULLET_MIN_WORDS (4). The editor surfaces a
+  // too-short helper independent of whether the server has raised
+  // a length warning — fragments are never useful resume bullets.
+  const state = getHighlightLengthState('Deliver results fast', false);
+  assert.equal(state.isTooShort, true);
+  assert.equal(state.showError, true);
+  assert.match(state.helperText, /Too short/);
+});
+
+test('empty inputs stay quiet — they are unfilled rows, not fragments', () => {
+  const state = getHighlightLengthState('', true);
+  assert.equal(state.isTooShort, false);
   assert.equal(state.showError, false);
   assert.equal(state.helperText, '');
 });

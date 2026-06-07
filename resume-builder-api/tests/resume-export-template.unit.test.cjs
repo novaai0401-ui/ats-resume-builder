@@ -267,9 +267,9 @@ test('debugExportHtml returns fingerprint and css bundle markers for persisted t
   const rendered = await service.debugExportHtml('user-1', 'resume-1');
   assert.equal(rendered.templateId, 'executive');
   assert.match(rendered.fingerprint, /TEMPLATE_FINGERPRINT:executive/);
-  assert.match(rendered.cssBundle, /inline:ats-template-css-v1/);
+  assert.match(rendered.cssBundle, /inline:ats-template-css-v\d+/);
   assert.match(rendered.html, /data-template-id="executive"/);
-  assert.match(rendered.html, /data-css-bundle="inline:ats-template-css-v1"/);
+  assert.match(rendered.html, /data-css-bundle="inline:ats-template-css-v\d+"/);
 });
 
 test('debugExportHtml fingerprint changes when template switches from executive to classic', async () => {
@@ -289,4 +289,160 @@ test('debugExportHtml fingerprint changes when template switches from executive 
   assert.match(after.html, /TEMPLATE_FINGERPRINT:classic/);
   assert.match(after.html, /data-template-id="classic"/);
   assert.notEqual(before.fingerprint, after.fingerprint);
+});
+
+// ---------------------------------------------------------------------------
+// Accent Header export — must match the React component used in the live
+// preview (components/templates/AccentHeader.tsx). The bug was that the
+// PDF export used a different "ats-template--accent-header" structure with
+// plain-text skills and no header band, so the downloaded resume looked
+// like Classic ATS instead of the styled template the user picked.
+// ---------------------------------------------------------------------------
+
+test('accent-header export emits the same nb-accent-header markup as the React preview', async () => {
+  const prisma = createInMemoryPrisma('accent-header');
+  const service = new ResumeService(prisma, {
+    isPaymentFeatureEnabled: async () => false,
+    isRateLimitEnabled: async () => false,
+  });
+
+  const rendered = await service.debugExportHtml('user-1', 'resume-1');
+  const html = rendered.html;
+
+  // Same root class + block names as components/templates/AccentHeader.tsx.
+  assert.match(html, /<article class="nb-accent-header">/);
+  assert.match(html, /<header class="nb-accent-header__band">/);
+  assert.match(html, /class="nb-accent-header__name"/);
+  // Skills must render as chips, not a comma-separated paragraph.
+  assert.match(html, /class="nb-accent-header__skills-wrap"/);
+  assert.match(html, /class="nb-accent-header__skill-pill"/);
+  // Experience must render as timeline items with the dot indicator.
+  assert.match(html, /class="nb-accent-header__item-dot"/);
+  // About Me label (not "Summary") for accent-header.
+  assert.match(html, /About Me/);
+  // The accent-band CSS rule must be carried in the export bundle so
+  // puppeteer renders the colored band.
+  assert.match(html, /\.nb-accent-header__band\s*\{[^}]*linear-gradient/);
+  // The chip CSS must be present too — the band without chips would
+  // still look wrong.
+  assert.match(html, /\.nb-accent-header__skill-pill\s*\{[^}]*border-radius/);
+  // The skills the test fixture provided must appear verbatim as chip
+  // text — proves the data path works.
+  assert.match(html, /React<\/span>/);
+  assert.match(html, /TypeScript<\/span>/);
+});
+
+test('accent-header alias "accent-band" resolves to the same nb-accent-header markup', async () => {
+  // The export normalizer treats accent-band and visual as aliases for
+  // accent-header (so people who picked an older variant don't get a
+  // different look). Verify the alias path emits the same HTML.
+  const prisma = createInMemoryPrisma('accent-band');
+  const service = new ResumeService(prisma, {
+    isPaymentFeatureEnabled: async () => false,
+    isRateLimitEnabled: async () => false,
+  });
+  const rendered = await service.debugExportHtml('user-1', 'resume-1');
+  assert.equal(rendered.templateId, 'accent-header');
+  assert.match(rendered.html, /<article class="nb-accent-header">/);
+});
+
+// ---------------------------------------------------------------------------
+// Duplicate-skills regression: visual templates used to render soft skills
+// twice — once in the main skills section (because allSkills() merges all
+// three buckets and that was used as the fallback when techSkills was
+// empty) and once in their own dedicated soft-skills row.
+// ---------------------------------------------------------------------------
+
+function createInMemoryPrismaWithSoftSkills(templateId) {
+  const base = createInMemoryPrisma(templateId);
+  const state = base.__getState();
+  state.resume.skills = ['React', 'TypeScript', 'Collaboration', 'Communication'];
+  state.resume.technicalSkills = [];
+  state.resume.softSkills = ['Collaboration', 'Communication'];
+  state.resume.contact.softSkills = ['Collaboration', 'Communication'];
+  state.resume.contact.technicalSkills = [];
+  return base;
+}
+
+test('accent-header export does not render soft skills twice', async () => {
+  const prisma = createInMemoryPrismaWithSoftSkills('accent-header');
+  const service = new ResumeService(prisma, {
+    isPaymentFeatureEnabled: async () => false,
+    isRateLimitEnabled: async () => false,
+  });
+  const rendered = await service.debugExportHtml('user-1', 'resume-1');
+  const html = rendered.html;
+  const collaborationChips = (html.match(/>Collaboration</g) || []).length;
+  const communicationChips = (html.match(/>Communication</g) || []).length;
+  assert.equal(collaborationChips, 1, `Collaboration appears ${collaborationChips} times, expected 1`);
+  assert.equal(communicationChips, 1, `Communication appears ${communicationChips} times, expected 1`);
+  assert.equal((html.match(/>React</g) || []).length, 1);
+  assert.equal((html.match(/>TypeScript</g) || []).length, 1);
+});
+
+test('sidebar-bold export does not render soft skills twice', async () => {
+  const prisma = createInMemoryPrismaWithSoftSkills('sidebar-bold');
+  const service = new ResumeService(prisma, {
+    isPaymentFeatureEnabled: async () => false,
+    isRateLimitEnabled: async () => false,
+  });
+  const rendered = await service.debugExportHtml('user-1', 'resume-1');
+  const html = rendered.html;
+  const collaboration = (html.match(/<li class="nb-sidebar-bold__skill-item">Collaboration</g) || []).length;
+  const communication = (html.match(/<li class="nb-sidebar-bold__skill-item">Communication</g) || []).length;
+  assert.equal(collaboration, 1);
+  assert.equal(communication, 1);
+});
+
+test('sidebar-bold export emits nb-sidebar-bold markup matching the React preview', async () => {
+  const prisma = createInMemoryPrisma('sidebar-bold');
+  const service = new ResumeService(prisma, {
+    isPaymentFeatureEnabled: async () => false,
+    isRateLimitEnabled: async () => false,
+  });
+  const rendered = await service.debugExportHtml('user-1', 'resume-1');
+  const html = rendered.html;
+  assert.match(html, /<article class="nb-sidebar-bold">/);
+  assert.match(html, /<aside class="nb-sidebar-bold__sidebar">/);
+  assert.match(html, /<main class="nb-sidebar-bold__main">/);
+  assert.match(html, /class="nb-sidebar-bold__content-title">Profile</);
+  assert.match(html, /\.nb-sidebar-bold__sidebar\s*\{[^}]*background:\s*#1a2e4a/);
+});
+
+// ---------------------------------------------------------------------------
+// Achievements — dedicated section renders in the PDF export.
+// ---------------------------------------------------------------------------
+
+function createInMemoryPrismaWithAchievements(templateId) {
+  const base = createInMemoryPrisma(templateId);
+  const state = base.__getState();
+  state.resume.achievements = [
+    'Won the Rising Star award twice for high-impact delivery',
+    'Spearheaded the Speedboat Project, shipping the MVP 2 weeks early',
+  ];
+  return base;
+}
+
+test('classic export renders an Achievements section with the statements', async () => {
+  const prisma = createInMemoryPrismaWithAchievements('classic');
+  const service = new ResumeService(prisma, {
+    isPaymentFeatureEnabled: async () => false,
+    isRateLimitEnabled: async () => false,
+  });
+  const rendered = await service.debugExportHtml('user-1', 'resume-1');
+  const html = rendered.html;
+  assert.match(html, /ACHIEVEMENTS|Achievements/);
+  assert.match(html, /Rising Star award twice/);
+  assert.match(html, /Speedboat Project/);
+});
+
+test('export omits the Achievements section entirely when there are none', async () => {
+  const prisma = createInMemoryPrisma('classic'); // no achievements in fixture
+  const service = new ResumeService(prisma, {
+    isPaymentFeatureEnabled: async () => false,
+    isRateLimitEnabled: async () => false,
+  });
+  const rendered = await service.debugExportHtml('user-1', 'resume-1');
+  // No empty "Achievements" heading should appear.
+  assert.doesNotMatch(rendered.html, />\s*ACHIEVEMENTS\s*</);
 });

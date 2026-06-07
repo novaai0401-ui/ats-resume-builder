@@ -18,6 +18,25 @@ import { MailService } from '../mail/mail.service';
 import { renderResumeDocx, buildResumeFileName } from './docx-export';
 import { PatternLearnerService } from '../pattern-learner/pattern-learner.service';
 import { applyLearnedPatterns } from '../pattern-learner/pattern-applier';
+import { TrainingDatasetService } from '../training-dataset/training-dataset.service';
+
+/**
+ * Maps the raw file MIME / name to the short tags we store on
+ * TrainingSample.sourceFileType. Kept narrow so downstream stats / model
+ * stratification stay clean.
+ */
+function deriveTrainingFileType(originalname: string, mimetype: string): string {
+  const mt = (mimetype || '').toLowerCase();
+  if (mt.includes('pdf')) return 'pdf';
+  if (mt.includes('word') || mt.includes('officedocument') || mt.includes('msword')) return 'docx';
+  if (mt.startsWith('image/')) return 'image';
+  if (mt.includes('html')) return 'html';
+  const ext = String(originalname || '').toLowerCase().split('.').pop() || '';
+  if (ext === 'pdf' || ext === 'docx' || ext === 'doc' || ext === 'html' || ext === 'htm') {
+    return ext === 'doc' ? 'docx' : ext === 'htm' ? 'html' : ext;
+  }
+  return 'txt';
+}
 
 
 
@@ -133,6 +152,7 @@ export class ResumeService {
     @Optional() private readonly settingsService?: SettingsService,
     @Optional() private readonly mailService?: MailService,
     @Optional() private readonly patternLearner?: PatternLearnerService,
+    @Optional() private readonly trainingDataset?: TrainingDatasetService,
   ) {}
 
   async create(userId: string, dto: CreateResumeDto) {
@@ -167,6 +187,7 @@ export class ResumeService {
       education: dto.education ?? [],
       projects: dto.projects ?? [],
       certifications: dto.certifications ?? [],
+      achievements: dto.achievements ?? [],
     });
     const templateId = typeof dto.templateId === 'string'
       ? String(dto.templateId || '').trim() || undefined
@@ -175,6 +196,14 @@ export class ResumeService {
       skills: normalized.skills,
       technicalSkills: normalized.technicalSkills,
       softSkills: normalized.softSkills,
+      // Critical: pass the EXPLICIT languages array from the upload.
+      // Without this the resolver re-derives languages only from
+      // skill heuristics, dropping anything that was extracted from
+      // a real LANGUAGES section. This was the root cause of "0
+      // languages" in the editor after upload — extraction worked,
+      // sanitiser worked, but languages got discarded right here
+      // before persistence.
+      languages: normalized.languages,
     });
     enforceAtsResumeRules({
       summary: normalized.summary,
@@ -194,10 +223,40 @@ export class ResumeService {
         education: normalized.education,
         projects: normalized.projects ?? [],
         certifications: normalized.certifications ?? [],
+        achievements: normalized.achievements ?? [],
         templateId,
       },
     });
+    this.fireTrainingConfirmation(userId, created.id, created);
     return decorateResumeWithSkillCategories(created);
+  }
+
+  /**
+   * Fire-and-forget promotion of the most recent pending TrainingSample
+   * for this user into a labeled sample using the just-saved Resume as
+   * the gold answer. Never throws into the caller path.
+   */
+  private fireTrainingConfirmation(userId: string, resumeId: string, resume: { contact: unknown; summary: string; skills: string[]; experience: unknown; education: unknown; projects: unknown; certifications: unknown; languages?: string[] }) {
+    if (!this.trainingDataset) return;
+    void this.trainingDataset
+      .captureConfirmation({
+        userId,
+        resumeId,
+        resumePayload: {
+          contact: (resume.contact as Record<string, unknown> | null) ?? null,
+          summary: resume.summary,
+          skills: Array.isArray(resume.skills) ? resume.skills : [],
+          experience: Array.isArray(resume.experience) ? (resume.experience as Array<Record<string, unknown>>) : [],
+          education: Array.isArray(resume.education) ? (resume.education as Array<Record<string, unknown>>) : [],
+          projects: Array.isArray(resume.projects) ? (resume.projects as Array<Record<string, unknown>>) : [],
+          certifications: Array.isArray(resume.certifications) ? (resume.certifications as Array<Record<string, unknown>>) : [],
+        },
+      })
+      .catch((error: unknown) => {
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn(`[training-dataset] captureConfirmation failed: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      });
   }
 
   private async enforceResumeCreateRateLimit(userId: string) {
@@ -275,11 +334,16 @@ export class ResumeService {
       education: dto.education ?? (Array.isArray(current.education) ? current.education as any[] : []),
       projects: dto.projects ?? (Array.isArray(current.projects) ? current.projects as any[] : []),
       certifications: dto.certifications ?? (Array.isArray(current.certifications) ? current.certifications as any[] : []),
+      achievements: dto.achievements ?? (Array.isArray((current as any).achievements) ? ((current as any).achievements as string[]) : []),
     });
     const categories = resolveSkillCategories({
       skills: normalized.skills,
       technicalSkills: normalized.technicalSkills,
       softSkills: normalized.softSkills,
+      // See create-path note — pass through the explicit languages
+      // array so an update doesn't accidentally erase languages the
+      // upload extracted.
+      languages: normalized.languages,
     });
     // Skip ATS validation when only templateId is being changed — the content
     // hasn't changed, so re-validating it blocks a simple template switch with
@@ -310,9 +374,15 @@ export class ResumeService {
         education: normalized.education,
         projects: normalized.projects,
         certifications: normalized.certifications,
+        achievements: normalized.achievements ?? [],
         templateId,
       },
     });
+    // Only fire the auto-label promotion on substantive edits — a pure
+    // templateId swap doesn't represent the user confirming structure.
+    if (!isTemplateOnlyUpdate) {
+      this.fireTrainingConfirmation(userId, id, updated);
+    }
     return decorateResumeWithSkillCategories(updated);
   }
 
@@ -350,11 +420,20 @@ export class ResumeService {
       education: Array.isArray(resume.education) ? resume.education as any[] : [],
       projects: Array.isArray(resume.projects) ? resume.projects as any[] : [],
       certifications: Array.isArray(resume.certifications) ? resume.certifications as any[] : [],
+      achievements: Array.isArray((resume as any).achievements) ? ((resume as any).achievements as string[]) : [],
     });
     const categories = resolveSkillCategories({
       skills: normalized.skills,
       technicalSkills: normalized.technicalSkills,
       softSkills: normalized.softSkills,
+      // Critical: pass the EXPLICIT languages array from the upload.
+      // Without this the resolver re-derives languages only from
+      // skill heuristics, dropping anything that was extracted from
+      // a real LANGUAGES section. This was the root cause of "0
+      // languages" in the editor after upload — extraction worked,
+      // sanitiser worked, but languages got discarded right here
+      // before persistence.
+      languages: normalized.languages,
     });
     enforceAtsResumeRules({
       summary: normalized.summary,
@@ -374,6 +453,7 @@ export class ResumeService {
         education: normalized.education,
         projects: normalized.projects ?? [],
         certifications: normalized.certifications ?? [],
+        achievements: normalized.achievements ?? [],
         templateId: resume.templateId ?? undefined,
       },
     });
@@ -791,6 +871,24 @@ export class ResumeService {
         primaryWarningCount: primary.verification.warnings.length,
         salvageReport,
       };
+      // TrainingDataset capture (fire-and-forget). Records the upload as a
+      // pending sample if the user has consented; auto-labeling happens
+      // later when the user saves the resume in the editor. Service
+      // internally checks consent and silently no-ops if disabled.
+      if (this.trainingDataset && options?.userId) {
+        void this.trainingDataset
+          .captureUpload({
+            userId: options.userId,
+            rawText: chosen.normalizedText,
+            sourceFileType: deriveTrainingFileType(file.originalname, file.mimetype),
+            sourceFileBytes: file.size ?? file.buffer.length,
+          })
+          .catch((error: unknown) => {
+            if (process.env.NODE_ENV !== 'production') {
+              console.warn(`[training-dataset] captureUpload failed: ${error instanceof Error ? error.message : String(error)}`);
+            }
+          });
+      }
       return {
         text: chosen.normalizedText,
         fileName: file.originalname,
@@ -827,10 +925,19 @@ export class ResumeService {
       contact: mapped.contact,
       summary: mapped.summary,
       skills: mapped.skills,
+      // Forward the categorised skill buckets + languages + achievements
+      // so they survive the sanitiser. Previously they were dropped at
+      // this layer and never reached the client, which is why uploaded
+      // Languages / Achievements sections rendered as "0 languages"
+      // and "0 achievements" in the editor.
+      technicalSkills: (mapped as { technicalSkills?: string[] }).technicalSkills,
+      softSkills: (mapped as { softSkills?: string[] }).softSkills,
+      languages: (mapped as { languages?: string[] }).languages,
       experience: mapped.experience,
       education: mapped.education,
       projects: mapped.projects,
       certifications: mapped.certifications,
+      achievements: (mapped as { achievements?: string[] }).achievements,
       unmappedText: mapped.unmappedText,
     }, { mode: 'upload', sourceText: normalizedText });
     sanitized.experience = finalizeExperience({
@@ -844,20 +951,35 @@ export class ResumeService {
       contact: sanitized.contact,
       summary: sanitized.summary,
       skills: sanitized.skills,
+      technicalSkills: sanitized.technicalSkills,
+      softSkills: sanitized.softSkills,
+      languages: sanitized.languages,
       experience: sanitized.experience,
       education: sanitized.education,
       projects: sanitized.projects,
       certifications: sanitized.certifications,
+      achievements: sanitized.achievements,
     });
     const parsedPayload = {
       title: normalizedParsed.title,
       contact: normalizedParsed.contact,
       summary: normalizedParsed.summary,
       skills: normalizedParsed.skills,
+      // Plain string lists — preserved through normalisation so the
+      // client editor receives them and the editor's Languages /
+      // Achievements sections render the extracted data.
+      technicalSkills: (normalizedParsed as { technicalSkills?: string[] }).technicalSkills
+        ?? sanitized.technicalSkills,
+      softSkills: (normalizedParsed as { softSkills?: string[] }).softSkills
+        ?? sanitized.softSkills,
+      languages: (normalizedParsed as { languages?: string[] }).languages
+        ?? sanitized.languages,
       experience: normalizedParsed.experience,
       education: normalizedParsed.education,
       projects: normalizedParsed.projects,
       certifications: normalizedParsed.certifications,
+      achievements: (normalizedParsed as { achievements?: string[] }).achievements
+        ?? sanitized.achievements,
       roleLevel: mapped.roleLevel,
       signals: mapped.signals,
       unmappedText: sanitized.unmappedText,
@@ -1441,6 +1563,7 @@ function validateResumeSectionsOrThrow(input: {
   education: any[];
   projects?: any[];
   certifications?: any[];
+  achievements?: string[];
 }) {
   const parsed = ResumeSectionsSchema.safeParse({
     title: input.title,
@@ -1454,6 +1577,7 @@ function validateResumeSectionsOrThrow(input: {
     education: input.education,
     projects: input.projects ?? [],
     certifications: input.certifications ?? [],
+    achievements: (input.achievements ?? []).filter((a) => String(a || '').trim().length > 0),
   });
   if (!parsed.success) {
     throw new BadRequestException({
@@ -1713,6 +1837,15 @@ function normalizeResumeForAtsOutput(input: any) {
     }))
     .filter((item: any) => item.name);
 
+  // Achievements are a plain string list — keep them as-is after the
+  // sanitiser has trimmed and uniqued them. Without this they got
+  // dropped between the sanitiser and parsedPayload, which is the
+  // root of "0 achievements" after upload.
+  const achievements = Array.isArray(input?.achievements)
+    ? input.achievements
+        .map((a: unknown) => String(a || '').trim())
+        .filter((a: string) => a.length > 0)
+    : [];
   return {
     ...input,
     summary: String(input?.summary || '').replace(/\s+/g, ' ').trim(),
@@ -1724,6 +1857,7 @@ function normalizeResumeForAtsOutput(input: any) {
     education,
     projects,
     certifications,
+    achievements,
   };
 }
 
@@ -1754,6 +1888,24 @@ function resolveSkillCategories(input: {
     softSkills: soft,
     languages,
   };
+}
+
+/**
+ * Resolve the list of skills to render as "main" (chips / bullets)
+ * without overlapping the soft-skills list. Same fix as the React
+ * helper nonOverlappingMainSkills in components/templates/template
+ * Utils.tsx — the visual templates used to render the same item
+ * twice when techSkills was empty (skills array would include
+ * everything, then soft skills got re-rendered separately).
+ */
+function nonOverlappingMainSkills(resume: any): string[] {
+  const tech = templateCleanList(resume?.technicalSkills);
+  if (tech.length) return tech;
+  const skills = templateCleanList(resume?.skills);
+  const soft = templateCleanList(resume?.softSkills);
+  if (!soft.length) return dedupeSkills(skills);
+  const softSet = new Set(soft.map((s) => s.toLowerCase()));
+  return dedupeSkills(skills.filter((s) => !softSet.has(s.toLowerCase())));
 }
 
 function dedupeSkills(values: string[]) {
@@ -3219,7 +3371,15 @@ function mapResumeSections(text: string) {
   const summarySource = summaryLines.length
     ? summaryLines
     : buildFallbackSummaryLines(sections.unmapped || lines);
-  const summary = summarySource.join(' ').slice(0, 400).trim();
+  // The summary cap used to be 400 chars, which silently truncated
+  // legitimate paragraph-style summaries mid-sentence (the bug users
+  // reported as "summary ends with 'resulting in improved stakeholder
+  // satisfaction and' — no closing"). 2000 is more than enough room
+  // for a real professional summary; the editor's character counter
+  // and the AI critique already nudge users back toward the
+  // recommended 350-500 char range so this cap is purely a defence
+  // against pathologically long uploads.
+  const summary = summarySource.join(' ').slice(0, 2000).trim();
 
   const skills = extractSkills([
     ...(sections.skills || []),
@@ -3872,7 +4032,7 @@ type TemplateCertificationItem = {
   date: string;
 };
 
-const ATS_TEMPLATE_EXPORT_CSS_BUNDLE = 'inline:ats-template-css-v1';
+const ATS_TEMPLATE_EXPORT_CSS_BUNDLE = 'inline:ats-template-css-v3';
 const ATS_TEMPLATE_EXPORT_CSS = `
       @page { size: A4; margin: 15mm; }
       * { box-sizing: border-box; }
@@ -3967,6 +4127,8 @@ const ATS_TEMPLATE_EXPORT_CSS = `
       }
       .ats-item {
         margin-top: 8px;
+        page-break-inside: avoid;
+        break-inside: avoid;
       }
       .ats-item h3 {
         margin: 0;
@@ -4003,13 +4165,88 @@ const ATS_TEMPLATE_EXPORT_CSS = `
         break-before: avoid;
         page-break-before: avoid;
       }
+
+      /* ──────────────────────────────────────────────────────────────
+         Accent Header template — must match the React component
+         (components/templates/AccentHeader.tsx) byte-for-byte so the
+         downloaded PDF looks identical to the live preview. Earlier
+         versions of the export emitted plain "ats-template--accent-
+         header" markup with no chips and no header band; the
+         downloaded PDF looked like Classic ATS and confused users
+         who picked Accent Header for the visual style.
+         ─────────────────────────────────────────────────────────── */
+      .nb-accent-header { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 12px; line-height: 1.5; color: #1a2233; background: #ffffff; }
+      .nb-accent-header__band { background: linear-gradient(135deg, #1a3a6e 0%, #2563a8 100%); color: #ffffff; padding: 28px 32px 24px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .nb-accent-header__name { font-size: 26px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.02em; }
+      .nb-accent-header__title { font-size: 13px; opacity: 0.85; margin: 0 0 8px; font-weight: 400; }
+      .nb-accent-header__contact { font-size: 11px; opacity: 0.75; margin: 0; }
+      .nb-accent-header__body { padding: 24px 32px; }
+      .nb-accent-header__section { margin-bottom: 22px; page-break-inside: avoid; break-inside: avoid; }
+      .nb-accent-header__section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #2563a8; margin: 0 0 10px; display: flex; align-items: center; gap: 8px; }
+      .nb-accent-header__section-title::after { content: ''; flex: 1; height: 1px; background: #d0dff0; }
+      .nb-accent-header__summary { font-size: 11px; color: #3a4a5c; line-height: 1.7; margin: 0; }
+      .nb-accent-header__skills-wrap { display: flex; flex-wrap: wrap; gap: 6px; }
+      .nb-accent-header__skill-pill { background: #e8f0f8; color: #1a3a6e; border: 1px solid #c0d4ea; border-radius: 20px; padding: 3px 10px; font-size: 10px; font-weight: 500; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .nb-accent-header__skill-pill--soft { background: #f0f8ee; color: #1e5535; border-color: #b8dfb0; }
+      .nb-accent-header__item { margin-bottom: 14px; padding-left: 18px; position: relative; page-break-inside: avoid; break-inside: avoid; }
+      .nb-accent-header__item-header { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 4px; }
+      .nb-accent-header__item-dot { position: absolute; left: 0; top: 5px; width: 8px; height: 8px; border-radius: 50%; background: #2563a8; flex-shrink: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .nb-accent-header__item-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px; flex: 1; }
+      .nb-accent-header__item-role { font-size: 12px; font-weight: 600; color: #1a2e4a; }
+      .nb-accent-header__item-company { font-size: 11px; color: #5a7a9a; font-style: italic; }
+      .nb-accent-header__item-date { font-size: 10px; color: #8aa8c8; margin-left: auto; white-space: nowrap; }
+      .nb-accent-header__bullets { margin: 4px 0 0 4px; padding: 0 0 0 12px; list-style: disc; }
+      .nb-accent-header__bullets li { font-size: 10px; color: #3a4a5c; margin-bottom: 2px; line-height: 1.5; }
+      .nb-accent-header__lower { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+      .nb-accent-header__edu-item { margin-bottom: 8px; }
+      .nb-accent-header__edu-degree { font-size: 11px; font-weight: 600; color: #1a2e4a; margin: 0 0 2px; }
+      .nb-accent-header__edu-inst { font-size: 10px; color: #5a7a9a; margin: 0 0 2px; }
+      .nb-accent-header__edu-date { font-size: 10px; color: #8aa8c8; margin: 0; }
+
+      /* ──────────────────────────────────────────────────────────────
+         Sidebar Bold template — mirrors components/templates/Sidebar
+         Bold.tsx. Two-column dark-navy sidebar + white main area.
+         ─────────────────────────────────────────────────────────── */
+      .nb-sidebar-bold { display: grid; grid-template-columns: 220px 1fr; min-height: 100%; font-family: 'Segoe UI', system-ui, sans-serif; font-size: 12px; line-height: 1.5; color: #1a2233; }
+      .nb-sidebar-bold__sidebar { background: #1a2e4a; color: #e8edf5; padding: 28px 18px; display: flex; flex-direction: column; gap: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .nb-sidebar-bold__name-block { margin-bottom: 20px; }
+      .nb-sidebar-bold__name { font-size: 18px; font-weight: 700; color: #ffffff; line-height: 1.25; margin: 0 0 4px; word-break: break-word; }
+      .nb-sidebar-bold__role { font-size: 11px; color: #7eb8e8; text-transform: uppercase; letter-spacing: 0.06em; margin: 0; }
+      .nb-sidebar-bold__divider { height: 1px; background: rgba(255,255,255,0.15); margin: 0 0 16px; }
+      .nb-sidebar-bold__section { margin-bottom: 18px; page-break-inside: avoid; break-inside: avoid; }
+      .nb-sidebar-bold__section-title { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #7eb8e8; margin: 0 0 8px; padding-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+      .nb-sidebar-bold__contact-item { font-size: 10px; color: #c8d8ea; margin: 0 0 4px; word-break: break-all; }
+      .nb-sidebar-bold__contact-item--link { color: #7eb8e8; }
+      .nb-sidebar-bold__skill-list { list-style: none; margin: 0; padding: 0; }
+      .nb-sidebar-bold__skill-item { font-size: 10px; color: #e8edf5; padding: 2px 0; display: flex; align-items: center; gap: 6px; }
+      .nb-sidebar-bold__skill-item::before { content: ''; display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: #7eb8e8; flex-shrink: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .nb-sidebar-bold__edu-item { margin-bottom: 10px; }
+      .nb-sidebar-bold__edu-degree { font-size: 10px; font-weight: 600; color: #e8edf5; margin: 0 0 2px; }
+      .nb-sidebar-bold__edu-inst { font-size: 10px; color: #a8bdd0; margin: 0 0 2px; }
+      .nb-sidebar-bold__edu-date { font-size: 9px; color: #7eb8e8; margin: 0; }
+      .nb-sidebar-bold__main { padding: 28px 24px; background: #ffffff; }
+      .nb-sidebar-bold__content-section { margin-bottom: 22px; page-break-inside: avoid; break-inside: avoid; }
+      .nb-sidebar-bold__content-title { font-size: 13px; font-weight: 700; color: #1a2e4a; text-transform: uppercase; letter-spacing: 0.06em; margin: 0 0 10px; padding-bottom: 5px; border-bottom: 2px solid #1a2e4a; }
+      .nb-sidebar-bold__summary { font-size: 11px; color: #3a4a5c; line-height: 1.6; margin: 0; }
+      .nb-sidebar-bold__exp-item { margin-bottom: 14px; page-break-inside: avoid; break-inside: avoid; }
+      .nb-sidebar-bold__exp-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 5px; }
+      .nb-sidebar-bold__exp-role { font-size: 12px; font-weight: 600; color: #1a2e4a; margin: 0 0 2px; }
+      .nb-sidebar-bold__exp-company { font-size: 11px; color: #5a7a9a; margin: 0; font-style: italic; }
+      .nb-sidebar-bold__exp-date { font-size: 10px; color: #7a9ab8; white-space: nowrap; flex-shrink: 0; }
+      .nb-sidebar-bold__exp-bullets { margin: 4px 0 0 14px; padding: 0; list-style: disc; }
+      .nb-sidebar-bold__exp-bullets li { font-size: 10px; color: #3a4a5c; margin-bottom: 2px; line-height: 1.5; }
 `;
 
 export function renderResumeTemplateHtml(input: RenderResumeTemplateHtmlInput): RenderResumeTemplateHtmlOutput {
   const resume = input?.resumeData || {};
   const templateId = resolveExportTemplateId(input?.templateId, resume?.templateId);
   const fingerprint = `TEMPLATE_FINGERPRINT:${templateId}`;
-  const title = escapeHtml(templateFullNameOrTitle(resume));
+  // The page <title> uses the resume's document title (what the user
+  // named the resume — e.g. "Principal Engineer Resume"). The h1
+  // inside the body still uses the person's full name so that
+  // pdf-parse can recover the candidate during ATS PDF round-trips.
+  const docTitle = String(resume?.title || '').trim() || templateFullNameOrTitle(resume);
+  const title = escapeHtml(docTitle);
   const body = renderTemplateBody(templateId, resume);
   const mode = input.mode;
   const html = `
@@ -4196,29 +4433,296 @@ function renderCreativeTemplateArticle(resume: any) {
 }
 
 function renderSidebarBoldTemplateArticle(resume: any) {
+  // Mirror components/templates/SidebarBold.tsx byte-for-byte so the
+  // downloaded PDF matches the live preview. Previously emitted
+  // ats-template--sidebar-bold (single-column with a header band) —
+  // a completely different layout from the two-column React preview.
   const normalized = normalizeTemplateResumeData(resume);
+  const fullName = escapeHtml(templateFullNameOrTitle(normalized));
+  const role = String(normalized?.title || '').trim();
+  const hasRoleSubtitle = role && normalized?.contact?.fullName;
+  const summary = String(normalized.summary || '').trim();
+
+  const displaySkills = nonOverlappingMainSkills(normalized);
+  const softSkills = templateCleanList(normalized.softSkills);
+  const displaySoft = softSkills;
+
+  const languages = templateCleanList(normalized.languages);
+  const experience = templateExperienceItems(normalized);
+  const projects = templateProjectItems(normalized);
+  const education = templateEducationItems(normalized);
+  const certifications = templateCertificationItems(normalized);
+
+  const email = String(normalized?.contact?.email || '').trim();
+  const phone = String(normalized?.contact?.phone || '').trim();
+  const location = String(normalized?.contact?.location || '').trim();
+  const links = templateCleanList(normalized?.contact?.links);
+
+  const sidebarContact = `
+        <div class="nb-sidebar-bold__section">
+          <h2 class="nb-sidebar-bold__section-title">Contact</h2>
+          ${email ? `<p class="nb-sidebar-bold__contact-item">${escapeHtml(email)}</p>` : ''}
+          ${phone ? `<p class="nb-sidebar-bold__contact-item">${escapeHtml(phone)}</p>` : ''}
+          ${location ? `<p class="nb-sidebar-bold__contact-item">${escapeHtml(location)}</p>` : ''}
+          ${links.map((l) => `<p class="nb-sidebar-bold__contact-item nb-sidebar-bold__contact-item--link">${escapeHtml(l)}</p>`).join('')}
+        </div>`;
+
+  const sidebarSkills = displaySkills.length ? `
+        <div class="nb-sidebar-bold__section">
+          <h2 class="nb-sidebar-bold__section-title">Skills</h2>
+          <ul class="nb-sidebar-bold__skill-list">
+            ${displaySkills.map((s) => `<li class="nb-sidebar-bold__skill-item">${escapeHtml(s)}</li>`).join('')}
+          </ul>
+        </div>` : '';
+
+  const sidebarSoft = displaySoft.length ? `
+        <div class="nb-sidebar-bold__section">
+          <h2 class="nb-sidebar-bold__section-title">Soft Skills</h2>
+          <ul class="nb-sidebar-bold__skill-list">
+            ${displaySoft.map((s) => `<li class="nb-sidebar-bold__skill-item">${escapeHtml(s)}</li>`).join('')}
+          </ul>
+        </div>` : '';
+
+  const sidebarLanguages = languages.length ? `
+        <div class="nb-sidebar-bold__section">
+          <h2 class="nb-sidebar-bold__section-title">Languages</h2>
+          ${languages.map((l) => `<p class="nb-sidebar-bold__contact-item">${escapeHtml(l)}</p>`).join('')}
+        </div>` : '';
+
+  const sidebarEducation = education.length ? `
+        <div class="nb-sidebar-bold__section">
+          <h2 class="nb-sidebar-bold__section-title">Education</h2>
+          ${education.map((it) => {
+            const dateRange = templateDateRange(String(it.startDate || ''), String(it.endDate || ''));
+            return `
+            <div class="nb-sidebar-bold__edu-item">
+              <p class="nb-sidebar-bold__edu-degree">${escapeHtml(it.degree || 'Degree')}</p>
+              ${it.institution ? `<p class="nb-sidebar-bold__edu-inst">${escapeHtml(it.institution)}</p>` : ''}
+              ${dateRange ? `<p class="nb-sidebar-bold__edu-date">${escapeHtml(dateRange)}</p>` : ''}
+            </div>`;
+          }).join('')}
+        </div>` : '';
+
+  const sidebarCerts = certifications.length ? `
+        <div class="nb-sidebar-bold__section">
+          <h2 class="nb-sidebar-bold__section-title">Certifications</h2>
+          ${certifications.map((it) => `
+            <div class="nb-sidebar-bold__edu-item">
+              <p class="nb-sidebar-bold__edu-degree">${escapeHtml(it.name || '')}</p>
+              ${it.issuer ? `<p class="nb-sidebar-bold__edu-inst">${escapeHtml(it.issuer)}</p>` : ''}
+            </div>`).join('')}
+        </div>` : '';
+
+  const profileSection = summary ? `
+        <section class="nb-sidebar-bold__content-section">
+          <h2 class="nb-sidebar-bold__content-title">Profile</h2>
+          <p class="nb-sidebar-bold__summary">${escapeHtml(summary)}</p>
+        </section>` : '';
+
+  const experienceSection = experience.length ? `
+        <section class="nb-sidebar-bold__content-section">
+          <h2 class="nb-sidebar-bold__content-title">Experience</h2>
+          ${experience.map((it) => {
+            const dateRange = templateDateRange(String(it.startDate || ''), String(it.endDate || ''));
+            const highlights = templateCleanList(it.highlights);
+            return `
+            <div class="nb-sidebar-bold__exp-item">
+              <div class="nb-sidebar-bold__exp-header">
+                <div>
+                  <h3 class="nb-sidebar-bold__exp-role">${escapeHtml(it.role || 'Role')}</h3>
+                  ${it.company ? `<p class="nb-sidebar-bold__exp-company">${escapeHtml(it.company)}</p>` : ''}
+                </div>
+                ${dateRange ? `<span class="nb-sidebar-bold__exp-date">${escapeHtml(dateRange)}</span>` : ''}
+              </div>
+              ${highlights.length ? `
+              <ul class="nb-sidebar-bold__exp-bullets">
+                ${highlights.map((h) => `<li>${escapeHtml(h)}</li>`).join('')}
+              </ul>` : ''}
+            </div>`;
+          }).join('')}
+        </section>` : '';
+
+  const projectsSection = projects.length ? `
+        <section class="nb-sidebar-bold__content-section">
+          <h2 class="nb-sidebar-bold__content-title">Projects</h2>
+          ${projects.map((it) => {
+            const dateRange = templateDateRange(String(it.startDate || ''), String(it.endDate || ''));
+            const highlights = templateCleanList(it.highlights);
+            return `
+            <div class="nb-sidebar-bold__exp-item">
+              <div class="nb-sidebar-bold__exp-header">
+                <h3 class="nb-sidebar-bold__exp-role">${escapeHtml(it.name || 'Project')}</h3>
+                ${dateRange ? `<span class="nb-sidebar-bold__exp-date">${escapeHtml(dateRange)}</span>` : ''}
+              </div>
+              ${highlights.length ? `
+              <ul class="nb-sidebar-bold__exp-bullets">
+                ${highlights.map((h) => `<li>${escapeHtml(h)}</li>`).join('')}
+              </ul>` : ''}
+            </div>`;
+          }).join('')}
+        </section>` : '';
+
   return `
-    <article class="ats-template ats-template--sidebar-bold">
-      ${templateHeader(normalized, { bar: true })}
-      ${renderOrderedSections(normalized, {
-        companyJoiner: ' | ',
-        divided: true,
-        labels: { summary: 'Profile' },
-      })}
+    <article class="nb-sidebar-bold">
+      <aside class="nb-sidebar-bold__sidebar">
+        <div class="nb-sidebar-bold__name-block">
+          <h1 class="nb-sidebar-bold__name">${fullName}</h1>
+          ${hasRoleSubtitle ? `<p class="nb-sidebar-bold__role">${escapeHtml(role)}</p>` : ''}
+        </div>
+        <div class="nb-sidebar-bold__divider"></div>
+        ${sidebarContact}
+        ${sidebarSkills}
+        ${sidebarSoft}
+        ${sidebarLanguages}
+        ${sidebarEducation}
+        ${sidebarCerts}
+      </aside>
+      <main class="nb-sidebar-bold__main">
+        ${profileSection}
+        ${experienceSection}
+        ${projectsSection}
+      </main>
     </article>
   `;
 }
 
 function renderAccentHeaderTemplateArticle(resume: any) {
+  // Mirror the React component (components/templates/AccentHeader.tsx)
+  // byte-for-byte. The live preview renders that component; the PDF
+  // export used to emit a totally different "ats-template--accent-
+  // header" structure with comma-separated skills and no header band,
+  // so the downloaded resume looked like Classic ATS instead of the
+  // styled template the user picked. Same class names + same DOM
+  // shape here, paired with the CSS appended to ATS_TEMPLATE_EXPORT_
+  // CSS, give the puppeteer-printed PDF the same blue band, skill
+  // chips, timeline dots, and two-column lower grid as the preview.
   const normalized = normalizeTemplateResumeData(resume);
+  const fullName = escapeHtml(templateFullNameOrTitle(normalized));
+  const role = String(normalized.title || normalized?.contact?.title || '').trim();
+  const hasRoleSubtitle = role && normalized?.contact?.fullName;
+  const contact = templateContactLine(normalized);
+  const summary = String(normalized.summary || '').trim();
+
+  const displaySkills = nonOverlappingMainSkills(normalized);
+  const softSkills = templateCleanList(normalized.softSkills);
+
+  const languages = templateCleanList(normalized.languages);
+  const experience = templateExperienceItems(normalized);
+  const projects = templateProjectItems(normalized);
+  const education = templateEducationItems(normalized);
+  const certifications = templateCertificationItems(normalized);
+
+  const renderTimelineItem = (
+    role: string,
+    company: string,
+    dateRange: string,
+    highlights: string[],
+  ) => `
+        <div class="nb-accent-header__item">
+          <div class="nb-accent-header__item-header">
+            <div class="nb-accent-header__item-dot"></div>
+            <div class="nb-accent-header__item-meta">
+              <span class="nb-accent-header__item-role">${escapeHtml(role || 'Role')}</span>
+              ${company ? `<span class="nb-accent-header__item-company"> · ${escapeHtml(company)}</span>` : ''}
+              ${dateRange ? `<span class="nb-accent-header__item-date">${escapeHtml(dateRange)}</span>` : ''}
+            </div>
+          </div>
+          ${highlights.length ? `
+          <ul class="nb-accent-header__bullets">
+            ${highlights.map((h) => `<li>${escapeHtml(h)}</li>`).join('')}
+          </ul>` : ''}
+        </div>`;
+
+  const summarySection = summary ? `
+      <section class="nb-accent-header__section">
+        <h2 class="nb-accent-header__section-title">About Me</h2>
+        <p class="nb-accent-header__summary">${escapeHtml(summary)}</p>
+      </section>` : '';
+
+  const skillsSection = displaySkills.length ? `
+      <section class="nb-accent-header__section">
+        <h2 class="nb-accent-header__section-title">Skills</h2>
+        <div class="nb-accent-header__skills-wrap">
+          ${displaySkills.map((s) => `<span class="nb-accent-header__skill-pill">${escapeHtml(s)}</span>`).join('')}
+          ${softSkills.map((s) => `<span class="nb-accent-header__skill-pill nb-accent-header__skill-pill--soft">${escapeHtml(s)}</span>`).join('')}
+        </div>
+      </section>` : '';
+
+  const experienceSection = experience.length ? `
+      <section class="nb-accent-header__section">
+        <h2 class="nb-accent-header__section-title">Experience</h2>
+        ${experience.map((it) => renderTimelineItem(
+          String(it.role || ''),
+          String(it.company || ''),
+          templateDateRange(it.startDate, it.endDate),
+          templateCleanList(it.highlights),
+        )).join('')}
+      </section>` : '';
+
+  const projectsSection = projects.length ? `
+      <section class="nb-accent-header__section">
+        <h2 class="nb-accent-header__section-title">Projects</h2>
+        ${projects.map((it) => renderTimelineItem(
+          String(it.name || 'Project'),
+          '',
+          templateDateRange(it.startDate || '', it.endDate || ''),
+          templateCleanList(it.highlights),
+        )).join('')}
+      </section>` : '';
+
+  const educationCol = education.length ? `
+        <section class="nb-accent-header__section">
+          <h2 class="nb-accent-header__section-title">Education</h2>
+          ${education.map((it) => {
+            const dateRange = templateDateRange(String(it.startDate || ''), String(it.endDate || ''));
+            return `
+            <div class="nb-accent-header__edu-item">
+              <p class="nb-accent-header__edu-degree">${escapeHtml(it.degree || 'Degree')}</p>
+              ${it.institution ? `<p class="nb-accent-header__edu-inst">${escapeHtml(it.institution)}</p>` : ''}
+              ${dateRange ? `<p class="nb-accent-header__edu-date">${escapeHtml(dateRange)}</p>` : ''}
+            </div>`;
+          }).join('')}
+        </section>` : '';
+
+  const certsBlock = certifications.length ? `
+          <section class="nb-accent-header__section">
+            <h2 class="nb-accent-header__section-title">Certifications</h2>
+            ${certifications.map((it) => `
+            <div class="nb-accent-header__edu-item">
+              <p class="nb-accent-header__edu-degree">${escapeHtml(it.name || '')}</p>
+              ${it.issuer ? `<p class="nb-accent-header__edu-inst">${escapeHtml(it.issuer)}</p>` : ''}
+            </div>`).join('')}
+          </section>` : '';
+
+  const languagesBlock = languages.length ? `
+          <section class="nb-accent-header__section">
+            <h2 class="nb-accent-header__section-title">Languages</h2>
+            <p class="nb-accent-header__summary">${escapeHtml(languages.join(' · '))}</p>
+          </section>` : '';
+
+  const lowerSection = (educationCol || certsBlock || languagesBlock) ? `
+      <div class="nb-accent-header__lower">
+        ${educationCol}
+        <div>
+          ${certsBlock}
+          ${languagesBlock}
+        </div>
+      </div>` : '';
+
   return `
-    <article class="ats-template ats-template--accent-header">
-      ${templateHeader(normalized, { bar: true })}
-      ${renderOrderedSections(normalized, {
-        companyJoiner: ' | ',
-        divided: true,
-        labels: { summary: 'About Me' },
-      })}
+    <article class="nb-accent-header">
+      <header class="nb-accent-header__band">
+        <h1 class="nb-accent-header__name">${fullName}</h1>
+        ${hasRoleSubtitle ? `<p class="nb-accent-header__title">${escapeHtml(role)}</p>` : ''}
+        ${contact ? `<p class="nb-accent-header__contact">${escapeHtml(contact)}</p>` : ''}
+      </header>
+      <div class="nb-accent-header__body">
+        ${summarySection}
+        ${skillsSection}
+        ${experienceSection}
+        ${projectsSection}
+        ${lowerSection}
+      </div>
     </article>
   `;
 }
@@ -4241,6 +4745,7 @@ type SectionLabelOverrides = Partial<{
   skills: string;
   experience: string;
   projects: string;
+  achievements: string;
   education: string;
   certifications: string;
   languages: string;
@@ -4268,6 +4773,7 @@ function renderOrderedSections(
   const softSkills = templateCleanList(resume.softSkills);
   const mergedSkills = dedupeSkills([...skills, ...technicalSkills, ...softSkills]);
   const languages = templateCleanList(resume.languages);
+  const achievements = templateCleanList(resume.achievements);
   const experience = templateExperienceItems(resume);
   const projects = templateProjectItems(resume);
   const education = templateEducationItems(resume);
@@ -4334,12 +4840,22 @@ function renderOrderedSections(
         <p>${escapeHtml(languages.join(', '))}</p>
       </section>
     ` : '';
+  const achievementsHeading = labels.achievements || 'Achievements';
+  const achievementsSection = achievements.length ? `
+      <section class="${sectionClass}">
+        ${heading(achievementsHeading)}
+        <ul class="ats-item">
+          ${achievements.map((a) => `<li>${escapeHtml(a)}</li>`).join('')}
+        </ul>
+      </section>
+    ` : '';
 
   sections.push(summarySection);
   if (options.educationFirst) {
     sections.push(educationSection);
     sections.push(experienceSection);
     if (projectsSection) sections.push(projectsSection);
+    if (achievementsSection) sections.push(achievementsSection);
     if (certificationsSection) sections.push(certificationsSection);
     sections.push(skillsSection);
   } else if (options.certificationsFirst) {
@@ -4348,10 +4864,12 @@ function renderOrderedSections(
     sections.push(experienceSection);
     sections.push(skillsSection);
     if (projectsSection) sections.push(projectsSection);
+    if (achievementsSection) sections.push(achievementsSection);
   } else {
     sections.push(skillsSection);
     sections.push(experienceSection);
     if (projectsSection) sections.push(projectsSection);
+    if (achievementsSection) sections.push(achievementsSection);
     sections.push(educationSection);
     if (certificationsSection) sections.push(certificationsSection);
   }

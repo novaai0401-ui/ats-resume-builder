@@ -73,6 +73,9 @@ export const CreateResumeSchema = z.object({
   education: z.array(EducationSchema).optional(),
   projects: z.array(ProjectSchema).optional(),
   certifications: z.array(CertificationSchema).optional(),
+  /** Standalone achievement statements (awards, recognitions, key wins).
+   *  Modeled as a plain string list like skills / languages. */
+  achievements: z.array(z.string()).optional(),
   templateId: z.string().trim().min(1).optional(),
 });
 
@@ -88,6 +91,7 @@ export const UpdateResumeSchema = z.object({
   education: z.array(EducationSchema).optional(),
   projects: z.array(ProjectSchema).optional(),
   certifications: z.array(CertificationSchema).optional(),
+  achievements: z.array(z.string()).optional(),
   templateId: z.string().trim().min(1).optional(),
 });
 

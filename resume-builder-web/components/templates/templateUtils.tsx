@@ -48,6 +48,34 @@ export function allSkills(resumeData: ResumeImportResult) {
   return merged;
 }
 
+/**
+ * Resolve the list of skills to render in the "main" Skills section,
+ * never overlapping the list rendered in the soft-skills section.
+ *
+ * Background — the bug this fixes: every visual template did
+ *   const displaySkills = techSkills.length ? techSkills : skills;
+ * Where `skills = allSkills(normalized)` ALREADY contains every soft
+ * skill (allSkills merges all three buckets). When techSkills was
+ * empty (the common case for users who just type into the single
+ * "Skills" field), the soft-skills section then RE-rendered every
+ * item already shown in the main skills section — visible as
+ * duplicate fields in the downloaded PDF.
+ *
+ * Behaviour:
+ *  - If technicalSkills is populated, use that verbatim (user has
+ *    explicitly split tech / soft and we honour their split).
+ *  - Otherwise return the merged-all-skills list MINUS anything that
+ *    also appears in softSkills, case-insensitively.
+ */
+export function nonOverlappingMainSkills(resumeData: ResumeImportResult): string[] {
+  const tech = cleanList(resumeData.technicalSkills);
+  if (tech.length) return tech;
+  const merged = allSkills(resumeData);
+  const softSet = new Set(cleanList(resumeData.softSkills).map((s) => s.toLowerCase()));
+  if (softSet.size === 0) return merged;
+  return merged.filter((s) => !softSet.has(s.toLowerCase()));
+}
+
 export function contactLine(resumeData: ResumeImportResult) {
   const parts = [
     resumeData.contact?.email,
@@ -84,4 +112,8 @@ export function certificationItems(resumeData: ResumeImportResult) {
   return (resumeData.certifications || []).filter((item) => {
     return Boolean(String(item.name || '').trim() || cleanList(item.details || []).length);
   });
+}
+
+export function achievementItems(resumeData: ResumeImportResult): string[] {
+  return cleanList((resumeData as { achievements?: string[] }).achievements || []);
 }

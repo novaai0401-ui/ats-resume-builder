@@ -40,6 +40,7 @@ export type {
   SkillGapResult,
   User,
 } from 'resume-builder-shared';
+import { getByokHeader } from './byok-storage';
 
 export type AuthResponse = { user: User; accessToken: string; refreshToken: string; expiresAt?: string };
 /** @deprecated Email OTP is no longer used for auth. Use social login or password. */
@@ -535,10 +536,18 @@ export function startSessionHeartbeat() {
     }).catch(() => undefined);
   };
   pingNow();
-  window.setInterval(() => {
+  // In Node-based tests (jsdom + node:test) this interval would keep
+  // the event loop alive forever and force the runner to SIGKILL the
+  // file. Use Node's setInterval + unref so production browsers behave
+  // exactly as before, but the test process can exit cleanly when no
+  // other handles remain.
+  const handle = setInterval(() => {
     void ensureSessionActive();
     pingNow();
   }, 120_000);
+  if (typeof (handle as unknown as { unref?: () => void })?.unref === 'function') {
+    (handle as unknown as { unref: () => void }).unref();
+  }
 }
 
 function parseCsvSet(raw?: string) {
@@ -1379,6 +1388,10 @@ export const api = {
   chatSahaayak: (message: string, region: string = 'IN') =>
     request<SahaayakChatResult>('/sahaayak/chat', {
       method: 'POST',
+      // Attach BYOK headers when the free-tier user has plugged in
+      // their own AI key. The headers are absent for paid users (the
+      // helper returns null) so this is a no-op for them.
+      headers: { ...(getByokHeader() || {}) },
       body: JSON.stringify({ message, region }),
     }),
   listSahaayakMessages: (limit = 30) =>
@@ -1547,3 +1560,34 @@ export type LearnedPattern = {
   reviewedAt?: string | null;
   createdAt: string;
 };
+
+// ---------------------------------------------------------------------------
+// Training-dataset consent (Phase 8).
+// ---------------------------------------------------------------------------
+
+export type TrainingConsentState = {
+  enabled: boolean;
+  version: number;
+  noticeSeen: boolean;
+  acceptedAt: string | null;
+  notice: { version: number; title: string; body: string };
+};
+
+export function getTrainingConsent() {
+  return request<TrainingConsentState>('/me/training-consent', { method: 'GET' });
+}
+
+export function setTrainingConsent(enabled: boolean) {
+  return request<{ ok: true; enabled: boolean }>('/me/training-consent', {
+    method: 'PATCH',
+    body: JSON.stringify({ enabled }),
+  });
+}
+
+export function acknowledgeTrainingNotice() {
+  return request<{ ok: true }>('/me/training-consent/notice-seen', { method: 'POST' });
+}
+
+export function purgeTrainingSamples() {
+  return request<{ deleted: number }>('/me/training-samples', { method: 'DELETE' });
+}

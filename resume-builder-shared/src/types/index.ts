@@ -26,6 +26,7 @@ export type Resume = {
   education: EducationItem[];
   projects?: ProjectItem[];
   certifications?: CertificationItem[];
+  achievements?: string[];
   templateId?: string;
   createdAt: string;
   updatedAt: string;
@@ -43,6 +44,7 @@ export type ResumeImportResult = {
   education: EducationItem[];
   projects?: ProjectItem[];
   certifications?: CertificationItem[];
+  achievements?: string[];
   roleLevel?: 'FRESHER' | 'MID' | 'SENIOR';
   unmappedText?: string;
   text?: string;
@@ -58,6 +60,7 @@ export type ResumeImportResult = {
     education: EducationItem[];
     projects?: ProjectItem[];
     certifications?: CertificationItem[];
+  achievements?: string[];
     roleLevel?: 'FRESHER' | 'MID' | 'SENIOR';
     unmappedText?: string;
   };

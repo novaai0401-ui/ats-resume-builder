@@ -20,6 +20,7 @@ export type SectionType =
   | 'experience'
   | 'education'
   | 'projects'
+  | 'achievements'
   | 'certifications';
 
 export type SectionState = {
@@ -225,6 +226,10 @@ export function draftFromImport(parsed: ResumeImportResult): { resume: ResumeDra
     }))
     .filter((item) => item.name);
 
+  const achievements = ((parsed as { achievements?: string[] }).achievements || [])
+    .map((a) => String(a || '').trim())
+    .filter(Boolean);
+
   const importNotes = [
     parsed.unmappedText || '',
     ...droppedExperience,
@@ -254,6 +259,7 @@ export function draftFromImport(parsed: ResumeImportResult): { resume: ResumeDra
       education: mappableEducation,
       projects,
       certifications,
+      achievements,
       templateId: '',
     },
     unmappedText: importNotes,
@@ -519,6 +525,47 @@ export function buildResumePayload(resume: ResumeDraft, sections: SectionState[]
     softSkills: resume.softSkills || [],
     languages: resume.languages || [],
   });
+
+  // Optional sections (languages / projects / certifications) default to
+  // ENABLED (see getDefaultSections), so a normal upload never loses
+  // extracted data. When the user EXPLICITLY removes a section, we honour
+  // it and drop the data — that's what "Remove" means. (We used to force-
+  // save removed sections, which made it impossible to delete a phantom
+  // project the extractor created and produced an un-saveable resume.)
+
+  // Drop project entries that have neither a real name nor any highlight —
+  // an extractor can emit a placeholder "Project" with empty fields, and
+  // the server schema rejects an empty role/url, making the whole save
+  // fail. Empty optional sub-fields are sent as undefined, never "".
+  const cleanProjects = resume.projects
+    .map((item) => {
+      const name = item.name.trim();
+      const highlights = item.highlights.map((line) => line.trim()).filter(Boolean);
+      const role = item.role?.trim();
+      const url = normalizeOptionalHttpsUrl(item.url);
+      return {
+        name,
+        role: role || undefined,
+        startDate: normalizeOptionalDateForPayload(item.startDate),
+        endDate: normalizeOptionalDateForPayload(item.endDate),
+        url: url || undefined,
+        highlights,
+      };
+    })
+    .filter((p) => p.name.length > 0 || p.highlights.length > 0);
+
+  // Same treatment for certifications: an entry needs at least a name;
+  // issuer is optional and sent as undefined when blank so the server's
+  // ">=2 chars if present" rule never trips on an empty string.
+  const cleanCertifications = resume.certifications
+    .map((item) => ({
+      name: item.name.trim(),
+      issuer: item.issuer?.trim() || undefined,
+      date: normalizeOptionalDateForPayload(item.date),
+      details: (item.details || []).map((line) => line.trim()).filter(Boolean),
+    }))
+    .filter((c) => c.name.length > 0);
+
   const payload = {
     title: resume.title.trim() || resume.contact.fullName.trim() || 'Resume',
     contact: enabled.has('contact') ? trimmedContact : undefined,
@@ -526,9 +573,7 @@ export function buildResumePayload(resume: ResumeDraft, sections: SectionState[]
     skills: enabled.has('skills') ? skillCategories.skills : [],
     technicalSkills: enabled.has('skills') ? skillCategories.technicalSkills : [],
     softSkills: enabled.has('skills') ? skillCategories.softSkills : [],
-    languages: enabled.has('languages') || skillCategories.languages.length
-      ? skillCategories.languages
-      : [],
+    languages: enabled.has('languages') ? skillCategories.languages : [],
     experience: enabled.has('experience')
       ? resume.experience.map((item) => ({
         company: item.company.trim(),
@@ -549,23 +594,10 @@ export function buildResumePayload(resume: ResumeDraft, sections: SectionState[]
         percentage: item.percentage ?? null,
       }))
       : [],
-    projects: enabled.has('projects')
-      ? resume.projects.map((item) => ({
-        name: item.name.trim(),
-        role: item.role?.trim(),
-        startDate: normalizeOptionalDateForPayload(item.startDate),
-        endDate: normalizeOptionalDateForPayload(item.endDate),
-        url: normalizeOptionalHttpsUrl(item.url),
-        highlights: item.highlights.map((line) => line.trim()).filter(Boolean),
-      }))
-      : [],
-    certifications: enabled.has('certifications')
-      ? resume.certifications.map((item) => ({
-        name: item.name.trim(),
-        issuer: item.issuer?.trim(),
-        date: normalizeOptionalDateForPayload(item.date),
-        details: (item.details || []).map((line) => line.trim()).filter(Boolean),
-      }))
+    projects: enabled.has('projects') ? cleanProjects : [],
+    certifications: enabled.has('certifications') ? cleanCertifications : [],
+    achievements: enabled.has('achievements')
+      ? (resume.achievements || []).map((a) => a.trim()).filter(Boolean)
       : [],
     templateId: resume.templateId?.trim() || undefined,
   };
@@ -625,6 +657,7 @@ export function buildResumePreview(resume: ResumeDraft): ResumeImportResult {
         details: (item.details || []).map((line) => line.trim()).filter(Boolean),
       }))
       .filter((item) => item.name),
+    achievements: (resume.achievements || []).map((a) => a.trim()).filter(Boolean),
   };
   return normalizeResumeForAts(preview);
 }
@@ -693,6 +726,9 @@ export function resumeFromApi(resume: Resume): ResumeDraft {
       date: item.date?.trim(),
       details: (item.details || []).map((line) => line.trim()).filter(Boolean),
     })),
+    achievements: ((resume as { achievements?: string[] }).achievements || [])
+      .map((a) => String(a || '').trim())
+      .filter(Boolean),
     templateId: resume.templateId || '',
   };
 }

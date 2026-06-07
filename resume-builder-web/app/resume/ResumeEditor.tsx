@@ -41,7 +41,9 @@ import { AutocompleteInput } from '@/src/components/AutocompleteInput';
 import FreeAiNotice from '@/src/components/FreeAiNotice';
 import PostDownloadSubscriptionPopup from '@/src/components/PostDownloadSubscriptionPopup';
 import DownloadChargeModal from '@/src/components/DownloadChargeModal';
-import { compareYearMonth, isPresentToken, isYearMonth, toMonthInputValue, toYearMonth } from '@/src/lib/date-utils';
+import { applySinglePresentRule, compareYearMonth, isPresentToken, isYearMonth, toMonthInputValue, toYearMonth } from '@/src/lib/date-utils';
+import { detectIncompleteText } from '@/src/lib/text-completeness';
+import { shouldSkipServerHydration } from '@/src/lib/load-effect-gate';
 import {
   buildCompanySuggestions,
   mergeCompanyPools,
@@ -112,6 +114,7 @@ type ResumeDraft = {
   education: EducationItem[];
   projects: ProjectItem[];
   certifications: CertificationItem[];
+  achievements: string[];
   templateId?: string;
 };
 
@@ -123,6 +126,7 @@ type SectionType =
   | 'experience'
   | 'education'
   | 'projects'
+  | 'achievements'
   | 'certifications';
 
 type SectionState = {
@@ -152,6 +156,7 @@ const SECTION_LABELS: Record<SectionType, string> = {
   experience: 'Experience',
   education: 'Education',
   projects: 'Projects',
+  achievements: 'Achievements',
   certifications: 'Certifications',
 };
 
@@ -162,6 +167,7 @@ const SECTION_NAV_ORDER: SectionType[] = [
   'education',
   'skills',
   'projects',
+  'achievements',
   'certifications',
   'languages',
 ];
@@ -174,6 +180,7 @@ const SECTION_NAV_LABELS: Record<SectionType, string> = {
   experience: 'Experience',
   education: 'Education',
   projects: 'Projects',
+  achievements: 'Achievements',
   certifications: 'Certifications',
 };
 
@@ -205,6 +212,10 @@ const SECTION_GUIDANCE: Record<SectionType, { tip: string; helper?: string }> = 
   projects: {
     tip: 'Great for early-career or role-specific work.',
     helper: 'Highlight outcomes, tech stack, and measurable impact.',
+  },
+  achievements: {
+    tip: 'Awards, recognitions, and standout wins — one per line.',
+    helper: 'Each should be a single, results-focused statement (e.g. "Won the Rising Star award twice for high-impact delivery").',
   },
   certifications: {
     tip: 'Add current, relevant certifications.',
@@ -281,6 +292,11 @@ export default function ResumeEditor() {
   const [sections, setSections] = useState<SectionState[]>(() => getDefaultSections());
   const [jdText, setJdText] = useState('');
   const [message, setMessage] = useState('');
+  // True while api.getResume is in flight on initial mount. Prevents
+  // the "blank fields with validation warnings" flash users reported
+  // immediately after upload. Default true when we have a resume id
+  // to load, false otherwise.
+  const [isHydrating, setIsHydrating] = useState(false);
   const [loadingUpload, setLoadingUpload] = useState(false);
   const [loadingAtsNavigation, setLoadingAtsNavigation] = useState(false);
   const [uploadSummary, setUploadSummary] = useState<UploadSummary | null>(null);
@@ -352,6 +368,13 @@ export default function ResumeEditor() {
   const reviewAtsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const actionVerbTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reviewAtsRunRef = useRef(0);
+  // Tracks the resume id we already have content for locally. When
+  // autosave assigns a fresh id, we save it here so the load effect
+  // can skip the pointless round-trip back to api.getResume — that
+  // round-trip was the cause of the "ATS score appears, then vanishes,
+  // then re-appears" flicker. Hydrating from the server when we
+  // already have the same data only re-fires every dependent effect.
+  const locallySettledResumeIdRef = useRef<string>('');
   const snackbarTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingTemplateSaveRef = useRef<Promise<void> | null>(null);
   const templateSaveRunRef = useRef(0);
@@ -565,14 +588,35 @@ export default function ResumeEditor() {
       return;
     }
     if (effectiveResumeId) {
+      // Skip the re-fetch when the id was just assigned by autosave.
+      // The post-autosave flow goes: setResume(local) → autosave →
+      // setResumeId(<new id>) → persistActiveResumeSelection(<id>)
+      // → effectiveResumeId flips '' → '<id>' → THIS effect re-fires.
+      // At that point our local state IS the canonical copy. Re-fetching
+      // overwrites it with a structurally-identical normalized server
+      // copy, which cascades through every dependent effect (ATS panel
+      // resets and re-computes, etc.) — that's the flicker reported in
+      // the post-upload video.
+      if (shouldSkipServerHydration(effectiveResumeId, locallySettledResumeIdRef.current)) {
+        return;
+      }
+      // Only show the hydration loader on the FIRST load (when the
+      // editor is empty). Subsequent re-fetches — e.g. clicking into a
+      // saved resume from the dashboard — show the calm spinner.
+      const isInitialLoad = !hasResumeDraftContent(resume);
+      if (isInitialLoad) setIsHydrating(true);
       api.getResume(effectiveResumeId)
         .then((r) => {
           setResumeId(r.id);
           persistActiveResumeSelection(r.id);
+          locallySettledResumeIdRef.current = r.id;
           const loadedResume = resumeFromImportedApi(r);
           setResume(loadedResume);
         })
-        .catch((err) => setMessage(err instanceof Error ? err.message : 'Failed to load resume'));
+        .catch((err) => setMessage(err instanceof Error ? err.message : 'Failed to load resume'))
+        .finally(() => {
+          if (isInitialLoad) setIsHydrating(false);
+        });
       return;
     }
   }, [effectiveResumeId, normalizedTemplateParam]);
@@ -1046,6 +1090,11 @@ export default function ResumeEditor() {
         setResumeId(result.id);
       }
       persistActiveResumeSelection(result.id);
+      // Mark the id we just saved as already-settled locally so the
+      // load effect doesn't refetch the same resume and cascade a UI
+      // refresh through the ATS panel. Without this the user sees
+      // ATS score → vanish → re-appear after every autosave.
+      locallySettledResumeIdRef.current = result.id;
       clearPendingUploadSession();
       setStatus('saved');
       dirtyRef.current = false;
@@ -1107,7 +1156,20 @@ export default function ResumeEditor() {
     if (!isReviewAtsPage) return;
     if (!getAccessToken()) return;
     const hasContent = hasResumeDraftContent(resume);
-    if (!hasContent) return;
+    if (!hasContent) {
+      // Click silently did nothing before — the button looked broken.
+      // Manual clicks now surface a clear "upload first" message; the
+      // initial / debounce paths still no-op so we don't nag the user
+      // before they've started typing.
+      if (source === 'manual') {
+        setAtsReview((prev) => ({
+          ...prev,
+          loading: false,
+          error: 'Upload a resume or fill in the required sections (Contact, Summary, Experience, Education, Skills) before running an ATS check.',
+        }));
+      }
+      return;
+    }
     const runId = ++reviewAtsRunRef.current;
     setAtsReview((prev) => ({ ...prev, loading: true, error: source === 'manual' ? '' : prev.error }));
     try {
@@ -1633,6 +1695,39 @@ export default function ResumeEditor() {
     router.push(templatePromptHref);
   };
 
+  // Hydration loader: shown while api.getResume is in flight on
+  // initial mount. Without this, users uploaded a resume, landed on
+  // the editor, and saw empty fields + red validation messages for
+  // ~2 seconds before content populated — which read as "the upload
+  // failed". The loader replaces the editor surface entirely so the
+  // user sees a calm spinner instead of a broken-looking form.
+  if (isHydrating) {
+    return (
+      <main className="grid">
+        <section className="card col-12" style={{ textAlign: 'center', padding: '60px 24px' }}>
+          <div
+            aria-label="Loading your resume"
+            role="status"
+            style={{
+              width: 40,
+              height: 40,
+              margin: '0 auto 18px',
+              border: '3px solid #e6ebf1',
+              borderTopColor: '#1a3a5c',
+              borderRadius: '50%',
+              animation: 'rb-spin 0.8s linear infinite',
+            }}
+          />
+          <h2 style={{ margin: '0 0 6px', fontSize: 18, color: '#1b2b3c' }}>Loading your resume…</h2>
+          <p className="small" style={{ margin: 0, color: '#5a6778' }}>
+            Pulling your saved sections so you can pick up where you left off.
+          </p>
+          <style>{`@keyframes rb-spin { to { transform: rotate(360deg); } }`}</style>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main className={isReviewAtsPage ? 'grid review-grid' : 'grid'}>
       <section ref={editorRef} className={`card ${editorColumnClass}`}>
@@ -2103,10 +2198,49 @@ export default function ResumeEditor() {
                   </div>
                 </div>
                 <div className="section-actions">
-                  <button className="btn secondary" onClick={() => updateSectionOrder(idx, -1)} disabled={sectionLocked || idx === 0} aria-label="Move section up">Up</button>
-                  <button className="btn secondary" onClick={() => updateSectionOrder(idx, 1)} disabled={sectionLocked || idx === enabledSections.length - 1} aria-label="Move section down">Down</button>
+                  {/* Stop propagation on every action button — without it,
+                     a click on Up/Down/Remove bubbles up to the parent
+                     section card's onClick, which calls
+                     setActiveStepIndex(...) and renders the section as
+                     editable EVEN WHEN it is gated by the navigation
+                     gate ("Complete earlier required sections to
+                     unlock this step"). User-reported bug. */}
+                  <button
+                    className="btn secondary"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (sectionLocked) return;
+                      updateSectionOrder(idx, -1);
+                    }}
+                    disabled={sectionLocked || idx === 0}
+                    aria-label="Move section up"
+                  >
+                    Up
+                  </button>
+                  <button
+                    className="btn secondary"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (sectionLocked) return;
+                      updateSectionOrder(idx, 1);
+                    }}
+                    disabled={sectionLocked || idx === enabledSections.length - 1}
+                    aria-label="Move section down"
+                  >
+                    Down
+                  </button>
                   {!section.required && (
-                    <button className="btn secondary" onClick={() => disableSection(section.type)} disabled={sectionLocked}>Remove</button>
+                    <button
+                      className="btn secondary"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (sectionLocked) return;
+                        disableSection(section.type);
+                      }}
+                      disabled={sectionLocked}
+                    >
+                      Remove
+                    </button>
                   )}
                 </div>
               </div>
@@ -2202,6 +2336,32 @@ export default function ResumeEditor() {
                     </span>
                     <span className="hint">{SECTION_GUIDANCE.summary.helper}</span>
                   </div>
+                  {/* Truncation warning: an extracted summary that ends
+                     with a conjunction / preposition / hanging comma
+                     was almost certainly cut off (the bug users
+                     reported as "summary ends mid-sentence"). Surface
+                     this as a hard-to-miss orange callout so the user
+                     fixes it before saving. */}
+                  {(() => {
+                    const incomplete = detectIncompleteText(resume.summary);
+                    if (!incomplete.looksIncomplete) return null;
+                    return (
+                      <p
+                        role="alert"
+                        className="hint warn"
+                        style={{
+                          marginTop: 8,
+                          padding: '8px 10px',
+                          background: '#fff4e0',
+                          border: '1px solid #f0c878',
+                          borderRadius: 6,
+                          color: '#7a4a00',
+                        }}
+                      >
+                        ⚠ {incomplete.reason}
+                      </p>
+                    );
+                  })()}
                   {detectedRoleLevel === 'SENIOR' && (
                     <p className="hint">Senior tip: call out scope, team size, and strategic impact.</p>
                   )}
@@ -2348,6 +2508,56 @@ export default function ResumeEditor() {
                 </div>
               )}
 
+              {section.type === 'achievements' && (
+                <div style={{ marginTop: 12 }}>
+                  <div className="field-meta">
+                    <span className={resume.achievements.length ? 'hint good' : 'hint warn'}>
+                      {resume.achievements.length} {resume.achievements.length === 1 ? 'achievement' : 'achievements'}
+                    </span>
+                    <span className="hint">{SECTION_GUIDANCE.achievements.helper}</span>
+                  </div>
+                  {resume.achievements.map((achievement, achIdx) => (
+                    <div key={`achievement-${achIdx}`} style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'flex-start' }}>
+                      <textarea
+                        className="input"
+                        style={{ flex: 1, minHeight: 56 }}
+                        value={achievement}
+                        placeholder="e.g. Won the Rising Star award twice for high-impact delivery"
+                        onChange={(e) => {
+                          const copy = [...resume.achievements];
+                          copy[achIdx] = e.target.value;
+                          setResume((prev) => ({ ...prev, achievements: copy }));
+                          markDirty();
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="btn secondary"
+                        onClick={() => {
+                          const copy = resume.achievements.filter((_, i) => i !== achIdx);
+                          setResume((prev) => ({ ...prev, achievements: copy }));
+                          markDirty();
+                        }}
+                        aria-label="Remove achievement"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    className="btn secondary"
+                    style={{ marginTop: 10 }}
+                    onClick={() => {
+                      setResume((prev) => ({ ...prev, achievements: [...prev.achievements, ''] }));
+                      markDirty();
+                    }}
+                  >
+                    Add achievement
+                  </button>
+                </div>
+              )}
+
               {section.type === 'experience' && (
                 <div className="experience-section" style={{ marginTop: 12 }}>
                   <div className="field-meta" style={{ marginBottom: 8 }}>
@@ -2467,10 +2677,22 @@ export default function ResumeEditor() {
                                   type="checkbox"
                                   checked={endIsPresent}
                                   onChange={(e) => {
-                                    const copy = [...resume.experience];
-                                    copy[expIdx] = { ...copy[expIdx], endDate: e.target.checked ? 'Present' : '' };
-                                    setResume((prev) => ({ ...prev, experience: copy }));
+                                    const { experiences: next, clearedIndexes } = applySinglePresentRule(
+                                      resume.experience,
+                                      expIdx,
+                                      e.target.checked,
+                                    );
+                                    setResume((prev) => ({ ...prev, experience: next }));
                                     markDirty();
+                                    if (clearedIndexes.length > 0) {
+                                      // Use 'success' (the editor's neutral-positive
+                                      // toast) — the rule was correctly enforced;
+                                      // it isn't an error from the user's POV.
+                                      showSnackbar(
+                                        'success',
+                                        'Only one role can be marked "Present". Other current roles were cleared — set their end dates explicitly.',
+                                      );
+                                    }
                                   }}
                                 />
                                 Present
@@ -3174,10 +3396,50 @@ export default function ResumeEditor() {
           </div>
         )}
 
-        <label className="label" style={{ marginTop: 16 }}>Target Job Description (optional)</label>
+        <label
+          className="label"
+          style={{ marginTop: 16, display: 'inline-flex', alignItems: 'center', gap: 6 }}
+        >
+          Target Job Description (optional)
+          {/* Plain native tooltip — no extra dep, works in every browser
+             and on mobile via long-press. Spells out what the JD is
+             actually used for so the user doesn't leave the box empty
+             out of confusion. */}
+          <span
+            tabIndex={0}
+            role="img"
+            aria-label="What is this for?"
+            title={
+              'Paste the job ad you are targeting. We use it to:\n' +
+              '  • compare against your resume and surface missing keywords (JD Match),\n' +
+              '  • tailor AI critique and bullet rewrites toward the role,\n' +
+              '  • generate a tailored cover letter that mirrors the JD language.\n\n' +
+              'Nothing here is required to save the resume or to get a base ATS score.\n' +
+              'The JD is not sent anywhere except our AI provider for the features above,\n' +
+              'and is not stored permanently on the server.'
+            }
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 18,
+              height: 18,
+              borderRadius: '50%',
+              background: '#e8edf2',
+              color: '#1a3a5c',
+              fontSize: 11,
+              fontWeight: 700,
+              cursor: 'help',
+              userSelect: 'none',
+            }}
+          >
+            ?
+          </span>
+        </label>
         <textarea className="input" style={{ minHeight: 120 }} value={jdText} onChange={(e) => setJdText(e.target.value)} />
         <p className="hint" style={{ marginTop: 8 }}>
-          Paste the job description to get ATS match suggestions. Leaving it blank won&apos;t affect your resume score.
+          Paste the job description to get ATS match suggestions and tailor AI rewrites + cover letter to this role.
+          Hover the <strong>?</strong> above for the full list. Leaving it blank won&apos;t affect your base ATS score.
         </p>
 
         <div style={{ display: 'flex', gap: 12, marginTop: 8, flexWrap: 'wrap' }}>
@@ -3400,7 +3662,7 @@ export default function ResumeEditor() {
                     // it on 'success' (green) rather than the red 'error' tone.
                     showSnackbar(
                       'success',
-                      'No new suggestions to apply. Configure GROQ_API_KEY for AI-powered critique, or edit bullets manually.',
+                      'No new suggestions on the free tier. Upgrade your plan for AI-powered critique, or edit bullets manually.',
                     );
                     return;
                   }
@@ -3744,23 +4006,17 @@ export default function ResumeEditor() {
                   <button
                     className="btn secondary"
                     onClick={() => {
-                      // Print preview is a free read-only experience that
-                      // shows a watermarked view of the resume.  The
-                      // editor page itself doesn't render a full-page
-                      // preview — it's a form, not a canvas — so
-                      // window.print() here produces the empty pages
-                      // users reported.
-                      //
-                      // Route to the template page (which DOES render
-                      // the resume in the chosen layout) and pass
-                      // `?print=1`.  That page reads `rb_plan` from
-                      // localStorage: paid users (STUDENT / PRO) get a
-                      // clean view and clean print/PDF output; free
-                      // users get a diagonal POCKET RESUME watermark on
-                      // both the preview AND the printed / Saved-as-PDF
-                      // output (a fixed overlay Chrome repaints on every
-                      // page), plus a nudge banner pointing to the paid
-                      // Download for a clean copy.
+                      // Print is rendered through a hidden, off-screen
+                      // iframe that loads the template page in print
+                      // mode. The iframe page auto-fires window.print()
+                      // once it has rendered the resume + (for free
+                      // users) committed the watermark overlay to the
+                      // DOM. The browser surfaces ITS print dialog over
+                      // the editor — no new tab, no second visible
+                      // resume render. The iframe is removed after the
+                      // dialog closes (or after a safety timeout, in
+                      // case the user dismisses it without focusing the
+                      // iframe).
                       if (!resumeId) {
                         showSnackbar('error', 'Save the resume first to preview it.');
                         return;
@@ -3768,13 +4024,50 @@ export default function ResumeEditor() {
                       const templateForPreview = String(
                         normalizedTemplateParam || resume.templateId || 'classic',
                       ).trim();
-                      // The template page reads `resumeId` from the
-                      // URL — passing `id` here previously caused it to
-                      // render the "Select a resume to preview" empty
-                      // state, then window.print() snapshotted the
-                      // empty state. Match the param name exactly.
                       const url = `/resume/template?resumeId=${encodeURIComponent(resumeId)}&template=${encodeURIComponent(templateForPreview)}&print=1`;
-                      window.open(url, '_blank', 'noopener');
+
+                      // Reuse the same iframe across clicks so we don't
+                      // accumulate detached frames if the user prints
+                      // multiple times in a session.
+                      const existing = document.getElementById('rb-print-frame') as HTMLIFrameElement | null;
+                      if (existing) existing.remove();
+
+                      const frame = document.createElement('iframe');
+                      frame.id = 'rb-print-frame';
+                      frame.setAttribute('aria-hidden', 'true');
+                      frame.setAttribute('tabindex', '-1');
+                      // Off-screen but still rendered — display:none would
+                      // prevent the iframe's window.print() from working in
+                      // Chromium because the document is treated as not
+                      // visible. Position fixed + 0×0 size works on every
+                      // engine and is invisible to the user.
+                      Object.assign(frame.style, {
+                        position: 'fixed',
+                        right: '0',
+                        bottom: '0',
+                        width: '0',
+                        height: '0',
+                        border: '0',
+                        opacity: '0',
+                        pointerEvents: 'none',
+                      });
+                      frame.src = url;
+                      document.body.appendChild(frame);
+
+                      // Cleanup: after the print dialog closes the
+                      // iframe's afterprint fires. If the dialog never
+                      // opens (popup blocked, plan-hydration stuck) we
+                      // still want to free the frame, so use a 60s
+                      // safety timeout as well.
+                      const cleanup = () => {
+                        try { frame.remove(); } catch { /* gone */ }
+                      };
+                      frame.addEventListener('load', () => {
+                        try {
+                          frame.contentWindow?.addEventListener('afterprint', cleanup);
+                        } catch { /* cross-origin shouldn't happen — same origin */ }
+                      });
+                      setTimeout(cleanup, 60_000);
                     }}
                   >
                     Print preview
@@ -4137,6 +4430,10 @@ function draftFromImport(parsed: ResumeImportResult): { resume: ResumeDraft; unm
     }))
     .filter((item) => item.name);
 
+  const achievements = ((parsed as { achievements?: string[] }).achievements || [])
+    .map((a) => String(a || '').trim())
+    .filter(Boolean);
+
   const importNotes = [
     parsed.unmappedText || '',
     ...droppedExperience,
@@ -4165,6 +4462,7 @@ function draftFromImport(parsed: ResumeImportResult): { resume: ResumeDraft; unm
       education: strictEducation,
       projects,
       certifications,
+      achievements,
     },
     unmappedText: importNotes,
   };
@@ -4210,10 +4508,18 @@ function getEmptyResume(): ResumeDraft {
     education: [],
     projects: [],
     certifications: [],
+    achievements: [],
   };
 }
 
 function getDefaultSections(): SectionState[] {
+  // Optional sections (Languages / Projects / Certifications) default to
+  // enabled so the data the user fills in is never silently discarded
+  // by the save guard in buildResumePayload. Section navigator still
+  // lets the user toggle any of them off if they don't want them in
+  // the final resume; an "off" with no data is harmless, an "off"
+  // with data was the bug users reported as "my certifications
+  // disappeared after I saved".
   return [
     { id: 'sec-contact', type: 'contact', enabled: true, required: true },
     { id: 'sec-summary', type: 'summary', enabled: true, required: true },
@@ -4221,8 +4527,9 @@ function getDefaultSections(): SectionState[] {
     { id: 'sec-education', type: 'education', enabled: true, required: true },
     { id: 'sec-skills', type: 'skills', enabled: true, required: true },
     { id: 'sec-languages', type: 'languages', enabled: true, required: false },
-    { id: 'sec-projects', type: 'projects', enabled: false, required: false },
-    { id: 'sec-certifications', type: 'certifications', enabled: false, required: false },
+    { id: 'sec-projects', type: 'projects', enabled: true, required: false },
+    { id: 'sec-achievements', type: 'achievements', enabled: true, required: false },
+    { id: 'sec-certifications', type: 'certifications', enabled: true, required: false },
   ];
 }
 
@@ -4329,6 +4636,9 @@ function resumeFromApi(resume: Resume): ResumeDraft {
       date: item.date?.trim(),
       details: (item.details || []).map((line) => line.trim()).filter(Boolean),
     })),
+    achievements: ((resume as { achievements?: string[] }).achievements || [])
+      .map((a) => String(a || '').trim())
+      .filter(Boolean),
   };
 }
 
@@ -4342,6 +4652,7 @@ function validateResumeDraft(resume: ResumeDraft, sections: SectionState[]) {
     experience: { level: 'good', text: 'Bullets show action and impact.' },
     education: { level: 'good', text: 'Education is complete.' },
     projects: { level: 'good', text: 'Project outcomes are listed.' },
+    achievements: { level: 'good', text: 'Achievements are listed.' },
     certifications: { level: 'good', text: 'Certifications add credibility.' },
   };
 
@@ -4818,6 +5129,11 @@ function mergeImportedResume(current: ResumeDraft, parsed: ResumeImportResult): 
     education: mergeEducation(current.education, parsed.education || []),
     projects: mergeProjects(current.projects, parsed.projects || []),
     certifications: mergeCertifications(current.certifications, parsed.certifications || []),
+    achievements: (current.achievements && current.achievements.length)
+      ? current.achievements
+      : Array.from(new Set(((parsed as { achievements?: string[] }).achievements || [])
+          .map((a) => String(a || '').trim())
+          .filter(Boolean))),
   };
 }
 

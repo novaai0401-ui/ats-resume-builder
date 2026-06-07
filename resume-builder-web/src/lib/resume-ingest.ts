@@ -116,6 +116,13 @@ function mergeImportedResume(current: ResumeDraft, parsed: ResumeImportResult): 
     education: mergeEducation(current.education, parsed.education || []),
     projects: mergeProjects(current.projects, parsed.projects || []),
     certifications: mergeCertifications(current.certifications, parsed.certifications || []),
+    // Achievements: prefer existing user-entered list; otherwise take the
+    // extracted statements. Deduped, trimmed.
+    achievements: (current.achievements && current.achievements.length)
+      ? current.achievements
+      : Array.from(new Set(((parsed as { achievements?: string[] }).achievements || [])
+          .map((a) => String(a || '').trim())
+          .filter(Boolean))),
   };
 }
 

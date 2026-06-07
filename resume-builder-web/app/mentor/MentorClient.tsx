@@ -191,10 +191,16 @@ export default function MentorClient() {
     <main className="grid">
       <section className="card col-12">
         <h1 style={{ marginBottom: 4 }}>Mentor Mode</h1>
+        <p className="small" style={{ margin: '0 0 6px', color: '#1b2b3c', fontWeight: 600 }}>
+          Career strategy — what to learn next, what recruiters want, what to put on your resume.
+        </p>
         <p className="small" style={{ margin: 0, color: '#5a6778' }}>
           Pick a role and experience level. We&rsquo;ll surface the technologies recruiters
           look for, the keywords that beat ATS scans, and free learning resources to start
-          tomorrow.
+          tomorrow.{' '}
+          <span style={{ color: '#8a98ac' }}>
+            Looking for emotional support instead? Try <a href="/sahaayak" style={{ color: '#1a3a5c' }}>Sahaayak</a>.
+          </span>
         </p>
       </section>
 

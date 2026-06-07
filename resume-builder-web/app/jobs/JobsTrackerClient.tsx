@@ -190,13 +190,37 @@ export default function JobsTrackerClient() {
       </div>
 
       <div className="jobs-stats" aria-label="Pipeline stats">
-        <StatCard label="Total" value={stats.total} />
-        <StatCard label="Active" value={stats.active} tone="active" />
-        <StatCard label="Interviewing" value={stats.byStatus.phone_screen + stats.byStatus.interview} tone="interview" />
-        <StatCard label="Offers" value={stats.byStatus.offer} tone="offer" />
-        <StatCard label="Response rate" value={`${Math.round(stats.responseRate * 100)}%`} tone="rate" />
-        <StatCard label="Offer rate" value={`${Math.round(stats.offerRate * 100)}%`} tone="rate" />
+        <StatCard label="Total" value={stats.total} hint="Every application you've logged on this board." />
+        <StatCard label="Active" value={stats.active} tone="active" hint="Wishlist + Applied + Phone screen + Interview." />
+        <StatCard
+          label="Interviewing"
+          value={stats.byStatus.phone_screen + stats.byStatus.interview}
+          tone="interview"
+          hint="Applications currently in Phone screen or Interview stage."
+        />
+        <StatCard label="Offers" value={stats.byStatus.offer} tone="offer" hint="Applications marked Offer." />
+        <StatCard
+          label="Response rate"
+          value={`${Math.round(stats.responseRate * 100)}%`}
+          tone="rate"
+          hint="Of everything you've Applied to, how many moved past Applied (Phone screen + Interview + Offer). Calculated from your own tracker."
+        />
+        <StatCard
+          label="Offer rate"
+          value={`${Math.round(stats.offerRate * 100)}%`}
+          tone="rate"
+          hint="Of applications that closed (Offer or Rejected), how many became an Offer. Calculated from your own tracker."
+        />
       </div>
+      {/* Plain-language explainer of where the rates come from. Without
+          this, a user with 0% reads it as "the app is broken" instead of
+          "I haven't logged any applications yet." */}
+      {stats.total === 0 ? (
+        <p className="muted" style={{ marginTop: -6, marginBottom: 16, fontSize: 13 }}>
+          The rates above are calculated from <strong>your own tracker</strong> — they fill in as you
+          add applications and move them through the stages below.
+        </p>
+      ) : null}
 
       {error ? (
         <div role="alert" className="alert alert-error jobs-alert">
@@ -395,9 +419,13 @@ export default function JobsTrackerClient() {
   );
 }
 
-function StatCard({ label, value, tone }: { label: string; value: number | string; tone?: string }) {
+function StatCard({ label, value, tone, hint }: { label: string; value: number | string; tone?: string; hint?: string }) {
   return (
-    <div className={`stat-card ${tone ? `stat-card--${tone}` : ''}`}>
+    <div
+      className={`stat-card ${tone ? `stat-card--${tone}` : ''}`}
+      title={hint}
+      aria-label={hint ? `${label}. ${hint}` : label}
+    >
       <div className="stat-card__value">{value}</div>
       <div className="stat-card__label">{label}</div>
     </div>

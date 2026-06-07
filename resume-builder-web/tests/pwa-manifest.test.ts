@@ -27,7 +27,11 @@ test('manifest has required PWA fields', () => {
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as Record<string, unknown>;
   assert.equal(typeof manifest.name, 'string');
   assert.equal(typeof manifest.short_name, 'string');
-  assert.equal(manifest.start_url, '/');
+  // start_url is allowed to carry analytics params (e.g. ?source=pwa)
+  // so we attribute installs separately from web traffic. Just require
+  // an app-relative path.
+  assert.equal(typeof manifest.start_url, 'string');
+  assert.match(String(manifest.start_url), /^\//);
   assert.equal(manifest.display, 'standalone');
   assert.equal(typeof manifest.theme_color, 'string');
   assert.equal(typeof manifest.background_color, 'string');

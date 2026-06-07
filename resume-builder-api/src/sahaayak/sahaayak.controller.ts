@@ -42,10 +42,28 @@ export class SahaayakController {
   }
 
   @Post('chat')
-  chat(@Req() req: AuthedReq, @Body() body: { message?: string; region?: string }) {
+  chat(
+    @Req() req: AuthedReq & { headers?: Record<string, string | string[]> },
+    @Body() body: { message?: string; region?: string },
+  ) {
     const message = String(body?.message || '').trim();
     if (!message) throw new BadRequestException('message is required');
-    return this.service.chat(req.user.userId, message, { region: body?.region });
+    // BYOK headers are optional. If a free-tier user has pasted their
+    // own AI key in Settings, the client sends X-User-AI-Provider +
+    // X-User-AI-Key on every chat request. We use the key for exactly
+    // ONE upstream call and never persist or log it (see byok-factory).
+    const headers = req.headers || {};
+    const headerValue = (name: string) => {
+      const v = headers[name] ?? headers[name.toLowerCase()];
+      return Array.isArray(v) ? v[0] : v;
+    };
+    const byokProvider = headerValue('x-user-ai-provider');
+    const byokKey = headerValue('x-user-ai-key');
+    return this.service.chat(req.user.userId, message, {
+      region: body?.region,
+      byokProvider,
+      byokKey,
+    });
   }
 
   @Get('messages')

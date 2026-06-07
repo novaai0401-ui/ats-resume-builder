@@ -5,7 +5,7 @@ import './globals.css';
 import TopNav from '@/src/components/TopNav';
 import Providers from '@/src/components/Providers';
 import PwaInstaller from '@/src/components/PwaInstaller';
-import SkipToContent from '@/src/components/SkipToContent';
+import TrainingConsentModal from '@/src/components/TrainingConsentModal';
 
 // Site URL is read from env at build time so we can use staging /
 // production hostnames in OpenGraph and canonical tags. Fallback is
@@ -146,6 +146,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             </div>
           </div>
           <PwaInstaller />
+          <TrainingConsentModal />
         </Providers>
       </body>
     </html>
