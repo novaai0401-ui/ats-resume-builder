@@ -18,6 +18,40 @@ function CallbackHandler() {
     // Prevent double-execution in React strict mode
     if (exchangedRef.current) return;
 
+    // LinkedIn OIDC returns tokens in the URL fragment (#accessToken=…) so they
+    // never reach server logs or the Referer header. Handle that first.
+    if (typeof window !== 'undefined' && window.location.hash.includes('accessToken=')) {
+      exchangedRef.current = true;
+      const frag = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+      const accessToken = frag.get('accessToken') || '';
+      const refreshToken = frag.get('refreshToken') || '';
+      const userId = frag.get('userId') || '';
+      if (accessToken && refreshToken && userId) {
+        const isAdminFlag = frag.get('isAdmin') === 'true';
+        setAuthTokens({
+          user: { id: userId, email: frag.get('email') || '', fullName: frag.get('fullName') || '', isAdmin: isAdminFlag } as any,
+          accessToken,
+          refreshToken,
+          expiresAt: frag.get('expiresAt') || undefined,
+          plan: frag.get('plan') || 'FREE',
+        } as any);
+        // Scrub the tokens from the address bar immediately.
+        window.history.replaceState(null, '', window.location.pathname);
+        setStatus('Sign-in successful! Redirecting...');
+        const returnTo = sessionStorage.getItem('rb_return_to');
+        if (returnTo) {
+          sessionStorage.removeItem('rb_return_to');
+          router.replace(returnTo);
+        } else {
+          router.replace(isAdminFlag ? '/admin/settings' : '/dashboard');
+        }
+        return;
+      }
+      setError('Missing sign-in data. Please try again.');
+      setStatus('');
+      return;
+    }
+
     const handoff = searchParams.get('handoff');
     const errorParam = searchParams.get('error');
     const provider = searchParams.get('provider') || '';

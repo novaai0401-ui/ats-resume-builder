@@ -1,5 +1,5 @@
-import { BadRequestException, Body, Controller, HttpCode, Post, Req, UseGuards } from '@nestjs/common';
-import type { Request } from 'express';
+import { BadRequestException, Body, Controller, Get, HttpCode, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
+import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import {
   RegisterSchema,
@@ -10,6 +10,7 @@ import {
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { PasswordResetService } from './password-reset.service';
 import { EmailOtpService } from './email-otp.service';
+import { LinkedInOAuthService } from './linkedin-oauth.service';
 
 @Controller('auth')
 export class AuthController {
@@ -17,7 +18,54 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly passwordResetService: PasswordResetService,
     private readonly emailOtpService: EmailOtpService,
+    private readonly linkedInOAuth: LinkedInOAuthService,
   ) {}
+
+  /** Whether social sign-in is available, so the UI can show/hide the button. */
+  @Get('providers')
+  providers() {
+    return { linkedin: this.linkedInOAuth.isConfigured() };
+  }
+
+  /** Step 1: hand the client the LinkedIn authorize URL. */
+  @Get('linkedin')
+  linkedinStart() {
+    return { url: this.linkedInOAuth.startUrl() };
+  }
+
+  /** Step 3: LinkedIn redirects here; we finish login and bounce to the web app. */
+  @Get('linkedin/callback')
+  async linkedinCallback(
+    @Query('code') code: string,
+    @Query('state') state: string,
+    @Query('error') error: string,
+    @Res() res: Response,
+  ) {
+    const web = this.linkedInOAuth.webCallbackUrl();
+    if (error || !code) {
+      return res.redirect(`${web}/auth/login?error=linkedin_${encodeURIComponent(error || 'no_code')}`);
+    }
+    try {
+      const tokens = await this.linkedInOAuth.handleCallback(code, state);
+      // Tokens travel in the URL fragment so they never hit server logs or
+      // the Referer header; the web app reads them client-side on /auth/callback.
+      const frag = new URLSearchParams({
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        userId: tokens.user.id,
+        email: tokens.user.email,
+        fullName: tokens.user.fullName,
+        expiresAt: tokens.expiresAt,
+        isAdmin: String(tokens.user.isAdmin),
+        plan: String((tokens as { plan?: string }).plan ?? 'FREE'),
+        provider: 'linkedin',
+      }).toString();
+      return res.redirect(`${web}/auth/callback#${frag}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'linkedin_failed';
+      return res.redirect(`${web}/auth/login?error=${encodeURIComponent(message)}`);
+    }
+  }
 
   @Post('register')
   register(@Body() body: RegisterDto) {

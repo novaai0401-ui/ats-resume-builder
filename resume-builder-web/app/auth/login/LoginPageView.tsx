@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/src/lib/api';
 import { PrivacyBadge } from '@/src/components/PrivacyBadge';
+import { LinkedInSignInButton } from '@/src/components/LinkedInSignInButton';
 
 type RouterLike = {
   push: (href: string) => Promise<boolean> | void;
@@ -127,6 +128,7 @@ export function LoginPageView({ apiClient = api, routerOverride, defaultMode = '
               <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: '0.85rem' }}>
                 <Link href="/auth/forgot-password" className="auth-forgot-link">Forgot password?</Link>
               </div>
+              <LinkedInSignInButton />
             </form>
           ) : (
             <form onSubmit={handleRegister} style={{ display: 'grid', gap: 12 }}>
@@ -188,6 +190,7 @@ export function LoginPageView({ apiClient = api, routerOverride, defaultMode = '
                 minLength={8}
               />
               <button className="btn" type="submit" disabled={loading}>{loading ? 'Creating account...' : 'Create Account'}</button>
+              <LinkedInSignInButton />
             </form>
           )}
 

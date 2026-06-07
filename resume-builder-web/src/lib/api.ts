@@ -1477,6 +1477,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(input),
     }),
+
+  // Which social sign-in providers the server has configured (LinkedIn-only).
+  getAuthProviders: () => request<{ linkedin: boolean }>(`/auth/providers`),
+  // Returns the LinkedIn authorize URL to redirect the browser to.
+  linkedinStartUrl: () => request<{ url: string }>(`/auth/linkedin`),
 };
 
 export type AtsSimulationRisk = {
