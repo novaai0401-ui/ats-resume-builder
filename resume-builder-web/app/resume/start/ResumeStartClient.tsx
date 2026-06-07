@@ -18,6 +18,7 @@ import {
 import { ingestResumeFile } from '@/src/lib/resume-ingest';
 import { useResumeStore } from '@/src/lib/resume-store';
 import { PrivacyBadge } from '@/src/components/PrivacyBadge';
+import DataLoader from '@/src/components/DataLoader';
 
 const SECTION_LABELS: Record<SectionType, string> = {
   contact: 'Header & Contact',
@@ -106,8 +107,23 @@ export default function ResumeStartClient() {
             <p className="small">
               We will parse and pre-fill your sections so you can review and polish quickly.
             </p>
-            <label className="btn" style={{ cursor: 'pointer' }}>
-              {uploadButtonLabel}
+            <label
+              className="btn"
+              style={{
+                cursor: loadingUpload ? 'progress' : 'pointer',
+                opacity: loadingUpload ? 0.85 : 1,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                justifyContent: 'center',
+              }}
+              aria-disabled={loadingUpload}
+            >
+              {loadingUpload ? (
+                <DataLoader mode="inline" label={`Reading ${pendingFileName || 'your resume'}…`} />
+              ) : (
+                uploadButtonLabel
+              )}
               <input
                 type="file"
                 accept=".pdf,.docx,.doc,.txt,.html,.htm,.rtf"
@@ -116,6 +132,24 @@ export default function ResumeStartClient() {
                 style={{ display: 'none' }}
               />
             </label>
+            {/* Calm timing hint + screen-reader status. Without this the
+                user sees a button that just sits there for ~5-15s and
+                wonders whether anything is happening. */}
+            <p
+              className="small"
+              role="status"
+              aria-live="polite"
+              style={{
+                marginTop: 8,
+                marginBottom: 0,
+                color: '#5a6778',
+                minHeight: '1.4em',
+              }}
+            >
+              {loadingUpload
+                ? 'Parsing your resume — this usually takes 5–15 seconds. Please keep this tab open.'
+                : ''}
+            </p>
           </div>
 
           <div className="start-choice">
