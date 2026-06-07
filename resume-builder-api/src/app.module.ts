@@ -1,4 +1,4 @@
-﻿import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { RequestSignatureMiddleware } from './auth/request-signature.middleware';
 import { AuthModule } from './auth/auth.module';
@@ -18,6 +18,7 @@ import { AppMetaModule } from './app-meta/app-meta.module';
 import { PatternLearnerModule } from './pattern-learner/pattern-learner.module';
 import { SahaayakModule } from './sahaayak/sahaayak.module';
 import { TrainingDatasetModule } from './training-dataset/training-dataset.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { TrainingDatasetModule } from './training-dataset/training-dataset.modul
     PatternLearnerModule,
     SahaayakModule,
     TrainingDatasetModule,
+    AnalyticsModule,
   ],
   controllers: [HealthController],
 })
