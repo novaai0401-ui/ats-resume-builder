@@ -4,6 +4,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ensureUsagePeriod } from '../billing/usage';
 import { rateLimitOrThrow } from '../limits/rate-limit';
 import { SettingsService } from '../settings/settings.service';
+import { LiveJobsService } from '../live-jobs/live-jobs.service';
+import type { JobOpening } from '../live-jobs/adzuna.util';
 import type { AiProvider } from './providers/ai-provider.interface';
 import { GroqProvider } from './providers/groq.provider';
 import {
@@ -29,6 +31,8 @@ import {
 
 export type SkillDemandInput = {
   skills: string[];
+  /** Optional location filter for live openings (e.g. "Bengaluru"). */
+  location?: string;
 };
 
 export type SkillDemandResult = {
@@ -38,6 +42,10 @@ export type SkillDemandResult = {
   message: string;
   topInDemand: string[];
   yourSkills: SkillDemand[];
+  /** Live job openings matched to the user's top skills (paid + configured). */
+  liveOpenings: JobOpening[];
+  /** True when liveOpenings came from a real jobs API. */
+  liveOpeningsAvailable: boolean;
   provider: 'groq' | 'rule-based';
 };
 
@@ -55,7 +63,18 @@ export class SkillDemandService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly settingsService: SettingsService,
+    private readonly liveJobs: LiveJobsService,
   ) {}
+
+  /** Fetch live openings for the user's strongest skills. Best-effort: [] on
+   *  any failure or when the jobs API isn't configured. */
+  private async fetchLiveOpenings(skills: string[], location?: string): Promise<JobOpening[]> {
+    if (!this.liveJobs.isConfigured() || skills.length === 0) return [];
+    // One query built from the top 2 skills keeps latency + quota low while
+    // staying relevant to the candidate's core stack.
+    const query = skills.slice(0, 2).join(' ');
+    return this.liveJobs.search(query, { where: location, limit: 8 });
+  }
 
   async analyze(userId: string, input: SkillDemandInput): Promise<SkillDemandResult> {
     const skills = Array.isArray(input?.skills) ? input.skills.filter((s) => typeof s === 'string' && s.trim()) : [];
@@ -76,13 +95,21 @@ export class SkillDemandService {
 
     const paid = await this.isPaidUser(userId);
     if (!paid) {
-      return { realtime: false, message: UPSELL, topInDemand: TOP_IN_DEMAND_2026, yourSkills: baseline, provider: 'rule-based' };
+      // Free users never get live openings — that's the headline paid upgrade.
+      return { realtime: false, message: UPSELL, topInDemand: TOP_IN_DEMAND_2026, yourSkills: baseline, liveOpenings: [], liveOpeningsAvailable: false, provider: 'rule-based' };
     }
+
+    // Paid: pull real openings for the user's core stack (best-effort).
+    const liveOpenings = await this.fetchLiveOpenings(skills, input.location);
+    const liveOpeningsAvailable = this.liveJobs.isConfigured();
+    const liveMsg = liveOpeningsAvailable
+      ? `${PAID_NOTE} Showing ${liveOpenings.length} live opening${liveOpenings.length === 1 ? '' : 's'}.`
+      : PAID_NOTE;
 
     await this.chargeTokens(userId, APPROX_TOKENS);
     const provider = this.resolveProvider();
     if (!provider) {
-      return { realtime: false, message: UPSELL, topInDemand: TOP_IN_DEMAND_2026, yourSkills: baseline, provider: 'rule-based' };
+      return { realtime: liveOpeningsAvailable, message: liveMsg, topInDemand: TOP_IN_DEMAND_2026, yourSkills: baseline, liveOpenings, liveOpeningsAvailable, provider: 'rule-based' };
     }
 
     const system = [
@@ -105,20 +132,39 @@ export class SkillDemandService {
       const raw = await provider.complete(system, userPrompt, { maxTokens: 1100, temperature: 0.3, timeoutMs });
       const parsed = parseSkillDemandResponse(raw);
       if (!parsed || !parsed.yourSkills?.length) {
-        return { realtime: false, message: UPSELL, topInDemand: TOP_IN_DEMAND_2026, yourSkills: baseline, provider: 'rule-based' };
+        return { realtime: liveOpeningsAvailable, message: liveMsg, topInDemand: TOP_IN_DEMAND_2026, yourSkills: baseline, liveOpenings, liveOpeningsAvailable, provider: 'rule-based' };
       }
       return {
         realtime: true,
-        message: PAID_NOTE,
+        message: liveMsg,
         topInDemand: parsed.topInDemand?.length ? parsed.topInDemand.slice(0, 10) : TOP_IN_DEMAND_2026,
         yourSkills: parsed.yourSkills.slice(0, 15),
+        liveOpenings,
+        liveOpeningsAvailable,
         provider: 'groq',
       };
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       this.logger.error(`Skill demand failed (provider=${provider.name}): ${msg}`);
-      return { realtime: false, message: UPSELL, topInDemand: TOP_IN_DEMAND_2026, yourSkills: baseline, provider: 'rule-based' };
+      return { realtime: liveOpeningsAvailable, message: liveMsg, topInDemand: TOP_IN_DEMAND_2026, yourSkills: baseline, liveOpenings, liveOpeningsAvailable, provider: 'rule-based' };
     }
+  }
+
+  /** Standalone live-openings search (Student/Pro). Reusable by other features. */
+  async searchOpenings(userId: string, query: string, location?: string): Promise<{ available: boolean; openings: JobOpening[] }> {
+    if (!query || !query.trim()) throw new ForbiddenException('A search query is required.');
+    const paid = await this.isPaidUser(userId);
+    if (!paid) throw new ForbiddenException('LIVE_JOBS_REQUIRES_PLAN: Live openings are a Student/Pro feature.');
+    rateLimitOrThrow({
+      key: `ai:live-openings:${userId}`,
+      limit: 30,
+      windowMs: 60_000,
+      message: 'Rate limit exceeded for live openings. Try again shortly.',
+    });
+    return {
+      available: this.liveJobs.isConfigured(),
+      openings: await this.liveJobs.search(query.trim(), { where: location, limit: 12 }),
+    };
   }
 
   private async isPaidUser(userId: string): Promise<boolean> {

@@ -1,4 +1,4 @@
-﻿import { BadRequestException, Body, Controller, Delete, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
+﻿import { BadRequestException, Body, Controller, Delete, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import {
   AiCritiqueSchema,
   AiParseJdSchema,
@@ -147,6 +147,17 @@ export class AiController {
       throw new BadRequestException('skills (string[]) is required');
     }
     return this.skillDemandService.analyze(req.user.userId, body);
+  }
+
+  /** Live job openings for a free-text query (Student/Pro). */
+  @Get('live-openings')
+  liveOpenings(
+    @Req() req: { user: { userId: string } },
+    @Query('q') q: string,
+    @Query('location') location: string,
+  ) {
+    if (!q || !q.trim()) throw new BadRequestException('q is required');
+    return this.skillDemandService.searchOpenings(req.user.userId, q, location);
   }
 
   /**

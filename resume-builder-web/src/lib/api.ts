@@ -1479,8 +1479,14 @@ export const api = {
     }),
 
   // Skill-Demand Agent — in-demand tech + companies hiring for the user's stack.
-  skillDemand: (skills: string[]) =>
-    request<SkillDemandResult>(`/ai/skill-demand`, { method: 'POST', body: JSON.stringify({ skills }) }),
+  skillDemand: (skills: string[], location?: string) =>
+    request<SkillDemandResult>(`/ai/skill-demand`, { method: 'POST', body: JSON.stringify({ skills, location }) }),
+
+  // Live job openings for a free-text query (Student/Pro).
+  liveOpenings: (q: string, location?: string) =>
+    request<{ available: boolean; openings: JobOpening[] }>(
+      `/ai/live-openings?q=${encodeURIComponent(q)}${location ? `&location=${encodeURIComponent(location)}` : ''}`,
+    ),
 
   // ---------------------------------------------------------------------------
   // Portfolio — shareable, recruiter-facing public page (Student/Pro).
@@ -1617,11 +1623,23 @@ export type SkillDemandItem = {
   companiesHiring: string[];
 };
 
+export type JobOpening = {
+  title: string;
+  company: string;
+  location: string;
+  url: string;
+  salaryText: string | null;
+  postedAt: string | null;
+  source: string;
+};
+
 export type SkillDemandResult = {
   realtime: boolean;
   message: string;
   topInDemand: string[];
   yourSkills: SkillDemandItem[];
+  liveOpenings: JobOpening[];
+  liveOpeningsAvailable: boolean;
   provider: 'groq' | 'rule-based';
 };
 

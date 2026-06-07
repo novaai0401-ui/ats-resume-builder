@@ -25,6 +25,7 @@ const DEMAND_LABEL: Record<SkillDemandItem['demand'], string> = {
 export default function SkillDemandClient() {
   const resume = useResumeStore((s) => s.resume);
   const [result, setResult] = useState<SkillDemandResult | null>(null);
+  const [location, setLocation] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -39,7 +40,7 @@ export default function SkillDemandClient() {
     }
     setLoading(true);
     try {
-      setResult(await api.skillDemand(skills));
+      setResult(await api.skillDemand(skills, location.trim() || undefined));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not analyze skills.');
     } finally {
@@ -59,6 +60,13 @@ export default function SkillDemandClient() {
         ) : (
           <p className="small" style={{ color: '#a8412c' }}>No skills on your resume yet. <Link href="/dashboard">Open a resume</Link> first.</p>
         )}
+        <input
+          className="input"
+          placeholder="Location for live openings (optional, e.g. Bengaluru)"
+          value={location}
+          onChange={(e) => setLocation(e.target.value)}
+          style={{ marginTop: 8, maxWidth: 360 }}
+        />
         {error && <p className="small" style={{ color: '#a8412c' }}>{error}</p>}
         <button className="btn" onClick={run} disabled={loading} style={{ marginTop: 8 }}>
           {loading ? 'Analyzing…' : 'Analyze my skills'}
@@ -83,6 +91,29 @@ export default function SkillDemandClient() {
               ))}
             </div>
           </section>
+
+          {result.liveOpenings.length > 0 && (
+            <section className="card col-12">
+              <h3 style={{ marginTop: 0 }}>Live openings for your stack</h3>
+              <p className="small" style={{ color: '#5a6778', marginTop: 0 }}>Real listings, refreshed from the jobs feed.</p>
+              <div style={{ display: 'grid', gap: 8 }}>
+                {result.liveOpenings.map((job, i) => (
+                  <a key={i} href={job.url} target="_blank" rel="noreferrer" style={{ display: 'block', padding: 12, border: '1px solid var(--border, #ddd)', borderRadius: 8, textDecoration: 'none' }}>
+                    <div style={{ fontWeight: 600 }}>{job.title}</div>
+                    <div className="small" style={{ color: '#5a6778' }}>
+                      {[job.company, job.location, job.salaryText].filter(Boolean).join(' · ')}
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {result.realtime && result.liveOpenings.length === 0 && result.liveOpeningsAvailable && (
+            <section className="card col-12">
+              <p className="small" style={{ margin: 0, color: '#5a6778' }}>No live openings matched right now — try a broader location or check back later.</p>
+            </section>
+          )}
 
           {result.yourSkills.map((item, i) => (
             <section key={i} className="card col-6">

@@ -11,9 +11,10 @@ import { MentorChatService } from './mentor-chat.service';
 import { RecruiterSimService } from './recruiter-sim.service';
 import { SkillDemandService } from './skill-demand.service';
 import { SettingsModule } from '../settings/settings.module';
+import { LiveJobsModule } from '../live-jobs/live-jobs.module';
 
 @Module({
-  imports: [ConfigModule, SettingsModule],
+  imports: [ConfigModule, SettingsModule, LiveJobsModule],
   controllers: [AiController],
   providers: [
     AiService,
