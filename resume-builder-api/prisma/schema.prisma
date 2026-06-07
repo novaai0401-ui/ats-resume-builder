@@ -445,3 +445,27 @@ model ModelEvaluation {
 
   @@index([modelName, evaluatedAt])
 }
+
+/// Public, shareable portfolio. A subscribed user snapshots a resume into a
+/// portfolio with a stable public slug; recruiters open it without an account
+/// and can print/download it. The snapshot keeps the public page self-contained
+/// and decoupled from later resume edits.
+model Portfolio {
+  id           String   @id @default(cuid())
+  userId       String
+  /// Public, URL-safe identifier used at /p/:slug. Unique across all users.
+  slug         String   @unique
+  title        String
+  headline     String?
+  resumeId     String?
+  /// Snapshot of the selected, recruiter-facing resume fields (JSON).
+  snapshot     Json
+  /// Optional public contact email the user chooses to expose to recruiters.
+  contactEmail String?
+  published    Boolean  @default(true)
+  views        Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId, createdAt])
+}

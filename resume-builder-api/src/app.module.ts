@@ -18,6 +18,7 @@ import { AppMetaModule } from './app-meta/app-meta.module';
 import { PatternLearnerModule } from './pattern-learner/pattern-learner.module';
 import { SahaayakModule } from './sahaayak/sahaayak.module';
 import { TrainingDatasetModule } from './training-dataset/training-dataset.module';
+import { PortfolioModule } from './portfolio/portfolio.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { TrainingDatasetModule } from './training-dataset/training-dataset.modul
     PatternLearnerModule,
     SahaayakModule,
     TrainingDatasetModule,
+    PortfolioModule,
   ],
   controllers: [HealthController],
 })

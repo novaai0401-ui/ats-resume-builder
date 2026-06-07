@@ -112,6 +112,7 @@ export default function TopNav() {
           <Link href="/recruiter-sim" onClick={closeDrawer} {...navProps('/recruiter-sim')}>Recruiter AI</Link>
           <Link href="/jobs" onClick={closeDrawer} {...navProps('/jobs')}>Jobs</Link>
           <Link href="/cover-letter" onClick={closeDrawer} {...navProps('/cover-letter')}>Cover Letter</Link>
+          <Link href="/portfolio" onClick={closeDrawer} {...navProps('/portfolio')}>Portfolio</Link>
           <Link href="/career" onClick={closeDrawer} {...navProps('/career')}>Career Navigator</Link>
           <Link href="/mentor" onClick={closeDrawer} {...navProps('/mentor')}>Mentor</Link>
           <Link href="/sahaayak" onClick={closeDrawer} {...navProps('/sahaayak')}>Sahaayak</Link>
