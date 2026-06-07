@@ -1478,6 +1478,10 @@ export const api = {
       body: JSON.stringify(input),
     }),
 
+  // Skill-Demand Agent — in-demand tech + companies hiring for the user's stack.
+  skillDemand: (skills: string[]) =>
+    request<SkillDemandResult>(`/ai/skill-demand`, { method: 'POST', body: JSON.stringify({ skills }) }),
+
   // Which social sign-in providers the server has configured (LinkedIn-only).
   getAuthProviders: () => request<{ linkedin: boolean }>(`/auth/providers`),
   // Returns the LinkedIn authorize URL to redirect the browser to.
@@ -1556,6 +1560,23 @@ export type OutcomeCard = {
   liftDeltaPoints: number | null;
   trend: Array<{ n: number; score: number | null; callback: number | null }>;
   generatedAt: number;
+};
+
+// Skill-Demand Agent result.
+export type SkillDemandItem = {
+  skill: string;
+  demand: 'very-high' | 'high' | 'moderate' | 'stable';
+  trend: string;
+  alsoLearn: string[];
+  companiesHiring: string[];
+};
+
+export type SkillDemandResult = {
+  realtime: boolean;
+  message: string;
+  topInDemand: string[];
+  yourSkills: SkillDemandItem[];
+  provider: 'groq' | 'rule-based';
 };
 
 // Recruiter-AI Simulator result.

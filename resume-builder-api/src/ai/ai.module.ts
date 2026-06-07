@@ -9,6 +9,7 @@ import { JdMatchService } from './jd-match.service';
 import { InterviewPrepService } from './interview-prep.service';
 import { MentorChatService } from './mentor-chat.service';
 import { RecruiterSimService } from './recruiter-sim.service';
+import { SkillDemandService } from './skill-demand.service';
 import { SettingsModule } from '../settings/settings.module';
 
 @Module({
@@ -23,6 +24,7 @@ import { SettingsModule } from '../settings/settings.module';
     InterviewPrepService,
     MentorChatService,
     RecruiterSimService,
+    SkillDemandService,
   ],
   exports: [CoverLetterService],
 })

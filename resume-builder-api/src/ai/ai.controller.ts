@@ -17,6 +17,7 @@ import { JdMatchService, type JdMatchInput } from './jd-match.service';
 import { InterviewPrepService, type InterviewPrepInput } from './interview-prep.service';
 import { MentorChatService, type MentorChatInput } from './mentor-chat.service';
 import { RecruiterSimService, type RecruiterSimInput } from './recruiter-sim.service';
+import { SkillDemandService, type SkillDemandInput } from './skill-demand.service';
 
 @Controller('ai')
 @UseGuards(JwtAuthGuard)
@@ -30,6 +31,7 @@ export class AiController {
     private readonly interviewPrepService: InterviewPrepService,
     private readonly mentorChatService: MentorChatService,
     private readonly recruiterSimService: RecruiterSimService,
+    private readonly skillDemandService: SkillDemandService,
   ) {}
 
   @Post('parse-jd')
@@ -130,6 +132,21 @@ export class AiController {
       throw new BadRequestException('resumeText and jdText are required');
     }
     return this.recruiterSimService.simulate(req.user.userId, body);
+  }
+
+  /**
+   * Skill-Demand Agent — free users get a curated 2026 snapshot + upsell;
+   * Student/Pro get an AI-personalized assessment of their exact stack.
+   */
+  @Post('skill-demand')
+  skillDemand(
+    @Req() req: { user: { userId: string } },
+    @Body() body: SkillDemandInput,
+  ) {
+    if (!body || !Array.isArray(body.skills)) {
+      throw new BadRequestException('skills (string[]) is required');
+    }
+    return this.skillDemandService.analyze(req.user.userId, body);
   }
 
   /**

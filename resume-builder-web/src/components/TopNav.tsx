@@ -116,6 +116,7 @@ export default function TopNav() {
           <Link href="/mentor" onClick={closeDrawer} {...navProps('/mentor')}>Mentor</Link>
           <Link href="/sahaayak" onClick={closeDrawer} {...navProps('/sahaayak')}>Sahaayak</Link>
           <Link href="/jd-match" onClick={closeDrawer} {...navProps('/jd-match')}>JD Match</Link>
+          <Link href="/skill-demand" onClick={closeDrawer} {...navProps('/skill-demand')}>Skill Demand</Link>
           {plan === 'PRO' ? (
             <>
               <Link href="/interview-prep" onClick={closeDrawer} {...navProps('/interview-prep')}>Interview Prep</Link>
