@@ -13,6 +13,7 @@ import {
   daysUntil,
   groupByStatus,
 } from '@/src/lib/job-utils';
+import LiveOpeningsPanel from './LiveOpeningsPanel';
 
 type LoadState = 'idle' | 'loading' | 'saving' | 'error';
 
@@ -220,6 +221,8 @@ export default function JobsTrackerClient() {
           add applications and move them through the stages below.
         </p>
       ) : null}
+
+      <LiveOpeningsPanel onTracked={refresh} />
 
       {error ? (
         <div role="alert" className="alert alert-error jobs-alert">
