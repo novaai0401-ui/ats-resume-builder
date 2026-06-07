@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * Skip-to-content link, mounted at the very top of the page so it is
  * the first focusable element a keyboard user reaches on every page
@@ -6,8 +8,10 @@
  * (Bypass Blocks). Lets keyboard / screen-reader users skip the
  * top-nav and jump straight to the main content of the page.
  *
- * Companion: every page's <main> element should carry id="main"
- * (Next.js App Router default in this project does that already).
+ * Marked 'use client' because the focus reveal uses onFocus/onBlur
+ * handlers — event handlers cannot cross the Server → Client
+ * Component boundary, and this component is rendered from the
+ * server-rendered root layout.
  */
 
 import React from 'react';
