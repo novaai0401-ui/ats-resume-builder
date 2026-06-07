@@ -39,6 +39,8 @@ export const api = {
   recruiterSim: (resumeText, jdText, currentSkills = []) =>
     request('/ai/recruiter-sim', { method: 'POST', body: JSON.stringify({ resumeText, jdText, currentSkills }) }),
   getResumeOutcomes: (resumeId) => request(`/resumes/${resumeId}/outcomes`),
+  liveOpenings: (q, location) =>
+    request(`/ai/live-openings?q=${encodeURIComponent(q)}${location ? `&location=${encodeURIComponent(location)}` : ''}`),
 
   createJobApplication: (payload) =>
     request('/jobs', { method: 'POST', body: JSON.stringify(payload) }),
