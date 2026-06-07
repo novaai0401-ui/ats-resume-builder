@@ -39,13 +39,23 @@ const csp = [
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
-  "frame-ancestors 'none'",
+  // 'self' (not 'none') because the editor's "Print preview" button
+  // mounts a same-origin iframe pointing at /resume/template?print=1
+  // and calls iframe.contentWindow.print() on it. 'none' blocks that
+  // along with cross-origin embeds; 'self' keeps the clickjacking
+  // protection against external sites while letting us frame our
+  // own routes.
+  "frame-ancestors 'self'",
   ...(isProd ? ['upgrade-insecure-requests', 'block-all-mixed-content'] : []),
 ].join('; ');
 
 const securityHeaders = [
   { key: 'Content-Security-Policy', value: csp },
-  { key: 'X-Frame-Options', value: 'DENY' },
+  // SAMEORIGIN — not DENY — for the same reason as frame-ancestors
+  // 'self' above: the print-preview iframe is same-origin. Modern
+  // browsers prefer the CSP directive, but legacy browsers still
+  // honour X-Frame-Options, so keep both in sync.
+  { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
   {
