@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { JobApplication, JobApplicationInput, JobStatus } from 'resume-builder-shared';
 import { api } from '@/src/lib/api';
+import DataLoader from '@/src/components/DataLoader';
 import {
   ACTIVE_STATUSES,
   CLOSED_STATUSES,
@@ -256,7 +257,7 @@ export default function JobsTrackerClient() {
       ) : null}
 
       {loadState === 'loading' ? (
-        <p>Loading…</p>
+        <DataLoader label="Loading your job tracker…" />
       ) : (
         <div className="kanban" role="list">
           {KANBAN_STATUSES.map((status) => (

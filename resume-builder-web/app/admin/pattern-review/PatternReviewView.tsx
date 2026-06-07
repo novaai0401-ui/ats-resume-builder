@@ -14,6 +14,7 @@
  */
 
 import { useEffect, useState } from 'react';
+import DataLoader from '@/src/components/DataLoader';
 import {
   TkxAlert,
   TkxButton,
@@ -108,7 +109,7 @@ export default function PatternReviewView() {
             </div>
           </TkxCardHeader>
           <TkxCardBody>
-            {loading && <p style={{ color: 'var(--muted, #888)' }}>Loading…</p>}
+            {loading && <DataLoader label="Loading review queue…" mode="inline" />}
             {!loading && failures.length === 0 && (
               <p style={{ color: 'var(--muted, #888)' }}>No samples for this filter.</p>
             )}

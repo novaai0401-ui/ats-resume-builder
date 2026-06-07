@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type { Resume, ResumeVersionSummary } from 'resume-builder-shared';
 import { api } from '@/src/lib/api';
+import DataLoader from '@/src/components/DataLoader';
 
 type State = 'idle' | 'loading' | 'snapshotting' | 'restoring' | 'deleting' | 'error';
 
@@ -223,7 +224,7 @@ export default function VersionsClient() {
       {info ? <div role="status" className="alert alert-success jobs-alert">{info}</div> : null}
 
       {state === 'loading' ? (
-        <p>Loading…</p>
+        <DataLoader label="Loading versions…" />
       ) : versions.length === 0 ? (
         <div className="muted versions-empty">
           No snapshots yet. Save one before your next AI rewrite — restoring is

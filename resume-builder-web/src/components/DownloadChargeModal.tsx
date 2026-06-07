@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { api, getCurrentUserEmail } from '@/src/lib/api';
+import { useFocusTrap } from '@/src/lib/use-focus-trap';
 
 type RazorpayInitResult = {
   provider: 'razorpay';
@@ -76,6 +77,7 @@ export default function DownloadChargeModal({
   const [error, setError] = useState('');
   const [init, setInit] = useState<InitResult | null>(null);
   const region = guessRegion();
+  const trapRef = useFocusTrap<HTMLDivElement>({ onClose: onCancel });
 
   useEffect(() => {
     let cancelled = false;
@@ -172,6 +174,7 @@ export default function DownloadChargeModal({
 
   return (
     <div
+      ref={trapRef}
       role="dialog"
       aria-modal="true"
       aria-labelledby="dl-charge-title"

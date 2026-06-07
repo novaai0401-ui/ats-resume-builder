@@ -14,6 +14,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
+import DataLoader from '@/src/components/DataLoader';
 import {
   TkxAlert,
   TkxButton,
@@ -68,7 +69,7 @@ export default function SahaayakClient() {
   }, []);
 
   if (loading) {
-    return <main style={pageStyle}><p style={{ color: 'var(--muted, #888)' }}>Loading…</p></main>;
+    return <main style={pageStyle}><DataLoader label="Loading Sahaayak…" /></main>;
   }
   if (error) {
     return <main style={pageStyle}><TkxAlert variant="danger">{error}</TkxAlert></main>;

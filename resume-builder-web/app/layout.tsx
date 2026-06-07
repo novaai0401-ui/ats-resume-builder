@@ -130,13 +130,20 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         />
       </head>
       <body>
+        <SkipToContent targetId="main-content" />
         <Providers>
           <div className="main-shell">
             <header className="topbar">
               <div className="brand">Pocket Resume</div>
               <TopNav />
             </header>
-            {children}
+            {/* Skip-link target. tabindex="-1" lets us focus a non-interactive
+             * wrapper without putting it in the tab order. Most pages render
+             * their own <main> inside, so we use a plain <div> here to avoid
+             * nesting <main> landmarks. */}
+            <div id="main-content" tabIndex={-1}>
+              {children}
+            </div>
           </div>
           <PwaInstaller />
           <TrainingConsentModal />
