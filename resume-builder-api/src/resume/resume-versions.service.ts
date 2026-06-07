@@ -85,9 +85,14 @@ export class ResumeVersionsService {
 
     // Auto-stamp a JD-agnostic ATS score when the caller didn't supply one,
     // so the Outcome Loop's score-history chart populates on every snapshot
-    // without the user having to run a manual scan. Best-effort: null on failure.
-    if (score === null) {
-      score = this.resumeService.computeAtsScoreValue(resume);
+    // without the user having to run a manual scan. Best-effort: a missing
+    // scorer or a failure must never block snapshotting.
+    if (score === null && typeof this.resumeService.computeAtsScoreValue === 'function') {
+      try {
+        score = this.resumeService.computeAtsScoreValue(resume);
+      } catch {
+        score = null;
+      }
     }
 
     const snapshotPayload: ResumeSnapshotPayload = {
