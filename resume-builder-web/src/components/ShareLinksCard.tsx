@@ -23,10 +23,12 @@ type ShareLink = {
   id: string;
   slug: string;
   resumeId: string;
+  resumeVersionId: string | null;
   enabled: boolean;
   headline: string | null;
   allowSearchIndexing: boolean;
   maskContact: boolean;
+  expiresAt: string | null;
   viewCount: number;
   downloadCount: number;
   lastVisitedAt: string | null;
@@ -34,6 +36,22 @@ type ShareLink = {
 };
 
 type Resume = { id: string; title: string };
+
+type ResumeVersion = {
+  id: string;
+  label: string | null;
+  createdAt: string;
+};
+
+type VisitEvent = {
+  id: string;
+  kind: 'view' | 'download';
+  userAgent: string | null;
+  country: string | null;
+  city: string | null;
+  referrer: string | null;
+  createdAt: string;
+};
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001';
 
@@ -62,6 +80,11 @@ export default function ShareLinksCard() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  // Per-link expanded UI state. Map by link.id so multiple links can
+  // be inspected at once without clobbering each other.
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [events, setEvents] = useState<Record<string, VisitEvent[]>>({});
+  const [versionsByResume, setVersionsByResume] = useState<Record<string, ResumeVersion[]>>({});
 
   const load = useCallback(async () => {
     try {
@@ -123,6 +146,43 @@ export default function ShareLinksCard() {
     if (typeof window !== 'undefined' && !window.confirm('Revoke this share link? The public URL will return 404 immediately.')) return;
     const res = await authedFetch(`/share-links/${id}`, { method: 'DELETE' });
     if (res.ok) await load();
+  };
+
+  const loadEvents = async (id: string) => {
+    try {
+      const res = await authedFetch(`/share-links/${id}/events`);
+      if (res.ok) {
+        const data = (await res.json()) as VisitEvent[];
+        setEvents((prev) => ({ ...prev, [id]: data }));
+      }
+    } catch {
+      // visit log is non-critical — silent fail keeps the card usable
+    }
+  };
+
+  const loadVersions = async (resumeId: string) => {
+    if (versionsByResume[resumeId]) return;
+    try {
+      const res = await authedFetch(`/resumes/${resumeId}/versions`);
+      if (res.ok) {
+        const data = await res.json();
+        const list: ResumeVersion[] = Array.isArray(data) ? data : (data?.versions ?? []);
+        setVersionsByResume((prev) => ({ ...prev, [resumeId]: list }));
+      }
+    } catch {
+      // version list is optional UI; show nothing on failure
+    }
+  };
+
+  const toggleExpand = (link: ShareLink) => {
+    setExpanded((prev) => {
+      const next = !prev[link.id];
+      if (next) {
+        void loadEvents(link.id);
+        void loadVersions(link.resumeId);
+      }
+      return { ...prev, [link.id]: next };
+    });
   };
 
   const copy = async (slug: string) => {
@@ -253,24 +313,42 @@ export default function ShareLinksCard() {
                     : ' · no visits yet'}
                 </p>
                 {link.enabled ? (
-                  <div style={{ marginTop: 8, display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-                    <label className="small" style={toggleStyle}>
-                      <input
-                        type="checkbox"
-                        checked={link.maskContact}
-                        onChange={(e) => patchLink(link.id, { maskContact: e.target.checked })}
+                  <>
+                    <div style={{ marginTop: 8, display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+                      <label className="small" style={toggleStyle}>
+                        <input
+                          type="checkbox"
+                          checked={link.maskContact}
+                          onChange={(e) => patchLink(link.id, { maskContact: e.target.checked })}
+                        />
+                        Mask email + phone
+                      </label>
+                      <label className="small" style={toggleStyle}>
+                        <input
+                          type="checkbox"
+                          checked={link.allowSearchIndexing}
+                          onChange={(e) => patchLink(link.id, { allowSearchIndexing: e.target.checked })}
+                        />
+                        Let search engines index this page
+                      </label>
+                      <button
+                        className="btn ghost"
+                        onClick={() => toggleExpand(link)}
+                        style={{ ...btnSm, marginLeft: 'auto' }}
+                        aria-expanded={Boolean(expanded[link.id])}
+                      >
+                        {expanded[link.id] ? 'Hide details' : 'Visit log & options'}
+                      </button>
+                    </div>
+                    {expanded[link.id] ? (
+                      <LinkDetails
+                        link={link}
+                        events={events[link.id] || null}
+                        versions={versionsByResume[link.resumeId] || null}
+                        onPatch={(patch) => patchLink(link.id, patch)}
                       />
-                      Mask email + phone
-                    </label>
-                    <label className="small" style={toggleStyle}>
-                      <input
-                        type="checkbox"
-                        checked={link.allowSearchIndexing}
-                        onChange={(e) => patchLink(link.id, { allowSearchIndexing: e.target.checked })}
-                      />
-                      Let search engines index this page
-                    </label>
-                  </div>
+                    ) : null}
+                  </>
                 ) : null}
               </li>
             ))}
@@ -288,3 +366,138 @@ const toggleStyle: React.CSSProperties = {
   gap: 6,
   color: '#1f2937',
 };
+
+/**
+ * Per-link expanded panel:
+ *   - resumeVersionId picker (pins the public page to a frozen snapshot
+ *     so future edits don't change what recruiters see — C-007: every
+ *     view also gets attributable back to that specific version)
+ *   - expiresAt picker (auto-revoke on a date)
+ *   - visit log: last 50 view/download events with timestamp + coarse
+ *     geo + truncated UA. Owner sees activity, NEVER the raw IP.
+ */
+function LinkDetails({
+  link,
+  events,
+  versions,
+  onPatch,
+}: {
+  link: ShareLink;
+  events: VisitEvent[] | null;
+  versions: ResumeVersion[] | null;
+  onPatch: (patch: Partial<ShareLink>) => void;
+}) {
+  const expiresValue = link.expiresAt ? link.expiresAt.slice(0, 10) : '';
+  return (
+    <div
+      style={{
+        marginTop: 10,
+        padding: '10px 12px',
+        background: '#f8fafc',
+        borderRadius: 8,
+        border: '1px solid #e2e8f0',
+      }}
+    >
+      <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
+        <label className="small" style={{ display: 'grid', gap: 4 }}>
+          Pin to version (optional)
+          <select
+            value={link.resumeVersionId || ''}
+            onChange={(e) => onPatch({ resumeVersionId: e.target.value || null } as Partial<ShareLink>)}
+          >
+            <option value="">Live resume (always latest)</option>
+            {versions === null ? (
+              <option value="" disabled>Loading versions…</option>
+            ) : versions.length === 0 ? (
+              <option value="" disabled>No snapshots saved for this resume</option>
+            ) : null}
+            {(versions ?? []).map((v) => (
+              <option key={v.id} value={v.id}>
+                {v.label || `Snapshot ${new Date(v.createdAt).toLocaleDateString()}`}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="small" style={{ display: 'grid', gap: 4 }}>
+          Expires on (optional)
+          <input
+            type="date"
+            value={expiresValue}
+            onChange={(e) => {
+              const v = e.target.value;
+              // ISO yyyy-mm-dd → end-of-day UTC so the link stays usable
+              // through the day the user picked, not until midnight UTC
+              // morning which silently revokes a few hours early in IST.
+              onPatch({ expiresAt: v ? `${v}T23:59:59Z` : null } as Partial<ShareLink>);
+            }}
+            min={new Date().toISOString().slice(0, 10)}
+          />
+        </label>
+      </div>
+      <p className="small" style={{ marginTop: 10, color: '#5a6778' }}>
+        {link.resumeVersionId
+          ? 'This link is pinned to a saved snapshot. Future edits to the resume will NOT change what recruiters see here.'
+          : 'This link follows the latest version of your resume. Edits show up immediately.'}
+        {link.expiresAt
+          ? ` Will auto-revoke after ${new Date(link.expiresAt).toLocaleDateString()}.`
+          : ''}
+      </p>
+
+      <h3 style={{ margin: '14px 0 6px', fontSize: 13, color: '#1a3a5c' }}>Visits</h3>
+      {events === null ? (
+        <p className="small" style={{ color: '#5a6778' }}>Loading…</p>
+      ) : events.length === 0 ? (
+        <p className="small" style={{ color: '#5a6778' }}>No visits yet.</p>
+      ) : (
+        <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 6 }}>
+          {events.map((e) => (
+            <li
+              key={e.id}
+              style={{
+                display: 'flex',
+                gap: 10,
+                alignItems: 'baseline',
+                fontSize: 12,
+                color: '#1f2937',
+                background: '#ffffff',
+                padding: '6px 10px',
+                borderRadius: 6,
+                border: '1px solid #eef2f7',
+              }}
+            >
+              <span
+                style={{
+                  fontWeight: 600,
+                  color: e.kind === 'download' ? '#1e7a3a' : '#1a3a5c',
+                  minWidth: 70,
+                }}
+              >
+                {e.kind === 'download' ? 'Download' : 'View'}
+              </span>
+              <span style={{ flex: 1 }}>
+                {new Date(e.createdAt).toLocaleString()}
+                {e.country || e.city ? (
+                  <span style={{ color: '#5a6778' }}> · {[e.city, e.country].filter(Boolean).join(', ')}</span>
+                ) : null}
+                {e.referrer ? (
+                  <span style={{ color: '#5a6778' }}> · from {hostnameOf(e.referrer)}</span>
+                ) : null}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="small" style={{ marginTop: 8, color: '#94a3b8', fontSize: 11 }}>
+        We never store the visitor's IP address. Each row above is the most we know.
+      </p>
+    </div>
+  );
+}
+
+function hostnameOf(url: string): string {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return url.slice(0, 40);
+  }
+}

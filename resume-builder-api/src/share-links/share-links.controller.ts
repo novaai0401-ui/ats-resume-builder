@@ -30,6 +30,14 @@ export class ShareLinksController {
     return this.service.list(req.user.userId);
   }
 
+  @Get(':id/events')
+  events(
+    @Req() req: { user: { userId: string } },
+    @Param('id') id: string,
+  ) {
+    return this.service.listEvents(req.user.userId, id);
+  }
+
   @Post()
   create(@Req() req: { user: { userId: string } }, @Body() body: CreateShareLinkInput) {
     if (!body?.resumeId) throw new BadRequestException('resumeId is required.');

@@ -39,6 +39,13 @@ export type UpdateShareLinkInput = Partial<{
   allowSearchIndexing: boolean;
   maskContact: boolean;
   expiresAt: string | null;
+  /**
+   * Pin the public page to a frozen ResumeVersion snapshot. Setting
+   * to null moves the link back to "live resume" mode. We validate
+   * that the version belongs to the same resume + user before
+   * accepting the change (no cross-resume pinning).
+   */
+  resumeVersionId: string | null;
 }>;
 
 /**
@@ -121,6 +128,18 @@ export class ShareLinksService {
   async update(userId: string, id: string, input: UpdateShareLinkInput) {
     const existing = await this.prisma.shareLink.findFirst({ where: { id, userId } });
     if (!existing) throw new NotFoundException('Share link not found.');
+
+    // Validate version pinning: the snapshot must belong to the same
+    // resume + user. Without this check a malicious patch could pin a
+    // public link to another user's snapshot — a serious data leak.
+    if (input.resumeVersionId !== undefined && input.resumeVersionId) {
+      const version = await this.prisma.resumeVersion.findFirst({
+        where: { id: input.resumeVersionId, resumeId: existing.resumeId, userId },
+        select: { id: true },
+      });
+      if (!version) throw new BadRequestException('Resume version not found for this resume.');
+    }
+
     return this.prisma.shareLink.update({
       where: { id },
       data: {
@@ -131,6 +150,7 @@ export class ShareLinksService {
         ...(input.expiresAt !== undefined
           ? { expiresAt: input.expiresAt ? new Date(input.expiresAt) : null }
           : {}),
+        ...(input.resumeVersionId !== undefined ? { resumeVersionId: input.resumeVersionId } : {}),
       },
     });
   }
@@ -140,6 +160,37 @@ export class ShareLinksService {
     // preserved for the owner's audit even after a recruiter is no
     // longer welcome.
     return this.update(userId, id, { enabled: false });
+  }
+
+  /**
+   * Paginated visit log for the owner. Returns the same shape the
+   * Settings card UI consumes: kind + timestamp + truncated UA +
+   * coarse geo. NEVER exposes the raw IP (we don't store it) or the
+   * full ipHash (it would let the owner cross-reference visits across
+   * sessions of the same recruiter via the hash, which is a weaker
+   * but real privacy leak).
+   */
+  async listEvents(userId: string, shareLinkId: string, limit = 50) {
+    const link = await this.prisma.shareLink.findFirst({
+      where: { id: shareLinkId, userId },
+      select: { id: true },
+    });
+    if (!link) throw new NotFoundException('Share link not found.');
+    const cap = Math.min(Math.max(1, Number(limit) || 50), 200);
+    return this.prisma.shareLinkEvent.findMany({
+      where: { shareLinkId },
+      orderBy: { createdAt: 'desc' },
+      take: cap,
+      select: {
+        id: true,
+        kind: true,
+        userAgent: true,
+        country: true,
+        city: true,
+        referrer: true,
+        createdAt: true,
+      },
+    });
   }
 
   // ─── public-side ──────────────────────────────────────────────────
