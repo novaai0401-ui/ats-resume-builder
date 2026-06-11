@@ -75,15 +75,24 @@ acceptance bullet IS the regression contract.
 
 ### R-003 · Export quota enforcement (PDF + DOCX, all plans)
 
-- Status: **DONE**
-- Commits: `b08dfda`, `da29839`
+- Status: **DONE** (with a controlled env override; see decision row 2026-06-12)
+- Commits: `b08dfda`, `da29839`, (this commit)
 - Acceptance
   - [x] `generatePdf` rejects with `ForbiddenException` containing the
     string `"Monthly export limit reached"` when `pdfExportsUsed + 1 >
-    pdfExportsLimit`. No env-flag escape hatch.
+    pdfExportsLimit` **AND** `ENFORCE_EXPORT_QUOTA !== 'false'`.
   - [x] `generateDocx` shares the same counter and enforces the same
     ceiling. Increment happens only after the render succeeds.
+  - [x] Default behaviour is ENFORCED — flipping the flag requires an
+    explicit env setting (`ENFORCE_EXPORT_QUOTA=false`); silence of
+    the variable means enforce. R-022 (Deploy) acceptance includes
+    removing the override before going live.
   - [x] `tests/export-quota.unit.test.cjs` (4 tests) pin the contract.
+  - [x] Client-side error mapping no longer translates 403 → "Your
+    session expired" (that copy is reserved for 401). 403 surfaces
+    the server's own message ("Monthly export limit reached (5).
+    Upgrade your plan or wait for next month's reset.") so the user
+    sees the actual cause.
 
 ### R-004 · `/templates` redirect (no 404)
 
@@ -612,6 +621,9 @@ do not break it.
 | 2026-06-11 | Static `/mentor` ROLE_SEEDS deprecated → fold into Coach hub | Curated content goes stale next to live AI | R-036 |
 | 2026-06-11 | Public portfolio links promoted from "later" (strategy §4.3) to §3 backlog as R-038 | Founder request + view/download events are an Outcome Graph signal class we can't capture any other way | R-038 |
 | 2026-06-11 | Company downloads via share link do NOT burn the owner's export quota | Owner shouldn't be penalized for recruiter interest; scraping handled by per-slug rate limit instead | R-038, R-003 |
+| 2026-06-12 | Introduce `ENFORCE_EXPORT_QUOTA` env flag, defaulting to TRUE | Founder pre-launch testing on the Render preview hit the 5/mo cap with the only available test account. Going-live checklist (R-022) requires removing or setting the override to `true`. | R-003 |
+| 2026-06-12 | Client maps 401 → "session expired"; 403 surfaces the server's own message | Founder reported a 403 from quota enforcement displaying "Your session expired", which sent users to re-login (no help) instead of telling them why the download was blocked. C-003 — copy must match the real cause. | R-003 |
+| 2026-06-12 | Razorpay `cdn.razorpay.com` added to CSP script-src + connect-src | "Confirming Payment" hang on live preview was the SDK waiting for a global the CSP-blocked risk-detection bundle would have installed. Without the bundle the post-payment confirmation never resolves. | R-005 |
 | 2026-06-11 | sms-gateway + resume-builder-ai standalone services flagged for archive if untouched in 90 days | Two AI call paths is one too many | — |
 
 ---

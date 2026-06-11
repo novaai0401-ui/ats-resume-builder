@@ -145,6 +145,27 @@ export const RESUME_CREATE_RATE_WINDOW_MS = 60_000;
 export const RESUME_CREATE_RATE_LIMIT_MESSAGE = 'Rate limit exceeded for resume creation.';
 export const RESUME_CREATE_RATE_LIMIT_CODE = 'RESUME_CREATE_RATE_LIMITED';
 
+/**
+ * Per-plan monthly export-quota enforcement (R-003).
+ *
+ * Defaults to ENFORCED so a production deploy is never accidentally
+ * lenient. The founder can flip ENFORCE_EXPORT_QUOTA=false in the
+ * pre-launch Render preview so testing can pull more than 5 PDFs
+ * without burning the only available account. Going-live checklist
+ * (R-022) includes removing this override.
+ *
+ * Decision recorded in REQUIREMENTS.md §7 (2026-06-12). The flag is
+ * the ONLY supported way to disable the cap — there are no other
+ * env hatches, the FREE-plan check (PRODUCT_FLOW_RESTRICTIONS_ENABLED)
+ * is unrelated, and the rate-limit (8/min) stays on regardless to
+ * keep Chrome safe from a runaway loop.
+ */
+function isExportQuotaEnforced(): boolean {
+  const raw = String(process.env.ENFORCE_EXPORT_QUOTA ?? '').trim().toLowerCase();
+  if (raw === 'false' || raw === '0' || raw === 'no' || raw === 'off') return false;
+  return true;
+}
+
 @Injectable()
 export class ResumeService {
   constructor(
@@ -632,7 +653,7 @@ export class ResumeService {
     // any plan could download unlimited PDFs. (Reported: a FREE user
     // pulled more than 5 exports.) The flag now only controls the
     // FREE-plan hard-block above; the quota itself is law.
-    if (updatedUser.pdfExportsUsed + 1 > updatedUser.pdfExportsLimit) {
+    if (isExportQuotaEnforced() && updatedUser.pdfExportsUsed + 1 > updatedUser.pdfExportsLimit) {
       throw new ForbiddenException(
         `Monthly export limit reached (${updatedUser.pdfExportsLimit}). Upgrade your plan or wait for next month's reset.`,
       );
@@ -801,7 +822,7 @@ export class ResumeService {
     if (!updatedUser) {
       throw new NotFoundException('User not found');
     }
-    if (updatedUser.pdfExportsUsed + 1 > updatedUser.pdfExportsLimit) {
+    if (isExportQuotaEnforced() && updatedUser.pdfExportsUsed + 1 > updatedUser.pdfExportsLimit) {
       throw new ForbiddenException(
         `Monthly export limit reached (${updatedUser.pdfExportsLimit}). Upgrade your plan or wait for next month's reset.`,
       );

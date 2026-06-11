@@ -4863,10 +4863,16 @@ function friendlyPdfErrorMessage(error: unknown, fallback: string): string {
     if (error.status === 503) {
       return 'PDF service is starting up. Please wait ~30 seconds and try again — your data is safe.';
     }
-    if (error.status === 401 || error.status === 403) {
+    if (error.status === 401) {
+      // 401 is the only status that actually means the session is gone.
+      // 403 (used by the export-quota check, FREE-plan block, etc.) ships
+      // its own user-readable message — we surface that instead of
+      // pretending the user has to re-log in. C-003: copy must match the
+      // real cause; "session expired" when the cause is a quota cap is
+      // the kind of dishonest UX the founder explicitly flagged.
       return 'Your session expired. Please sign in again to download your PDF.';
     }
-    if (error.status === 402 || error.status === 429) {
+    if (error.status === 403 || error.status === 402 || error.status === 429) {
       return error.message || fallback;
     }
   }

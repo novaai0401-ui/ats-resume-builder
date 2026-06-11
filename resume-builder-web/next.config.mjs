@@ -24,14 +24,20 @@ const csp = [
   "default-src 'self'",
   // Next.js dev/prod both need 'unsafe-inline' for some inlined critical CSS.
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-  // Razorpay checkout loads from checkout.razorpay.com; Next injects small
-  // inline bootstrap scripts so 'unsafe-inline' is required. 'unsafe-eval'
-  // is needed for Next dev hot reload but can be removed in pure prod
-  // without turbopack if desired.
-  `script-src 'self' 'unsafe-inline' ${isProd ? '' : "'unsafe-eval'"} https://checkout.razorpay.com`,
+  // Razorpay checkout loads from checkout.razorpay.com; the risk-detection
+  // bundle (fraud check that the "Confirming Payment" step waits on) loads
+  // from cdn.razorpay.com. Both must be allow-listed in script-src.
+  // Without cdn.razorpay.com the post-payment confirmation hangs because
+  // Razorpay's SDK keeps waiting for the risk-detection global it could
+  // never inject — the user saw exactly this on the live preview.
+  // Next injects small inline bootstrap scripts so 'unsafe-inline' stays.
+  // 'unsafe-eval' is dev-only.
+  `script-src 'self' 'unsafe-inline' ${isProd ? '' : "'unsafe-eval'"} https://checkout.razorpay.com https://cdn.razorpay.com`,
   "img-src 'self' data: blob: https:",
   "font-src 'self' data: https://fonts.gstatic.com",
-  `connect-src 'self' ${apiUrl} https://api.razorpay.com https://lumberjack.razorpay.com https://api.stripe.com`,
+  // Risk detection POSTs telemetry to cdn.razorpay.com — needs to be in
+  // connect-src too or the same hang reproduces from a different angle.
+  `connect-src 'self' ${apiUrl} https://api.razorpay.com https://cdn.razorpay.com https://lumberjack.razorpay.com https://api.stripe.com`,
   "frame-src 'self' https://api.razorpay.com https://checkout.razorpay.com https://js.stripe.com",
   "worker-src 'self' blob:",
   "manifest-src 'self'",
