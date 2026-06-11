@@ -5,6 +5,7 @@ import { AiService } from './ai.service';
 import { TechGapService } from './tech-gap.service';
 import { CoverLetterService } from './cover-letter.service';
 import { BulletRewriterService } from './bullet-rewriter.service';
+import { TailorService } from './tailor.service';
 import { JdMatchService } from './jd-match.service';
 import { InterviewPrepService } from './interview-prep.service';
 import { MentorChatService } from './mentor-chat.service';
@@ -18,6 +19,7 @@ import { SettingsModule } from '../settings/settings.module';
     TechGapService,
     CoverLetterService,
     BulletRewriterService,
+    TailorService,
     JdMatchService,
     InterviewPrepService,
     MentorChatService,

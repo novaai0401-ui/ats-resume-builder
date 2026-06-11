@@ -360,16 +360,34 @@ replies than that one" — which is the moat.
 
 ### R-034 · One-click tailor (JD → tailored version)
 
-- Status: **BACKLOG**
-- Depends-on: R-033, R-030
+- Status: **IN-PROGRESS** (API phase DONE on branch; web diff UI remaining)
+- Depends-on: R-030 (R-033 needed only for the extension surface)
 - Acceptance
-  - [ ] Anywhere the user sees a JD (extension, `/jd-match`, `/jobs`),
-    a single "Tailor" button creates a NEW `ResumeVersion` with the
-    AI rewrites applied.
-  - [ ] Diff view shows the deltas against the base version; user can
-    accept / reject per-bullet.
-  - [ ] Each tailored version is auto-labelled with the company + role.
-  - [ ] Counts against the AI-token quota (already enforced).
+  - **API phase — DONE**
+  - [x] `POST /ai/tailor/:resumeId/propose {jdText}` → LLM reads
+    resume + JD, returns a `TailorProposal` (summary rewrite,
+    per-bullet before/after changes, skillsToAdd). Nothing saved.
+    Validation boundary `parseTailorResponse` drops hallucinated
+    bullet ids, no-op rewrites, empties; caps skills at 20 (6 unit
+    tests). Honest 403 when no AI provider is configured — NO
+    rule-based fallback by design (mechanical verb swaps across a
+    whole resume produce garbage diffs that erode trust).
+  - [x] `POST /ai/tailor/:resumeId/apply` → creates a NEW
+    `ResumeVersion` labelled `Tailored: <role> @ <company>` (C-007
+    attribution). Live resume untouched unless `applyToLive=true`.
+    Stale-proposal guard: a bullet whose `before` text no longer
+    matches the current resume is rejected (`rejectedAsStale` count
+    returned) instead of being written into the wrong slot.
+  - [x] Plan-gated STUDENT+ (mirrors BulletRewriter), ~2500 AI tokens
+    charged per propose, 6/min rate limit. Counts against the
+    existing quota (verified end-to-end on local stack: propose
+    validation paths, apply happy path, stale rejection, empty-apply
+    400, applyToLive).
+  - **Web phase — remaining**
+  - [ ] Diff view on `/jd-match`: "Tailor my resume for this JD"
+    button → renders proposal with accept/reject per change →
+    Apply → links to the created version in `/resume/versions`.
+  - [ ] Extension surface (after R-033).
 
 ### R-035 · Outcome insights at the moment of choice
 
