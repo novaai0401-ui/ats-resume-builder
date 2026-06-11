@@ -360,7 +360,7 @@ replies than that one" — which is the moat.
 
 ### R-034 · One-click tailor (JD → tailored version)
 
-- Status: **IN-PROGRESS** (API phase DONE on branch; web diff UI remaining)
+- Status: **DONE** (on branch; not merged. Extension surface tracked under R-033)
 - Depends-on: R-030 (R-033 needed only for the extension surface)
 - Acceptance
   - **API phase — DONE**
@@ -383,11 +383,18 @@ replies than that one" — which is the moat.
     existing quota (verified end-to-end on local stack: propose
     validation paths, apply happy path, stale rejection, empty-apply
     400, applyToLive).
-  - **Web phase — remaining**
-  - [ ] Diff view on `/jd-match`: "Tailor my resume for this JD"
-    button → renders proposal with accept/reject per change →
-    Apply → links to the created version in `/resume/versions`.
-  - [ ] Extension surface (after R-033).
+  - **Web phase — DONE**
+  - [x] Diff view on `/jd-match` (`TailorDiffPanel.tsx`): "Tailor my
+    resume for this JD" CTA → proposal renders as per-change BEFORE
+    / AFTER cells with checkboxes (summary, each bullet, each new
+    skill). User picks the subset → Apply → confirmation card
+    surfaces the new version label, `appliedBullets`,
+    `rejectedAsStale` count, links straight to
+    `/resume/versions?id=…`. `applyToLive` opt-in checkbox; default
+    keeps live untouched. `tailorPropose` / `tailorApply` added to
+    `src/lib/api.ts`. Honest server errors (no GROQ key, plan gate)
+    surface verbatim. tsc clean, page renders 200 in preview.
+  - [ ] Extension surface (after R-033 — explicit registry split).
 
 ### R-035 · Outcome insights at the moment of choice
 
