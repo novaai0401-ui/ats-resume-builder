@@ -57,6 +57,22 @@ test('Razorpay + Stripe frame-src allow-list is still intact', () => {
   assert.match(cfg, /frame-src 'self' https:\/\/api\.razorpay\.com https:\/\/checkout\.razorpay\.com https:\/\/js\.stripe\.com/);
 });
 
+test('Razorpay risk-detection bundle (cdn.razorpay.com) is allow-listed for script + connect', () => {
+  // Reported by the founder on the live preview: "Confirming Payment"
+  // overlay hangs because cdn.razorpay.com/.../razorpay-risk-detection/
+  // bundle.js is CSP-blocked. The Razorpay checkout SDK waits for a
+  // global that the blocked script would have installed; the spinner
+  // never resolves. Both directives must include cdn.razorpay.com:
+  //   - script-src so the bundle can load
+  //   - connect-src so its fraud-telemetry POST can reach the CDN
+  // Each directive is on its own line in next.config.mjs, so match
+  // the directive line + the CDN host on it (multiline allows the
+  // line-by-line scan; the regex picks any line that starts with
+  // script-src or connect-src and contains cdn.razorpay.com).
+  assert.match(cfg, /^.*script-src[^\n]*https:\/\/cdn\.razorpay\.com/m);
+  assert.match(cfg, /^.*connect-src[^\n]*https:\/\/cdn\.razorpay\.com/m);
+});
+
 test('CSP still locks down the other directives we care about', () => {
   assert.match(cfg, /"object-src 'none'"/);
   assert.match(cfg, /"base-uri 'self'"/);
