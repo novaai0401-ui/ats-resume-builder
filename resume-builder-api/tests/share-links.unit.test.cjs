@@ -16,7 +16,7 @@ const { __testables } = require('../dist/share-links/share-links.service.js');
  *     different across slugs from the same IP (no cross-owner linkage)
  */
 
-const { randomSlug, sanitiseResumeForPublic, anonIdFor } = __testables;
+const { randomSlug, sanitiseResumeForPublic, anonIdFor, extractCoarseGeo } = __testables;
 
 test('slug is 12 chars from a URL-safe alphabet (no 0/1/l)', () => {
   // Drops 0/1/l — the three chars most often confused in dictated
@@ -96,4 +96,49 @@ test('anonIdFor differs for different IPs viewing the same slug', () => {
   const a = { headers: { 'x-forwarded-for': '203.0.113.5', 'user-agent': 'UA' }, socket: {} };
   const b = { headers: { 'x-forwarded-for': '198.51.100.7', 'user-agent': 'UA' }, socket: {} };
   assert.notEqual(anonIdFor(a, 'slug1'), anonIdFor(b, 'slug1'));
+});
+
+// Coarse-geo extraction (R-038 Phase 2 step 4) — reads what proxies
+// inject for free instead of running our own IP-geolocation DB.
+
+test('extractCoarseGeo returns null when no proxy headers are present', () => {
+  // Local dev / direct-internet deploy: no enrichment available, the
+  // visit log simply shows timestamp + UA. This is the documented
+  // "WHEN AVAILABLE" branch of the R-038 acceptance.
+  assert.deepEqual(extractCoarseGeo({ headers: {} }), { country: null, city: null });
+  assert.deepEqual(extractCoarseGeo(undefined), { country: null, city: null });
+});
+
+test('extractCoarseGeo reads Cloudflare headers', () => {
+  const req = { headers: { 'cf-ipcountry': 'IN', 'cf-ipcity': 'Bengaluru' } };
+  assert.deepEqual(extractCoarseGeo(req), { country: 'IN', city: 'Bengaluru' });
+});
+
+test('extractCoarseGeo reads Vercel headers and URL-decodes city names', () => {
+  // Vercel returns city names URL-encoded ("New%20Delhi"). Recruiters
+  // looking at "New%20Delhi" in their dashboard would think we are
+  // broken — decode it.
+  const req = { headers: { 'x-vercel-ip-country': 'IN', 'x-vercel-ip-city': 'New%20Delhi' } };
+  assert.deepEqual(extractCoarseGeo(req), { country: 'IN', city: 'New Delhi' });
+});
+
+test('extractCoarseGeo prefers Cloudflare over Vercel when both present', () => {
+  // Deploy precedence: the front-most proxy wins. We pick CF first
+  // because that is the most common path; if both are present, the
+  // CF values are the ones closest to the client.
+  const req = {
+    headers: {
+      'cf-ipcountry': 'IN',
+      'x-vercel-ip-country': 'US',
+    },
+  };
+  assert.equal(extractCoarseGeo(req).country, 'IN');
+});
+
+test('extractCoarseGeo treats "XX" / "T1" placeholders as missing', () => {
+  // Cloudflare emits "XX" for unknown and "T1" for Tor. These would
+  // be confusing to surface in the dashboard — treat them as null so
+  // the owner sees "no geo" rather than "country: XX".
+  assert.equal(extractCoarseGeo({ headers: { 'cf-ipcountry': 'XX' } }).country, null);
+  assert.equal(extractCoarseGeo({ headers: { 'cf-ipcountry': 'T1' } }).country, null);
 });

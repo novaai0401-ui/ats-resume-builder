@@ -374,7 +374,7 @@ replies than that one" — which is the moat.
 
 ### R-038 · Public portfolio / share link
 
-- Status: **IN-PROGRESS** (Phase 1 of 2 committed on branch; not merged)
+- Status: **DONE** (Phase 1 + Phase 2 on branch; not merged per founder instruction)
 - Depends-on: R-022, R-030
 - Why: a shareable per-user URL (`/p/:slug`) where companies can view
   the portfolio and download the linked resume. High moat alignment:
@@ -414,18 +414,32 @@ replies than that one" — which is the moat.
     linkage. Smoke-verified end-to-end on local stack (web + API +
     Postgres): create → public page renders → view counter increments
     → revoke → 404.
-  - **Phase 2 — backlog (separate commit before merge)**
-  - [ ] Editor Export-modal "Share this resume" CTA.
-  - [ ] Owner per-link visit log UI ("3 views this week, 1 download
-    from Bengaluru on Tuesday") — backend `ShareLinkEvent` rows are
-    already being written.
-  - [ ] Contact-relay form on the masked-contact public page so a
-    recruiter can still send a message; relay forwards via SMTP.
-  - [ ] `expiresAt` picker in the Settings card.
-  - [ ] Pin to a specific `resumeVersionId` from the UI (the model +
-    server already support it; UI is the missing piece).
-  - [ ] Coarse-geo enrichment on `ShareLinkEvent` (shares the
-    geo-lookup work with `AdminAnalyticsController`).
+  - **Phase 2 — DONE on this branch (not merged)**
+  - [x] Editor Export-modal "Share this resume" CTA
+    (`ShareInExportModal.tsx`, mounted in `ResumeEditor.tsx`).
+  - [x] Owner per-link visit log UI: expandable panel per link with
+    kind + timestamp + country/city + referrer + truncated UA.
+    Backed by `GET /share-links/:id/events`.
+  - [x] Contact-relay form on the masked-contact public page
+    (`ContactRelayForm.tsx`), posts to `POST /p/:slug/contact`, SMTP
+    forward via `MailService.sendShareRelayEmail` with `Reply-To` set
+    to the sender so the owner replies directly. Rate-limited 5/day
+    per slug. Uniform "submitted" response on every non-validation
+    path (no enumeration oracle).
+  - [x] `expiresAt` picker in the Settings card. End-of-day UTC so
+    "valid through 30 Jun" stays usable through 30 Jun IST.
+  - [x] Pin to a specific `resumeVersionId` from the UI. Cross-resume
+    pinning rejected server-side with 400 — the version must belong
+    to the same resume + user.
+  - [x] Coarse-geo enrichment on `ShareLinkEvent` via proxy-injected
+    headers (`cf-ipcountry`, `x-vercel-ip-country`, `x-vercel-ip-city`).
+    Treats "XX" / "T1" placeholders as missing. URL-decodes city
+    names. Returns null/null on direct-internet deploys (the
+    documented "WHEN AVAILABLE" branch). No IP-geolocation DB
+    licensed in this repo by design.
+  - [x] 12 unit tests pin slug shape + entropy, payload sanitisation,
+    anon-id determinism + no cross-owner linkage, geo extraction
+    across CF/Vercel/none, URL-decoding, XX/T1 placeholder handling.
 
 ---
 

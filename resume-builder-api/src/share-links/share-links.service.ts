@@ -431,6 +431,7 @@ export class ShareLinksService {
     const ua = req?.headers['user-agent'] ? String(req.headers['user-agent']).slice(0, 200) : null;
     const referrer = req?.headers['referer'] ? String(req.headers['referer']).slice(0, 200) : null;
     const ipHash = createHash('sha256').update(`${shareLinkId}:${ip || 'unknown'}:${ua || ''}`).digest('hex').slice(0, 24);
+    const { country, city } = extractCoarseGeo(req);
 
     await this.prisma.shareLinkEvent.create({
       data: {
@@ -439,8 +440,8 @@ export class ShareLinksService {
         ipHash,
         userAgent: ua,
         referrer,
-        country: null, // geo enrichment is a follow-up; AdminAnalytics already plans this
-        city: null,
+        country,
+        city,
       },
     });
 
@@ -518,5 +519,47 @@ function sanitiseResumeForPublic(resumeBody: any, maskContact: boolean) {
   };
 }
 
+/**
+ * Coarse-geo enrichment for visit logs (R-038 Phase 2 step 4).
+ *
+ * Pocket Resume does not own an IP-geolocation database — bringing
+ * one in just for the share-link log would be a significant license
+ * + binary-size + memory tradeoff (MaxMind: paid; ipinfo: paid;
+ * GeoLite2: 60 MB binary, attribution licence). What we DO have for
+ * free is the country / city / region hints that every major proxy
+ * (Cloudflare, Vercel, Render, Netlify, AWS CloudFront) injects as
+ * request headers when the request lands. Reading those costs
+ * nothing and gives us correct geo on every prod deploy that sits
+ * behind a proxy. On a deploy WITHOUT a proxy (or in the local
+ * sandbox here), the function returns null/null and the visit log
+ * just shows the timestamp + UA — exactly what the founder agreed
+ * to in the REQUIREMENTS.md acceptance (coarse geo "WHEN AVAILABLE").
+ *
+ * Header precedence chosen to match the deployment targets we care
+ * about most: Cloudflare (cf-ipcountry) → Vercel
+ * (x-vercel-ip-country / -city) → generic (x-geo-country /
+ * x-geo-city). All header values are trimmed and capped.
+ */
+function extractCoarseGeo(req?: Request): { country: string | null; city: string | null } {
+  if (!req) return { country: null, city: null };
+  const h = req.headers;
+  const pick = (...names: string[]): string | null => {
+    for (const name of names) {
+      const v = h[name];
+      const raw = Array.isArray(v) ? v[0] : v;
+      const trimmed = raw ? String(raw).trim().slice(0, 64) : '';
+      if (trimmed && trimmed !== 'XX' && trimmed !== 'T1') return trimmed;
+    }
+    return null;
+  };
+  const country = pick('cf-ipcountry', 'x-vercel-ip-country', 'x-geo-country');
+  const city = pick('x-vercel-ip-city', 'cf-ipcity', 'x-geo-city');
+  // Vercel URL-encodes city names with spaces ("New%20Delhi"). Decode safely.
+  const decodedCity = city
+    ? (() => { try { return decodeURIComponent(city); } catch { return city; } })()
+    : null;
+  return { country, city: decodedCity };
+}
+
 // Re-export for tests.
-export const __testables = { randomSlug, sanitiseResumeForPublic, anonIdFor };
+export const __testables = { randomSlug, sanitiseResumeForPublic, anonIdFor, extractCoarseGeo };
