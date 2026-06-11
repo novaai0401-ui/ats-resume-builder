@@ -32,7 +32,12 @@ export type AnalyticsEventType =
   // page has no JS tracking.
   | 'share_link_view'
   | 'share_link_download'
-  | 'share_link_contact_relay';
+  | 'share_link_contact_relay'
+  // R-031: outcome-nudge loop. Tracked so the dashboard can answer
+  // "do the nudge emails actually get tapped?" — the conversion rate
+  // of these events is the health metric of the Outcome Graph.
+  | 'nudge_outcome_recorded'
+  | 'nudge_unsubscribed';
 
 export interface AnalyticsEvent {
   type: AnalyticsEventType;

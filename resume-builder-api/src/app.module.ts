@@ -20,6 +20,7 @@ import { SahaayakModule } from './sahaayak/sahaayak.module';
 import { TrainingDatasetModule } from './training-dataset/training-dataset.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { ShareLinksModule } from './share-links/share-links.module';
+import { OutcomeNudgeModule } from './outcome-nudge/outcome-nudge.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { ShareLinksModule } from './share-links/share-links.module';
     TrainingDatasetModule,
     AnalyticsModule,
     ShareLinksModule,
+    OutcomeNudgeModule,
   ],
   controllers: [HealthController],
 })
