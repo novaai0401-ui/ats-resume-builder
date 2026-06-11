@@ -19,6 +19,8 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api, getAccessToken } from '@/src/lib/api';
 import { useResumeStore } from '@/src/lib/resume-store';
+import { readActiveResumeSelection } from '@/src/lib/resume-flow';
+import TailorDiffPanel from './TailorDiffPanel';
 
 type MatchResult = {
   matchPercent: number;
@@ -48,6 +50,10 @@ function scoreColor(percent: number): string {
 export default function JdMatchClient() {
   const resume = useResumeStore((state) => state.resume);
   const [authed, setAuthed] = useState(false);
+  // R-034: the tailor flow needs the persisted resumeId (the same one
+  // the editor uses) so it can write back a tailored ResumeVersion.
+  // Read on mount instead of every render to avoid an SSR mismatch.
+  const [activeResumeId, setActiveResumeId] = useState<string | null>(null);
   const [jdText, setJdText] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -57,6 +63,7 @@ export default function JdMatchClient() {
 
   useEffect(() => {
     setAuthed(Boolean(getAccessToken()));
+    setActiveResumeId(readActiveResumeSelection() || null);
   }, []);
 
   const resumeText = buildResumeText(resume as never);
@@ -259,6 +266,12 @@ export default function JdMatchClient() {
               </ul>
             </section>
           ) : null}
+
+          {/* R-034 — one-click tailor against this same JD. Renders
+              under the suggestion list because the user has just seen
+              the gap and is most likely to want a structured rewrite
+              right at this moment. */}
+          <TailorDiffPanel resumeId={activeResumeId} jdText={jdText} />
         </>
       ) : null}
     </main>

@@ -111,6 +111,71 @@ export class MailService {
     }
   }
 
+  /**
+   * R-031 outcome-nudge: "any reply from <company>?" with three
+   * one-tap links. Plain-text first (mail clients trust it more),
+   * minimal HTML with three real buttons.
+   */
+  async sendOutcomeNudgeEmail(args: {
+    to: string;
+    userName: string;
+    company: string;
+    role: string;
+    appliedAt: Date;
+    links: { noReply: string; rejected: string; interview: string; unsubscribe: string };
+  }): Promise<boolean> {
+    if (!this.transporter) {
+      this.logger.warn(`Cannot send outcome nudge to ${args.to}: SMTP not configured`);
+      return false;
+    }
+    const appliedOn = args.appliedAt.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+    const firstName = (args.userName || '').trim().split(/\s+/)[0] || 'there';
+    const subject = `Any reply from ${args.company}?`;
+    const text = [
+      `Hi ${firstName},`,
+      '',
+      `You applied to ${args.role} at ${args.company} on ${appliedOn}. One tap keeps your tracker honest:`,
+      '',
+      `No reply yet:   ${args.links.noReply}`,
+      `Rejected:       ${args.links.rejected}`,
+      `Interview! :    ${args.links.interview}`,
+      '',
+      `Recording outcomes is how Pocket Resume learns which of your resume versions actually works.`,
+      '',
+      `Stop these emails: ${args.links.unsubscribe}`,
+    ].join('\n');
+    const btn = (href: string, label: string, bg: string) =>
+      `<a href="${href}" style="display:inline-block;background:${bg};color:#ffffff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:600;margin:4px 6px 4px 0;">${label}</a>`;
+    const html = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 520px; margin: 0 auto; padding: 24px;">
+        <h2 style="color:#1a3a5c;margin:0 0 6px;">Any reply from ${escapeHtml(args.company)}?</h2>
+        <p style="color:#555;font-size:14px;margin:0 0 16px;">
+          You applied to <strong>${escapeHtml(args.role)}</strong> at <strong>${escapeHtml(args.company)}</strong> on ${appliedOn}.
+          One tap keeps your tracker honest:
+        </p>
+        <div style="margin-bottom:16px;">
+          ${btn(args.links.noReply, 'No reply yet', '#64748b')}
+          ${btn(args.links.rejected, 'Rejected', '#b91c1c')}
+          ${btn(args.links.interview, 'Interview!', '#1e7a3a')}
+        </div>
+        <p style="color:#888;font-size:12px;margin:0 0 4px;">
+          Recording outcomes is how Pocket Resume learns which of your resume versions actually works.
+        </p>
+        <p style="color:#aaa;font-size:11px;margin:12px 0 0;">
+          <a href="${args.links.unsubscribe}" style="color:#aaa;">Stop these emails</a>
+        </p>
+      </div>`;
+    try {
+      await this.transporter.sendMail({ from: this.fromAddress, to: args.to, subject, text, html });
+      this.logger.log(`Outcome nudge sent to ${args.to} for ${args.company}`);
+      return true;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.error(`Failed to send outcome nudge to ${args.to}: ${msg.replace(/pass[^\s]*/gi, '***')}`);
+      return false;
+    }
+  }
+
   async sendOtpEmail(to: string, otp: string): Promise<boolean> {
     if (!this.transporter) {
       this.logger.warn(`Cannot send OTP email to ${to}: SMTP not configured`);

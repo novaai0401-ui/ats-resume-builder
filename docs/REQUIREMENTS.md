@@ -288,18 +288,46 @@ replies than that one" — which is the moat.
 
 ### R-031 · Outcome-status nudge
 
-- Status: **BACKLOG**
-- Depends-on: R-022
+- Status: **DONE** (on branch; activates in prod once `CRON_SECRET` is
+  set and a Render Cron Job hits `/outcome-nudge/run` daily)
+- Depends-on: R-022 (for activation; built and verified pre-deploy)
 - Acceptance
-  - [ ] A worker job, daily, finds `JobApplication.status='applied'`
-    where `appliedAt < now - 7d` and `status` hasn't advanced.
-  - [ ] Sends one email + one push (web push if subscribed) with three
-    one-tap buttons: `[No reply]` `[Rejected]` `[Interview!]`.
-  - [ ] Each button hits an unauthenticated signed-link endpoint that
-    advances the application's `status` and 302s to a friendly
-    confirmation page.
-  - [ ] Tokens are single-use, expire in 30 days.
-  - [ ] Unsubscribe link in every email; respected globally.
+  - [x] `runNudgeScan` finds `JobApplication.status='applied'` where
+    `appliedAt < now - 7d`. Triggered by `POST /outcome-nudge/run`
+    guarded by `CRON_SECRET` header (refuses when unset) — no
+    in-process scheduler, so horizontal scaling can't double-send;
+    idempotency comes from the unexpired-nudge check per application.
+  - [x] Sends one email with three one-tap buttons: `[No reply yet]`
+    `[Rejected]` `[Interview!]` (plain-text + minimal HTML). Web push
+    deferred — decision row 2026-06-12: email-only for launch, push
+    arrives with the WhatsApp work (R-043) so notification channels
+    land together.
+  - [x] Each button hits the unauthenticated
+    `GET /outcome-nudge/:token/:action` endpoint; the single-use
+    token is the authorization. Status transitions: `rejected` →
+    `rejected` (+`closedAt`), `interview` → `interview`, `no_reply`
+    keeps status and bumps `nextActionAt` +7d so the application
+    resurfaces in the tracker. Confirmation is a self-contained
+    zero-JS HTML page (mail-client webviews) linking back to
+    `$APP_WEB_URL/jobs`.
+  - [x] Tokens: 32-char unambiguous alphabet, single-use, 30-day
+    expiry, uniform 404 for missing/expired/used (no oracle). On
+    SMTP failure the nudge row is deleted so the next scan retries —
+    a transient outage can't silence an application's nudge for the
+    whole token lifetime.
+  - [x] Unsubscribe link in every email → flips
+    `User.nudgeEmailsEnabled=false` globally; deliberately does NOT
+    burn the token so the user can unsubscribe AND still answer the
+    question from the same email. Scan skips opted-out users
+    (verified: `skippedOptOut:1`).
+  - [x] Analytics: `nudge_outcome_recorded` (with action) +
+    `nudge_unsubscribed` events — tap-through rate is the health
+    metric of the Outcome Graph.
+  - [x] 4 unit tests pin token shape/entropy, the exact
+    action→status map, and the 7d/30d constants. Full loop
+    smoke-verified on the local stack (seed stale app → scan → row
+    created → tap interview → status advanced → re-tap 404 →
+    unsubscribe honoured by next scan).
 
 ### R-032 · Mail-in outcome capture
 
@@ -332,16 +360,41 @@ replies than that one" — which is the moat.
 
 ### R-034 · One-click tailor (JD → tailored version)
 
-- Status: **BACKLOG**
-- Depends-on: R-033, R-030
+- Status: **DONE** (on branch; not merged. Extension surface tracked under R-033)
+- Depends-on: R-030 (R-033 needed only for the extension surface)
 - Acceptance
-  - [ ] Anywhere the user sees a JD (extension, `/jd-match`, `/jobs`),
-    a single "Tailor" button creates a NEW `ResumeVersion` with the
-    AI rewrites applied.
-  - [ ] Diff view shows the deltas against the base version; user can
-    accept / reject per-bullet.
-  - [ ] Each tailored version is auto-labelled with the company + role.
-  - [ ] Counts against the AI-token quota (already enforced).
+  - **API phase — DONE**
+  - [x] `POST /ai/tailor/:resumeId/propose {jdText}` → LLM reads
+    resume + JD, returns a `TailorProposal` (summary rewrite,
+    per-bullet before/after changes, skillsToAdd). Nothing saved.
+    Validation boundary `parseTailorResponse` drops hallucinated
+    bullet ids, no-op rewrites, empties; caps skills at 20 (6 unit
+    tests). Honest 403 when no AI provider is configured — NO
+    rule-based fallback by design (mechanical verb swaps across a
+    whole resume produce garbage diffs that erode trust).
+  - [x] `POST /ai/tailor/:resumeId/apply` → creates a NEW
+    `ResumeVersion` labelled `Tailored: <role> @ <company>` (C-007
+    attribution). Live resume untouched unless `applyToLive=true`.
+    Stale-proposal guard: a bullet whose `before` text no longer
+    matches the current resume is rejected (`rejectedAsStale` count
+    returned) instead of being written into the wrong slot.
+  - [x] Plan-gated STUDENT+ (mirrors BulletRewriter), ~2500 AI tokens
+    charged per propose, 6/min rate limit. Counts against the
+    existing quota (verified end-to-end on local stack: propose
+    validation paths, apply happy path, stale rejection, empty-apply
+    400, applyToLive).
+  - **Web phase — DONE**
+  - [x] Diff view on `/jd-match` (`TailorDiffPanel.tsx`): "Tailor my
+    resume for this JD" CTA → proposal renders as per-change BEFORE
+    / AFTER cells with checkboxes (summary, each bullet, each new
+    skill). User picks the subset → Apply → confirmation card
+    surfaces the new version label, `appliedBullets`,
+    `rejectedAsStale` count, links straight to
+    `/resume/versions?id=…`. `applyToLive` opt-in checkbox; default
+    keeps live untouched. `tailorPropose` / `tailorApply` added to
+    `src/lib/api.ts`. Honest server errors (no GROQ key, plan gate)
+    surface verbatim. tsc clean, page renders 200 in preview.
+  - [ ] Extension surface (after R-033 — explicit registry split).
 
 ### R-035 · Outcome insights at the moment of choice
 
@@ -624,6 +677,8 @@ do not break it.
 | 2026-06-12 | Introduce `ENFORCE_EXPORT_QUOTA` env flag, defaulting to TRUE | Founder pre-launch testing on the Render preview hit the 5/mo cap with the only available test account. Going-live checklist (R-022) requires removing or setting the override to `true`. | R-003 |
 | 2026-06-12 | Client maps 401 → "session expired"; 403 surfaces the server's own message | Founder reported a 403 from quota enforcement displaying "Your session expired", which sent users to re-login (no help) instead of telling them why the download was blocked. C-003 — copy must match the real cause. | R-003 |
 | 2026-06-12 | Razorpay `cdn.razorpay.com` added to CSP script-src + connect-src | "Confirming Payment" hang on live preview was the SDK waiting for a global the CSP-blocked risk-detection bundle would have installed. Without the bundle the post-payment confirmation never resolves. | R-005 |
+| 2026-06-12 | R-031 ships email-only; web push deferred to R-043 | One notification channel done well beats two done half; push + WhatsApp land together so channel preferences are designed once. | R-031, R-043 |
+| 2026-06-12 | Nudge trigger is a CRON_SECRET-guarded endpoint, not an in-process scheduler | Survives horizontal scaling without double-sends (idempotent scan), works with Render Cron Jobs, no new dependency. | R-031 |
 | 2026-06-11 | sms-gateway + resume-builder-ai standalone services flagged for archive if untouched in 90 days | Two AI call paths is one too many | — |
 
 ---
