@@ -97,4 +97,19 @@ export class PublicShareLinkController {
     res.setHeader('Content-Disposition', `inline; filename="resume-${slug}.pdf"`);
     res.send(buffer);
   }
+
+  @Post(':slug/contact')
+  @HttpCode(200)
+  contact(
+    @Param('slug') slug: string,
+    @Req() req: Request,
+    @Body() body: {
+      senderName: string;
+      senderEmail: string;
+      senderCompany?: string | null;
+      message: string;
+    },
+  ) {
+    return this.service.submitContactRelay(slug, body || ({} as any), req);
+  }
 }

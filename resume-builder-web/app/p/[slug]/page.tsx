@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import ContactRelayForm from './ContactRelayForm';
 
 /**
  * R-038 — public portfolio page.
@@ -227,6 +228,8 @@ export default async function PublicSharePage({
             <p style={proseStyle}>{resume.languages.join(' · ')}</p>
           </Section>
         ) : null}
+
+        {meta.contactMasked ? <ContactRelayForm slug={slug} /> : null}
 
         <footer style={footerStyle}>
           <p style={{ margin: 0, fontSize: 12, color: '#94a3b8' }}>

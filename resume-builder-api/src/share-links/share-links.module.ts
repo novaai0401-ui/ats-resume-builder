@@ -1,10 +1,11 @@
 import { Module } from '@nestjs/common';
 import { ResumeModule } from '../resume/resume.module';
+import { MailModule } from '../mail/mail.module';
 import { PublicShareLinkController, ShareLinksController } from './share-links.controller';
 import { ShareLinksService } from './share-links.service';
 
 @Module({
-  imports: [ResumeModule],
+  imports: [ResumeModule, MailModule],
   controllers: [ShareLinksController, PublicShareLinkController],
   providers: [ShareLinksService],
   exports: [ShareLinksService],

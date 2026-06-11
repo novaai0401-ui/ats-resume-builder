@@ -4,6 +4,7 @@ import type { Request } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
 import { ResumeService } from '../resume/resume.service';
 import { AnalyticsService } from '../analytics/analytics.service';
+import { MailService } from '../mail/mail.service';
 import { rateLimitOrThrow } from '../limits/rate-limit';
 
 /**
@@ -84,6 +85,7 @@ export class ShareLinksService {
     private readonly prisma: PrismaService,
     private readonly resume: ResumeService,
     private readonly analytics: AnalyticsService,
+    private readonly mail: MailService,
   ) {}
 
   // ─── owner-side ────────────────────────────────────────────────────
@@ -160,6 +162,91 @@ export class ShareLinksService {
     // preserved for the owner's audit even after a recruiter is no
     // longer welcome.
     return this.update(userId, id, { enabled: false });
+  }
+
+  /**
+   * Contact relay (R-038 Phase 2). When `maskContact` is on, the
+   * public page hides email + phone but still lets a recruiter type
+   * a message into a "Get in touch" form. Their submission lands
+   * here; we email the owner with the sender's address as Reply-To
+   * so the owner can reply directly. The owner's email NEVER leaves
+   * the server.
+   *
+   * Rate-limited per-slug (5/day) — strict, because abuse here means
+   * the owner gets spammed and the only mitigation they have is to
+   * disable maskContact and reveal contact details, which defeats
+   * the point of the feature.
+   *
+   * Returns a uniform "submitted" response on every code path so a
+   * scraper cannot probe by submission outcome whether a slug
+   * exists, has maskContact on, etc.
+   */
+  async submitContactRelay(slug: string, input: {
+    senderName: string;
+    senderEmail: string;
+    senderCompany?: string | null;
+    message: string;
+  }, req?: Request) {
+    const link = await this.resolveBySlug(slug);
+    if (!link) return { submitted: true };
+    if (!link.maskContact) {
+      // Relay form only exists for masked-contact links; submissions
+      // to non-masked links are ignored (the recruiter has the email
+      // address directly on the page).
+      return { submitted: true };
+    }
+
+    rateLimitOrThrow({
+      key: `share:relay:${link.slug}`,
+      limit: 5,
+      windowMs: 24 * 60 * 60 * 1000,
+      message: 'This link has reached its daily contact limit. Try again tomorrow.',
+    });
+
+    const senderName = String(input.senderName || '').trim().slice(0, 120);
+    const senderEmail = String(input.senderEmail || '').trim().toLowerCase().slice(0, 200);
+    const senderCompany = input.senderCompany ? String(input.senderCompany).trim().slice(0, 200) : null;
+    const message = String(input.message || '').trim().slice(0, 4000);
+
+    if (!senderName || !senderEmail || !message) {
+      throw new BadRequestException('Name, email and a message are required.');
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(senderEmail)) {
+      throw new BadRequestException('Please provide a valid email address.');
+    }
+
+    const owner = await this.prisma.user.findUnique({
+      where: { id: link.userId },
+      select: { email: true },
+    });
+    if (!owner?.email) return { submitted: true };
+
+    const proto = (req?.headers['x-forwarded-proto'] as string) || 'https';
+    const host = (req?.headers['x-forwarded-host'] as string) || (req?.headers['host'] as string) || 'pocketresume.app';
+    const publicUrl = `${proto}://${host}/p/${link.slug}`;
+
+    const sent = await this.mail.sendShareRelayEmail({
+      ownerEmail: owner.email,
+      senderName,
+      senderEmail,
+      senderCompany,
+      message,
+      slug: link.slug,
+      publicUrl,
+    });
+
+    if (sent) {
+      this.analytics.track(
+        {
+          type: 'share_link_contact_relay',
+          path: `/p/${link.slug}`,
+          anonId: anonIdFor(req, link.slug),
+          properties: { slug: link.slug },
+        },
+        req,
+      );
+    }
+    return { submitted: true };
   }
 
   /**
