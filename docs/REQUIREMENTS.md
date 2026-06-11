@@ -372,6 +372,38 @@ replies than that one" — which is the moat.
   - [ ] Anti-abuse: same email/IP can't credit twice, refund credits
     if the referred account is deleted in 30 days.
 
+### R-038 · Public portfolio / share link
+
+- Status: **BACKLOG**
+- Depends-on: R-022, R-030
+- Why: a shareable per-user URL (`/p/:slug`) where companies can view
+  the portfolio and download the linked resume. High moat alignment:
+  every view/download is an outcome signal ("recruiter viewed your
+  resume") that feeds the Outcome Graph — a class of signal we cannot
+  capture today.
+- Acceptance
+  - [ ] `ShareLink` model: cryptographically random `slug`, `resumeId`,
+    `resumeVersionId` (C-007), `enabled`, optional `expiresAt`,
+    `allowSearchIndexing` (default false), `maskContact` (default false).
+  - [ ] Strictly opt-in: links are never auto-created. Creation UI in
+    the editor's Export modal + Settings, with copy explaining exactly
+    what becomes public.
+  - [ ] Public page `GET /p/:slug`: renders header, summary, skills,
+    projects (with links) using the user's chosen template; "Download
+    resume (PDF)" button. `noindex` meta unless `allowSearchIndexing`.
+  - [ ] `GET /p/:slug/resume.pdf` renders via the existing generatePdf
+    pipeline. Does NOT count against the owner's export quota; per-slug
+    rate limit (30/day) prevents scraping.
+  - [ ] One-click revoke → immediate 404. Owner sees a view/download
+    log (timestamp + coarse geo only).
+  - [ ] View + download events fire through AnalyticsService AND are
+    recorded as outcome signals linked to the `resumeVersionId`.
+  - [ ] `maskContact` replaces email/phone on the public page with a
+    "request contact" relay form.
+  - [ ] Privacy copy on the public page footer states what the owner
+    can see about visitors (view counts + coarse location, nothing
+    more). C-003 applies.
+
 ---
 
 ## §4. Days 30–60 — distribution + B2B pilot
@@ -541,6 +573,8 @@ do not break it.
 | 2026-06-11 | 12 → 5 nav hubs scheduled for days 0–30, not pre-launch | Risk of regressing routes is too high in launch week | R-036 |
 | 2026-06-11 | Sahaayak NOT cut despite scope-creep appearance | Brand-defining differentiator in Indian market; nothing else acknowledges the emotional reality of job hunting | — |
 | 2026-06-11 | Static `/mentor` ROLE_SEEDS deprecated → fold into Coach hub | Curated content goes stale next to live AI | R-036 |
+| 2026-06-11 | Public portfolio links promoted from "later" (strategy §4.3) to §3 backlog as R-038 | Founder request + view/download events are an Outcome Graph signal class we can't capture any other way | R-038 |
+| 2026-06-11 | Company downloads via share link do NOT burn the owner's export quota | Owner shouldn't be penalized for recruiter interest; scraping handled by per-slug rate limit instead | R-038, R-003 |
 | 2026-06-11 | sms-gateway + resume-builder-ai standalone services flagged for archive if untouched in 90 days | Two AI call paths is one too many | — |
 
 ---
