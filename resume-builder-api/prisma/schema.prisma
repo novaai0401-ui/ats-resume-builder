@@ -228,6 +228,11 @@ model JobApplication {
 
   @@index([userId, status])
   @@index([userId, nextActionAt])
+  // Outcome Loop (C-007): per-version outcome aggregation reads by
+  // resumeVersionId. The index existed in migrations but was lost from
+  // the schema during a merge — restored so prisma migrate diff stops
+  // proposing to drop it.
+  @@index([resumeVersionId])
 }
 
 /// Snapshot of a resume at a point in time. Lets users branch / restore
@@ -243,6 +248,74 @@ model ResumeVersion {
 
   @@index([resumeId, createdAt])
   @@index([userId, createdAt])
+}
+
+/// Public portfolio / share link (R-038).
+///
+/// A ShareLink turns one of the user's saved resumes into an unguessable
+/// public URL (`/p/:slug`). Recruiters can view it and download the PDF
+/// without an account. Strictly opt-in — created only when the user
+/// asks for it, revoked instantly (enabled=false → 404, no caching).
+///
+/// C-007: every link pins to a specific `resumeVersionId` so we can
+/// attribute downstream outcomes ("someone in Bengaluru downloaded the
+/// v3 snapshot last Tuesday") back to a versioned resume — the moat.
+/// resumeVersionId is nullable for the case where the user hasn't taken
+/// a snapshot yet; the link then resolves to the live resume body.
+model ShareLink {
+  id                  String   @id @default(uuid())
+  /// Cryptographically random URL-safe slug. Unique. Length 12+ — short
+  /// enough to be shareable, long enough to be unguessable (~71 bits).
+  slug                String   @unique
+  userId              String
+  resumeId            String
+  resumeVersionId     String?
+  /// Soft-revoke. enabled=false → public endpoints return 404 immediately.
+  /// We do not hard-delete so the visit log stays attached for audit.
+  enabled             Boolean  @default(true)
+  expiresAt           DateTime?
+  /// Default false (DPDP-safe). Setting true emits `index,follow` on the
+  /// public page; otherwise we emit `noindex,nofollow`.
+  allowSearchIndexing Boolean  @default(false)
+  /// If true, the public page replaces email + phone with a relay link
+  /// (recruiter submits a message, the owner gets it via email).
+  maskContact         Boolean  @default(false)
+  /// Optional short headline shown above the resume on the public page
+  /// (e.g. "Open to senior frontend roles in Bengaluru / remote").
+  headline            String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  /// Cached counters maintained on every event write so the owner's
+  /// dashboard does not need a group-by per render.
+  viewCount           Int      @default(0)
+  downloadCount       Int      @default(0)
+  lastVisitedAt       DateTime?
+
+  @@index([userId])
+  @@index([resumeId])
+}
+
+/// Single visit log row per view/download. Records what the dashboard
+/// needs to surface ("3 views this week, 1 download from Bengaluru") AND
+/// what feeds the Outcome Graph — but never raw PII about the visitor.
+/// We store coarse geo (country / city when available), the User-Agent
+/// truncated to 200 chars, and a SHA-256 of (slug + ip + ua) so we can
+/// dedupe a single recruiter refreshing the page without storing the IP
+/// in cleartext.
+model ShareLinkEvent {
+  id          String   @id @default(uuid())
+  shareLinkId String
+  /// 'view' | 'download'
+  kind        String
+  ipHash      String
+  userAgent   String?
+  country     String?
+  city        String?
+  referrer    String?
+  createdAt   DateTime @default(now())
+
+  @@index([shareLinkId, createdAt])
+  @@index([shareLinkId, kind])
 }
 
 /// AI-generated cover letters. Kept separate from Resume so each JD can have

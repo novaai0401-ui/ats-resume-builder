@@ -26,7 +26,13 @@ export type AnalyticsEventType =
   | 'login'
   | 'login_failed'
   | 'register'
-  | 'logout';
+  | 'logout'
+  // R-038: public share-link surface. Recorded server-side so the
+  // analytics dashboard sees recruiter activity even though the public
+  // page has no JS tracking.
+  | 'share_link_view'
+  | 'share_link_download'
+  | 'share_link_contact_relay';
 
 export interface AnalyticsEvent {
   type: AnalyticsEventType;

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import TrainingConsentCard from '@/src/components/TrainingConsentCard';
 import ByokKeyCard from '@/src/components/ByokKeyCard';
+import ShareLinksCard from '@/src/components/ShareLinksCard';
 
 /**
  * User settings.
@@ -49,6 +50,8 @@ export default function SettingsPageView() {
       <div style={{ marginTop: 16 }}>
         <TrainingConsentCard />
       </div>
+
+      <ShareLinksCard />
     </main>
   );
 }

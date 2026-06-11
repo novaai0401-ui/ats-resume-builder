@@ -56,6 +56,61 @@ export class MailService {
     return this.transporter !== null;
   }
 
+  /**
+   * R-038 contact-relay: send the owner a message a recruiter typed
+   * into their public-portfolio "Get in touch" form. Owner's real
+   * email never leaves the server — we set Reply-To to the
+   * recruiter's address so the owner can reply directly without us
+   * having to maintain a threaded mailbox.
+   *
+   * Returns true on send, false on silent-fail (SMTP not configured
+   * or transporter error). The controller treats "configured but
+   * failed" the same as "not configured" from the visitor's
+   * perspective: a generic "could not deliver" — no probing oracle.
+   */
+  async sendShareRelayEmail(args: {
+    ownerEmail: string;
+    senderName: string;
+    senderEmail: string;
+    senderCompany?: string | null;
+    message: string;
+    slug: string;
+    publicUrl: string;
+  }): Promise<boolean> {
+    if (!this.transporter) {
+      this.logger.warn(`Cannot relay share-link message for ${args.slug}: SMTP not configured`);
+      return false;
+    }
+    const safeMsg = String(args.message || '').slice(0, 4000);
+    const subject = `New message about your resume (${args.slug})`;
+    const text = [
+      `${args.senderName} reached out via your public Pocket Resume link.`,
+      args.senderCompany ? `Company: ${args.senderCompany}` : '',
+      `Reply directly to: ${args.senderEmail}`,
+      `Link: ${args.publicUrl}`,
+      '',
+      'Message:',
+      safeMsg,
+      '',
+      '— Pocket Resume contact relay. The sender does not see your email address.',
+    ].filter(Boolean).join('\n');
+    try {
+      await this.transporter.sendMail({
+        from: this.fromAddress,
+        to: args.ownerEmail,
+        replyTo: `${args.senderName.replace(/[<>"]/g, '')} <${args.senderEmail}>`,
+        subject,
+        text,
+      });
+      this.logger.log(`Share relay sent for slug=${args.slug}`);
+      return true;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.error(`Failed to relay share message for slug=${args.slug}: ${msg.replace(/pass[^\s]*/gi, '***')}`);
+      return false;
+    }
+  }
+
   async sendOtpEmail(to: string, otp: string): Promise<boolean> {
     if (!this.transporter) {
       this.logger.warn(`Cannot send OTP email to ${to}: SMTP not configured`);

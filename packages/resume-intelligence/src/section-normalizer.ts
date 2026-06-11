@@ -206,11 +206,25 @@ function isHeadingLike(rawLine: string, normalized: string) {
   const raw = String(rawLine || '').trim();
   if (!raw || raw.length > 80) return false;
   if (/^[\-*•·]/.test(raw)) return false;
-  if (/[.,;!?]/.test(raw) && !/:\s*$/.test(raw) && !KNOWN_HEADING_PHRASES.has(normalized)) return false;
+  // Lines containing sentence-ending punctuation are prose, not headings.
+  // We used to have an escape hatch for KNOWN_HEADING_PHRASES here so that
+  // "Skills:" / "Frameworks:" would still register — but the trailing-colon
+  // case has its own explicit rule below, so the escape was never doing
+  // anything useful for headings. What it WAS doing was letting orphan
+  // soft-wrap continuations like "frameworks." (left behind when a long
+  // bullet wraps across a line break) get treated as a SKILLS heading,
+  // which silently shunted every following bullet into the wrong section.
+  // Empirical breakage: Outspark-exported resume → the first bullet of an
+  // experience entry wraps as "...defining reusable UI\nframeworks." and
+  // every bullet after that orphan "frameworks." word landed under skills,
+  // so the entry visibly lost ~6 bullets and its achievements list.
+  if (/[.,;!?]/.test(raw) && !/:\s*$/.test(raw)) return false;
   if (/\d{2,}/.test(raw) && !/--\s*\d+\s*of\s*\d+\s*--/.test(raw)) return false;
   if (/:\s*$/.test(raw)) return true;
 
-  // Check known heading phrases BEFORE rejecting lowercase-only lines
+  // Check known heading phrases BEFORE rejecting lowercase-only lines.
+  // (This is what lets "skills" / "education" register as headings even
+  // when typeset without a colon — e.g. "Skills" on a line by itself.)
   if (KNOWN_HEADING_PHRASES.has(normalized)) return true;
 
   // ALL CAPS lines that match a known pattern are headings

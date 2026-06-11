@@ -707,6 +707,71 @@ export class ResumeService {
   }
 
   /**
+   * Render the resume's PDF without consuming the owner's monthly
+   * quota and without the FREE-plan block. Used by R-038 (public
+   * portfolio links) where a recruiter pulling the file should NOT
+   * cost the candidate one of their allotted exports.
+   *
+   * Quota bypass is intentional — the share-link layer enforces its
+   * OWN per-slug rate limit (30/day) to defeat scrapers. This method
+   * is package-private in spirit: only ShareLinksService should call
+   * it. The signature reads {userId, resumeId} so the share-link
+   * service stays the only path that resolves a slug to a user.
+   *
+   * No counter increment. No export email. No FREE-plan block. Same
+   * render pipeline as generatePdf, so the recruiter sees exactly
+   * what the owner sees in print preview.
+   */
+  async generatePdfBypassingQuota(userId: string, id: string, templateIdOverride?: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+    const resume = await this.get(userId, id);
+    const resolvedTemplateId = resolveExportTemplateId(templateIdOverride, resume.templateId);
+    // enforceMinimumScore=false: the owner already accepted the score
+    // when they enabled the share link; we should not 4xx a recruiter
+    // mid-download because the owner's resume slipped under threshold.
+    validatePdfExportSafety(resume, { enforceMinimumScore: false });
+    const rendered = renderResumeTemplateHtml({
+      templateId: resolvedTemplateId,
+      resumeData: resume,
+      mode: 'export',
+    });
+    logExportRenderMeta({
+      resumeId: id,
+      templateId: resolvedTemplateId,
+      cssIncluded: rendered.cssIncluded,
+      renderer: 'renderResumeTemplateHtml(share-link)',
+    });
+
+    const launchOptions = await resolveChromeLaunchOptions();
+    let browser;
+    try {
+      browser = await puppeteer.launch(launchOptions);
+    } catch (launchError) {
+      const hint = launchOptions.executablePath
+        ? `Tried Chrome at: ${launchOptions.executablePath}`
+        : 'No Chrome/Chromium found. Install Chrome or set CHROME_EXECUTABLE_PATH env variable.';
+      console.error(`[pdf-export][share-link] Chrome launch failed. ${hint}`, launchError);
+      throw new HttpException(
+        `PDF generation unavailable: Chrome browser not found. ${hint}`,
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
+    try {
+      const page = await browser.newPage();
+      await page.setContent(rendered.html, { waitUntil: 'networkidle0' });
+      const buffer = await page.pdf({
+        format: 'A4',
+        printBackground: true,
+        margin: { top: '15mm', bottom: '15mm', left: '15mm', right: '15mm' },
+      });
+      return buffer;
+    } finally {
+      await browser.close();
+    }
+  }
+
+  /**
    * Build a Word (.docx) document from the resume's structured fields.
    *
    * Same gates as PDF (auth via JWT, payment via downloadToken). We

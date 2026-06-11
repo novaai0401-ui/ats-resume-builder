@@ -19,6 +19,7 @@ import { PatternLearnerModule } from './pattern-learner/pattern-learner.module';
 import { SahaayakModule } from './sahaayak/sahaayak.module';
 import { TrainingDatasetModule } from './training-dataset/training-dataset.module';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { ShareLinksModule } from './share-links/share-links.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
     SahaayakModule,
     TrainingDatasetModule,
     AnalyticsModule,
+    ShareLinksModule,
   ],
   controllers: [HealthController],
 })
