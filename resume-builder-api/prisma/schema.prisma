@@ -228,6 +228,11 @@ model JobApplication {
 
   @@index([userId, status])
   @@index([userId, nextActionAt])
+  // Outcome Loop (C-007): per-version outcome aggregation reads by
+  // resumeVersionId. The index existed in migrations but was lost from
+  // the schema during a merge — restored so prisma migrate diff stops
+  // proposing to drop it.
+  @@index([resumeVersionId])
 }
 
 /// Snapshot of a resume at a point in time. Lets users branch / restore

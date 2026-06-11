@@ -181,10 +181,28 @@ These must be `DONE` before the production deploy.
 
 ### R-020 · 10-step manual smoke pass on prod URL
 
-- Status: **IN-PROGRESS** (waiting on founder)
+- Status: **IN-PROGRESS** (local pass DONE 2026-06-11; prod Part B waiting on founder)
 - Depends-on: R-001 … R-011
-- Owner: founder
+- Owner: founder (prod URL `https://ats-rb-web.onrender.com` is not
+  reachable from the Claude sandbox — egress blocked)
 - Reference: `docs/SMOKE_TEST_CHECKLIST.md` Parts A + B
+- Local smoke results (production build, local Postgres, 2026-06-11):
+  - A1 ✅ CSP `frame-ancestors 'self'` + `X-Frame-Options: SAMEORIGIN`
+  - A2 ✅ `/templates` → 307 → `/templates/preview`
+  - A3 ✅ sitemap.xml renders; A4 ✅ robots.txt disallows app routes
+  - A5 ✅ `/health` 200; A6 ✅ `/app/version` JSON (android URL empty —
+    needs prod env)
+  - B1 ✅ register (after R-023 fix — **failed before it**)
+  - B2 ✅ login; B11 ✅ logout 201
+  - B6 ✅ 6th PDF rejected 403 "Monthly export limit reached (5)"
+  - B7 ✅ DOCX shares counter: blocked at 5/5, succeeds at 2/5,
+    counter increments to 3
+  - B9 ✅ no "stays on this device" in rendered HTML; hero shows the
+    honest copy
+  - 17/17 app routes render HTTP 200 on the production build
+  - B3/B4/B10 (upload UX, field persistence after refresh, print
+    dialog) require a real browser → founder runs them on prod
+  - B12 (analytics IP attribution) requires prod `AUDIT_URL` → founder
 - Blockers within the checklist (do NOT ship if any of these fail):
   - B4 — field persistence after refresh (regression guard for R-006)
   - B6 — 6th PDF download rejected (regression guard for R-003)
@@ -204,6 +222,31 @@ These must be `DONE` before the production deploy.
   - [ ] `SMTP_*` set; welcome / reset emails actually leave the box.
   - [ ] `STRIPE_SECRET_KEY` present (international fallback).
   - [ ] Build SHA on prod matches the launch branch's tip.
+
+### R-023 · Prisma migration catch-up (schema drift)
+
+- Status: **DONE**
+- Commits: (this commit)
+- Found during: R-020 local smoke run, 2026-06-11
+- Why: `schema.prisma` contained `User.premiumCredits` plus the
+  `AiCritiqueLog`, `PaymentHistory`, `AiTokenUsage` tables (arrived via
+  merge commit `b0b259a`) but NO migration ever created them. Any
+  fresh database provisioned with `prisma migrate deploy` was missing
+  the column, and **every** `/auth/register` call failed with Prisma
+  P2022 surfaced as a 503 "service temporarily unavailable". Local
+  smoke reproduced this on first registration attempt.
+- Acceptance
+  - [x] Catch-up migration `20260611150000_catchup_premium_credits_billing_tables`
+    creates the column + 3 tables + 4 indexes, all `IF NOT EXISTS` so
+    it is safe on fresh databases AND on databases where `db push`
+    already created the objects out-of-band (likely the current prod).
+  - [x] `JobApplication.@@index([resumeVersionId])` restored in
+    `schema.prisma` — it existed in migrations but was lost from the
+    schema in the same merge; without it `prisma migrate diff` proposed
+    DROPPING the Outcome Loop's aggregation index (C-007 violation).
+  - [x] Verified locally: register succeeds after applying; quota
+    enforcement (R-003) returns the correct 403 on both PDF and DOCX;
+    DOCX increments the counter on success.
 
 ### R-022 · Deploy
 
