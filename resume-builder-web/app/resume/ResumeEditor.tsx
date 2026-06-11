@@ -41,6 +41,7 @@ import { AutocompleteInput } from '@/src/components/AutocompleteInput';
 import FreeAiNotice from '@/src/components/FreeAiNotice';
 import PostDownloadSubscriptionPopup from '@/src/components/PostDownloadSubscriptionPopup';
 import DownloadChargeModal from '@/src/components/DownloadChargeModal';
+import ShareInExportModal from '@/src/components/ShareInExportModal';
 import { applySinglePresentRule, compareYearMonth, isPresentToken, isYearMonth, toMonthInputValue, toYearMonth } from '@/src/lib/date-utils';
 import { detectIncompleteText } from '@/src/lib/text-completeness';
 import { shouldSkipServerHydration } from '@/src/lib/load-effect-gate';
@@ -4085,6 +4086,7 @@ export default function ResumeEditor() {
                     Print preview
                   </button>
                 </div>
+                <ShareInExportModal resumeId={resumeId || null} />
               </>
             )}
           </div>
