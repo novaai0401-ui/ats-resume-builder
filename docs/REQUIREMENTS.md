@@ -374,7 +374,7 @@ replies than that one" — which is the moat.
 
 ### R-038 · Public portfolio / share link
 
-- Status: **BACKLOG**
+- Status: **IN-PROGRESS** (Phase 1 of 2 committed on branch; not merged)
 - Depends-on: R-022, R-030
 - Why: a shareable per-user URL (`/p/:slug`) where companies can view
   the portfolio and download the linked resume. High moat alignment:
@@ -382,27 +382,50 @@ replies than that one" — which is the moat.
   resume") that feeds the Outcome Graph — a class of signal we cannot
   capture today.
 - Acceptance
-  - [ ] `ShareLink` model: cryptographically random `slug`, `resumeId`,
-    `resumeVersionId` (C-007), `enabled`, optional `expiresAt`,
-    `allowSearchIndexing` (default false), `maskContact` (default false).
-  - [ ] Strictly opt-in: links are never auto-created. Creation UI in
-    the editor's Export modal + Settings, with copy explaining exactly
-    what becomes public.
-  - [ ] Public page `GET /p/:slug`: renders header, summary, skills,
-    projects (with links) using the user's chosen template; "Download
-    resume (PDF)" button. `noindex` meta unless `allowSearchIndexing`.
-  - [ ] `GET /p/:slug/resume.pdf` renders via the existing generatePdf
-    pipeline. Does NOT count against the owner's export quota; per-slug
-    rate limit (30/day) prevents scraping.
-  - [ ] One-click revoke → immediate 404. Owner sees a view/download
-    log (timestamp + coarse geo only).
-  - [ ] View + download events fire through AnalyticsService AND are
-    recorded as outcome signals linked to the `resumeVersionId`.
-  - [ ] `maskContact` replaces email/phone on the public page with a
-    "request contact" relay form.
-  - [ ] Privacy copy on the public page footer states what the owner
-    can see about visitors (view counts + coarse location, nothing
-    more). C-003 applies.
+  - **Phase 1 — DONE on this branch (commit pending)**
+  - [x] `ShareLink` + `ShareLinkEvent` Prisma models with all required
+    fields. Migration `20260611160000_add_share_links` applied.
+  - [x] Strictly opt-in: links are never auto-created. Creation UI in
+    Settings (`ShareLinksCard`) — Editor Export-modal CTA is Phase 2.
+  - [x] Public page `GET /p/:slug`: server-rendered Next.js route,
+    surfaces header / summary / skills / experience / projects /
+    achievements / education / certifications / languages. "Download
+    resume (PDF)" button. `noindex,nofollow` by default; switches to
+    `index,follow` only when `allowSearchIndexing=true`.
+  - [x] `GET /p/:slug/resume.pdf` calls
+    `ResumeService.generatePdfBypassingQuota`. Does NOT count against
+    the owner's export quota; per-slug rate limit (30/day) prevents
+    scraping. View limit 200/day per slug.
+  - [x] One-click revoke (soft, `enabled=false`) → public endpoints
+    return `404` immediately. The row stays so the visit log is
+    preserved for the owner's audit.
+  - [x] View + download events fire through `AnalyticsService` with
+    `share_link_view` / `share_link_download` types AND write
+    `ShareLinkEvent` rows tied to the link (foundation for the
+    outcome-signal feed; per-version attribution requires Phase 2).
+  - [x] `maskContact` strips email + phone from the public payload.
+    Page surfaces "Contact details hidden by the owner" copy.
+  - [x] Privacy copy on the public page footer states what the owner
+    can see: view + download counts and coarse location, never the
+    visitor's IP. C-003 honoured.
+  - [x] 7 unit tests pin slug shape (12 chars, no 0/1/l), entropy
+    (200/200 unique), payload sanitisation (strips userId, applies
+    maskContact correctly), anon-id determinism + no cross-owner
+    linkage. Smoke-verified end-to-end on local stack (web + API +
+    Postgres): create → public page renders → view counter increments
+    → revoke → 404.
+  - **Phase 2 — backlog (separate commit before merge)**
+  - [ ] Editor Export-modal "Share this resume" CTA.
+  - [ ] Owner per-link visit log UI ("3 views this week, 1 download
+    from Bengaluru on Tuesday") — backend `ShareLinkEvent` rows are
+    already being written.
+  - [ ] Contact-relay form on the masked-contact public page so a
+    recruiter can still send a message; relay forwards via SMTP.
+  - [ ] `expiresAt` picker in the Settings card.
+  - [ ] Pin to a specific `resumeVersionId` from the UI (the model +
+    server already support it; UI is the missing piece).
+  - [ ] Coarse-geo enrichment on `ShareLinkEvent` (shares the
+    geo-lookup work with `AdminAnalyticsController`).
 
 ---
 
