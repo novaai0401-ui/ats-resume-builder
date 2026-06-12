@@ -1,0 +1,24 @@
+{
+  "name": "@pocketresume/mcp",
+  "version": "0.1.0",
+  "description": "MCP server for Pocket Resume — lets AI agents read resumes, tailor them per JD, log applications, and query outcome stats. Every agent action feeds the same Outcome Graph as the web app.",
+  "license": "MIT",
+  "type": "module",
+  "bin": { "pocketresume-mcp": "dist/index.js" },
+  "main": "dist/index.js",
+  "files": ["dist", "README.md"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0"
+  }
+}

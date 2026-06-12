@@ -637,16 +637,38 @@ and every external call still feeds the Outcome Graph.
 
 ### R-040 · MCP server (`@pocketresume/mcp`)
 
-- Status: **BACKLOG**
-- Depends-on: R-033, R-034
+- Status: **DONE** (on branch; npm publish is a founder action — see open item)
+- Depends-on: R-034 (R-033 dependency dropped: the extension is a
+  separate surface, not a prerequisite — decision row added)
 - Acceptance
-  - [ ] Stdio + HTTP transports.
-  - [ ] Tools: `get_resume`, `list_versions`, `tailor_resume`,
-    `log_application`, `get_outcome_stats`.
-  - [ ] Per-user OAuth-style token; same quota system as the REST API.
-  - [ ] `tailor_resume` writes a `ResumeVersion` so agent-driven
-    tailoring still feeds the Outcome Graph.
-  - [ ] Published to npm + listed in MCP server registry.
+  - [x] New `resume-builder-mcp/` package on the official
+    `@modelcontextprotocol/sdk`. Stdio transport (default, what MCP
+    hosts spawn) + Streamable-HTTP transport
+    (`MCP_TRANSPORT=http MCP_PORT=…`, stateless, one server per user
+    token).
+  - [x] Six tools (the registry's five + `list_resumes` so agents can
+    discover ids): `list_resumes`, `get_resume`, `list_versions`,
+    `tailor_resume`, `log_application`, `get_outcome_stats`.
+  - [x] Per-user token via `POCKET_RESUME_TOKEN` env (never argv — not
+    visible in `ps`). Every tool delegates to the REST API with the
+    user's own bearer token, so plan gates / AI-token quotas / rate
+    limits apply identically to agents and humans. Expired token →
+    clear re-auth message, no silent refresh (an MCP server holding
+    refresh credentials is a bigger risk than the inconvenience).
+  - [x] `tailor_resume` = propose + apply-all in one call, writing a
+    `ResumeVersion` labelled `Tailored: <role> @ <company>` (C-007).
+    The tool description instructs agents to pass the returned
+    `versionId` as `resumeVersionId` in `log_application` — every
+    agent-driven application feeds the Outcome Graph.
+  - [x] Smoke-verified end-to-end against the live local API over
+    real stdio JSON-RPC: initialize → tools/list (6) → list_resumes
+    (real data) → get_outcome_stats (report flows) →
+    log_application (JobApplication actually created) → bad-id and
+    expired-token error paths both surface clean isError responses;
+    missing token exits with setup guidance on stderr; HTTP
+    transport answers initialize over POST.
+  - [ ] **Open (founder)**: `npm publish` of `@pocketresume/mcp` +
+    listing in the MCP server registry — needs the npm org login.
 
 ### R-041 · Public parsing + scoring API (B2B)
 
@@ -806,6 +828,7 @@ do not break it.
 | 2026-06-12 | Nudge trigger is a CRON_SECRET-guarded endpoint, not an in-process scheduler | Survives horizontal scaling without double-sends (idempotent scan), works with Render Cron Jobs, no new dependency. | R-031 |
 | 2026-06-12 | Referral credits reuse the dormant `User.premiumCredits` column | Field already exists in prod (R-023 catch-up); credits denominate in exports (1 referral = 1 export ≈ ₹49) which is legible without a pricing table. | R-037, R-003 |
 | 2026-06-12 | Referral 30-day clawback deferred until account deletion exists | No deletion endpoint in the product today; the deletion feature must implement the clawback when it ships. | R-037 |
+| 2026-06-12 | R-040 no longer depends on R-033 | The MCP server wraps the REST API directly; the browser extension is a sibling surface, not a prerequisite. Agents are usable the moment the package is published. | R-040, R-033 |
 | 2026-06-11 | sms-gateway + resume-builder-ai standalone services flagged for archive if untouched in 90 days | Two AI call paths is one too many | — |
 
 ---
