@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/src/lib/api';
+import OutcomeInsightCallout from '@/src/components/OutcomeInsightCallout';
 
 /**
  * R-034 — Tailor Diff panel.
@@ -350,6 +351,8 @@ export default function TailorDiffPanel({
 
   // ── idle state ──
   return (
+    <>
+    <OutcomeInsightCallout resumeId={resumeId} context="tailor" />
     <section
       className="card col-12"
       style={{ background: 'linear-gradient(180deg, #eef5ff 0%, #ffffff 100%)', borderLeft: '4px solid #1a3a5c' }}
@@ -376,6 +379,7 @@ export default function TailorDiffPanel({
       </div>
       {error ? <p className="hint error" style={{ marginTop: 10 }}>{error}</p> : null}
     </section>
+    </>
   );
 }
 

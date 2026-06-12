@@ -398,15 +398,52 @@ replies than that one" — which is the moat.
 
 ### R-035 · Outcome insights at the moment of choice
 
-- Status: **BACKLOG**
+- Status: **DONE** (own-data phase, on branch; cohort phase deferred to R-050)
 - Depends-on: R-031, R-034
 - Acceptance
-  - [ ] Template-picker and AI-rewrite acceptance UIs surface a small
-    callout: "your v3 has a 4.1% reply rate vs. v1 at 2.6%" *based on
-    the user's own data only* until aggregate data is meaningful.
-  - [ ] After 1k anonymised applications in a (role, city) bucket, a
-    separate callout shows the cohort median. Until then, only show
-    own-data callouts — never fake confident numbers.
+  - [x] `OutcomeInsightCallout` (built on tekivex-ui `TkxStatistic` +
+    `TkxTag`) surfaces "your top version gets X% replies vs baseline
+    at Y%" with sample sizes always visible, mounted at three moments
+    of choice: template picker (`/resume/template`), the tailor panel
+    on `/jd-match`, and the versions list. Reads the existing
+    `GET /resumes/:id/outcomes` report (top / baseline / lift).
+  - [x] Honesty gate: renders NOTHING unless the server marks the top
+    version `significant` AND a distinct baseline exists. No fake
+    confident numbers from 2 applications; insight failure is silent
+    (it's garnish, never an error).
+  - [x] Cohort-median callout explicitly deferred to R-050 (needs
+    ≥1k anonymised applications per bucket).
+
+### R-035b · Template catalogue metadata + achievements fallback (TEMPLATE_SPEC §2.1/§2.2)
+
+- Status: **DONE** (on branch)
+- Depends-on: R-030
+- Why: the spec required five metadata fields per template that were
+  never implemented, and an audit during this pass found only
+  ClassicATS renders the achievements section — the other 10
+  templates silently DROPPED it from preview + PDF (the founder's
+  "all achievements are not listed" report, resurfacing at the
+  template layer after the parser fix in R-010).
+- Acceptance
+  - [x] `TemplateCatalogItem` gains `supportedSections`,
+    `supportedLocales`, `layout`, `paginationSafe`,
+    `implementedVariants` (+ exported `TemplateVariant`,
+    `TemplateLayout`, `TemplateSectionKey` types). All 11 catalogue
+    entries populated honestly — only `classic` claims first-class
+    `achievements`; `creative` is `multi-column`/not pagination-safe;
+    `sidebar-bold` is `sidebar`.
+  - [x] Shared `AchievementsSection` fallback in `templateUtils`
+    (TEMPLATE_SPEC §1.3): canonical section title + plain list with
+    style hooks. Wired into all 10 templates that lacked first-class
+    styling — user achievements now render in every template's
+    preview AND export (server uses the same components).
+  - [x] 5 new §2.2 catalogue tests: section keys valid, en-IN locale
+    required, layout + screen variant declared, atsSafety
+    high/medium ⇒ ats-export implemented, and every template source
+    references `achievementItems` OR `AchievementsSection` (the
+    never-drop-user-data guard). 8/8 registry tests green; web tsc +
+    API build clean; all three callout surfaces render 200 in
+    preview.
 
 ### R-036 · Navigation consolidation (12 → 5 hubs)
 

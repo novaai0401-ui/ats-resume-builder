@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  AchievementsSection,
   certificationItems,
   cleanList,
   contactLine,
@@ -184,6 +185,11 @@ export default function SidebarBold({ resumeData }: TemplateProps) {
             ))}
           </section>
         )}
+
+        <AchievementsSection
+          resumeData={normalized}
+          headingStyle={{ fontSize: 14, letterSpacing: '0.05em', color: '#1a3a5c' }}
+        />
       </main>
     </article>
   );

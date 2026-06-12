@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  AchievementsSection,
   allSkills,
   certificationItems,
   cleanList,
@@ -73,6 +74,7 @@ export default function ExecutiveImpact({ resumeData }: TemplateProps) {
         </section>
       ) : null}
 
+      <AchievementsSection resumeData={normalized} />
       <section className="ats-section">
         <h2 className="ats-upper">{sectionTitle('education').toUpperCase()}</h2>
         {education.length ? education.map((item, idx) => (

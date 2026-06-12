@@ -31,6 +31,17 @@ export type TemplateCatalogId =
  */
 export type AtsSafetyLevel = 'high' | 'medium' | 'low';
 
+/** TEMPLATE_SPEC §1.2 — render variants a template can implement. */
+export type TemplateVariant = 'screen' | 'print' | 'ats-export';
+
+/** TEMPLATE_SPEC §2.1 — layout family, drives recommendations + export rules. */
+export type TemplateLayout = 'single-column' | 'multi-column' | 'sidebar';
+
+/** Section keys a template can claim first-class styling for (mirrors AtsSectionKey minus 'header'). */
+export type TemplateSectionKey =
+  | 'summary' | 'skills' | 'experience' | 'projects'
+  | 'achievements' | 'education' | 'certifications' | 'languages';
+
 export type TemplateCatalogItem = {
   id: TemplateCatalogId;
   name: string;
@@ -43,6 +54,23 @@ export type TemplateCatalogItem = {
   industries?: string[];
   componentKey: TemplateCatalogId;
   isDefault?: boolean;
+  /**
+   * TEMPLATE_SPEC §2.1. Sections this template styles first-class.
+   * Sections NOT listed still render via the shared fallback
+   * (templateUtils.AchievementsSection etc.) so user data is never
+   * silently dropped — but the template author hasn't optimised the
+   * layout for them. The editor may surface a soft warning when the
+   * user's filled sections exceed this list.
+   */
+  supportedSections: TemplateSectionKey[];
+  /** Locales the template renders correctly today. */
+  supportedLocales: string[];
+  /** Layout family (TEMPLATE_SPEC §2.1). */
+  layout: TemplateLayout;
+  /** True if the template renders cleanly across A4/Letter page breaks. */
+  paginationSafe: boolean;
+  /** Variants implemented; 'ats-export' is REQUIRED for atsSafety high/medium. */
+  implementedVariants: TemplateVariant[];
 };
 
 export const TEMPLATE_CATALOG: readonly TemplateCatalogItem[] = [
@@ -62,6 +90,11 @@ export const TEMPLATE_CATALOG: readonly TemplateCatalogItem[] = [
     ],
     componentKey: 'classic',
     isDefault: true,
+    supportedSections: ['summary', 'skills', 'experience', 'projects', 'achievements', 'education', 'certifications', 'languages'],
+    supportedLocales: ['en-IN', 'en-US'],
+    layout: 'single-column',
+    paginationSafe: true,
+    implementedVariants: ['screen', 'print', 'ats-export'],
   },
   {
     id: 'modern',
@@ -77,6 +110,11 @@ export const TEMPLATE_CATALOG: readonly TemplateCatalogItem[] = [
       'ai-machine-learning',
     ],
     componentKey: 'modern',
+    supportedSections: ['summary', 'skills', 'experience', 'projects', 'education', 'certifications', 'languages'],
+    supportedLocales: ['en-IN', 'en-US'],
+    layout: 'single-column',
+    paginationSafe: true,
+    implementedVariants: ['screen', 'print', 'ats-export'],
   },
   {
     id: 'executive',
@@ -91,6 +129,11 @@ export const TEMPLATE_CATALOG: readonly TemplateCatalogItem[] = [
       'construction-real-estate',
     ],
     componentKey: 'executive',
+    supportedSections: ['summary', 'skills', 'experience', 'projects', 'education', 'certifications', 'languages'],
+    supportedLocales: ['en-IN', 'en-US'],
+    layout: 'single-column',
+    paginationSafe: true,
+    implementedVariants: ['screen', 'print', 'ats-export'],
   },
   {
     id: 'technical',
@@ -105,6 +148,11 @@ export const TEMPLATE_CATALOG: readonly TemplateCatalogItem[] = [
       'construction-real-estate',
     ],
     componentKey: 'technical',
+    supportedSections: ['summary', 'skills', 'experience', 'projects', 'education', 'certifications', 'languages'],
+    supportedLocales: ['en-IN', 'en-US'],
+    layout: 'single-column',
+    paginationSafe: true,
+    implementedVariants: ['screen', 'print', 'ats-export'],
   },
   {
     id: 'minimal',
@@ -118,6 +166,11 @@ export const TEMPLATE_CATALOG: readonly TemplateCatalogItem[] = [
       'non-profit-social-impact', 'information-technology',
     ],
     componentKey: 'minimal',
+    supportedSections: ['summary', 'skills', 'experience', 'projects', 'education', 'certifications', 'languages'],
+    supportedLocales: ['en-IN', 'en-US'],
+    layout: 'single-column',
+    paginationSafe: true,
+    implementedVariants: ['screen', 'print', 'ats-export'],
   },
   {
     id: 'consultant',
@@ -131,6 +184,11 @@ export const TEMPLATE_CATALOG: readonly TemplateCatalogItem[] = [
       'ai-machine-learning',
     ],
     componentKey: 'consultant',
+    supportedSections: ['summary', 'skills', 'experience', 'projects', 'education', 'certifications', 'languages'],
+    supportedLocales: ['en-IN', 'en-US'],
+    layout: 'single-column',
+    paginationSafe: true,
+    implementedVariants: ['screen', 'print', 'ats-export'],
   },
   {
     id: 'academic',
@@ -144,6 +202,11 @@ export const TEMPLATE_CATALOG: readonly TemplateCatalogItem[] = [
       'agriculture-environment', 'healthcare',
     ],
     componentKey: 'academic',
+    supportedSections: ['summary', 'skills', 'experience', 'projects', 'education', 'certifications', 'languages'],
+    supportedLocales: ['en-IN', 'en-US'],
+    layout: 'single-column',
+    paginationSafe: true,
+    implementedVariants: ['screen', 'print', 'ats-export'],
   },
   {
     id: 'healthcare',
@@ -154,6 +217,11 @@ export const TEMPLATE_CATALOG: readonly TemplateCatalogItem[] = [
     recommendedFor: ['Physicians', 'Nurses', 'Pharmacists', 'Allied health'],
     industries: ['healthcare', 'science-research'],
     componentKey: 'healthcare',
+    supportedSections: ['summary', 'skills', 'experience', 'projects', 'education', 'certifications', 'languages'],
+    supportedLocales: ['en-IN', 'en-US'],
+    layout: 'single-column',
+    paginationSafe: true,
+    implementedVariants: ['screen', 'print', 'ats-export'],
   },
   {
     id: 'creative',
@@ -167,6 +235,11 @@ export const TEMPLATE_CATALOG: readonly TemplateCatalogItem[] = [
       'hospitality-tourism', 'retail-ecommerce',
     ],
     componentKey: 'creative',
+    supportedSections: ['summary', 'skills', 'experience', 'projects', 'education', 'certifications', 'languages'],
+    supportedLocales: ['en-IN', 'en-US'],
+    layout: 'multi-column',
+    paginationSafe: false,
+    implementedVariants: ['screen', 'print', 'ats-export'],
   },
   {
     id: 'sidebar-bold',
@@ -180,6 +253,11 @@ export const TEMPLATE_CATALOG: readonly TemplateCatalogItem[] = [
       'sales-marketing', 'business-management',
     ],
     componentKey: 'sidebar-bold',
+    supportedSections: ['summary', 'skills', 'experience', 'projects', 'education', 'certifications', 'languages'],
+    supportedLocales: ['en-IN', 'en-US'],
+    layout: 'sidebar',
+    paginationSafe: false,
+    implementedVariants: ['screen', 'print', 'ats-export'],
   },
   {
     id: 'accent-header',
@@ -193,6 +271,11 @@ export const TEMPLATE_CATALOG: readonly TemplateCatalogItem[] = [
       'ai-machine-learning', 'sales-marketing',
     ],
     componentKey: 'accent-header',
+    supportedSections: ['summary', 'skills', 'experience', 'projects', 'education', 'certifications', 'languages'],
+    supportedLocales: ['en-IN', 'en-US'],
+    layout: 'single-column',
+    paginationSafe: true,
+    implementedVariants: ['screen', 'print', 'ats-export'],
   },
 ] as const;
 

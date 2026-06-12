@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  AchievementsSection,
   allSkills,
   certificationItems,
   cleanList,
@@ -36,6 +37,7 @@ export default function AcademicCV({ resumeData }: TemplateProps) {
         <p>{summary || 'Add a concise research statement.'}</p>
       </section>
 
+      <AchievementsSection resumeData={normalized} />
       <section className="ats-section">
         <h2>{sectionTitle('education').toUpperCase()}</h2>
         {education.length ? education.map((item, idx) => (

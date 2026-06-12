@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  AchievementsSection,
   allSkills,
   certificationItems,
   cleanList,
@@ -48,6 +49,7 @@ export default function HealthcareCV({ resumeData }: TemplateProps) {
         </section>
       ) : null}
 
+      <AchievementsSection resumeData={normalized} />
       <section className="ats-section">
         <h2>{sectionTitle('education').toUpperCase()}</h2>
         {education.length ? education.map((item, idx) => (

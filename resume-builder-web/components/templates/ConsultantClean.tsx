@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  AchievementsSection,
   allSkills,
   certificationItems,
   cleanList,
@@ -73,6 +74,7 @@ export default function ConsultantClean({ resumeData }: TemplateProps) {
         </section>
       ) : null}
 
+      <AchievementsSection resumeData={normalized} />
       <section className="ats-section ats-section--divided">
         <h2>{sectionTitle('education')}</h2>
         {education.length ? education.map((item, idx) => (
