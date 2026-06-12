@@ -453,14 +453,44 @@ replies than that one" — which is the moat.
 
 ### R-037 · Referral credit (1 free export per referred signup)
 
-- Status: **BACKLOG**
-- Depends-on: R-022
+- Status: **DONE** (on branch; not merged)
+- Depends-on: R-022 (deploy gate — feature is launch-ready)
 - Acceptance
-  - [ ] Each user has a referral code (deterministic from userId hash).
-  - [ ] Referred signup increments `referrerCreditedExports` for the
-    referrer. The export-quota check honours the credit balance.
-  - [ ] Anti-abuse: same email/IP can't credit twice, refund credits
-    if the referred account is deleted in 30 days.
+  - [x] Each user has a referral code: 8 chars, unambiguous alphabet
+    (no 0/1/l/o), deterministic from the userId hash (reproducible in
+    support conversations) with random retry on collision. Generated
+    on first `GET /referrals/me`, stable forever after.
+  - [x] Referred signup (`?ref=CODE` → localStorage → register
+    payload) increments the referrer's `premiumCredits` — the
+    pre-existing unused column from merge b0b259a, already in prod
+    via R-023. The export-quota check in `generatePdf` AND
+    `generateDocx` honours the balance: at the cap, one credit buys
+    one export instead of a 403, and the quota error now says
+    "refer a friend for a bonus export". Referral recording is
+    fire-and-forget from the register flow — a referral bug can
+    never block a signup.
+  - [x] Anti-abuse: `referredUserId` unique (an account credits at
+    most once), `emailHash` unique (same email never credits twice
+    even across delete/re-create — verified in smoke), per-IP cap of
+    3 credits per 30 days, self-referral suppressed. Suppressed
+    attempts still write `creditGranted=false` rows for the admin
+    dashboard. Client clears the pending code after a successful
+    signup so one browser can't double-apply it.
+  - [x] Settings `ReferralCard`: copyable
+    `/auth/register?ref=CODE` link + credited-referral count +
+    credit balance. Hides itself entirely on API failure (a broken
+    referral card is worse than none).
+  - [x] 9 unit tests (6 helper + 3 credit-path in the export-quota
+    suite, whose in-memory Prisma mock now resolves
+    increment/decrement atomics). Smoke-verified end-to-end: code
+    generation stable across calls → referred signup credits +1 →
+    same-email re-register does NOT double-credit → credit consumed
+    at the cap (200, `used=5 credits=0`, monthly counter untouched)
+    → next export 403 with the referral hint.
+  - [ ] **DEFERRED**: 30-day clawback on account deletion — the
+    product has no account-deletion endpoint yet. Decision logged in
+    §7; the deletion feature MUST claw back credits granted for
+    accounts deleted within 30 days of signup.
 
 ### R-038 · Public portfolio / share link
 
@@ -707,6 +737,8 @@ do not break it.
 | 2026-06-12 | Razorpay `cdn.razorpay.com` added to CSP script-src + connect-src | "Confirming Payment" hang on live preview was the SDK waiting for a global the CSP-blocked risk-detection bundle would have installed. Without the bundle the post-payment confirmation never resolves. | R-005 |
 | 2026-06-12 | R-031 ships email-only; web push deferred to R-043 | One notification channel done well beats two done half; push + WhatsApp land together so channel preferences are designed once. | R-031, R-043 |
 | 2026-06-12 | Nudge trigger is a CRON_SECRET-guarded endpoint, not an in-process scheduler | Survives horizontal scaling without double-sends (idempotent scan), works with Render Cron Jobs, no new dependency. | R-031 |
+| 2026-06-12 | Referral credits reuse the dormant `User.premiumCredits` column | Field already exists in prod (R-023 catch-up); credits denominate in exports (1 referral = 1 export ≈ ₹49) which is legible without a pricing table. | R-037, R-003 |
+| 2026-06-12 | Referral 30-day clawback deferred until account deletion exists | No deletion endpoint in the product today; the deletion feature must implement the clawback when it ships. | R-037 |
 | 2026-06-11 | sms-gateway + resume-builder-ai standalone services flagged for archive if untouched in 90 days | Two AI call paths is one too many | — |
 
 ---

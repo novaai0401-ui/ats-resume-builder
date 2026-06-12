@@ -27,7 +27,7 @@ export class AuthController {
     if (!parsed.success) {
       throw new BadRequestException(parsed.error.flatten());
     }
-    const result = await this.authService.register(parsed.data);
+    const result = await this.authService.register(parsed.data, { ip: extractIp(req) });
     this.analytics.track(
       {
         type: 'register',

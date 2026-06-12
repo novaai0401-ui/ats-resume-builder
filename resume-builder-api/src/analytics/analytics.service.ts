@@ -37,7 +37,9 @@ export type AnalyticsEventType =
   // "do the nudge emails actually get tapped?" — the conversion rate
   // of these events is the health metric of the Outcome Graph.
   | 'nudge_outcome_recorded'
-  | 'nudge_unsubscribed';
+  | 'nudge_unsubscribed'
+  // R-037: a referred signup credited the referrer.
+  | 'referral_credited';
 
 export interface AnalyticsEvent {
   type: AnalyticsEventType;

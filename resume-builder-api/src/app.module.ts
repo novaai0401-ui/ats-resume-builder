@@ -21,6 +21,7 @@ import { TrainingDatasetModule } from './training-dataset/training-dataset.modul
 import { AnalyticsModule } from './analytics/analytics.module';
 import { ShareLinksModule } from './share-links/share-links.module';
 import { OutcomeNudgeModule } from './outcome-nudge/outcome-nudge.module';
+import { ReferralsModule } from './referrals/referrals.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { OutcomeNudgeModule } from './outcome-nudge/outcome-nudge.module';
     AnalyticsModule,
     ShareLinksModule,
     OutcomeNudgeModule,
+    ReferralsModule,
   ],
   controllers: [HealthController],
 })

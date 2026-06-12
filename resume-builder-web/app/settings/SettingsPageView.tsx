@@ -4,6 +4,7 @@ import Link from 'next/link';
 import TrainingConsentCard from '@/src/components/TrainingConsentCard';
 import ByokKeyCard from '@/src/components/ByokKeyCard';
 import ShareLinksCard from '@/src/components/ShareLinksCard';
+import ReferralCard from '@/src/components/ReferralCard';
 
 /**
  * User settings.
@@ -52,6 +53,8 @@ export default function SettingsPageView() {
       </div>
 
       <ShareLinksCard />
+
+      <ReferralCard />
     </main>
   );
 }

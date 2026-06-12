@@ -653,10 +653,18 @@ export class ResumeService {
     // any plan could download unlimited PDFs. (Reported: a FREE user
     // pulled more than 5 exports.) The flag now only controls the
     // FREE-plan hard-block above; the quota itself is law.
+    // R-037: referral credits buy exports past the monthly cap. One
+    // credit == one export. The quota error only fires when BOTH the
+    // monthly allowance AND the credit balance are exhausted.
+    let consumeCredit = false;
     if (isExportQuotaEnforced() && updatedUser.pdfExportsUsed + 1 > updatedUser.pdfExportsLimit) {
-      throw new ForbiddenException(
-        `Monthly export limit reached (${updatedUser.pdfExportsLimit}). Upgrade your plan or wait for next month's reset.`,
-      );
+      if (updatedUser.premiumCredits > 0) {
+        consumeCredit = true;
+      } else {
+        throw new ForbiddenException(
+          `Monthly export limit reached (${updatedUser.pdfExportsLimit}). Upgrade your plan, refer a friend for a bonus export, or wait for next month's reset.`,
+        );
+      }
     }
     const resume = await this.get(userId, id);
     // Mismatch root-cause: preview uses React template components + app CSS, while
@@ -678,7 +686,9 @@ export class ResumeService {
 
     await this.prisma.user.update({
       where: { id: userId },
-      data: { pdfExportsUsed: updatedUser.pdfExportsUsed + 1 },
+      data: consumeCredit
+        ? { premiumCredits: { decrement: 1 } }
+        : { pdfExportsUsed: updatedUser.pdfExportsUsed + 1 },
     });
 
     const launchOptions = await resolveChromeLaunchOptions();
@@ -822,18 +832,27 @@ export class ResumeService {
     if (!updatedUser) {
       throw new NotFoundException('User not found');
     }
+    // R-037: referral credits buy exports past the cap (same rule as
+    // generatePdf — DOCX shares the counter AND the credit balance).
+    let consumeCredit = false;
     if (isExportQuotaEnforced() && updatedUser.pdfExportsUsed + 1 > updatedUser.pdfExportsLimit) {
-      throw new ForbiddenException(
-        `Monthly export limit reached (${updatedUser.pdfExportsLimit}). Upgrade your plan or wait for next month's reset.`,
-      );
+      if (updatedUser.premiumCredits > 0) {
+        consumeCredit = true;
+      } else {
+        throw new ForbiddenException(
+          `Monthly export limit reached (${updatedUser.pdfExportsLimit}). Upgrade your plan, refer a friend for a bonus export, or wait for next month's reset.`,
+        );
+      }
     }
     const resume = await this.get(userId, id);
     const docx = await renderResumeDocx(resume as Parameters<typeof renderResumeDocx>[0]);
-    // Increment AFTER successful render so a render failure doesn't
-    // burn one of the user's allotted exports.
+    // Charge AFTER successful render so a render failure doesn't burn
+    // one of the user's allotted exports (or a referral credit).
     await this.prisma.user.update({
       where: { id: userId },
-      data: { pdfExportsUsed: updatedUser.pdfExportsUsed + 1 },
+      data: consumeCredit
+        ? { premiumCredits: { decrement: 1 } }
+        : { pdfExportsUsed: updatedUser.pdfExportsUsed + 1 },
     });
     return docx;
   }
