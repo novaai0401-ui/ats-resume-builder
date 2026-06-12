@@ -331,17 +331,47 @@ replies than that one" — which is the moat.
 
 ### R-032 · Mail-in outcome capture
 
-- Status: **BACKLOG**
+- Status: **DONE** (on branch; activates in prod once an inbound-mail
+  provider routes `track@pocketresume.app` to the webhook and
+  `INBOUND_MAIL_SECRET` is set)
 - Depends-on: R-031
 - Acceptance
-  - [ ] User can forward rejection / interview emails to
-    `track@pocketresume.app`.
-  - [ ] Parser detects "unfortunately…", "shortlisted", "interview at",
-    "offer extended" and matches to the most-recent matching
-    `JobApplication` by company name.
-  - [ ] Disambiguation: if multiple candidates match, email the user
-    a "which application is this about?" link.
-  - [ ] All received content is logged with a 30-day retention default.
+  - [x] `POST /outcome-mail/inbound?secret=…` webhook, provider-shape
+    tolerant (SendGrid `from/subject/text`, Mailgun
+    `sender/subject/body-plain`). Refuses (403) when the secret is
+    unset or wrong; always returns `{accepted:true}` to the provider
+    otherwise (4xx would make providers disable the route). Sender
+    must match a registered account — unknown senders are audited
+    and ignored, no oracle.
+  - [x] `detectOutcome` recognises rejections ("unfortunately",
+    "regret to inform", "not moving forward", "position has been
+    filled"…), interviews ("schedule an interview", "shortlisted",
+    "next round", "availability for a call"…), offers ("pleased to
+    offer", "offer letter", "extending an offer"…). Precision over
+    recall: receipt confirmations and ordinary mail return null
+    (false positive = wrong status written; false negative = user
+    logs manually). Rejection outranks interview; offer outranks
+    interview.
+  - [x] Company matching against OPEN applications only, word-boundary
+    + corporate-suffix stripping both ways ("Globex Corporation" ↔
+    "Globex", "Acme Tech Pvt Ltd" ↔ "Acme"); names < 3 chars never
+    match. Exactly one match → status applied directly (rejected also
+    sets `closedAt`).
+  - [x] Zero/multiple matches → disambiguation email with one one-tap
+    link per candidate (≤5), REUSING the R-031 OutcomeNudge token
+    machinery — tapping applies the detected outcome to that
+    application via the existing `GET /outcome-nudge/:token/:action`.
+  - [x] Bodies are NEVER stored. `InboundOutcomeMail` audit rows keep
+    from + truncated subject + resolution, expire after 30 days,
+    purged by the same daily cron as the nudge scan
+    (`purgedInboundMail` in the run summary).
+  - [x] 10 unit tests pin the detection phrases, precision rules,
+    suffix-stripping matcher, ambiguity behaviour, <3-char guard, and
+    display-name email parsing. Smoke-verified end-to-end: 403 paths,
+    unknown-sender audit, single-match auto-apply
+    (applied→rejected+closedAt), ambiguous two-Globex case creating 2
+    disambiguation tokens, tapping one records the interview, cron
+    purge wired.
 
 ### R-033 · Browser extension MVP to Chrome Web Store
 

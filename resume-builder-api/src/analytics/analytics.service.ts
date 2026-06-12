@@ -39,7 +39,9 @@ export type AnalyticsEventType =
   | 'nudge_outcome_recorded'
   | 'nudge_unsubscribed'
   // R-037: a referred signup credited the referrer.
-  | 'referral_credited';
+  | 'referral_credited'
+  // R-032: a forwarded email auto-applied an outcome.
+  | 'mail_in_outcome_applied';
 
 export interface AnalyticsEvent {
   type: AnalyticsEventType;

@@ -7,9 +7,11 @@ import {
   Post,
   Req,
   Res,
+  Body,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { OutcomeNudgeService, type NudgeAction } from './outcome-nudge.service';
+import { InboundMailService } from './inbound-mail.service';
 
 const VALID_ACTIONS = new Set(['no_reply', 'rejected', 'interview', 'unsubscribe']);
 
@@ -31,7 +33,10 @@ const VALID_ACTIONS = new Set(['no_reply', 'rejected', 'interview', 'unsubscribe
  */
 @Controller('outcome-nudge')
 export class OutcomeNudgeController {
-  constructor(private readonly service: OutcomeNudgeService) {}
+  constructor(
+    private readonly service: OutcomeNudgeService,
+    private readonly inboundMail: InboundMailService,
+  ) {}
 
   @Post('run')
   @HttpCode(200)
@@ -43,7 +48,11 @@ export class OutcomeNudgeController {
     }
     const proto = (req.headers['x-forwarded-proto'] as string) || 'https';
     const host = (req.headers['x-forwarded-host'] as string) || (req.headers['host'] as string) || 'localhost:4001';
-    return this.service.runNudgeScan(`${proto}://${host}`);
+    const nudges = await this.service.runNudgeScan(`${proto}://${host}`);
+    // R-032: the same daily cron purges expired inbound-mail audit
+    // rows (30-day retention) — one schedule for all outcome jobs.
+    const purgedInboundMail = await this.inboundMail.purgeExpired();
+    return { ...nudges, purgedInboundMail };
   }
 
   @Get(':token/:action')
@@ -77,6 +86,40 @@ export class OutcomeNudgeController {
         false,
       ));
     }
+  }
+}
+
+/**
+ * R-032 webhook. Inbound-mail providers (SendGrid Inbound Parse,
+ * Mailgun Routes, Cloudflare Email Workers) POST the parsed message
+ * here when a user forwards an email to track@pocketresume.app.
+ *
+ * Guarded by INBOUND_MAIL_SECRET as a query param — providers can't
+ * set custom headers, but they CAN post to a URL with a secret in it:
+ *   POST /outcome-mail/inbound?secret=<INBOUND_MAIL_SECRET>
+ * Refuses (404, no oracle) when the env var is unset.
+ *
+ * Field mapping is provider-tolerant: SendGrid posts `from`/`subject`/
+ * `text`; Mailgun posts `sender`/`subject`/`body-plain`. We read both.
+ */
+@Controller('outcome-mail')
+export class InboundOutcomeMailController {
+  constructor(private readonly inboundMail: InboundMailService) {}
+
+  @Post('inbound')
+  @HttpCode(200)
+  async inbound(@Req() req: Request, @Body() body: Record<string, unknown>) {
+    const configured = String(process.env.INBOUND_MAIL_SECRET || '').trim();
+    const provided = String((req.query?.secret as string) || '').trim();
+    if (!configured || provided !== configured) {
+      throw new ForbiddenException('Not available.');
+    }
+    const b = body || {};
+    return this.inboundMail.handleInbound({
+      fromEmail: String(b['from'] ?? b['sender'] ?? ''),
+      subject: String(b['subject'] ?? ''),
+      text: String(b['text'] ?? b['body-plain'] ?? b['body'] ?? ''),
+    });
   }
 }
 

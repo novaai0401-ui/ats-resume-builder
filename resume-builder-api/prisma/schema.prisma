@@ -260,6 +260,30 @@ model ResumeVersion {
   @@index([userId, createdAt])
 }
 
+/// R-032: audit row per inbound forwarded email. Bodies are NOT stored
+/// — only the metadata needed to debug matching ("why didn't my
+/// forwarded rejection get logged?") plus a truncated subject. Rows
+/// expire after 30 days (cleaned by the same cron that runs the
+/// outcome-nudge scan).
+model InboundOutcomeMail {
+  id                   String   @id @default(uuid())
+  /// Null when the From address didn't match any account.
+  userId               String?
+  fromEmail            String
+  /// Truncated to 140 chars.
+  subject              String
+  /// 'rejected' | 'interview' | 'offer' | null (nothing detected)
+  detectedOutcome      String?
+  /// 'applied' | 'disambiguation_sent' | 'no_match' | 'unknown_sender' | 'no_outcome'
+  resolution           String
+  matchedApplicationId String?
+  createdAt            DateTime @default(now())
+  expiresAt            DateTime
+
+  @@index([userId, createdAt])
+  @@index([expiresAt])
+}
+
 /// R-037: one row per successful referral. The anti-abuse contract
 /// lives in the constraints:
 ///   - referredUserId unique → an account can only ever be referred once.
