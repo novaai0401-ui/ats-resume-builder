@@ -410,18 +410,46 @@ replies than that one" — which is the moat.
 
 ### R-036 · Navigation consolidation (12 → 5 hubs)
 
-- Status: **BACKLOG**
-- Depends-on: R-022
+- Status: **DONE** (on branch; not merged)
+- Depends-on: R-022 (deploy gate — feature is launch-ready)
 - Acceptance
-  - [ ] Top nav shows: **Home · Resume · Applications · Coach · Account**.
-  - [ ] Each hub has a single landing route that surfaces its tools as
-    cards (Resume hub: Editor / Versions / Templates; Applications
-    hub: Jobs / Outcomes / JD Match; Coach hub: Mentor / Mentor Chat /
-    Interview Prep / Career Navigator / Sahaayak; Account: Billing /
-    Settings).
-  - [ ] All existing routes keep working (canonical URLs preserved for
-    SEO and bookmarks).
-  - [ ] A11y: skip-link still works, focus order tested on each hub.
+  - [x] Top nav shows: **Home · Resume · Applications · Coach · Account**
+    (post-login). Logged-out keeps the single Home link + login/register.
+    Plan badge, Admin, and Logout live OUTSIDE the hub set — they're
+    utility status, not navigation.
+  - [x] Each hub has a single landing route that surfaces its tools
+    as cards:
+      - Resume → `/resume/start` (existing) augmented with a "More
+        resume tools" section linking to Versions / Templates / ATS
+        Score / ATS Simulator.
+      - Applications → NEW `/applications/page.tsx` with Jobs / JD
+        Match / Outcomes / Cover Letter cards.
+      - Coach → NEW `/coach/page.tsx` with Mentor / Mentor Chat /
+        Interview Prep / Career Navigator / Sahaayak cards. Plan
+        badges (STUDENT+ / PRO) appear on the cards that gate.
+      - Account → `/settings` (existing) which already surfaces a
+        "Plan & billing" card.
+  - [x] All existing routes keep working — `nav-hubs.ts` only adds
+    landing routes (`/applications`, `/coach`) plus a single config
+    that drives both nav highlighting and card grids. `/jobs`,
+    `/jd-match`, `/resume/versions`, etc. are unchanged so every
+    bookmark and inbound SEO link still resolves.
+  - [x] A11y: skip-link unchanged. Hub cards are real `<a>` with
+    `aria-label` combining title + blurb; the `aria-current="page"`
+    rendered by TopNav is now driven by the longest-prefix matcher
+    `activeHubKey` so screen readers announce one and only one
+    active hub per page.
+  - [x] 12 unit tests pin the hub contract: exactly 5 hubs in the
+    declared order, every landing is a real route, the prefix map
+    routes /jd-match → Applications, /sahaayak → Coach,
+    /resume/outcomes → **Applications** (not Resume — that's the
+    whole IA point), longest-prefix wins, utility routes (auth,
+    admin, download) never activate a hub, SSR `pathname=''`
+    activates nothing, boundary-similar paths (`/resume-template`,
+    `/jobs-archive`) don't false-match. Removed the now-dead
+    `nav-active.ts` helper. tsc + existing mobile-nav tests still
+    green; preview-verified `/applications` and `/coach` render their
+    card grids end-to-end.
 
 ### R-037 · Referral credit (1 free export per referred signup)
 

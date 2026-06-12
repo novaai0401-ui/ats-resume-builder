@@ -237,6 +237,49 @@ export default function ResumeStartClient() {
           </div>
         )}
       </section>
+
+      {/* R-036: this page is the Resume HUB landing. Surface the
+          other Resume-hub tools so a user who lands here from the
+          top nav has the full picture of what's under "Resume"
+          without going hunting. Skip the tools that mean
+          "start/upload" (that's literally the rest of this page). */}
+      <section className="card col-12" aria-labelledby="resume-hub-more">
+        <h2 id="resume-hub-more" style={{ marginTop: 0, fontSize: 16, color: '#1a3a5c' }}>
+          More resume tools
+        </h2>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+            gap: 10,
+            marginTop: 8,
+          }}
+        >
+          {[
+            { href: '/resume/versions', label: 'Version history', blurb: 'Snapshots + restore points.' },
+            { href: '/templates/preview', label: 'Templates', blurb: 'ATS-safe and visual layouts.' },
+            { href: '/resume/ats', label: 'ATS Score', blurb: 'Does your format parse cleanly?' },
+            { href: '/resume/ats-simulate', label: 'ATS Simulator', blurb: 'Recruiter-view preview.' },
+          ].map((t) => (
+            <a
+              key={t.href}
+              href={t.href}
+              style={{
+                display: 'block',
+                padding: '10px 12px',
+                borderRadius: 8,
+                border: '1px solid #e2e8f0',
+                background: '#ffffff',
+                textDecoration: 'none',
+                color: 'inherit',
+              }}
+            >
+              <strong style={{ color: '#1a3a5c', fontSize: 14 }}>{t.label}</strong>
+              <div className="small" style={{ color: '#5a6778', marginTop: 2 }}>{t.blurb}</div>
+            </a>
+          ))}
+        </div>
+      </section>
     </main>
   );
 }
