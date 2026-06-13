@@ -23,6 +23,10 @@ RUN cd packages/resume-schemas && npm ci && npm run build
 COPY packages/resume-intelligence/ ./packages/resume-intelligence/
 RUN cd packages/resume-intelligence && npm ci && npm run build
 
+# 3b. Install & build packages/doc-extract (generic schema-driven extractor)
+COPY packages/doc-extract/ ./packages/doc-extract/
+RUN cd packages/doc-extract && npm ci && npm run build
+
 # 4. Install API dependencies (skip puppeteer browser download)
 WORKDIR /build/resume-builder-api
 COPY resume-builder-api/package.json resume-builder-api/package-lock.json ./
