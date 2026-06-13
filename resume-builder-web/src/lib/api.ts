@@ -1520,21 +1520,6 @@ export const api = {
       `/ai/live-openings?q=${encodeURIComponent(q)}${location ? `&location=${encodeURIComponent(location)}` : ''}`,
     ),
 
-  // ---------------------------------------------------------------------------
-  // Portfolio — shareable, recruiter-facing public page (Student/Pro).
-  // ---------------------------------------------------------------------------
-  listPortfolios: () => request<PortfolioSummary[]>(`/portfolios`),
-  createPortfolio: (input: { resumeId: string; title?: string; headline?: string; contactEmail?: string }) =>
-    request<PortfolioSummary>(`/portfolios`, { method: 'POST', body: JSON.stringify(input) }),
-  updatePortfolio: (id: string, input: { title?: string; headline?: string; contactEmail?: string; published?: boolean; refreshFromResume?: boolean }) =>
-    request<PortfolioSummary>(`/portfolios/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),
-  deletePortfolio: (id: string) => request<{ ok: boolean }>(`/portfolios/${id}`, { method: 'DELETE' }),
-  getPublicPortfolio: async (slug: string): Promise<PublicPortfolio> => {
-    const res = await fetch(`${baseUrl}/public/portfolio/${encodeURIComponent(slug)}`);
-    if (!res.ok) throw new Error(res.status === 404 ? 'This portfolio is private or does not exist.' : 'Could not load this portfolio.');
-    return res.json() as Promise<PublicPortfolio>;
-  },
-
   // Which social sign-in providers the server has configured (LinkedIn-only).
   getAuthProviders: () => request<{ linkedin: boolean }>(`/auth/providers`),
   // Returns the LinkedIn authorize URL to redirect the browser to.
@@ -1613,37 +1598,6 @@ export type OutcomeCard = {
   liftDeltaPoints: number | null;
   trend: Array<{ n: number; score: number | null; callback: number | null }>;
   generatedAt: number;
-};
-
-// Portfolio types.
-export type PortfolioSummary = {
-  id: string;
-  slug: string;
-  title: string;
-  headline?: string | null;
-  published: boolean;
-  views: number;
-  createdAt: string;
-  updatedAt: string;
-};
-
-export type PortfolioSnapshot = {
-  fullName: string;
-  headline: string;
-  summary: string;
-  skills: string[];
-  experience: Array<{ company: string; role: string; startDate: string; endDate: string; highlights: string[] }>;
-  education: Array<{ institution: string; degree: string; startDate: string; endDate: string }>;
-  projects: Array<{ name: string; description: string; url: string }>;
-};
-
-export type PublicPortfolio = {
-  slug: string;
-  title: string;
-  headline?: string | null;
-  contactEmail?: string | null;
-  snapshot: PortfolioSnapshot;
-  createdAt: string;
 };
 
 // Skill-Demand Agent result.
