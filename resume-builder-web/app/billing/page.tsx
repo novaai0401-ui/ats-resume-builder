@@ -82,7 +82,7 @@ const PLANS = [
       'Resume editing & templates',
       'Standard JD parsing',
       '2 ATS scans / month',
-      '5 PDF exports / month',
+      'PDF & Word export — ₹49 each, no monthly cap',
     ],
   },
   {
@@ -96,7 +96,7 @@ const PLANS = [
       'AI-powered resume critique',
       'Technology gap analysis',
       '50 ATS scans / month',
-      '25 PDF exports / month',
+      'Unlimited PDF & Word exports (included)',
       '10 saved resumes',
     ],
   },
@@ -112,7 +112,7 @@ const PLANS = [
       'Premium course recommendations',
       'Advanced job suggestions',
       '300 ATS scans / month',
-      '200 PDF exports / month',
+      'Unlimited PDF & Word exports (included)',
       '100 saved resumes',
     ],
   },
@@ -516,7 +516,12 @@ export default function BillingPage() {
           <div className="grid" style={{ gap: 12 }}>
             <UsageBar label="AI Tokens" used={usage.aiTokensUsed || 0} limit={usage.aiTokensLimit || 1} />
             <UsageBar label="ATS Scans" used={usage.atsScansUsed || 0} limit={usage.atsScansLimit || 1} />
-            <UsageBar label="PDF Exports" used={usage.pdfExportsUsed || 0} limit={usage.pdfExportsLimit || 1} />
+            {/* With per-download charging, exports are uncapped (paid per
+                download / included with the plan), so a "X / limit" bar is
+                misleading. Only show it under the legacy monthly-quota model. */}
+            {(process.env.NEXT_PUBLIC_ENABLE_DOWNLOAD_CHARGE || 'true').toLowerCase() === 'false' && (
+              <UsageBar label="PDF Exports" used={usage.pdfExportsUsed || 0} limit={usage.pdfExportsLimit || 1} />
+            )}
           </div>
           {planStatus?.periodEnd && (
             <p className="small" style={{ marginTop: 10, color: '#4b5d74' }}>
