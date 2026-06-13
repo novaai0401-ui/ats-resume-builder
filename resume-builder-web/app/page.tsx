@@ -132,6 +132,18 @@ export default function Page() {
         </div>
       </section>
 
+      {/* Internal links to the SEO landing pages — helps crawlers discover
+          them and passes link equity from the highest-authority page. */}
+      <section className="card" style={{ marginTop: 18 }} aria-labelledby="guides-heading">
+        <h2 id="guides-heading">Popular guides</h2>
+        <ul>
+          <li><Link href="/ats-resume-templates">ATS resume templates</Link> — free, ATS-safe layouts tested across major systems.</li>
+          <li><Link href="/ats-resume-checker">ATS resume checker</Link> — score your resume and see what an ATS extracts.</li>
+          <li><Link href="/resume-builder-india">Resume builder for India</Link> — ₹ pricing, UPI, India-aware live openings.</li>
+          <li><Link href="/compare">Pocket Resume vs Rezi, Teal &amp; Jobscan</Link> — how we compare.</li>
+        </ul>
+      </section>
+
       {/* Visible FAQ backing the FAQPage JSON-LD above (Google requires the
           content be on-page) and adding crawlable, keyword-rich copy. */}
       <section className="card" style={{ marginTop: 18 }} aria-labelledby="faq-heading">

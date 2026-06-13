@@ -65,7 +65,11 @@ job-seekers in India, and anyone preparing for AI-driven hiring screens.
 ## Key links
 
 - Home: ${SITE_URL}/
-- Templates: ${SITE_URL}/templates
+- ATS resume templates: ${SITE_URL}/ats-resume-templates
+- ATS resume checker: ${SITE_URL}/ats-resume-checker
+- Resume builder for India: ${SITE_URL}/resume-builder-india
+- Comparison (vs Rezi/Teal/Jobscan): ${SITE_URL}/compare
+- Templates gallery: ${SITE_URL}/templates
 - Get started: ${SITE_URL}/auth/register
 - Career tools: ${SITE_URL}/career
 `;

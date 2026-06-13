@@ -12,7 +12,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: '*',
-        allow: ['/', '/auth/login', '/auth/register', '/templates', '/career', '/download', '/llms.txt'],
+        allow: ['/', '/auth/login', '/auth/register', '/templates', '/ats-resume-templates', '/ats-resume-checker', '/resume-builder-india', '/compare', '/career', '/download', '/llms.txt'],
         disallow: [
           '/dashboard',
           '/resume/',
