@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/src/lib/api';
+import { TkxPhoneInput } from 'tekivex-ui';
 import { PrivacyBadge } from '@/src/components/PrivacyBadge';
 import { readPendingReferralCode, storePendingReferralCode } from '@/src/lib/referral';
 
@@ -181,19 +182,17 @@ export function LoginPageView({ apiClient = api, routerOverride, defaultMode = '
                 onChange={(e) => setRegEmail(e.target.value)}
                 required
               />
-              <label className="label" htmlFor="reg-mobile">Mobile</label>
-              <input
+              {/* TkxPhoneInput ships with a country picker + E.164 normalisation,
+                  so a user from anywhere can register. Default to India for the
+                  primary market; the payload's `e164` is the canonical value we
+                  POST to /auth/register. */}
+              <TkxPhoneInput
                 id="reg-mobile"
-                className="input"
-                type="tel"
-                inputMode="tel"
-                autoComplete="tel"
-                enterKeyHint="next"
-                placeholder="+919XXXXXXXXX"
+                label="Mobile"
+                defaultCountry="IN"
                 value={regMobile}
-                onChange={(e) => setRegMobile(e.target.value)}
+                onChange={(p) => setRegMobile(p.e164 || p.raw)}
                 required
-                minLength={10}
               />
               <label className="label" htmlFor="reg-password">Password</label>
               <input
@@ -213,7 +212,11 @@ export function LoginPageView({ apiClient = api, routerOverride, defaultMode = '
           )}
 
           {status ? <p className="small" style={{ color: '#1e5b35' }}>{status}</p> : null}
-          {error ? <div className="message-banner"><p className="small">{error}</p></div> : null}
+          {error ? (
+            <div className="alert alert-error" role="alert" aria-live="assertive">
+              {error}
+            </div>
+          ) : null}
 
           {mode === 'login' ? (
             <Link href="/auth/register" className="btn ghost" style={{ justifySelf: 'start', fontSize: '0.85rem' }}>

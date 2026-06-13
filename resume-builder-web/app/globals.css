@@ -2631,6 +2631,16 @@ body.resume-embed-body .main-shell {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  /* The parent .review-ats-panel__upload is a flex row that default-
+   * stretches its children to the row's cross-axis height. With a tall
+   * text block on the left ("Detected experience level... Companies
+   * found... Signals..."), this actions div was inheriting that height
+   * AND its three .btn children were stretching to fill it — rendering
+   * as ~200px-tall tiles. align-self stops the stretch at this node;
+   * align-items keeps the buttons at their intrinsic height even if
+   * the box itself ever wraps to a taller row. */
+  align-self: flex-start;
+  align-items: flex-start;
 }
 
 .leadership-hint {
@@ -2708,8 +2718,20 @@ body.resume-embed-body .main-shell {
   border-radius: 14px;
   padding: 18px;
   background: #fff;
-  display: grid;
+  /* Flex column so the action button (Upload Resume / Start from scratch)
+   * pins to the BOTTOM via margin-top:auto, keeping the two cards' CTAs
+   * horizontally aligned even when the Upload card has the extra
+   * "Recommended" badge above its heading. Without this the Upload card's
+   * content sits lower than the scratch card's, and the two buttons end
+   * up at different y-coords on web — what the founder reported. */
+  display: flex;
+  flex-direction: column;
   gap: 10px;
+}
+.start-choice > .btn,
+.start-choice > label.btn,
+.start-choice > button.btn {
+  margin-top: auto;
 }
 
 .start-choice--upload {

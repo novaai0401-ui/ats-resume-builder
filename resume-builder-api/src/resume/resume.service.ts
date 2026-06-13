@@ -5768,6 +5768,48 @@ function tokenize(text: string): Set<string> {
   );
 }
 
+/**
+ * Stopword list used by extractKeywordWeights so generic English filler
+ * doesn't show up as "missing keywords" the user must add. The
+ * founder's smoke screenshot 5 surfaced this regression: the editor
+ * was telling the user to add "have", "systems", "distributed",
+ * "understand" — the first and last are generic words, the middle two
+ * already appear in the user's resume. Aggressively filtering filler
+ * here means the keywords that DO surface are real role/skill terms.
+ *
+ * The list covers: articles, auxiliaries, modals, common JD verbs,
+ * meta words ("candidate", "role", "position", "responsibilities"),
+ * and pronouns. Skill/role nouns (react, kubernetes, leadership,
+ * frontend, etc.) are deliberately NOT included.
+ */
+const JD_STOPWORDS = new Set([
+  // articles / determiners / pronouns
+  'the', 'and', 'with', 'for', 'you', 'our', 'are', 'will', 'from', 'that', 'this',
+  'your', 'their', 'they', 'them', 'these', 'those', 'such', 'each', 'any', 'all',
+  'his', 'her', 'its', 'who', 'whom', 'whose', 'what', 'when', 'where', 'why', 'how',
+  // auxiliaries + modals
+  'have', 'has', 'had', 'having', 'be', 'is', 'was', 'were', 'been', 'being',
+  'do', 'does', 'did', 'doing', 'done',
+  'can', 'cant', 'could', 'should', 'shouldn', 'must', 'mustn', 'may', 'might',
+  'would', 'wouldnt', 'shall', 'shant', 'ought',
+  // generic JD verbs / meta words
+  'understand', 'understanding', 'requires', 'required', 'requirement', 'requirements',
+  'need', 'needs', 'needed', 'including', 'includes', 'includ', 'across',
+  'looking', 'seeking', 'hiring', 'apply', 'role', 'roles', 'position', 'positions',
+  'opportunity', 'opportunities', 'candidate', 'candidates', 'applicant', 'applicants',
+  'responsibilities', 'duties', 'qualifications', 'qualified', 'preferred',
+  'experience', 'experienced', 'background', 'knowledge', 'familiar', 'familiarity',
+  'ability', 'able', 'skills', 'skilled', 'expertise',
+  'working', 'work', 'works', 'worked', 'team', 'teams', 'company', 'companies',
+  'people', 'individuals', 'person', 'someone', 'others',
+  // generic vague verbs that bloat extractor output
+  'help', 'helping', 'helped', 'support', 'supporting', 'ensure', 'ensuring',
+  'within', 'about', 'into', 'onto', 'over', 'under', 'than', 'then',
+  'while', 'whereas', 'because', 'between', 'among', 'against',
+  // common one-liner glue
+  'we', 'us', 'i', 'me', 'my', 'mine', 'an',
+]);
+
 function extractKeywordWeights(text: string, limit: number): Map<string, number> {
   if (!text) return new Map();
   const tokens = text
@@ -5775,10 +5817,9 @@ function extractKeywordWeights(text: string, limit: number): Map<string, number>
     .replace(/[^a-z0-9\s]/g, ' ')
     .split(/\s+/)
     .filter((t) => t.length > 2);
-  const stop = new Set(['and', 'the', 'with', 'for', 'you', 'our', 'are', 'will', 'from', 'that', 'this', 'your']);
   const freq = new Map<string, number>();
   for (const t of tokens) {
-    if (stop.has(t)) continue;
+    if (JD_STOPWORDS.has(t)) continue;
     freq.set(t, (freq.get(t) || 0) + 1);
   }
   return new Map(
@@ -5882,12 +5923,20 @@ function buildGuidance(input: {
   const skillsSuggestions: string[] = [];
   const addOnlyIfTrue: string[] = [];
 
-  // Summary suggestions
+  // Summary suggestions. The previous wording ("Weave these missing
+  // keywords naturally into your summary") had two complaints from
+  // smoke testing: (a) the user didn't know which section to edit
+  // when the same wording appeared under Experience too, and (b) the
+  // suggestion fired even when the user already had the keyword in
+  // OTHER sections of the resume. We now lift the language to "your
+  // resume" (the keyword needs to appear *somewhere*, not specifically
+  // in summary) AND raise the threshold so we don't pester the user
+  // with 1-2 missing words — those are likely incidental.
   if (!input.sections.summary) {
     summarySuggestions.push('Add a professional summary highlighting your role, years of experience, and key competencies aligned with the target role.');
-  } else if (input.missingKeywords.length > 3) {
+  } else if (input.missingKeywords.length >= 4) {
     const topMissing = input.missingKeywords.slice(0, 4).join(', ');
-    summarySuggestions.push(`Weave these missing keywords naturally into your summary: ${topMissing}.`);
+    summarySuggestions.push(`Add these JD keywords to your resume where truthful — Summary is the easiest place to surface them: ${topMissing}.`);
   }
   if (input.missingTargetRoleSignals.length) {
     const signals = input.missingTargetRoleSignals.slice(0, 3).join(', ');
