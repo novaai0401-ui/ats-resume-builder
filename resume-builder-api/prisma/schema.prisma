@@ -260,11 +260,11 @@ model ResumeVersion {
   @@index([userId, createdAt])
 }
 
-/// R-032: audit row per inbound forwarded email. Bodies are NOT stored
-/// — only the metadata needed to debug matching ("why didn't my
-/// forwarded rejection get logged?") plus a truncated subject. Rows
-/// expire after 30 days (cleaned by the same cron that runs the
-/// outcome-nudge scan).
+/// R-032: audit row per inbound forwarded email. Bodies are NOT
+/// stored — only the metadata needed to debug matching ("why didn't
+/// my forwarded rejection get logged?") plus a truncated subject.
+/// Rows expire after 30 days (cleaned by the same cron that runs
+/// the outcome-nudge scan).
 model InboundOutcomeMail {
   id                   String   @id @default(uuid())
   /// Null when the From address didn't match any account.
@@ -600,4 +600,54 @@ model ModelEvaluation {
   evaluatedAt     DateTime @default(now())
 
   @@index([modelName, evaluatedAt])
+}
+
+/// R-041 — B2B parsing API key (one row per tenant, possibly many
+/// per organisation). Keys are 'pra_' (Pocket Resume API) + 32 chars
+/// of base32-ish entropy; we store ONLY a SHA-256 hash — recovery
+/// is impossible by design, the dashboard reissues if a key is lost.
+/// `prefix` is the first 8 chars of the plaintext, kept so the
+/// dashboard can show "pra_abc12def…" without storing the key.
+/// `monthlyCallLimit` caps metered usage; ApiUsage rows feed the bill.
+model ApiKey {
+  id               String    @id @default(uuid())
+  /// Display name set by the operator ("Acme Staffing — production").
+  label            String
+  /// SHA-256 of the plaintext key (hex).
+  keyHash          String    @unique
+  /// First 8 chars of the plaintext for UI ("pra_abc12def").
+  prefix           String
+  tenantSlug       String
+  /// monthlyCallLimit=0 means UNLIMITED — we still record usage,
+  /// the bill is computed from the count.
+  monthlyCallLimit Int       @default(10000)
+  /// Hard cap per minute regardless of plan — defends Chrome/AI from
+  /// runaway scripts.
+  perMinuteLimit   Int       @default(60)
+  enabled          Boolean   @default(true)
+  expiresAt        DateTime?
+  createdAt        DateTime  @default(now())
+  lastUsedAt       DateTime?
+
+  @@index([tenantSlug])
+}
+
+/// R-041 — one row per public-API call (parse/score/tailor). Used to
+/// compute monthly bills, surface abuse, and audit-trace tenant
+/// activity. Truncated user-agent + ipHash only — never raw IPs.
+model ApiUsage {
+  id        String   @id @default(uuid())
+  apiKeyId  String
+  endpoint  String
+  /// HTTP status returned. 2xx counted toward the bill; 4xx/5xx are
+  /// surfaced in the dashboard but don't bill.
+  status    Int
+  ipHash    String?
+  userAgent String?
+  /// Round-trip wall time in milliseconds, for SLA reporting.
+  durationMs Int     @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([apiKeyId, createdAt])
+  @@index([apiKeyId, status])
 }

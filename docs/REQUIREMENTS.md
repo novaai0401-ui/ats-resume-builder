@@ -672,17 +672,48 @@ and every external call still feeds the Outcome Graph.
 
 ### R-041 · Public parsing + scoring API (B2B)
 
-- Status: **BACKLOG**
-- Depends-on: R-022
+- Status: **DONE** (on branch; pricing + landing page are founder open items)
+- Depends-on: R-022 (deploy gate; the API surface itself is launch-ready)
 - Acceptance
-  - [ ] `POST /v1/parse`, `POST /v1/score`, `POST /v1/tailor` endpoints
-    behind API keys.
-  - [ ] Metered billing per request; separate rate-limit tier from
-    interactive users.
-  - [ ] Per-tenant data isolation; uploads never join the personal
-    `Resume` pool.
-  - [ ] Each parse failure feeds the `pattern-learner` queue under a
-    tenant-tagged `source` field.
+  - [x] `POST /v1/parse` (multipart, PDF/DOCX/RTF/TXT ≤ 5MB),
+    `POST /v1/score` (free-text + JD), `POST /v1/tailor` (free-text
+    + JD → bullet rewrite proposals) — all behind the per-tenant
+    `ApiKey` guard. `Authorization: Bearer pra_…` or `x-api-key:`
+    accepted; 401 uniform on any failure (no oracle).
+  - [x] Metered billing: every 2xx call appends an `ApiUsage` row
+    (endpoint, status, hashed IP — never raw — truncated UA,
+    durationMs); 4xx/5xx rows surface in admin but don't bill. Each
+    key carries its own `monthlyCallLimit` (0 = unlimited) +
+    `perMinuteLimit` so rate-limit tiers are per-tenant, not shared
+    with interactive users. Per-minute limit enforced in the guard
+    BEFORE the heavy work; monthly cap rejects with 401 once the
+    billable count crosses the limit. `GET /v1/usage` returns the
+    calling key's current month billable + errored counts.
+  - [x] Per-tenant data isolation: `/v1/parse` calls
+    `ResumeService.parseResumeUpload(..., {mode: 'extract-only'})`
+    and STREAMS the result back — nothing is persisted to a user's
+    Resume table. The score + tailor endpoints are entirely stateless.
+    Keys never join the personal user account graph.
+  - [x] Admin surface `/admin/api-keys` (create/list/revoke/usage)
+    behind `JwtAuthGuard + AdminAuthGuard`. Keys are stored as SHA-256
+    hashes only — the plaintext is returned ONCE on creation; lost
+    keys are rotated, never recovered.
+  - [x] 5 unit tests pin: key alphabet (no 0/1/l/o), 200-draw
+    entropy, deterministic hash that never echoes plaintext, tenant
+    slug normalisation collapsing case/punctuation/length, IP hash
+    determinism. Smoke-verified end-to-end against the live local
+    stack: admin issues key → `/v1/parse` on the founder's real
+    Chandan PDF returns the full structured resume (4 experiences,
+    2 achievements, skills extracted) → `/v1/score` against a JD
+    returns ATS score + missing keywords → `/v1/tailor` returns
+    rewrite proposals → `/v1/usage` reports 3 billable + 0 errored
+    → burst of 32 concurrent calls splits as 25/200 + 7/429 against
+    the perMinuteLimit=30 cap → revoke flips the key to 401.
+  - [ ] **Open (founder)**: pricing card + public landing page (the
+    sales surface; the technical surface is shipped).
+  - [ ] **Future**: parse-failure feed into `pattern-learner` with a
+    tenant-tagged `source` field is sequenced separately once
+    pattern-learner is exposed to non-personal-user data.
 
 ### R-042 · Placement-cell B2B pilot
 

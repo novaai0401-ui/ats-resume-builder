@@ -22,6 +22,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { ShareLinksModule } from './share-links/share-links.module';
 import { OutcomeNudgeModule } from './outcome-nudge/outcome-nudge.module';
 import { ReferralsModule } from './referrals/referrals.module';
+import { PublicApiModule } from './public-api/public-api.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { ReferralsModule } from './referrals/referrals.module';
     ShareLinksModule,
     OutcomeNudgeModule,
     ReferralsModule,
+    PublicApiModule,
   ],
   controllers: [HealthController],
 })
