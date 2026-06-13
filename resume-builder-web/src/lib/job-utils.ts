@@ -87,3 +87,34 @@ export function daysUntil(iso: string | null): number | null {
   const now = Date.now();
   return Math.round((target - now) / (1000 * 60 * 60 * 24));
 }
+
+/**
+ * Map a live job opening (from the jobs feed) into a JobApplicationInput for
+ * one-click tracking. New openings land in "wishlist". Pure, so it's tested.
+ */
+export function openingToJobInput(opening: {
+  title: string;
+  company: string;
+  location?: string | null;
+  url?: string | null;
+  salaryText?: string | null;
+  source?: string | null;
+}): {
+  company: string;
+  role: string;
+  jdUrl: string | null;
+  location: string | null;
+  salaryRange: string | null;
+  source: string;
+  status: JobStatus;
+} {
+  return {
+    company: (opening.company || 'Unknown').trim(),
+    role: (opening.title || '').trim(),
+    jdUrl: opening.url?.trim() || null,
+    location: opening.location?.trim() || null,
+    salaryRange: opening.salaryText?.trim() || null,
+    source: (opening.source || 'live').trim(),
+    status: 'wishlist',
+  };
+}

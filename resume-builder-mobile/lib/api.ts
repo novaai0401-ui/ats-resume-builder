@@ -88,6 +88,30 @@ export type AtsScoreResult = {
   };
 };
 
+export type RecruiterSimResult = {
+  verdict: 'advance' | 'maybe' | 'reject';
+  score: number;
+  recruiterNote: string;
+  strengths: string[];
+  concerns: string[];
+  missingMustHaves: string[];
+  provider: 'groq' | 'rule-based';
+};
+
+export type OutcomeReport = {
+  overall: {
+    applied: number;
+    responses: number;
+    interviews: number;
+    offers: number;
+    callbackRate: number;
+    interviewRate: number;
+    offerRate: number;
+    significant: boolean;
+  };
+  unattributed: number;
+};
+
 export async function loadAuth(): Promise<AuthData | null> {
   const raw = await storeGet(AUTH_KEY);
   if (!raw) return null;
@@ -238,6 +262,14 @@ export const api = {
     request<Record<string, unknown>>('/ai/tech-gap', { method: 'POST', body: JSON.stringify(input) }),
   coverLetter: (input: { resumeId: string; jdText: string; tone?: string }) =>
     request<{ content: string }>('/ai/cover-letter', { method: 'POST', body: JSON.stringify(input) }),
+
+  // Recruiter-AI Simulator — verdict + reasoning against a JD.
+  recruiterSim: (input: { resumeText: string; jdText: string; currentSkills?: string[] }) =>
+    request<RecruiterSimResult>('/ai/recruiter-sim', { method: 'POST', body: JSON.stringify(input) }),
+
+  // Outcome Loop — callback rate + per-version stats for a resume.
+  getResumeOutcomes: (resumeId: string) =>
+    request<OutcomeReport>(`/resumes/${resumeId}/outcomes`),
 
   // Job tracker
   listJobs: () => request<Array<Record<string, unknown>>>('/jobs'),

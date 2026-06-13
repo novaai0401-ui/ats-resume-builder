@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import TrainingConsentCard from '@/src/components/TrainingConsentCard';
 import ByokKeyCard from '@/src/components/ByokKeyCard';
+import EncryptedBackupCard from '@/src/components/EncryptedBackupCard';
 import ShareLinksCard from '@/src/components/ShareLinksCard';
 import ReferralCard from '@/src/components/ReferralCard';
 
@@ -43,6 +44,10 @@ export default function SettingsPageView() {
         </p>
         <Link className="btn secondary" href="/dashboard">Back to dashboard</Link>
       </section>
+
+      <div style={{ marginTop: 16 }}>
+        <EncryptedBackupCard />
+      </div>
 
       <div style={{ marginTop: 16 }}>
         <ByokKeyCard />

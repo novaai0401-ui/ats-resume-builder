@@ -9,10 +9,13 @@ import { TailorService } from './tailor.service';
 import { JdMatchService } from './jd-match.service';
 import { InterviewPrepService } from './interview-prep.service';
 import { MentorChatService } from './mentor-chat.service';
+import { RecruiterSimService } from './recruiter-sim.service';
+import { SkillDemandService } from './skill-demand.service';
 import { SettingsModule } from '../settings/settings.module';
+import { LiveJobsModule } from '../live-jobs/live-jobs.module';
 
 @Module({
-  imports: [ConfigModule, SettingsModule],
+  imports: [ConfigModule, SettingsModule, LiveJobsModule],
   controllers: [AiController],
   providers: [
     AiService,
@@ -23,6 +26,8 @@ import { SettingsModule } from '../settings/settings.module';
     JdMatchService,
     InterviewPrepService,
     MentorChatService,
+    RecruiterSimService,
+    SkillDemandService,
   ],
   exports: [CoverLetterService],
 })

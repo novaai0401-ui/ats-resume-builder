@@ -4,3 +4,4 @@ export * from './schemas/index.js';
 export * from './resume-normalization.js';
 export * from './templates/catalog.js';
 export * from './templates/professions.js';
+export * from './outcome-presentation.js';

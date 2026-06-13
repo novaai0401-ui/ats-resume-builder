@@ -30,6 +30,7 @@ import {
   type UploadSummary as UploadSummaryState,
 } from '@/src/lib/resume-flow';
 import { ingestResumeFile } from '@/src/lib/resume-ingest';
+import { parseAddKeyword } from '@/src/lib/bullet-deeplink';
 import { buildReviewAtsAttentionItems, REVIEW_ATS_DEBOUNCE_MS } from '@/src/lib/review-ats';
 import { checkAtsScore } from '@/src/lib/review-ats-action';
 import { toFieldErrorMap } from '@/src/lib/validation-errors';
@@ -257,6 +258,11 @@ export default function ResumeEditor() {
   const templateParam = searchParams.get('template') || '';
   const normalizedTemplateParam = String(templateParam || '').trim();
   const flowParam = (searchParams.get('flow') || '').trim().toLowerCase();
+  // Set when the user arrives from the Recruiter-AI Simulator's "missing
+  // must-haves" — surfaces a banner prompting them to add the keyword to a
+  // bullet (where the per-bullet AI rewriter lives).
+  const addKeyword = parseAddKeyword(searchParams.get('addKeyword'));
+  const [addKeywordDismissed, setAddKeywordDismissed] = useState(false);
   const isReviewAtsPage = pathname === '/resume/review';
   const isReviewFlow = isReviewAtsPage || flowParam === 'upload' || flowParam === 'review';
   const hasPendingReviewUpload = !requestedResumeId && isReviewFlow && Boolean(readPendingUploadSession());
@@ -1743,6 +1749,21 @@ export default function ResumeEditor() {
 
   return (
     <main className={isReviewAtsPage ? 'grid review-grid' : 'grid'}>
+      {addKeyword && !addKeywordDismissed && (
+        <section
+          className="card col-12"
+          data-testid="add-keyword-banner"
+          style={{ marginBottom: 12, borderLeft: '4px solid #3b6cf6', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}
+        >
+          <div className="small" style={{ margin: 0 }}>
+            💡 The AI screen flagged <strong>“{addKeyword}”</strong> as missing. Work it into a relevant
+            experience bullet below, then use the <strong>✨ Rewrite</strong> button to phrase it naturally.
+          </div>
+          <button className="btn secondary" type="button" onClick={() => setAddKeywordDismissed(true)}>
+            Dismiss
+          </button>
+        </section>
+      )}
       <section ref={editorRef} className={`card ${editorColumnClass}`}>
         <div className="editor-header">
           <div>

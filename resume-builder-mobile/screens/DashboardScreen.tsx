@@ -2,9 +2,10 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { api, type Resume } from '../lib/api';
+import { api, type Resume, type OutcomeReport } from '../lib/api';
 import { resumeStore } from '../lib/storageMode';
 import { theme } from '../lib/theme';
+import { formatCallbackRate, callbackRateColor } from '../lib/outcomePresentation';
 import type { AppStackParamList } from '../App';
 
 type Nav = NativeStackNavigationProp<AppStackParamList>;
@@ -15,12 +16,24 @@ export default function DashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
+  const [outcome, setOutcome] = useState<OutcomeReport | null>(null);
 
   const loadResumes = useCallback(async () => {
     setError('');
     try {
       const list = await resumeStore.list();
-      setResumes(Array.isArray(list) ? list : []);
+      const resumeList = Array.isArray(list) ? list : [];
+      setResumes(resumeList);
+      // Outcomes only exist for server-backed resumes (local_ ids never
+      // reached the tracker). Pull the callback rate for the first one.
+      const serverResume = resumeList.find((r) => !String(r.id).startsWith('local_'));
+      if (serverResume) {
+        api.getResumeOutcomes(serverResume.id)
+          .then(setOutcome)
+          .catch(() => setOutcome(null));
+      } else {
+        setOutcome(null);
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to load resumes');
     }
@@ -63,6 +76,20 @@ export default function DashboardScreen() {
         <Text style={styles.subtitle}>Tap to edit, or create a new one.</Text>
       </View>
 
+      {outcome && (
+        <View style={styles.callbackCard}>
+          <View>
+            <Text style={styles.callbackLabel}>YOUR CALLBACK RATE</Text>
+            <Text style={[styles.callbackRate, { color: callbackRateColor(outcome.overall.callbackRate, outcome.overall.applied) }]}>
+              {formatCallbackRate(outcome.overall.callbackRate, outcome.overall.applied)}
+            </Text>
+            <Text style={styles.callbackMeta}>
+              {outcome.overall.applied} application{outcome.overall.applied === 1 ? '' : 's'} · {outcome.overall.interviews} interview{outcome.overall.interviews === 1 ? '' : 's'}
+            </Text>
+          </View>
+        </View>
+      )}
+
       <TouchableOpacity style={styles.newBtn} onPress={createResume}>
         <Text style={styles.newBtnText}>+ New Resume</Text>
       </TouchableOpacity>
@@ -96,6 +123,12 @@ export default function DashboardScreen() {
             >
               <Text style={styles.atsBtnText}>ATS</Text>
             </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.aiBtn}
+              onPress={() => navigation.navigate('RecruiterAi', { resumeId: resume.id })}
+            >
+              <Text style={styles.aiBtnText}>AI</Text>
+            </TouchableOpacity>
           </TouchableOpacity>
         ))
       )}
@@ -123,5 +156,11 @@ const styles = StyleSheet.create({
   resumeDate: { fontSize: 11, color: '#888', marginTop: 2 },
   atsBtn: { backgroundColor: '#eef5ff', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8 },
   atsBtnText: { color: theme.colors.primary, fontWeight: '700', fontSize: 12 },
+  aiBtn: { backgroundColor: '#10243a', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8, marginLeft: 6 },
+  aiBtnText: { color: '#fff', fontWeight: '700', fontSize: 12 },
+  callbackCard: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#e2e8f0' },
+  callbackLabel: { fontSize: 11, letterSpacing: 0.5, color: '#5a6778', fontWeight: '600' },
+  callbackRate: { fontSize: 40, fontWeight: '800', lineHeight: 44 },
+  callbackMeta: { fontSize: 12, color: '#5a6778' },
   errorText: { color: theme.colors.danger, fontSize: 13, textAlign: 'center', marginTop: 12, backgroundColor: '#fff0f0', padding: 10, borderRadius: 8 },
 });

@@ -113,16 +113,31 @@
       return;
     }
     const resume = resumesResp.data[0];
-    const [matchResp, simResp] = await Promise.all([
-      sendMessage({ type: 'JD_MATCH', resumeText: extractResumeText(resume), jdText }),
+    const resumeText = extractResumeText(resume);
+    const [matchResp, simResp, recruiterResp] = await Promise.all([
+      sendMessage({ type: 'JD_MATCH', resumeText, jdText }),
       sendMessage({ type: 'SIMULATE_ATS', resumeId: resume.id }),
+      sendMessage({ type: 'RECRUITER_SIM', resumeText, jdText, currentSkills: resume.skills || [] }),
     ]);
 
     renderOverlay({
       resumeTitle: resume.title || 'Resume',
       simulation: simResp.ok ? simResp.data : null,
       match: matchResp.ok ? matchResp.data : null,
+      recruiter: recruiterResp.ok ? recruiterResp.data : null,
     });
+  }
+
+  // Inlined verdict presentation. The canonical version (with unit tests) lives
+  // in lib/outcomePresentation.js and resume-builder-shared; content scripts
+  // can't ES-import, so these values are kept byte-aligned with that module.
+  const VERDICT_PRESENTATION = {
+    advance: { label: 'Advance', color: '#147a3a', background: 'rgba(22,163,74,0.12)' },
+    maybe: { label: 'Borderline', color: '#b07906', background: 'rgba(176,121,6,0.12)' },
+    reject: { label: 'Reject', color: '#a8412c', background: 'rgba(168,65,44,0.12)' },
+  };
+  function presentVerdict(verdict) {
+    return VERDICT_PRESENTATION[verdict] || VERDICT_PRESENTATION.maybe;
   }
 
   function extractResumeText(resume) {
@@ -146,10 +161,11 @@
     return parts.filter(Boolean).join('\n');
   }
 
-  function renderOverlay({ resumeTitle, simulation, match }) {
+  function renderOverlay({ resumeTitle, simulation, match, recruiter }) {
     closeOverlay();
     const root = document.createElement('div');
     root.className = 'atsb-overlay';
+    const v = recruiter ? presentVerdict(recruiter.verdict) : null;
     root.innerHTML = `
       <div class="atsb-overlay-card">
         <header>
@@ -157,6 +173,16 @@
           <button class="atsb-close">×</button>
         </header>
         <div class="atsb-overlay-body">
+          ${recruiter && v ? `
+            <section>
+              <h4>AI screen verdict</h4>
+              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                <span style="padding:3px 10px;border-radius:999px;font-weight:700;color:${v.color};background:${v.background}">${v.label}</span>
+                <strong>${recruiter.score}/100 fit</strong>
+              </div>
+              <p class="atsb-jdmatch">"${escapeHtml(recruiter.recruiterNote || '')}"</p>
+              ${Array.isArray(recruiter.missingMustHaves) && recruiter.missingMustHaves.length ? `<p class="atsb-jdmatch">Missing: ${recruiter.missingMustHaves.slice(0, 6).map(escapeHtml).join(', ')}</p>` : ''}
+            </section>` : ''}
           ${simulation ? `
             <section>
               <div class="atsb-confidence">ATS confidence: <strong>${simulation.confidence}/100</strong></div>

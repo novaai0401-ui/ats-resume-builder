@@ -76,6 +76,11 @@ function pick(obj, keys) {
 function makeResumeServiceMock() {
   return {
     updateCalls: [],
+    // Mirrors the real ResumeService method the versions service calls to
+    // auto-stamp an ATS score onto each snapshot.
+    computeAtsScoreValue() {
+      return 73;
+    },
     async update(userId, id, dto) {
       this.updateCalls.push({ userId, id, dto });
       return { id, userId, ...dto };

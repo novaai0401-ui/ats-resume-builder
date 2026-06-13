@@ -74,7 +74,7 @@ export class ResumeVersionsService {
     const trimmedLabel = typeof label === 'string'
       ? label.trim().slice(0, MAX_LABEL_LENGTH) || null
       : null;
-    const score = Number.isFinite(atsScoreSnapshot)
+    let score = Number.isFinite(atsScoreSnapshot)
       ? clamp(Math.round(atsScoreSnapshot as number), 0, 100)
       : null;
 
@@ -82,6 +82,18 @@ export class ResumeVersionsService {
       where: { id: resumeId, userId },
     });
     if (!resume) throw new NotFoundException('Resume not found');
+
+    // Auto-stamp a JD-agnostic ATS score when the caller didn't supply one,
+    // so the Outcome Loop's score-history chart populates on every snapshot
+    // without the user having to run a manual scan. Best-effort: a missing
+    // scorer or a failure must never block snapshotting.
+    if (score === null && typeof this.resumeService.computeAtsScoreValue === 'function') {
+      try {
+        score = this.resumeService.computeAtsScoreValue(resume);
+      } catch {
+        score = null;
+      }
+    }
 
     const snapshotPayload: ResumeSnapshotPayload = {
       title: resume.title,

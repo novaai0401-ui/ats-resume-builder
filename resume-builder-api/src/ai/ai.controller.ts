@@ -1,4 +1,4 @@
-﻿import { BadRequestException, Body, Controller, Delete, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
+﻿import { BadRequestException, Body, Controller, Delete, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import {
   AiCritiqueSchema,
   AiParseJdSchema,
@@ -17,6 +17,8 @@ import { TailorService, type ApplyTailorInput } from './tailor.service';
 import { JdMatchService, type JdMatchInput } from './jd-match.service';
 import { InterviewPrepService, type InterviewPrepInput } from './interview-prep.service';
 import { MentorChatService, type MentorChatInput } from './mentor-chat.service';
+import { RecruiterSimService, type RecruiterSimInput } from './recruiter-sim.service';
+import { SkillDemandService, type SkillDemandInput } from './skill-demand.service';
 
 @Controller('ai')
 @UseGuards(JwtAuthGuard)
@@ -30,6 +32,8 @@ export class AiController {
     private readonly jdMatchService: JdMatchService,
     private readonly interviewPrepService: InterviewPrepService,
     private readonly mentorChatService: MentorChatService,
+    private readonly recruiterSimService: RecruiterSimService,
+    private readonly skillDemandService: SkillDemandService,
   ) {}
 
   @Post('parse-jd')
@@ -149,6 +153,47 @@ export class AiController {
       throw new BadRequestException('resumeText and jdText are required');
     }
     return this.jdMatchService.match(req.user.userId, body);
+  }
+
+  /**
+   * Recruiter-AI Simulator — Student/Pro. Role-plays the LLM hiring screener
+   * that modern ATS pipelines run, returning a verdict + reasoning against a JD.
+   */
+  @Post('recruiter-sim')
+  recruiterSim(
+    @Req() req: { user: { userId: string } },
+    @Body() body: RecruiterSimInput,
+  ) {
+    if (!body || typeof body !== 'object' || !body.resumeText || !body.jdText) {
+      throw new BadRequestException('resumeText and jdText are required');
+    }
+    return this.recruiterSimService.simulate(req.user.userId, body);
+  }
+
+  /**
+   * Skill-Demand Agent — free users get a curated 2026 snapshot + upsell;
+   * Student/Pro get an AI-personalized assessment of their exact stack.
+   */
+  @Post('skill-demand')
+  skillDemand(
+    @Req() req: { user: { userId: string } },
+    @Body() body: SkillDemandInput,
+  ) {
+    if (!body || !Array.isArray(body.skills)) {
+      throw new BadRequestException('skills (string[]) is required');
+    }
+    return this.skillDemandService.analyze(req.user.userId, body);
+  }
+
+  /** Live job openings for a free-text query (Student/Pro). */
+  @Get('live-openings')
+  liveOpenings(
+    @Req() req: { user: { userId: string } },
+    @Query('q') q: string,
+    @Query('location') location: string,
+  ) {
+    if (!q || !q.trim()) throw new BadRequestException('q is required');
+    return this.skillDemandService.searchOpenings(req.user.userId, q, location);
   }
 
   /**
