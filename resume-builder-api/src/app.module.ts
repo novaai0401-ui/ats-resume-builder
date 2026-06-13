@@ -19,6 +19,7 @@ import { PatternLearnerModule } from './pattern-learner/pattern-learner.module';
 import { SahaayakModule } from './sahaayak/sahaayak.module';
 import { TrainingDatasetModule } from './training-dataset/training-dataset.module';
 import { PortfolioModule } from './portfolio/portfolio.module';
+import { ExtractionModule } from './extraction/extraction.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { PortfolioModule } from './portfolio/portfolio.module';
     SahaayakModule,
     TrainingDatasetModule,
     PortfolioModule,
+    ExtractionModule,
   ],
   controllers: [HealthController],
 })

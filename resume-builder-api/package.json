@@ -4,8 +4,8 @@
   "private": true,
   "description": "NestJS API service",
   "scripts": {
-    "bootstrap:deps": "npm --prefix ../packages/resume-schemas ci && npm --prefix ../packages/resume-intelligence ci",
-    "build:deps": "npm --prefix ../packages/resume-schemas run build && npm --prefix ../packages/resume-intelligence run build",
+    "bootstrap:deps": "npm --prefix ../packages/resume-schemas ci && npm --prefix ../packages/resume-intelligence ci && npm --prefix ../packages/doc-extract ci",
+    "build:deps": "npm --prefix ../packages/resume-schemas run build && npm --prefix ../packages/resume-intelligence run build && npm --prefix ../packages/doc-extract run build",
     "start": "nest start",
     "prestart:dev": "npm run bootstrap:deps && npm run build:deps",
     "start:dev": "nest start --watch",
@@ -37,6 +37,7 @@
     "pdf-parse": "^2.4.5",
     "puppeteer-core": "^24.39.1",
     "razorpay": "^2.9.6",
+    "doc-extract": "../packages/doc-extract",
     "reflect-metadata": "latest",
     "resume-builder-shared": "../resume-builder-shared",
     "resume-intelligence": "../packages/resume-intelligence",
