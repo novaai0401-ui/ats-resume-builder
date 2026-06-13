@@ -2744,10 +2744,16 @@ body.resume-embed-body .main-shell {
   flex-direction: column;
   gap: 10px;
 }
+/* Buttons size to their content (inline) and sit directly under the card's
+ * description — both cards read identically. align-self keeps only the button
+ * from stretching (the headings/paragraphs still fill the card width and wrap).
+ * (Previously margin-top:auto floated the scratch card's button to the bottom,
+ * leaving a large gap above it.) */
 .start-choice > .btn,
 .start-choice > label.btn,
 .start-choice > button.btn {
-  margin-top: auto;
+  margin-top: 4px;
+  align-self: flex-start;
 }
 
 .start-choice--upload {

@@ -167,6 +167,26 @@ function isExportQuotaEnforced(): boolean {
   return true;
 }
 
+/**
+ * Per-download charging (₹49 / $0.99 each) — kept in sync with
+ * DownloadChargeService.isFeatureEnabled (ENABLE_DOWNLOAD_CHARGE).
+ *
+ * When this model is ON, the monthly export *cap* must NOT apply:
+ *  - FREE users pay per download, so there's no "5/month" ceiling — they can
+ *    download as many resumes as they pay for.
+ *  - STUDENT/PRO get downloads included with their plan (no charge, no cap).
+ * The two models are mutually exclusive: a monthly allowance only makes sense
+ * when downloads are NOT individually paid.
+ */
+export function isPerDownloadChargeEnabled(): boolean {
+  return String(process.env.ENABLE_DOWNLOAD_CHARGE ?? '').trim().toLowerCase() === 'true';
+}
+
+/** The monthly export cap applies only when downloads aren't paid per-download. */
+export function isExportCapActive(): boolean {
+  return isExportQuotaEnforced() && !isPerDownloadChargeEnabled();
+}
+
 @Injectable()
 export class ResumeService {
   constructor(
@@ -689,7 +709,7 @@ export class ResumeService {
     // credit == one export. The quota error only fires when BOTH the
     // monthly allowance AND the credit balance are exhausted.
     let consumeCredit = false;
-    if (isExportQuotaEnforced() && updatedUser.pdfExportsUsed + 1 > updatedUser.pdfExportsLimit) {
+    if (isExportCapActive() && updatedUser.pdfExportsUsed + 1 > updatedUser.pdfExportsLimit) {
       if (updatedUser.premiumCredits > 0) {
         consumeCredit = true;
       } else {
@@ -867,7 +887,7 @@ export class ResumeService {
     // R-037: referral credits buy exports past the cap (same rule as
     // generatePdf — DOCX shares the counter AND the credit balance).
     let consumeCredit = false;
-    if (isExportQuotaEnforced() && updatedUser.pdfExportsUsed + 1 > updatedUser.pdfExportsLimit) {
+    if (isExportCapActive() && updatedUser.pdfExportsUsed + 1 > updatedUser.pdfExportsLimit) {
       if (updatedUser.premiumCredits > 0) {
         consumeCredit = true;
       } else {

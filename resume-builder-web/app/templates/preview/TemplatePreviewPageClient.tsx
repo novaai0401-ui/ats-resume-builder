@@ -1,10 +1,12 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { api, getAccessToken, type Resume } from '@/src/lib/api';
 import { templates, type TemplateId } from '@/src/components/TemplatePreview';
 import ResumeTemplateRender from '@/src/components/ResumeTemplateRender';
+import { getSampleResumeForIndustry } from '@/src/lib/sample-resume-data';
 import { buildResumePreview, persistActiveResumeSelection, resolveCurrentSessionResumeId, resumeFromApi } from '@/src/lib/resume-flow';
 
 const VALID_TEMPLATE_IDS = new Set(templates.map((template) => template.id));
@@ -107,12 +109,61 @@ export default function TemplatePreviewPageClient() {
 
   const selectedTemplate = templates.find((item) => item.id === templateId) || templates[0];
 
+  // No saved resume yet → don't dead-end the user. Show the whole gallery
+  // rendered with a realistic sample so they can browse every template, then
+  // pick one (which carries through to upload / start-from-scratch).
   if (!activeResumeId && !loading) {
+    const sample = getSampleResumeForIndustry();
     return (
       <main className="grid">
         <section className="card col-12">
-          <h2>Template Preview</h2>
-          <p className="small">Select a saved resume or upload a new one to preview templates.</p>
+          <h2>Browse templates</h2>
+          <p className="small">
+            Preview every ATS-safe template below with sample content, then pick one to start your resume.
+          </p>
+          <Link className="btn" href="/resume/start" style={{ marginTop: 8, alignSelf: 'flex-start' }}>
+            Start your resume
+          </Link>
+        </section>
+
+        <section className="card col-12">
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+              gap: 16,
+            }}
+          >
+            {templates.map((tpl) => (
+              <Link
+                key={tpl.id}
+                href={`/resume/start?template=${encodeURIComponent(tpl.id)}`}
+                className="template-gallery-card"
+                style={{
+                  display: 'block',
+                  border: '1px solid var(--border, #e2e8f0)',
+                  borderRadius: 12,
+                  overflow: 'hidden',
+                  textDecoration: 'none',
+                  color: 'inherit',
+                  background: '#fff',
+                }}
+              >
+                <div style={{ background: '#f5f8fc', padding: 8, maxHeight: 280, overflow: 'hidden' }}>
+                  <ResumeTemplateRender templateId={tpl.id} resumeData={sample} mode="thumbnail" />
+                </div>
+                <div style={{ padding: '10px 12px' }}>
+                  <strong style={{ color: '#1a3a5c', fontSize: 14 }}>{tpl.name}</strong>
+                  {tpl.description ? (
+                    <div className="small" style={{ color: '#5a6778', marginTop: 2 }}>{tpl.description}</div>
+                  ) : null}
+                  <div className="small" style={{ color: 'var(--primary-600, #2b6cb0)', marginTop: 6, fontWeight: 600 }}>
+                    Use this template →
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
         </section>
       </main>
     );

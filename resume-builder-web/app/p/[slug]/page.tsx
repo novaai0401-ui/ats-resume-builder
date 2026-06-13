@@ -113,8 +113,42 @@ export default async function PublicSharePage({
   const fullName = resume.contact?.fullName?.trim() || 'Portfolio';
   const pdfHref = `${API_BASE}/p/${encodeURIComponent(slug)}/resume.pdf`;
 
+  // ProfilePage + Person structured data — only when the owner opted into
+  // search indexing. Makes a shared portfolio eligible for rich results and
+  // gives AI assistants clean, citable facts about the candidate. This is the
+  // edge over plain "share a PDF link" competitors: the portfolio is itself an
+  // SEO/GEO-optimized public profile.
+  const profileJsonLd = meta.allowSearchIndexing
+    ? {
+        '@context': 'https://schema.org',
+        '@type': 'ProfilePage',
+        dateCreated: meta.snapshotCreatedAt || undefined,
+        mainEntity: {
+          '@type': 'Person',
+          name: fullName,
+          jobTitle: headline || resume.experience?.[0]?.role || undefined,
+          description: resume.summary?.slice(0, 300) || undefined,
+          knowsAbout: resume.skills?.length ? resume.skills.slice(0, 30) : undefined,
+          address: resume.contact?.location
+            ? { '@type': 'PostalAddress', addressLocality: resume.contact.location }
+            : undefined,
+          alumniOf: (resume.education || [])
+            .map((e) => e.institution)
+            .filter(Boolean)
+            .map((name) => ({ '@type': 'EducationalOrganization', name })),
+          url: `${API_BASE.replace(/\/$/, '')}/p/${encodeURIComponent(slug)}`,
+        },
+      }
+    : null;
+
   return (
     <main style={pageStyle}>
+      {profileJsonLd ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(profileJsonLd) }}
+        />
+      ) : null}
       <article style={cardStyle}>
         <header style={headerStyle}>
           <div>
