@@ -9,6 +9,7 @@ import { getPlanConfig } from '../billing/plan-limits';
 import { resetUsageForPlan } from '../billing/usage';
 import { normalizeMobile } from './mobile.util';
 import { MailService } from '../mail/mail.service';
+import { ReferralsService } from '../referrals/referrals.service';
 import { enforcePasswordPolicy } from './password-hygiene';
 
 const ACCESS_TOKEN_TYPE = 'access';
@@ -32,6 +33,10 @@ export class AuthService {
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
     @Optional() private readonly mailService?: MailService,
+    // R-037: optional so auth unit tests that stub the module context
+    // don't have to provide it. When absent, referral codes on signup
+    // are silently ignored — registration never depends on referrals.
+    @Optional() private readonly referralsService?: ReferralsService,
   ) {}
 
   /**
@@ -90,7 +95,7 @@ export class AuthService {
     }
   }
 
-  async register(dto: RegisterDto) {
+  async register(dto: RegisterDto, meta: { ip?: string } = {}) {
     const email = dto.email.trim().toLowerCase();
     const existing = await this.prisma.user.findUnique({
       where: { email },
@@ -150,6 +155,21 @@ export class AuthService {
       select: { id: true, email: true, fullName: true, mobile: true },
     });
     await resetUsageForPlan(this.prisma, user.id, 'FREE');
+
+    // R-037: best-effort referral credit. Fire-and-forget — a referral
+    // bug must never block or slow a signup. The service applies the
+    // anti-abuse rules (self-referral, email reuse, per-IP cap).
+    if (dto.referralCode && this.referralsService) {
+      void this.referralsService
+        .recordReferral({
+          code: dto.referralCode,
+          referredUserId: user.id,
+          referredEmail: email,
+          ip: meta.ip,
+        })
+        .catch(() => undefined);
+    }
+
     return this.issueTokensForUser(user);
   }
 

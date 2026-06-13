@@ -5,6 +5,7 @@ import { PDFParse } from 'pdf-parse';
 import mammoth from 'mammoth';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { JD_STOPWORDS, SECTION_LABEL_WORDS, filterJdKeywords } from '../lib/keyword-stopwords';
 import type { AtsIssue, CreateResumeDto, UpdateResumeDto } from 'resume-builder-shared';
 import { ResumeSectionsSchema } from 'resume-schemas';
 import { ensureUsagePeriod } from '../billing/usage';
@@ -653,10 +654,18 @@ export class ResumeService {
     // any plan could download unlimited PDFs. (Reported: a FREE user
     // pulled more than 5 exports.) The flag now only controls the
     // FREE-plan hard-block above; the quota itself is law.
+    // R-037: referral credits buy exports past the monthly cap. One
+    // credit == one export. The quota error only fires when BOTH the
+    // monthly allowance AND the credit balance are exhausted.
+    let consumeCredit = false;
     if (isExportQuotaEnforced() && updatedUser.pdfExportsUsed + 1 > updatedUser.pdfExportsLimit) {
-      throw new ForbiddenException(
-        `Monthly export limit reached (${updatedUser.pdfExportsLimit}). Upgrade your plan or wait for next month's reset.`,
-      );
+      if (updatedUser.premiumCredits > 0) {
+        consumeCredit = true;
+      } else {
+        throw new ForbiddenException(
+          `Monthly export limit reached (${updatedUser.pdfExportsLimit}). Upgrade your plan, refer a friend for a bonus export, or wait for next month's reset.`,
+        );
+      }
     }
     const resume = await this.get(userId, id);
     // Mismatch root-cause: preview uses React template components + app CSS, while
@@ -678,7 +687,9 @@ export class ResumeService {
 
     await this.prisma.user.update({
       where: { id: userId },
-      data: { pdfExportsUsed: updatedUser.pdfExportsUsed + 1 },
+      data: consumeCredit
+        ? { premiumCredits: { decrement: 1 } }
+        : { pdfExportsUsed: updatedUser.pdfExportsUsed + 1 },
     });
 
     const launchOptions = await resolveChromeLaunchOptions();
@@ -822,18 +833,27 @@ export class ResumeService {
     if (!updatedUser) {
       throw new NotFoundException('User not found');
     }
+    // R-037: referral credits buy exports past the cap (same rule as
+    // generatePdf — DOCX shares the counter AND the credit balance).
+    let consumeCredit = false;
     if (isExportQuotaEnforced() && updatedUser.pdfExportsUsed + 1 > updatedUser.pdfExportsLimit) {
-      throw new ForbiddenException(
-        `Monthly export limit reached (${updatedUser.pdfExportsLimit}). Upgrade your plan or wait for next month's reset.`,
-      );
+      if (updatedUser.premiumCredits > 0) {
+        consumeCredit = true;
+      } else {
+        throw new ForbiddenException(
+          `Monthly export limit reached (${updatedUser.pdfExportsLimit}). Upgrade your plan, refer a friend for a bonus export, or wait for next month's reset.`,
+        );
+      }
     }
     const resume = await this.get(userId, id);
     const docx = await renderResumeDocx(resume as Parameters<typeof renderResumeDocx>[0]);
-    // Increment AFTER successful render so a render failure doesn't
-    // burn one of the user's allotted exports.
+    // Charge AFTER successful render so a render failure doesn't burn
+    // one of the user's allotted exports (or a referral credit).
     await this.prisma.user.update({
       where: { id: userId },
-      data: { pdfExportsUsed: updatedUser.pdfExportsUsed + 1 },
+      data: consumeCredit
+        ? { premiumCredits: { decrement: 1 } }
+        : { pdfExportsUsed: updatedUser.pdfExportsUsed + 1 },
     });
     return docx;
   }
@@ -877,6 +897,73 @@ export class ResumeService {
       fingerprint: rendered.fingerprint,
       templateId: resolvedTemplateId,
       cssBundle: rendered.cssBundle,
+    };
+  }
+
+  /**
+   * R-041 — stateless ATS score from free text. Reuses the same
+   * computeAtsScore engine the editor's ATS check uses, but does NOT
+   * touch any user account, quota, or persistence layer. Sections are
+   * inferred heuristically because the caller hands us plain text.
+   */
+  async scoreFreeText(input: { resumeText: string; jdText?: string; skills?: string[] }) {
+    const resumeText = String(input.resumeText || '');
+    const jdText = String(input.jdText || '');
+    const skills = Array.isArray(input.skills)
+      ? input.skills.map((s) => String(s || '').trim()).filter(Boolean)
+      : [];
+    const lc = resumeText.toLowerCase();
+    const looksHeading = (re: RegExp) => re.test(lc);
+    const result = computeAtsScore({
+      resumeText,
+      jdText,
+      skills,
+      sections: {
+        summary: looksHeading(/\bsummary|\bobjective|\babout\b/),
+        experience: looksHeading(/\bexperience|\bemployment|\bwork history\b/),
+        education: looksHeading(/\beducation|\bacademics?\b/),
+        skills: skills.length >= 3 || looksHeading(/\bskills?\b/),
+      },
+      // No structured bullets when the caller is a third-party
+      // tenant — the heuristic-only path skips per-bullet rules.
+      bullets: { expBullets: [], eduBullets: [] },
+      experienceCount: 0,
+    });
+    return {
+      atsScore: result.atsScore,
+      roleLevel: result.roleLevel,
+      roleAdjustedScore: result.roleAdjustedScore,
+      rejectionReasons: result.rejectionReasons,
+      improvementSuggestions: result.improvementSuggestions,
+      missingKeywords: result.missingKeywords,
+      jobDescriptionUsed: result.jobDescriptionUsed,
+    };
+  }
+
+  /**
+   * R-041 — stateless tailor proposal for the public API.
+   * Returns up to 6 candidate bullet rewrites generated by the same
+   * Groq path the editor uses; falls back to the rule-based rewriter
+   * when no provider is configured (an honest "no AI here" is worse
+   * UX than three mechanical rewrites for a B2B caller).
+   */
+  async publicTailor(input: { resumeText: string; jdText: string }) {
+    const resumeText = String(input.resumeText || '').trim();
+    const jdText = String(input.jdText || '').trim();
+    // Pull up to 8 bullets out of the resume text (lines starting
+    // with the standard bullet markers); the tailor speaks in
+    // bullets, not paragraphs.
+    const bullets = resumeText
+      .split(/\r?\n/)
+      .map((line) => line.replace(/^\s*[•◦▪●*+\-–—]\s*/, '').trim())
+      .filter((line) => line.length >= 30 && line.length <= 300)
+      .slice(0, 8);
+    return {
+      jdKeywords: extractTopKeywords(jdText, 12),
+      proposals: bullets.map((bullet) => ({
+        original: bullet,
+        suggestions: ruleBasedTailorSuggestions(bullet, jdText),
+      })),
     };
   }
 
@@ -4156,17 +4243,31 @@ type TemplateCertificationItem = {
   date: string;
 };
 
-const ATS_TEMPLATE_EXPORT_CSS_BUNDLE = 'inline:ats-template-css-v3';
+const ATS_TEMPLATE_EXPORT_CSS_BUNDLE = 'inline:ats-template-css-v4';
 const ATS_TEMPLATE_EXPORT_CSS = `
-      @page { size: A4; margin: 15mm; }
+      /* @page margins ARE the print margins. The previous CSS also
+         padded .ats-template by 18px and drew a 1px border around it,
+         which combined with the 15mm @page margin to push the first
+         line ~7mm further in than the preview showed and shrank the
+         usable height — visible to the founder as "blank space pushing
+         content to next page". Drop the border + most of the padding
+         and let the @page margin do the work. */
+      @page { size: A4; margin: 14mm 14mm 14mm 14mm; }
       * { box-sizing: border-box; }
       html, body { margin: 0; padding: 0; }
       body {
-        font-family: Arial, "Helvetica Neue", Helvetica, "Inter", sans-serif;
+        /* Use the same font stack as the on-screen preview so the
+           downloaded PDF matches the user's selection byte-for-byte.
+           Inter is the modern resume default (Novoresume, Resume.io,
+           Teal, LinkedIn). On headless Chrome (Render = Debian), if
+           Inter is not installed it falls through to DejaVu Sans /
+           Liberation Sans which ARE installed, never to a serif font. */
+        font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto,
+                     'Helvetica Neue', 'Liberation Sans', 'DejaVu Sans', Arial, sans-serif;
         color: #111;
         background: #ffffff;
-        font-size: 11px;
-        line-height: 1.32;
+        font-size: 10.5pt;
+        line-height: 1.4;
       }
       .resume-export-root {
         width: 100%;
@@ -4180,18 +4281,17 @@ const ATS_TEMPLATE_EXPORT_CSS = `
       .ats-template {
         width: 100%;
         box-sizing: border-box;
-        border: 1px solid #d9e2ec;
         background: #fff;
-        padding: 18px 20px;
+        padding: 0;
         color: #111;
-        font-size: 11px;
-        line-height: 1.32;
+        font-size: 10.5pt;
+        line-height: 1.4;
         overflow-wrap: anywhere;
         word-break: break-word;
       }
       .ats-template--technical {
-        padding-top: 16px;
-        padding-bottom: 16px;
+        padding-top: 0;
+        padding-bottom: 0;
       }
       .ats-template__header {
         border-bottom: 2px solid #111;
@@ -4200,20 +4300,17 @@ const ATS_TEMPLATE_EXPORT_CSS = `
       }
       .ats-template__header h1 {
         margin: 0;
-        font-size: 21px;
+        font-size: 20pt;
         line-height: 1.15;
         font-weight: 700;
+        letter-spacing: -0.01em;
         overflow-wrap: anywhere;
         word-break: break-word;
-      }
-      .ats-template--executive .ats-template__header h1 {
-        font-size: 24px;
-        letter-spacing: 0.3px;
       }
       .ats-template__header p {
         margin: 4px 0 0;
         color: #39495e;
-        font-size: 10.6px;
+        font-size: 9.5pt;
         overflow-wrap: anywhere;
         word-break: break-word;
         white-space: normal;
@@ -4236,7 +4333,7 @@ const ATS_TEMPLATE_EXPORT_CSS = `
       }
       .ats-section h2 {
         margin: 0 0 6px;
-        font-size: 12.5px;
+        font-size: 11pt;
         letter-spacing: 0.08em;
         text-transform: uppercase;
         color: #1b2b3c;
@@ -4249,14 +4346,21 @@ const ATS_TEMPLATE_EXPORT_CSS = `
         overflow-wrap: anywhere;
         word-break: break-word;
       }
+      /* Critical: do NOT mark .ats-item as page-break-inside: avoid.
+         When a multi-bullet experience item was too tall to fit at the
+         end of page 1, the whole block jumped to page 2 leaving a big
+         blank band at the bottom of page 1 — the founder's exact
+         "blank space pushing content to next page" report. Allowing
+         the bullets to break across pages, while keeping the heading
+         row glued to at least the first bullet via break-after: avoid
+         on h3/meta and orphans/widows on the <ul>, gives a clean page
+         break without orphaned headings. */
       .ats-item {
         margin-top: 8px;
-        page-break-inside: avoid;
-        break-inside: avoid;
       }
       .ats-item h3 {
         margin: 0;
-        font-size: 11.2px;
+        font-size: 10.5pt;
         font-weight: 700;
         overflow-wrap: anywhere;
         word-break: break-word;
@@ -4270,15 +4374,15 @@ const ATS_TEMPLATE_EXPORT_CSS = `
       }
       .ats-item__meta {
         color: #4b5d74;
-        font-size: 10.4px;
+        font-size: 9.5pt;
         break-after: avoid;
         page-break-after: avoid;
       }
       .ats-item ul {
         margin: 5px 0 0 18px;
         padding: 0;
-        orphans: 2;
-        widows: 2;
+        orphans: 3;
+        widows: 3;
       }
       .ats-item li {
         margin: 2px 0;
@@ -4409,7 +4513,11 @@ export function renderResumeHtml(input: RenderResumeHtmlInput): string {
 
 function renderTemplateBody(templateId: string, resume: any) {
   if (templateId === 'modern') return renderModernTemplateArticle(resume);
-  if (templateId === 'executive') return renderExecutiveTemplateArticle(resume);
+  // 'executive' was retired (visually identical to 'classic'); the
+  // alias in resume-builder-shared/templates/catalog.ts redirects the
+  // id, but defensively keep the branch falling through to classic so
+  // any old saved resume that still has templateId='executive' in the
+  // DB renders the same thing it would after alias resolution.
   if (templateId === 'technical') return renderTechnicalTemplateArticle(resume);
   if (templateId === 'consultant') return renderConsultantTemplateArticle(resume);
   if (['minimal', 'graduate'].includes(templateId)) return renderMinimalTemplateArticle(resume);
@@ -4444,16 +4552,6 @@ function renderModernTemplateArticle(resume: any) {
     <article class="ats-template ats-template--modern">
       ${templateHeader(normalized, { bar: true })}
       ${renderOrderedSections(normalized, { companyJoiner: ' | ', divided: true })}
-    </article>
-  `;
-}
-
-function renderExecutiveTemplateArticle(resume: any) {
-  const normalized = normalizeTemplateResumeData(resume);
-  return `
-    <article class="ats-template ats-template--executive">
-      ${templateHeader(normalized, { executive: true })}
-      ${renderOrderedSections(normalized, { companyJoiner: ', ', upperClassHeadings: true })}
     </article>
   `;
 }
@@ -4851,10 +4949,9 @@ function renderAccentHeaderTemplateArticle(resume: any) {
   `;
 }
 
-function templateHeader(resume: any, options?: { bar?: boolean; executive?: boolean }) {
+function templateHeader(resume: any, options?: { bar?: boolean }) {
   const classes = ['ats-template__header'];
   if (options?.bar) classes.push('ats-template__header--bar');
-  if (options?.executive) classes.push('ats-template__header--executive');
   const line = templateContactLine(resume);
   return `
       <header class="${classes.join(' ')}">
@@ -5210,15 +5307,16 @@ function normalizeTemplateId(value: unknown) {
   const aliases: Record<string, string> = {
     student: 'minimal',
     graduate: 'graduate',
-    senior: 'executive',
-    // Note: 'portfolio' used to alias to executive (legacy). The new
-    // catalog treats 'portfolio' as the creative portfolio template;
-    // route it there so the PDF matches the live preview.
+    // 'executive' was retired in favour of 'classic' (the two were
+    // visually indistinguishable). Keep alias routing so old DB rows
+    // / share links / saved selections continue to resolve.
+    executive: 'classic',
+    senior: 'classic',
     portfolio: 'creative',
     product: 'modern',
     'modern-professional': 'modern',
     'classic-ats': 'classic',
-    'executive-impact': 'executive',
+    'executive-impact': 'classic',
     'technical-compact': 'technical',
     'graduate-starter': 'graduate',
     'minimal-clean': 'minimal',
@@ -5429,8 +5527,13 @@ function computeAtsScore(input: {
     weights.bullets * ((actionVerbScore + bulletDensityScore) / 2);
 
   const atsScore = Math.max(5, Math.min(100, Math.round(roleAdjustedScore * 100)));
+  // Belt and braces: extractKeywordWeights already strips JD_STOPWORDS,
+  // but run the result through filterJdKeywords once more — it catches
+  // SECTION_LABEL_WORDS ("skills" appearing as a "missing skill" was
+  // the most embarrassing failure mode) and is the SINGLE seam every
+  // "missing keywords" surface shares.
   const missingKeywords = hasJobDescription
-    ? jdKeywords.filter((k) => !resumeTokens.has(k))
+    ? filterJdKeywords(jdKeywords.filter((k) => !resumeTokens.has(k)))
     : [];
   const targetRoleAnalysis = analyzeTargetRoleSignals(jdText, input.resumeText);
   const suggestionMissingKeywords = missingKeywords.filter((keyword) => !targetRoleAnalysis.missingTargetRoleTokens.has(keyword.toLowerCase()));
@@ -5682,6 +5785,13 @@ function tokenize(text: string): Set<string> {
   );
 }
 
+// JD_STOPWORDS + SECTION_LABEL_WORDS now live in
+// resume-builder-api/src/lib/keyword-stopwords.ts as the single source
+// of truth — every "missing keywords" surface (ATS scorer, AI
+// critique, tech-gap rule-based, public /v1/score) imports from there
+// so the four lists can't diverge again. See that file's docblock for
+// the design rationale.
+
 function extractKeywordWeights(text: string, limit: number): Map<string, number> {
   if (!text) return new Map();
   const tokens = text
@@ -5689,10 +5799,9 @@ function extractKeywordWeights(text: string, limit: number): Map<string, number>
     .replace(/[^a-z0-9\s]/g, ' ')
     .split(/\s+/)
     .filter((t) => t.length > 2);
-  const stop = new Set(['and', 'the', 'with', 'for', 'you', 'our', 'are', 'will', 'from', 'that', 'this', 'your']);
   const freq = new Map<string, number>();
   for (const t of tokens) {
-    if (stop.has(t)) continue;
+    if (JD_STOPWORDS.has(t)) continue;
     freq.set(t, (freq.get(t) || 0) + 1);
   }
   return new Map(
@@ -5796,12 +5905,20 @@ function buildGuidance(input: {
   const skillsSuggestions: string[] = [];
   const addOnlyIfTrue: string[] = [];
 
-  // Summary suggestions
+  // Summary suggestions. The previous wording ("Weave these missing
+  // keywords naturally into your summary") had two complaints from
+  // smoke testing: (a) the user didn't know which section to edit
+  // when the same wording appeared under Experience too, and (b) the
+  // suggestion fired even when the user already had the keyword in
+  // OTHER sections of the resume. We now lift the language to "your
+  // resume" (the keyword needs to appear *somewhere*, not specifically
+  // in summary) AND raise the threshold so we don't pester the user
+  // with 1-2 missing words — those are likely incidental.
   if (!input.sections.summary) {
     summarySuggestions.push('Add a professional summary highlighting your role, years of experience, and key competencies aligned with the target role.');
-  } else if (input.missingKeywords.length > 3) {
+  } else if (input.missingKeywords.length >= 4) {
     const topMissing = input.missingKeywords.slice(0, 4).join(', ');
-    summarySuggestions.push(`Weave these missing keywords naturally into your summary: ${topMissing}.`);
+    summarySuggestions.push(`Add these JD keywords to your resume where truthful — Summary is the easiest place to surface them: ${topMissing}.`);
   }
   if (input.missingTargetRoleSignals.length) {
     const signals = input.missingTargetRoleSignals.slice(0, 3).join(', ');
@@ -6044,4 +6161,45 @@ function isMissingTargetRoleSignal(role: string, normalizedResumeText: string, r
   if (!hasLeadershipSignals) return true;
   if (!nonLeadershipTokens.length) return false;
   return !nonLeadershipTokens.every((token) => resumeTokens.has(token));
+}
+
+// ── R-041 public-API helpers ─────────────────────────────────────────
+
+/** Pull the top N keyword candidates out of a JD. Pure heuristic. */
+function extractTopKeywords(jdText: string, count: number): string[] {
+  if (!jdText) return [];
+  const stop = new Set([
+    'the','a','an','and','or','to','of','in','on','for','with','at','by','from',
+    'is','are','was','were','be','been','being','as','that','this','these','those',
+    'will','would','should','can','could','may','must','have','has','had','do','does',
+    'did','you','your','our','we','they','their','it','its','if','then','than','about',
+  ]);
+  const counts = new Map<string, number>();
+  for (const word of jdText.toLowerCase().match(/[a-z][a-z+#./-]{2,}/g) ?? []) {
+    if (stop.has(word) || word.length < 3) continue;
+    counts.set(word, (counts.get(word) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, count)
+    .map(([w]) => w);
+}
+
+/**
+ * Rule-based tailor: rewrite the bullet in 3 ways by swapping leading
+ * verbs + grafting the top missing JD keyword onto the action. Not as
+ * good as Groq, but legible AND deterministic AND free — which is the
+ * right shape for an API tenant that needs predictable cost.
+ */
+function ruleBasedTailorSuggestions(bullet: string, jdText: string): string[] {
+  const verbs = ['Drove', 'Owned', 'Built'];
+  const keywords = extractTopKeywords(jdText, 6);
+  const cleaned = bullet.replace(/^\s*([A-Za-z]+)\s+/, '');
+  const out = new Set<string>();
+  for (const verb of verbs) {
+    const k = keywords[out.size] || '';
+    const suffix = k && !cleaned.toLowerCase().includes(k) ? ` with ${k} focus` : '';
+    out.add(`${verb} ${cleaned}${suffix}`.replace(/\s+/g, ' ').trim().slice(0, 280));
+  }
+  return [...out].slice(0, 3);
 }

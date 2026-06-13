@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  AchievementsSection,
   certificationItems,
   cleanList,
   contactLine,
@@ -161,6 +162,11 @@ export default function AccentHeader({ resumeData }: TemplateProps) {
             )}
           </div>
         </div>
+
+        <AchievementsSection
+          resumeData={normalized}
+          headingStyle={{ fontSize: 14, letterSpacing: '0.05em' }}
+        />
       </div>
     </article>
   );

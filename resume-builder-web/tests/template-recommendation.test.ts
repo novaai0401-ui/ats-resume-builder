@@ -49,9 +49,12 @@ const productResume: ResumeDraft = {
   certifications: [{ name: 'Agile PM' }],
 };
 
-test('Senior resume recommends executive impact layout', () => {
+test('Senior resume recommends a leadership-friendly layout', () => {
+  // 'executive' was retired (duplicate of 'classic'); senior resumes
+  // now primarily land on 'consultant' (impact-first bullets) per
+  // template-recommendation.ts.
   const result = recommendTemplates(seniorResume);
-  assert.equal(result.primaryTemplateId, 'executive');
+  assert.equal(result.primaryTemplateId, 'consultant');
   assert(result.reasons.length > 0);
 });
 

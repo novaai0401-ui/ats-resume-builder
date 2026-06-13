@@ -2631,6 +2631,16 @@ body.resume-embed-body .main-shell {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  /* The parent .review-ats-panel__upload is a flex row that default-
+   * stretches its children to the row's cross-axis height. With a tall
+   * text block on the left ("Detected experience level... Companies
+   * found... Signals..."), this actions div was inheriting that height
+   * AND its three .btn children were stretching to fill it — rendering
+   * as ~200px-tall tiles. align-self stops the stretch at this node;
+   * align-items keeps the buttons at their intrinsic height even if
+   * the box itself ever wraps to a taller row. */
+  align-self: flex-start;
+  align-items: flex-start;
 }
 
 .leadership-hint {
@@ -2708,8 +2718,20 @@ body.resume-embed-body .main-shell {
   border-radius: 14px;
   padding: 18px;
   background: #fff;
-  display: grid;
+  /* Flex column so the action button (Upload Resume / Start from scratch)
+   * pins to the BOTTOM via margin-top:auto, keeping the two cards' CTAs
+   * horizontally aligned even when the Upload card has the extra
+   * "Recommended" badge above its heading. Without this the Upload card's
+   * content sits lower than the scratch card's, and the two buttons end
+   * up at different y-coords on web — what the founder reported. */
+  display: flex;
+  flex-direction: column;
   gap: 10px;
+}
+.start-choice > .btn,
+.start-choice > label.btn,
+.start-choice > button.btn {
+  margin-top: auto;
 }
 
 .start-choice--upload {
@@ -2722,16 +2744,23 @@ body.resume-embed-body .main-shell {
   font-style: italic;
 }
 
+/* Preview MUST match resume-builder-api/src/resume/resume.service.ts
+   ATS_TEMPLATE_EXPORT_CSS or the downloaded PDF won't look like the
+   preview. The preview keeps a light border so the user can see the
+   "page" edge; the border is dropped on export (the @page margin is
+   the real edge). Font, size, line-height, padding are otherwise
+   identical to the export. */
 .ats-template {
   width: 100%;
   box-sizing: border-box;
   border: 1px solid #d9e2ec;
   background: #fff;
-  padding: 18px 20px;
+  padding: 24px 28px;
   color: #111;
-  font-family: Arial, "Helvetica Neue", Helvetica, "Inter", sans-serif;
-  font-size: 11px;
-  line-height: 1.32;
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto,
+               'Helvetica Neue', 'Liberation Sans', 'DejaVu Sans', Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
   overflow-wrap: anywhere;
   word-break: break-word;
 }
@@ -2757,22 +2786,18 @@ body.resume-embed-body .main-shell {
 
 .ats-template__header h1 {
   margin: 0;
-  font-size: 21px;
+  font-size: 26px;
   line-height: 1.15;
   font-weight: 700;
+  letter-spacing: -0.01em;
   overflow-wrap: anywhere;
   word-break: break-word;
-}
-
-.ats-template--executive .ats-template__header h1 {
-  font-size: 24px;
-  letter-spacing: 0.3px;
 }
 
 .ats-template__header p {
   margin: 4px 0 0;
   color: #39495e;
-  font-size: 10.6px;
+  font-size: 12.5px;
   white-space: normal;
   overflow-wrap: anywhere;
   word-break: break-word;
@@ -2800,7 +2825,7 @@ body.resume-embed-body .main-shell {
 
 .ats-section h2 {
   margin: 0 0 6px;
-  font-size: 12.5px;
+  font-size: 14px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: #1b2b3c;
@@ -2822,7 +2847,7 @@ body.resume-embed-body .main-shell {
 
 .ats-item h3 {
   margin: 0;
-  font-size: 11.2px;
+  font-size: 13.5px;
   font-weight: 700;
   overflow-wrap: anywhere;
   word-break: break-word;
@@ -2838,7 +2863,7 @@ body.resume-embed-body .main-shell {
 
 .ats-item__meta {
   color: #4b5d74;
-  font-size: 10.4px;
+  font-size: 12.5px;
   break-after: avoid;
   page-break-after: avoid;
 }
@@ -3819,5 +3844,40 @@ html, body { max-width: 100%; overflow-x: hidden; }
   }
   .nb-accent-header__body {
     padding: 16px;
+  }
+}
+
+/* ─── R-036 mobile bottom nav ──────────────────────────────────────
+ * Renders on phones only (TopNav burger + drawer handle small-screen
+ * navigation in the header; this nav lives at the bottom so common
+ * destinations are reachable without scrolling back up). The shell
+ * is the wrapper Pocket Resume owns; TkxBottomNav handles the row
+ * layout + active-state styling.
+ */
+.mobile-bottom-nav {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .mobile-bottom-nav {
+    display: block;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 50;
+    background: #ffffff;
+    border-top: 1px solid #e2e8f0;
+    /* iOS home-indicator: pad below so taps don't underlap. */
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    box-shadow: 0 -1px 4px rgba(15, 23, 42, 0.06);
+  }
+
+  /* Leave room for the bar so the last bit of a page isn't hidden.
+   * The .mobile-action-bar (editor's sticky action row) sits ABOVE
+   * the bottom nav and already has its own offset; nothing else
+   * needs adjustment because most pages have generous bottom margin. */
+  main {
+    padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
   }
 }

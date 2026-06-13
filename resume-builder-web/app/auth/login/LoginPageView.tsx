@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/src/lib/api';
+import { TkxPhoneInput } from 'tekivex-ui';
 import { PrivacyBadge } from '@/src/components/PrivacyBadge';
+import { readPendingReferralCode, storePendingReferralCode } from '@/src/lib/referral';
 
 type RouterLike = {
   push: (href: string) => Promise<boolean> | void;
@@ -39,6 +41,18 @@ export function LoginPageView({ apiClient = api, routerOverride, defaultMode = '
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // R-037: a `?ref=CODE` query param anywhere stores a pending
+  // referral code; register attaches it. Read here (not in a layout)
+  // because this is the page the referral links point at.
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      storePendingReferralCode(params.get('ref'));
+    } catch {
+      /* SSR / private mode */
+    }
+  }, []);
+
   async function navigateAfterAuth() {
     const returnTo = typeof window !== 'undefined' ? sessionStorage.getItem('rb_return_to') : null;
     if (returnTo) { sessionStorage.removeItem('rb_return_to'); await router.push(returnTo); }
@@ -65,12 +79,20 @@ export function LoginPageView({ apiClient = api, routerOverride, defaultMode = '
     setStatus('');
     setLoading(true);
     try {
+      const referralCode = readPendingReferralCode();
       await apiClient.register({
         fullName: regName.trim(),
         email: regEmail.trim(),
         mobile: regMobile.trim(),
         password: regPassword || undefined,
+        ...(referralCode ? { referralCode } : {}),
       });
+      // Clear the pending code so it can't double-apply from this
+      // browser onto a second account.
+      try {
+        const { clearPendingReferralCode } = await import('@/src/lib/referral');
+        clearPendingReferralCode();
+      } catch { /* non-critical */ }
       setStatus('Account created! Redirecting...');
       await router.push('/dashboard');
     } catch (err: unknown) {
@@ -160,19 +182,17 @@ export function LoginPageView({ apiClient = api, routerOverride, defaultMode = '
                 onChange={(e) => setRegEmail(e.target.value)}
                 required
               />
-              <label className="label" htmlFor="reg-mobile">Mobile</label>
-              <input
+              {/* TkxPhoneInput ships with a country picker + E.164 normalisation,
+                  so a user from anywhere can register. Default to India for the
+                  primary market; the payload's `e164` is the canonical value we
+                  POST to /auth/register. */}
+              <TkxPhoneInput
                 id="reg-mobile"
-                className="input"
-                type="tel"
-                inputMode="tel"
-                autoComplete="tel"
-                enterKeyHint="next"
-                placeholder="+919XXXXXXXXX"
+                label="Mobile"
+                defaultCountry="IN"
                 value={regMobile}
-                onChange={(e) => setRegMobile(e.target.value)}
+                onChange={(p) => setRegMobile(p.e164 || p.raw)}
                 required
-                minLength={10}
               />
               <label className="label" htmlFor="reg-password">Password</label>
               <input
@@ -192,7 +212,11 @@ export function LoginPageView({ apiClient = api, routerOverride, defaultMode = '
           )}
 
           {status ? <p className="small" style={{ color: '#1e5b35' }}>{status}</p> : null}
-          {error ? <div className="message-banner"><p className="small">{error}</p></div> : null}
+          {error ? (
+            <div className="alert alert-error" role="alert" aria-live="assertive">
+              {error}
+            </div>
+          ) : null}
 
           {mode === 'login' ? (
             <Link href="/auth/register" className="btn ghost" style={{ justifySelf: 'start', fontSize: '0.85rem' }}>

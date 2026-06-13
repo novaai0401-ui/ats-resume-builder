@@ -176,6 +176,65 @@ export class MailService {
     }
   }
 
+  /**
+   * R-032 disambiguation: the user forwarded an outcome email but we
+   * couldn't tell which application it belongs to. One tap per
+   * candidate applies the detected outcome to that application.
+   */
+  async sendOutcomeDisambiguationEmail(args: {
+    to: string;
+    userName: string;
+    outcome: 'rejected' | 'interview' | 'offer';
+    rows: Array<{ company: string; role: string; link: string }>;
+  }): Promise<boolean> {
+    if (!this.transporter) {
+      this.logger.warn(`Cannot send disambiguation email to ${args.to}: SMTP not configured`);
+      return false;
+    }
+    const firstName = (args.userName || '').trim().split(/\s+/)[0] || 'there';
+    const OUTCOME_LABEL: Record<string, string> = {
+      rejected: 'a rejection',
+      interview: 'an interview invite',
+      offer: 'an offer',
+    };
+    const subject = `Which application was that about?`;
+    const text = [
+      `Hi ${firstName},`,
+      '',
+      `You forwarded ${OUTCOME_LABEL[args.outcome]}, but it matches more than one tracked application (or none clearly). One tap records it:`,
+      '',
+      ...args.rows.map((r) => `${r.role} @ ${r.company}:  ${r.link}`),
+      '',
+      `If none of these fit, update the application directly in your tracker.`,
+    ].join('\n');
+    const html = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 520px; margin: 0 auto; padding: 24px;">
+        <h2 style="color:#1a3a5c;margin:0 0 6px;">Which application was that about?</h2>
+        <p style="color:#555;font-size:14px;margin:0 0 16px;">
+          You forwarded ${OUTCOME_LABEL[args.outcome]}, but it matches more than one tracked
+          application. One tap records it:
+        </p>
+        ${args.rows.map((r) => `
+          <p style="margin:0 0 10px;">
+            <a href="${r.link}" style="display:inline-block;background:#1a3a5c;color:#ffffff;padding:8px 14px;border-radius:8px;text-decoration:none;font-weight:600;">
+              ${escapeHtml(r.role)} @ ${escapeHtml(r.company)}
+            </a>
+          </p>`).join('')}
+        <p style="color:#888;font-size:12px;margin:12px 0 0;">
+          If none of these fit, update the application directly in your tracker.
+        </p>
+      </div>`;
+    try {
+      await this.transporter.sendMail({ from: this.fromAddress, to: args.to, subject, text, html });
+      this.logger.log(`Disambiguation email sent to ${args.to} (${args.rows.length} candidates)`);
+      return true;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.error(`Failed to send disambiguation email to ${args.to}: ${msg.replace(/pass[^\s]*/gi, '***')}`);
+      return false;
+    }
+  }
+
   async sendOtpEmail(to: string, otp: string): Promise<boolean> {
     if (!this.transporter) {
       this.logger.warn(`Cannot send OTP email to ${to}: SMTP not configured`);

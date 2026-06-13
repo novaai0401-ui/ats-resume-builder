@@ -6,6 +6,7 @@ import { TEMPLATE_CATALOG } from 'resume-builder-shared';
 import { api, isApiRequestError, type Resume } from '@/src/lib/api';
 import TemplateCatalogGrid from '@/src/components/templates/TemplateCatalogGrid';
 import DownloadChargeModal from '@/src/components/DownloadChargeModal';
+import OutcomeInsightCallout from '@/src/components/OutcomeInsightCallout';
 import {
   buildResumePreview,
   persistActiveResumeSelection,
@@ -418,6 +419,10 @@ export default function TemplateSelectionView({
 
   return (
     <main className="grid template-grid-layout">
+      {/* R-035: own-data outcome insight at the moment of choice. The
+          honesty gate inside the component renders nothing until the
+          user's own application data is statistically meaningful. */}
+      <OutcomeInsightCallout resumeId={resumeId || null} context="template" />
       <section className="card col-7">
         <div>
           <h2>Choose a template</h2>

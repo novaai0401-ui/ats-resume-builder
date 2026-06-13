@@ -3513,6 +3513,27 @@ export default function ResumeEditor() {
               <h3 style={{ margin: 0 }}>AI Critique {aiCritiqueResult.provider !== 'fallback' && <span className="ai-badge">AI-assisted</span>}</h3>
               <button className="btn secondary" style={{ fontSize: '0.75rem', padding: '4px 10px' }} onClick={() => setAiCritiqueResult(null)}>Close</button>
             </div>
+            {/* Two-line explainer so the user knows: (1) what this surface
+                does, (2) whether it actually compared against the JD they
+                pasted. The previous version showed "Showing rule-based
+                suggestions" with no further context — founder reported it
+                wasn't clear what was being checked or how to read the
+                missing-keywords list. */}
+            <p className="small" style={{ marginBottom: 4, color: '#3a4655' }}>
+              Compares your resume against{' '}
+              <strong>
+                {(jdText && jdText.trim().length >= 40)
+                  ? 'the job description you pasted below'
+                  : 'a generic ATS rubric (no JD pasted)'}
+              </strong>
+              {' '}and lists what's likely costing you the keyword match.
+            </p>
+            <p className="small" style={{ marginBottom: 12, color: '#5a6778' }}>
+              "Missing keywords" = words in the JD that don't appear anywhere in your
+              resume. Add them naturally to <strong>any</strong> section where they're
+              truthful (Summary, Skills, or a relevant Experience bullet) — they
+              don't all need to live in the Summary.
+            </p>
             {aiCritiqueResult.critique.summary && (
               <p className="small" style={{ marginBottom: 12, color: 'var(--fg-muted, #555)' }}>{aiCritiqueResult.critique.summary}</p>
             )}

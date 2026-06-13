@@ -31,7 +31,14 @@ model User {
   usagePeriodStart DateTime?
   usagePeriodEnd DateTime?
   plan          String @default("FREE")
+  /// R-037: export-credit balance. Earned via referrals (1 per referred
+  /// signup); consumed by PDF/DOCX export when the monthly quota is
+  /// exhausted. Field pre-dates the feature (merge b0b259a) so it already
+  /// exists in prod via the R-023 catch-up migration.
   premiumCredits Int @default(0)
+  /// R-037: this user's shareable referral code. Generated on first
+  /// access to GET /referrals/me, then stable forever.
+  referralCode String? @unique
   /// R-031: outcome-nudge emails ("any reply from Acme?") are opt-out.
   /// The unsubscribe link in every nudge email flips this to false.
   nudgeEmailsEnabled Boolean @default(true)
@@ -251,6 +258,54 @@ model ResumeVersion {
 
   @@index([resumeId, createdAt])
   @@index([userId, createdAt])
+}
+
+/// R-032: audit row per inbound forwarded email. Bodies are NOT
+/// stored — only the metadata needed to debug matching ("why didn't
+/// my forwarded rejection get logged?") plus a truncated subject.
+/// Rows expire after 30 days (cleaned by the same cron that runs
+/// the outcome-nudge scan).
+model InboundOutcomeMail {
+  id                   String   @id @default(uuid())
+  /// Null when the From address didn't match any account.
+  userId               String?
+  fromEmail            String
+  /// Truncated to 140 chars.
+  subject              String
+  /// 'rejected' | 'interview' | 'offer' | null (nothing detected)
+  detectedOutcome      String?
+  /// 'applied' | 'disambiguation_sent' | 'no_match' | 'unknown_sender' | 'no_outcome'
+  resolution           String
+  matchedApplicationId String?
+  createdAt            DateTime @default(now())
+  expiresAt            DateTime
+
+  @@index([userId, createdAt])
+  @@index([expiresAt])
+}
+
+/// R-037: one row per successful referral. The anti-abuse contract
+/// lives in the constraints:
+///   - referredUserId unique → an account can only ever be referred once.
+///   - emailHash unique      → the same email can't credit a referrer
+///     twice even if the account is deleted and re-created.
+///   - ipHash + createdAt    → the service caps credits per IP per
+///     30 days (3) to stop one person farming credits from a single
+///     machine with throwaway addresses.
+/// creditGranted records whether the +1 actually landed (false when an
+/// abuse rule suppressed it — we keep the row so repeat attempts stay
+/// visible to the admin dashboard).
+model Referral {
+  id             String   @id @default(uuid())
+  referrerUserId String
+  referredUserId String   @unique
+  emailHash      String   @unique
+  ipHash         String?
+  creditGranted  Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  @@index([referrerUserId, createdAt])
+  @@index([ipHash, createdAt])
 }
 
 /// R-031: one outcome-nudge email per stale application. Each row is a
@@ -545,4 +600,54 @@ model ModelEvaluation {
   evaluatedAt     DateTime @default(now())
 
   @@index([modelName, evaluatedAt])
+}
+
+/// R-041 — B2B parsing API key (one row per tenant, possibly many
+/// per organisation). Keys are 'pra_' (Pocket Resume API) + 32 chars
+/// of base32-ish entropy; we store ONLY a SHA-256 hash — recovery
+/// is impossible by design, the dashboard reissues if a key is lost.
+/// `prefix` is the first 8 chars of the plaintext, kept so the
+/// dashboard can show "pra_abc12def…" without storing the key.
+/// `monthlyCallLimit` caps metered usage; ApiUsage rows feed the bill.
+model ApiKey {
+  id               String    @id @default(uuid())
+  /// Display name set by the operator ("Acme Staffing — production").
+  label            String
+  /// SHA-256 of the plaintext key (hex).
+  keyHash          String    @unique
+  /// First 8 chars of the plaintext for UI ("pra_abc12def").
+  prefix           String
+  tenantSlug       String
+  /// monthlyCallLimit=0 means UNLIMITED — we still record usage,
+  /// the bill is computed from the count.
+  monthlyCallLimit Int       @default(10000)
+  /// Hard cap per minute regardless of plan — defends Chrome/AI from
+  /// runaway scripts.
+  perMinuteLimit   Int       @default(60)
+  enabled          Boolean   @default(true)
+  expiresAt        DateTime?
+  createdAt        DateTime  @default(now())
+  lastUsedAt       DateTime?
+
+  @@index([tenantSlug])
+}
+
+/// R-041 — one row per public-API call (parse/score/tailor). Used to
+/// compute monthly bills, surface abuse, and audit-trace tenant
+/// activity. Truncated user-agent + ipHash only — never raw IPs.
+model ApiUsage {
+  id        String   @id @default(uuid())
+  apiKeyId  String
+  endpoint  String
+  /// HTTP status returned. 2xx counted toward the bill; 4xx/5xx are
+  /// surfaced in the dashboard but don't bill.
+  status    Int
+  ipHash    String?
+  userAgent String?
+  /// Round-trip wall time in milliseconds, for SLA reporting.
+  durationMs Int     @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([apiKeyId, createdAt])
+  @@index([apiKeyId, status])
 }

@@ -30,6 +30,7 @@ function makeState(overrides = {}) {
     atsScansUsed: 0,
     atsScansLimit: 2,
     pdfExportsUsed: 5,
+    premiumCredits: 0,
     pdfExportsLimit: 5,
     resumesLimit: 5,
     aiTokensUsed: 0,
@@ -74,7 +75,20 @@ function createInMemoryPrisma(overrides = {}) {
         where.id === state.user.id ? { ...state.user } : null,
       update: async ({ where, data }) => {
         if (where.id !== state.user.id) return null;
-        state.user = { ...state.user, ...data };
+        // Resolve Prisma atomic operators ({increment}/{decrement}) the
+        // way the real client would — the R-037 credit path uses
+        // `premiumCredits: { decrement: 1 }`.
+        const resolved = {};
+        for (const [key, value] of Object.entries(data)) {
+          if (value && typeof value === 'object' && 'increment' in value) {
+            resolved[key] = (state.user[key] || 0) + value.increment;
+          } else if (value && typeof value === 'object' && 'decrement' in value) {
+            resolved[key] = (state.user[key] || 0) - value.decrement;
+          } else {
+            resolved[key] = value;
+          }
+        }
+        state.user = { ...state.user, ...resolved };
         return { ...state.user };
       },
     },
@@ -181,4 +195,51 @@ test('generateDocx with quota remaining: increments the counter on success', asy
     3,
     'counter must increment by 1 on a successful render',
   );
+});
+
+// ── R-037: referral credits buy exports past the cap ────────────────
+
+test('generateDocx at the cap consumes a referral credit instead of 403', async () => {
+  const prisma = createInMemoryPrisma({
+    pdfExportsUsed: 5,
+    pdfExportsLimit: 5,
+    premiumCredits: 2,
+  });
+  const service = await buildService(prisma);
+
+  const buf = await service.generateDocx('user-1', 'resume-1');
+  assert.ok(Buffer.isBuffer(buf) && buf.length > 0, 'expected a docx buffer');
+  const user = prisma.__getState().user;
+  assert.equal(user.premiumCredits, 1, 'one credit consumed');
+  assert.equal(user.pdfExportsUsed, 5, 'monthly counter NOT incremented on the credit path');
+});
+
+test('generateDocx at the cap with 0 credits still rejects, and mentions referral', async () => {
+  const prisma = createInMemoryPrisma({
+    pdfExportsUsed: 5,
+    pdfExportsLimit: 5,
+    premiumCredits: 0,
+  });
+  const service = await buildService(prisma);
+
+  await assert.rejects(() => service.generateDocx('user-1', 'resume-1'), (err) => {
+    assert.match(String(err && err.message), /Monthly export limit reached/);
+    assert.match(String(err && err.message), /refer a friend/i, 'error must surface the referral path');
+    return true;
+  });
+  assert.equal(prisma.__getState().user.premiumCredits, 0);
+});
+
+test('credits are NOT consumed while the user is under the monthly cap', async () => {
+  const prisma = createInMemoryPrisma({
+    pdfExportsUsed: 2,
+    pdfExportsLimit: 5,
+    premiumCredits: 3,
+  });
+  const service = await buildService(prisma);
+
+  await service.generateDocx('user-1', 'resume-1');
+  const user = prisma.__getState().user;
+  assert.equal(user.pdfExportsUsed, 3, 'counter increments normally under the cap');
+  assert.equal(user.premiumCredits, 3, 'credits untouched while quota remains');
 });

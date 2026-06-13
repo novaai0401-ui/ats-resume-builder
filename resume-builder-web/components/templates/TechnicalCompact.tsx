@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  AchievementsSection,
   certificationItems,
   cleanList,
   contactLine,
@@ -80,6 +81,7 @@ export default function TechnicalCompact({ resumeData }: TemplateProps) {
         </section>
       ) : null}
 
+      <AchievementsSection resumeData={normalized} />
       <section className="ats-section ats-section--tight">
         <h2>{sectionTitle('education')}</h2>
         {education.length ? education.map((item, idx) => (
