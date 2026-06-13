@@ -1,0 +1,19 @@
+{
+  "name": "doc-extract",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "description": "Document-agnostic, schema-driven structured extraction core. Turns any document's text (resume, invoice, contract, form, ID) into typed JSON against a caller-supplied schema, with per-field confidence + provenance. LLM backend is injectable (Anthropic SDK in production).",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test tests/*.test.cjs"
+  },
+  "devDependencies": {
+    "typescript": "latest"
+  }
+}
