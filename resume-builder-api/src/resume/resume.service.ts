@@ -5,6 +5,7 @@ import { PDFParse } from 'pdf-parse';
 import mammoth from 'mammoth';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { JD_STOPWORDS, SECTION_LABEL_WORDS, filterJdKeywords } from '../lib/keyword-stopwords';
 import type { AtsIssue, CreateResumeDto, UpdateResumeDto } from 'resume-builder-shared';
 import { ResumeSectionsSchema } from 'resume-schemas';
 import { ensureUsagePeriod } from '../billing/usage';
@@ -5515,8 +5516,13 @@ function computeAtsScore(input: {
     weights.bullets * ((actionVerbScore + bulletDensityScore) / 2);
 
   const atsScore = Math.max(5, Math.min(100, Math.round(roleAdjustedScore * 100)));
+  // Belt and braces: extractKeywordWeights already strips JD_STOPWORDS,
+  // but run the result through filterJdKeywords once more — it catches
+  // SECTION_LABEL_WORDS ("skills" appearing as a "missing skill" was
+  // the most embarrassing failure mode) and is the SINGLE seam every
+  // "missing keywords" surface shares.
   const missingKeywords = hasJobDescription
-    ? jdKeywords.filter((k) => !resumeTokens.has(k))
+    ? filterJdKeywords(jdKeywords.filter((k) => !resumeTokens.has(k)))
     : [];
   const targetRoleAnalysis = analyzeTargetRoleSignals(jdText, input.resumeText);
   const suggestionMissingKeywords = missingKeywords.filter((keyword) => !targetRoleAnalysis.missingTargetRoleTokens.has(keyword.toLowerCase()));
@@ -5768,47 +5774,12 @@ function tokenize(text: string): Set<string> {
   );
 }
 
-/**
- * Stopword list used by extractKeywordWeights so generic English filler
- * doesn't show up as "missing keywords" the user must add. The
- * founder's smoke screenshot 5 surfaced this regression: the editor
- * was telling the user to add "have", "systems", "distributed",
- * "understand" — the first and last are generic words, the middle two
- * already appear in the user's resume. Aggressively filtering filler
- * here means the keywords that DO surface are real role/skill terms.
- *
- * The list covers: articles, auxiliaries, modals, common JD verbs,
- * meta words ("candidate", "role", "position", "responsibilities"),
- * and pronouns. Skill/role nouns (react, kubernetes, leadership,
- * frontend, etc.) are deliberately NOT included.
- */
-const JD_STOPWORDS = new Set([
-  // articles / determiners / pronouns
-  'the', 'and', 'with', 'for', 'you', 'our', 'are', 'will', 'from', 'that', 'this',
-  'your', 'their', 'they', 'them', 'these', 'those', 'such', 'each', 'any', 'all',
-  'his', 'her', 'its', 'who', 'whom', 'whose', 'what', 'when', 'where', 'why', 'how',
-  // auxiliaries + modals
-  'have', 'has', 'had', 'having', 'be', 'is', 'was', 'were', 'been', 'being',
-  'do', 'does', 'did', 'doing', 'done',
-  'can', 'cant', 'could', 'should', 'shouldn', 'must', 'mustn', 'may', 'might',
-  'would', 'wouldnt', 'shall', 'shant', 'ought',
-  // generic JD verbs / meta words
-  'understand', 'understanding', 'requires', 'required', 'requirement', 'requirements',
-  'need', 'needs', 'needed', 'including', 'includes', 'includ', 'across',
-  'looking', 'seeking', 'hiring', 'apply', 'role', 'roles', 'position', 'positions',
-  'opportunity', 'opportunities', 'candidate', 'candidates', 'applicant', 'applicants',
-  'responsibilities', 'duties', 'qualifications', 'qualified', 'preferred',
-  'experience', 'experienced', 'background', 'knowledge', 'familiar', 'familiarity',
-  'ability', 'able', 'skills', 'skilled', 'expertise',
-  'working', 'work', 'works', 'worked', 'team', 'teams', 'company', 'companies',
-  'people', 'individuals', 'person', 'someone', 'others',
-  // generic vague verbs that bloat extractor output
-  'help', 'helping', 'helped', 'support', 'supporting', 'ensure', 'ensuring',
-  'within', 'about', 'into', 'onto', 'over', 'under', 'than', 'then',
-  'while', 'whereas', 'because', 'between', 'among', 'against',
-  // common one-liner glue
-  'we', 'us', 'i', 'me', 'my', 'mine', 'an',
-]);
+// JD_STOPWORDS + SECTION_LABEL_WORDS now live in
+// resume-builder-api/src/lib/keyword-stopwords.ts as the single source
+// of truth — every "missing keywords" surface (ATS scorer, AI
+// critique, tech-gap rule-based, public /v1/score) imports from there
+// so the four lists can't diverge again. See that file's docblock for
+// the design rationale.
 
 function extractKeywordWeights(text: string, limit: number): Map<string, number> {
   if (!text) return new Map();
