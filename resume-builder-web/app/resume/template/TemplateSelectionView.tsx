@@ -6,6 +6,7 @@ import { TEMPLATE_CATALOG } from 'resume-builder-shared';
 import { api, isApiRequestError, type Resume } from '@/src/lib/api';
 import TemplateCatalogGrid from '@/src/components/templates/TemplateCatalogGrid';
 import DownloadChargeModal from '@/src/components/DownloadChargeModal';
+import OutcomeInsightCallout from '@/src/components/OutcomeInsightCallout';
 import {
   buildResumePreview,
   persistActiveResumeSelection,
@@ -30,8 +31,16 @@ function friendlyPdfError(error: unknown, fallback: string): string {
     if (error.status === 503) {
       return 'PDF service is starting up. Please wait ~30 seconds and try again.';
     }
-    if (error.status === 401 || error.status === 403) {
+    if (error.status === 401) {
+      // ONLY 401 means the session is actually gone. 403 covers quota
+      // hits, FREE-plan blocks, missing download tokens, etc. — each
+      // ships a user-readable message from the server, so we surface
+      // that instead of telling the user to re-log in (which they
+      // tried, and which doesn't help — they get the same 403).
       return 'Your session expired. Please sign in again to download your PDF.';
+    }
+    if (error.status === 403) {
+      return error.message || fallback;
     }
   }
   return error instanceof Error && error.message ? error.message : fallback;
@@ -410,6 +419,10 @@ export default function TemplateSelectionView({
 
   return (
     <main className="grid template-grid-layout">
+      {/* R-035: own-data outcome insight at the moment of choice. The
+          honesty gate inside the component renders nothing until the
+          user's own application data is statistically meaningful. */}
+      <OutcomeInsightCallout resumeId={resumeId || null} context="template" />
       <section className="card col-7">
         <div>
           <h2>Choose a template</h2>

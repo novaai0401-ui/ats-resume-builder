@@ -50,6 +50,9 @@ export const RegisterSchema = z.object({
   email: z.string().email(),
   mobile: z.string().min(10).max(15),
   password: z.string().min(8).optional(),
+  /// R-037: referral code carried from a `?ref=` link. Optional and
+  /// best-effort — an invalid code never blocks the signup.
+  referralCode: z.string().max(20).optional(),
 });
 
 export const EmailOtpRequestSchema = z.object({

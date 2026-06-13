@@ -42,8 +42,10 @@ import { AutocompleteInput } from '@/src/components/AutocompleteInput';
 import FreeAiNotice from '@/src/components/FreeAiNotice';
 import PostDownloadSubscriptionPopup from '@/src/components/PostDownloadSubscriptionPopup';
 import DownloadChargeModal from '@/src/components/DownloadChargeModal';
+import ShareInExportModal from '@/src/components/ShareInExportModal';
 import { applySinglePresentRule, compareYearMonth, isPresentToken, isYearMonth, toMonthInputValue, toYearMonth } from '@/src/lib/date-utils';
 import { detectIncompleteText } from '@/src/lib/text-completeness';
+import { shouldSkipServerHydration } from '@/src/lib/load-effect-gate';
 import {
   buildCompanySuggestions,
   mergeCompanyPools,
@@ -373,6 +375,13 @@ export default function ResumeEditor() {
   const reviewAtsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const actionVerbTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reviewAtsRunRef = useRef(0);
+  // Tracks the resume id we already have content for locally. When
+  // autosave assigns a fresh id, we save it here so the load effect
+  // can skip the pointless round-trip back to api.getResume — that
+  // round-trip was the cause of the "ATS score appears, then vanishes,
+  // then re-appears" flicker. Hydrating from the server when we
+  // already have the same data only re-fires every dependent effect.
+  const locallySettledResumeIdRef = useRef<string>('');
   const snackbarTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingTemplateSaveRef = useRef<Promise<void> | null>(null);
   const templateSaveRunRef = useRef(0);
@@ -404,6 +413,18 @@ export default function ResumeEditor() {
     // Skip the blanket reset when a pending upload session exists — the restore
     // effect that follows will populate the store from sessionStorage.
     if (!effectiveResumeId && isReviewFlow && readPendingUploadSession()) {
+      return;
+    }
+    // Skip the reset when the id was just assigned by our own autosave.
+    // Sequence: pending upload populates → autosave succeeds →
+    // setResumeId(newId) + persistActiveResumeSelection(newId) +
+    // clearPendingUploadSession() → effectiveResumeId flips '' → '<newId>'
+    // → THIS effect re-fires. The pending-upload guard above is now
+    // false (we just cleared it) so without this second guard
+    // resetResumeStore() would wipe every field the user just saw,
+    // and nothing repopulates because the load effect correctly
+    // short-circuits when locallySettledResumeIdRef matches.
+    if (shouldSkipServerHydration(effectiveResumeId, locallySettledResumeIdRef.current)) {
       return;
     }
     resetResumeStore();
@@ -586,19 +607,28 @@ export default function ResumeEditor() {
       return;
     }
     if (effectiveResumeId) {
+      // Skip the re-fetch when the id was just assigned by autosave.
+      // The post-autosave flow goes: setResume(local) → autosave →
+      // setResumeId(<new id>) → persistActiveResumeSelection(<id>)
+      // → effectiveResumeId flips '' → '<id>' → THIS effect re-fires.
+      // At that point our local state IS the canonical copy. Re-fetching
+      // overwrites it with a structurally-identical normalized server
+      // copy, which cascades through every dependent effect (ATS panel
+      // resets and re-computes, etc.) — that's the flicker reported in
+      // the post-upload video.
+      if (shouldSkipServerHydration(effectiveResumeId, locallySettledResumeIdRef.current)) {
+        return;
+      }
       // Only show the hydration loader on the FIRST load (when the
-      // editor is empty). Subsequent re-fetches — e.g. after autosave
-      // assigns a resume id and effectiveResumeId flips from '' to
-      // that id — must refresh silently in the background. Otherwise
-      // the loader blanks the editor mid-flow and the screen flickers
-      // editor → loader → editor → editor (regression users reported
-      // as "Continue to Review flickers and reloads multiple times").
+      // editor is empty). Subsequent re-fetches — e.g. clicking into a
+      // saved resume from the dashboard — show the calm spinner.
       const isInitialLoad = !hasResumeDraftContent(resume);
       if (isInitialLoad) setIsHydrating(true);
       api.getResume(effectiveResumeId)
         .then((r) => {
           setResumeId(r.id);
           persistActiveResumeSelection(r.id);
+          locallySettledResumeIdRef.current = r.id;
           const loadedResume = resumeFromImportedApi(r);
           setResume(loadedResume);
         })
@@ -1079,6 +1109,11 @@ export default function ResumeEditor() {
         setResumeId(result.id);
       }
       persistActiveResumeSelection(result.id);
+      // Mark the id we just saved as already-settled locally so the
+      // load effect doesn't refetch the same resume and cascade a UI
+      // refresh through the ATS panel. Without this the user sees
+      // ATS score → vanish → re-appear after every autosave.
+      locallySettledResumeIdRef.current = result.id;
       clearPendingUploadSession();
       setStatus('saved');
       dirtyRef.current = false;
@@ -3499,6 +3534,27 @@ export default function ResumeEditor() {
               <h3 style={{ margin: 0 }}>AI Critique {aiCritiqueResult.provider !== 'fallback' && <span className="ai-badge">AI-assisted</span>}</h3>
               <button className="btn secondary" style={{ fontSize: '0.75rem', padding: '4px 10px' }} onClick={() => setAiCritiqueResult(null)}>Close</button>
             </div>
+            {/* Two-line explainer so the user knows: (1) what this surface
+                does, (2) whether it actually compared against the JD they
+                pasted. The previous version showed "Showing rule-based
+                suggestions" with no further context — founder reported it
+                wasn't clear what was being checked or how to read the
+                missing-keywords list. */}
+            <p className="small" style={{ marginBottom: 4, color: '#3a4655' }}>
+              Compares your resume against{' '}
+              <strong>
+                {(jdText && jdText.trim().length >= 40)
+                  ? 'the job description you pasted below'
+                  : 'a generic ATS rubric (no JD pasted)'}
+              </strong>
+              {' '}and lists what's likely costing you the keyword match.
+            </p>
+            <p className="small" style={{ marginBottom: 12, color: '#5a6778' }}>
+              "Missing keywords" = words in the JD that don't appear anywhere in your
+              resume. Add them naturally to <strong>any</strong> section where they're
+              truthful (Summary, Skills, or a relevant Experience bullet) — they
+              don't all need to live in the Summary.
+            </p>
             {aiCritiqueResult.critique.summary && (
               <p className="small" style={{ marginBottom: 12, color: 'var(--fg-muted, #555)' }}>{aiCritiqueResult.critique.summary}</p>
             )}
@@ -4072,6 +4128,7 @@ export default function ResumeEditor() {
                     Print preview
                   </button>
                 </div>
+                <ShareInExportModal resumeId={resumeId || null} />
               </>
             )}
           </div>
@@ -4848,10 +4905,16 @@ function friendlyPdfErrorMessage(error: unknown, fallback: string): string {
     if (error.status === 503) {
       return 'PDF service is starting up. Please wait ~30 seconds and try again — your data is safe.';
     }
-    if (error.status === 401 || error.status === 403) {
+    if (error.status === 401) {
+      // 401 is the only status that actually means the session is gone.
+      // 403 (used by the export-quota check, FREE-plan block, etc.) ships
+      // its own user-readable message — we surface that instead of
+      // pretending the user has to re-log in. C-003: copy must match the
+      // real cause; "session expired" when the cause is a quota cap is
+      // the kind of dishonest UX the founder explicitly flagged.
       return 'Your session expired. Please sign in again to download your PDF.';
     }
-    if (error.status === 402 || error.status === 429) {
+    if (error.status === 403 || error.status === 402 || error.status === 429) {
       return error.message || fallback;
     }
   }

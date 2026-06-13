@@ -808,7 +808,7 @@ export async function refresh(payload: RefreshPayload, options: { silent?: boole
 }
 
 export const api = {
-  register: async (payload: { fullName: string; email: string; mobile: string; password?: string }) => {
+  register: async (payload: { fullName: string; email: string; mobile: string; password?: string; referralCode?: string }) => {
     const auth = await request<AuthResponse>('/auth/register', {
       method: 'POST',
       body: JSON.stringify(payload),
@@ -983,6 +983,38 @@ export const api = {
       bulletSuggestions: string[];
       provider: 'groq' | 'rule-based';
     }>(`/ai/jd-match`, { method: 'POST', body: JSON.stringify(input) }),
+
+  /** R-034 step 1: propose tailored rewrites against a JD. */
+  tailorPropose: (resumeId: string, jdText: string) =>
+    request<{
+      summary: { before: string; after: string } | null;
+      bullets: Array<{ experienceIndex: number; bulletIndex: number; before: string; after: string }>;
+      skillsToAdd: string[];
+      provider: 'groq';
+      tokensUsed: number;
+    }>(`/ai/tailor/${encodeURIComponent(resumeId)}/propose`, {
+      method: 'POST',
+      body: JSON.stringify({ jdText }),
+    }),
+
+  /** R-034 step 2: apply the accepted subset → new ResumeVersion. */
+  tailorApply: (resumeId: string, input: {
+    jdCompany?: string;
+    jdRole?: string;
+    summary?: string | null;
+    bullets?: Array<{ experienceIndex: number; bulletIndex: number; before: string; after: string }>;
+    skillsToAdd?: string[];
+    applyToLive?: boolean;
+  }) =>
+    request<{
+      version: { id: string; resumeId: string; label: string | null; createdAt: string };
+      appliedBullets: number;
+      rejectedAsStale: number;
+      appliedToLive: boolean;
+    }>(`/ai/tailor/${encodeURIComponent(resumeId)}/apply`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
 
   /** Interview Prep Cards — Pro only. */
   interviewPrep: (input: { resumeText: string; targetRole?: string; jdText?: string }) =>

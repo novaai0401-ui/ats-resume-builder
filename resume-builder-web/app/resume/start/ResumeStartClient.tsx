@@ -6,6 +6,7 @@ import {
   buildReviewAtsRoute,
   canContinueToReview,
   continueToReviewAtsFromStart,
+  continueToReviewFromStart,
   type PendingUploadSession,
   type SectionType,
   buildEditorRoute,
@@ -17,6 +18,7 @@ import {
 import { ingestResumeFile } from '@/src/lib/resume-ingest';
 import { useResumeStore } from '@/src/lib/resume-store';
 import { PrivacyBadge } from '@/src/components/PrivacyBadge';
+import DataLoader from '@/src/components/DataLoader';
 
 const SECTION_LABELS: Record<SectionType, string> = {
   contact: 'Header & Contact',
@@ -42,6 +44,7 @@ export default function ResumeStartClient() {
   const [pendingFileName, setPendingFileName] = useState('');
 
   const template = (searchParams.get('template') || '').trim();
+  const uploadEditorHref = buildEditorRoute('review', template);
   const reviewAtsHref = buildReviewAtsRoute(template);
   const scratchEditorHref = buildEditorRoute('scratch', template);
   const uploadButtonLabel = loadingUpload
@@ -104,8 +107,23 @@ export default function ResumeStartClient() {
             <p className="small">
               We will parse and pre-fill your sections so you can review and polish quickly.
             </p>
-            <label className="btn" style={{ cursor: 'pointer' }}>
-              {uploadButtonLabel}
+            <label
+              className="btn"
+              style={{
+                cursor: loadingUpload ? 'progress' : 'pointer',
+                opacity: loadingUpload ? 0.85 : 1,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                justifyContent: 'center',
+              }}
+              aria-disabled={loadingUpload}
+            >
+              {loadingUpload ? (
+                <DataLoader mode="inline" label={`Reading ${pendingFileName || 'your resume'}…`} />
+              ) : (
+                uploadButtonLabel
+              )}
               <input
                 type="file"
                 accept=".pdf,.docx,.doc,.txt,.html,.htm,.rtf"
@@ -114,6 +132,24 @@ export default function ResumeStartClient() {
                 style={{ display: 'none' }}
               />
             </label>
+            {/* Calm timing hint + screen-reader status. Without this the
+                user sees a button that just sits there for ~5-15s and
+                wonders whether anything is happening. */}
+            <p
+              className="small"
+              role="status"
+              aria-live="polite"
+              style={{
+                marginTop: 8,
+                marginBottom: 0,
+                color: '#5a6778',
+                minHeight: '1.4em',
+              }}
+            >
+              {loadingUpload
+                ? 'Parsing your resume — this usually takes 5–15 seconds. Please keep this tab open.'
+                : ''}
+            </p>
           </div>
 
           <div className="start-choice">
@@ -145,16 +181,35 @@ export default function ResumeStartClient() {
               <p className="small">Sections populated: {populatedLabel}.</p>
             </div>
             <div className="upload-summary-panel__actions">
-              {/* Previously two buttons landed on the same editor;
-                 "Review & ATS" routed via /resume/review which also
-                 surfaces the section sidebar (Header / Summary /
-                 Experience / Education / Skills / Projects /
-                 Achievements / Certifications / Languages). That
-                 sidebar is strictly the better UX, so we kept that
-                 route and merged the two buttons into one labelled
-                 "Continue to Review". */}
+              {/* Two separate destinations:
+                  - "Continue to Review" → /resume editor (plain). Use this
+                    when you just uploaded a resume: the fields hydrate from
+                    the upload and stay put.
+                  - "Review & ATS" → /resume/review (ATS-driven). Same editor
+                    with the section sidebar plus an ATS panel that
+                    re-validates on autosave. Worth the extra reload only
+                    when you want the score back. */}
               <button
                 className="btn"
+                onClick={() => {
+                  const navigation = continueToReviewFromStart({
+                    session,
+                    template,
+                    setResume: setResumeStore,
+                    setUploadedFileName,
+                  });
+                  if (!navigation.enabled) return;
+                  if (!navigation.cached) {
+                    setError('Continuing without browser session cache. Keep this tab open while reviewing.');
+                  }
+                  router.push(navigation.href || uploadEditorHref);
+                }}
+                disabled={!canContinueToReview(session) || loadingUpload}
+              >
+                Continue to Review
+              </button>
+              <button
+                className="btn secondary"
                 onClick={() => {
                   const navigation = continueToReviewAtsFromStart({
                     session,
@@ -170,7 +225,7 @@ export default function ResumeStartClient() {
                 }}
                 disabled={!canContinueToReview(session) || loadingUpload}
               >
-                Continue to Review
+                Review & ATS
               </button>
             </div>
           </div>
@@ -181,6 +236,49 @@ export default function ResumeStartClient() {
             <p className="small">{error}</p>
           </div>
         )}
+      </section>
+
+      {/* R-036: this page is the Resume HUB landing. Surface the
+          other Resume-hub tools so a user who lands here from the
+          top nav has the full picture of what's under "Resume"
+          without going hunting. Skip the tools that mean
+          "start/upload" (that's literally the rest of this page). */}
+      <section className="card col-12" aria-labelledby="resume-hub-more">
+        <h2 id="resume-hub-more" style={{ marginTop: 0, fontSize: 16, color: '#1a3a5c' }}>
+          More resume tools
+        </h2>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+            gap: 10,
+            marginTop: 8,
+          }}
+        >
+          {[
+            { href: '/resume/versions', label: 'Version history', blurb: 'Snapshots + restore points.' },
+            { href: '/templates/preview', label: 'Templates', blurb: 'ATS-safe and visual layouts.' },
+            { href: '/resume/ats', label: 'ATS Score', blurb: 'Does your format parse cleanly?' },
+            { href: '/resume/ats-simulate', label: 'ATS Simulator', blurb: 'Recruiter-view preview.' },
+          ].map((t) => (
+            <a
+              key={t.href}
+              href={t.href}
+              style={{
+                display: 'block',
+                padding: '10px 12px',
+                borderRadius: 8,
+                border: '1px solid #e2e8f0',
+                background: '#ffffff',
+                textDecoration: 'none',
+                color: 'inherit',
+              }}
+            >
+              <strong style={{ color: '#1a3a5c', fontSize: 14 }}>{t.label}</strong>
+              <div className="small" style={{ color: '#5a6778', marginTop: 2 }}>{t.blurb}</div>
+            </a>
+          ))}
+        </div>
       </section>
     </main>
   );

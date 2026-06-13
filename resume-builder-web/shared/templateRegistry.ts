@@ -5,7 +5,6 @@ import AcademicCV from '@/components/templates/AcademicCV';
 import ClassicATS from '@/components/templates/ClassicATS';
 import ConsultantClean from '@/components/templates/ConsultantClean';
 import CreativePortfolio from '@/components/templates/CreativePortfolio';
-import ExecutiveImpact from '@/components/templates/ExecutiveImpact';
 import HealthcareCV from '@/components/templates/HealthcareCV';
 import MinimalClean from '@/components/templates/MinimalClean';
 import ModernProfessional from '@/components/templates/ModernProfessional';
@@ -26,7 +25,6 @@ type TemplateComponentKey = TemplateCatalogItem['componentKey'];
 const templateComponents: Record<TemplateComponentKey, ComponentType<TemplateComponentProps>> = {
   classic: ClassicATS,
   modern: ModernProfessional,
-  executive: ExecutiveImpact,
   technical: TechnicalCompact,
   minimal: MinimalClean,
   consultant: ConsultantClean,

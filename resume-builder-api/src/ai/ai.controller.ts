@@ -13,6 +13,7 @@ import type { AiCritiqueInput } from './ai.service';
 import { TechGapService, type TechGapInput } from './tech-gap.service';
 import { CoverLetterService, type GenerateCoverLetterInput } from './cover-letter.service';
 import { BulletRewriterService, type RewriteBulletInput } from './bullet-rewriter.service';
+import { TailorService, type ApplyTailorInput } from './tailor.service';
 import { JdMatchService, type JdMatchInput } from './jd-match.service';
 import { InterviewPrepService, type InterviewPrepInput } from './interview-prep.service';
 import { MentorChatService, type MentorChatInput } from './mentor-chat.service';
@@ -27,6 +28,7 @@ export class AiController {
     private readonly techGapService: TechGapService,
     private readonly coverLetterService: CoverLetterService,
     private readonly bulletRewriter: BulletRewriterService,
+    private readonly tailorService: TailorService,
     private readonly jdMatchService: JdMatchService,
     private readonly interviewPrepService: InterviewPrepService,
     private readonly mentorChatService: MentorChatService,
@@ -101,6 +103,40 @@ export class AiController {
       throw new BadRequestException('currentBullet is required');
     }
     return this.bulletRewriter.rewrite(req.user.userId, body);
+  }
+
+  /**
+   * R-034 step 1: propose tailored rewrites for a resume against a
+   * JD. Returns a TailorProposal diff (summary + per-bullet changes
+   * + skills to add). Nothing is saved — the client renders the
+   * proposal with accept/reject per change and calls tailor/apply.
+   * Plan-gated STUDENT+; charges ~2500 AI tokens per call.
+   */
+  @Post('tailor/:resumeId/propose')
+  tailorPropose(
+    @Req() req: { user: { userId: string } },
+    @Param('resumeId') resumeId: string,
+    @Body() body: { jdText: string },
+  ) {
+    if (!body || typeof body !== 'object' || !body.jdText) {
+      throw new BadRequestException('jdText is required');
+    }
+    return this.tailorService.propose(req.user.userId, resumeId, body.jdText);
+  }
+
+  /**
+   * R-034 step 2: apply the accepted subset of a proposal. Creates a
+   * NEW ResumeVersion labelled "Tailored: <role> @ <company>" so the
+   * Outcome Loop can attribute applications to it (C-007). The live
+   * resume is untouched unless applyToLive=true.
+   */
+  @Post('tailor/:resumeId/apply')
+  tailorApply(
+    @Req() req: { user: { userId: string } },
+    @Param('resumeId') resumeId: string,
+    @Body() body: ApplyTailorInput,
+  ) {
+    return this.tailorService.apply(req.user.userId, resumeId, body || {});
   }
 
   /**

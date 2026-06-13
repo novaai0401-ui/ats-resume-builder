@@ -11,6 +11,7 @@ import { JwtAuthGuard } from './jwt-auth.guard';
 import { PasswordResetService } from './password-reset.service';
 import { EmailOtpService } from './email-otp.service';
 import { LinkedInOAuthService } from './linkedin-oauth.service';
+import { AnalyticsService } from '../analytics/analytics.service';
 
 @Controller('auth')
 export class AuthController {
@@ -19,6 +20,7 @@ export class AuthController {
     private readonly passwordResetService: PasswordResetService,
     private readonly emailOtpService: EmailOtpService,
     private readonly linkedInOAuth: LinkedInOAuthService,
+    private readonly analytics: AnalyticsService,
   ) {}
 
   /** Whether social sign-in is available, so the UI can show/hide the button. */
@@ -68,17 +70,27 @@ export class AuthController {
   }
 
   @Post('register')
-  register(@Body() body: RegisterDto) {
+  async register(@Req() req: Request, @Body() body: RegisterDto) {
     const parsed = RegisterSchema.safeParse(body);
     if (!parsed.success) {
       throw new BadRequestException(parsed.error.flatten());
     }
-    return this.authService.register(parsed.data);
+    const result = await this.authService.register(parsed.data, { ip: extractIp(req) });
+    this.analytics.track(
+      {
+        type: 'register',
+        email: parsed.data.email,
+        path: '/auth/register',
+        properties: { method: 'password' },
+      },
+      req,
+    );
+    return result;
   }
 
   @Post('login')
   @HttpCode(200)
-  login(@Req() req: Request, @Body() body: { email: string; password: string }) {
+  async login(@Req() req: Request, @Body() body: { email: string; password: string }) {
     const email = String(body?.email || '').trim();
     const password = String(body?.password || '');
     if (!email || !password) {
@@ -86,7 +98,33 @@ export class AuthController {
     }
     const ip = extractIp(req);
     const userAgent = String(req.headers['user-agent'] || '').slice(0, 500);
-    return this.authService.loginWithPassword(email, password, { ip, userAgent });
+    try {
+      const result = await this.authService.loginWithPassword(email, password, { ip, userAgent });
+      this.analytics.track(
+        {
+          type: 'login',
+          email,
+          path: '/auth/login',
+          properties: { method: 'password' },
+        },
+        req,
+      );
+      return result;
+    } catch (err) {
+      this.analytics.track(
+        {
+          type: 'login_failed',
+          email,
+          path: '/auth/login',
+          properties: {
+            method: 'password',
+            reason: err instanceof Error ? err.message : 'unknown',
+          },
+        },
+        req,
+      );
+      throw err;
+    }
   }
 
   /**
@@ -112,14 +150,41 @@ export class AuthController {
    */
   @Post('verify-otp')
   @HttpCode(200)
-  verifyOtp(@Req() req: Request, @Body() body: { email: string; otp: string }) {
+  async verifyOtp(@Req() req: Request, @Body() body: { email: string; otp: string }) {
     const ip = extractIp(req);
     const userAgent = String(req.headers['user-agent'] || '').slice(0, 500);
-    return this.emailOtpService.verifyOtp(
-      String(body?.email || ''),
-      String(body?.otp || ''),
-      { ip, userAgent },
-    );
+    const email = String(body?.email || '');
+    try {
+      const result = await this.emailOtpService.verifyOtp(
+        email,
+        String(body?.otp || ''),
+        { ip, userAgent },
+      );
+      this.analytics.track(
+        {
+          type: 'login',
+          email,
+          path: '/auth/verify-otp',
+          properties: { method: 'email_otp' },
+        },
+        req,
+      );
+      return result;
+    } catch (err) {
+      this.analytics.track(
+        {
+          type: 'login_failed',
+          email,
+          path: '/auth/verify-otp',
+          properties: {
+            method: 'email_otp',
+            reason: err instanceof Error ? err.message : 'unknown',
+          },
+        },
+        req,
+      );
+      throw err;
+    }
   }
 
   @Post('change-password')
@@ -145,8 +210,17 @@ export class AuthController {
 
   @Post('logout')
   @UseGuards(JwtAuthGuard)
-  logout(@Req() req: { user: { userId: string } }) {
-    return this.authService.logout(req.user.userId);
+  async logout(@Req() req: Request & { user: { userId: string; email?: string } }) {
+    const result = await this.authService.logout(req.user.userId);
+    this.analytics.track(
+      {
+        type: 'logout',
+        email: req.user.email,
+        path: '/auth/logout',
+      },
+      req,
+    );
+    return result;
   }
 
   @Post('link-password')

@@ -148,8 +148,13 @@ test('generatePdf uses selected template markup and includes user resume data', 
   });
 });
 
-test('export CSS does not force whole sections to next page', async () => {
-  const prisma = createInMemoryPrisma('executive');
+test('export CSS does not pin .ats-item to a single page (blank-space regression)', async () => {
+  // Founder smoke 2026-06: a multi-bullet experience item with
+  // page-break-inside: avoid pushed the WHOLE block to page 2 when it
+  // didn't fit at the bottom of page 1, leaving a visible blank band.
+  // The fix removes the avoid on .ats-item and instead keeps the
+  // heading glued to its first bullet via break-after: avoid on h3.
+  const prisma = createInMemoryPrisma('classic');
   const service = new ResumeService(prisma, {
     isPaymentFeatureEnabled: async () => false,
     isRateLimitEnabled: async () => false,
@@ -157,11 +162,33 @@ test('export CSS does not force whole sections to next page', async () => {
 
   const rendered = await service.debugExportHtml('user-1', 'resume-1');
   assert.doesNotMatch(rendered.html, /\.ats-section\s*\{[^}]*page-break-inside:\s*avoid;/i);
-  assert.match(rendered.html, /\.ats-item\s*\{[^}]*page-break-inside:\s*avoid;/i);
+  assert.doesNotMatch(rendered.html, /\.ats-item\s*\{[^}]*page-break-inside:\s*avoid;/i);
+  assert.match(rendered.html, /\.ats-item\s+h3\s*\{[^}]*break-after:\s*avoid;/i);
   assert.match(rendered.html, /overflow-wrap:\s*anywhere/i);
   assert.match(rendered.html, /word-break:\s*break-word/i);
   assert.doesNotMatch(rendered.html, /\.ats-template\s*\{[^}]*display:\s*grid/i);
   assert.doesNotMatch(rendered.html, /\.ats-template\s*\{[^}]*columns\s*:/i);
+});
+
+test("export CSS leads font stack with 'Inter' and never falls back to a serif", async () => {
+  // Founder smoke 2026-06: downloaded PDFs used Arial as fallback,
+  // which renders heavier than the on-screen preview. Standardise on
+  // Inter (the same stack the preview uses) with system-ui + Linux
+  // sans-serif fallbacks so headless Chrome on Render never silently
+  // picks a serif font.
+  const prisma = createInMemoryPrisma('classic');
+  const service = new ResumeService(prisma, {
+    isPaymentFeatureEnabled: async () => false,
+    isRateLimitEnabled: async () => false,
+  });
+
+  const rendered = await service.debugExportHtml('user-1', 'resume-1');
+  assert.match(rendered.html, /font-family:\s*'Inter',\s*system-ui/);
+  assert.match(rendered.html, /'Liberation Sans'|'DejaVu Sans'/);
+  assert.match(rendered.html, /sans-serif;/);
+  // Ensure no actual serif family slipped into the stack — match on
+  // bare " serif" (not "sans-serif") at end of font-family declaration.
+  assert.doesNotMatch(rendered.html, /font-family:[^;]*(?:^|[\s,])serif\s*;/i);
 });
 
 test('apply template update persists and export uses the persisted templateId', async () => {
@@ -183,7 +210,12 @@ test('apply template update persists and export uses the persisted templateId', 
   });
 });
 
-test('export does not fall back to classic when resume.templateId is set', async () => {
+test('legacy executive templateId aliases cleanly to classic', async () => {
+  // Founder smoke 2026-06: 'Classic ATS' and 'Executive Impact' were
+  // visually identical (h1 21->24px, h2 letter-spacing 0.08->0.12em,
+  // company joiner). Executive was retired and the id aliased to
+  // classic so any saved resume / share link keeps rendering instead
+  // of breaking.
   const prisma = createInMemoryPrisma('executive');
   const service = new ResumeService(prisma, {
     isPaymentFeatureEnabled: async () => false,
@@ -193,27 +225,26 @@ test('export does not fall back to classic when resume.templateId is set', async
   await withCapturedPdfHtml(async () => {
     const pdfBuffer = await service.generatePdf('user-1', 'resume-1');
     const rendered = pdfBuffer.toString('utf8');
-    assert.match(rendered, /data-template-id="executive"/);
-    assert.match(rendered, /TEMPLATE_FINGERPRINT:executive/);
-    assert.doesNotMatch(rendered, /TEMPLATE_FINGERPRINT:classic/);
-    assert.doesNotMatch(rendered, /Impact:\s/);
+    assert.match(rendered, /data-template-id="classic"/);
+    assert.match(rendered, /TEMPLATE_FINGERPRINT:classic/);
+    assert.doesNotMatch(rendered, /data-template-id="executive"/);
+    assert.doesNotMatch(rendered, /ats-template--executive/);
   });
 });
 
-test('executive export uses ATS section names instead of marketing labels', async () => {
-  const prisma = createInMemoryPrisma('executive');
+test('classic export uses uppercased ATS section names', async () => {
+  const prisma = createInMemoryPrisma('classic');
   const service = new ResumeService(prisma, {
     isPaymentFeatureEnabled: async () => false,
     isRateLimitEnabled: async () => false,
   });
 
   const rendered = await service.debugExportHtml('user-1', 'resume-1');
-  assert.match(rendered.html, /<h2 class="ats-upper">SUMMARY<\/h2>/);
-  assert.match(rendered.html, /<h2 class="ats-upper">SKILLS<\/h2>/);
-  assert.match(rendered.html, /<h2 class="ats-upper">EXPERIENCE<\/h2>/);
+  assert.match(rendered.html, /<h2>SUMMARY<\/h2>/);
+  assert.match(rendered.html, /<h2>SKILLS<\/h2>/);
+  assert.match(rendered.html, /<h2>EXPERIENCE<\/h2>/);
   assert.doesNotMatch(rendered.html, /EXECUTIVE SUMMARY/i);
   assert.doesNotMatch(rendered.html, /CORE CAPABILITIES/i);
-  assert.doesNotMatch(rendered.html, /PROFESSIONAL IMPACT/i);
 });
 
 test('switching template changes exported renderer output markers', async () => {
@@ -258,30 +289,30 @@ test('export uses explicit template override before persisted templateId', async
 });
 
 test('debugExportHtml returns fingerprint and css bundle markers for persisted template', async () => {
-  const prisma = createInMemoryPrisma('executive');
+  const prisma = createInMemoryPrisma('technical');
   const service = new ResumeService(prisma, {
     isPaymentFeatureEnabled: async () => false,
     isRateLimitEnabled: async () => false,
   });
 
   const rendered = await service.debugExportHtml('user-1', 'resume-1');
-  assert.equal(rendered.templateId, 'executive');
-  assert.match(rendered.fingerprint, /TEMPLATE_FINGERPRINT:executive/);
+  assert.equal(rendered.templateId, 'technical');
+  assert.match(rendered.fingerprint, /TEMPLATE_FINGERPRINT:technical/);
   assert.match(rendered.cssBundle, /inline:ats-template-css-v\d+/);
-  assert.match(rendered.html, /data-template-id="executive"/);
+  assert.match(rendered.html, /data-template-id="technical"/);
   assert.match(rendered.html, /data-css-bundle="inline:ats-template-css-v\d+"/);
 });
 
-test('debugExportHtml fingerprint changes when template switches from executive to classic', async () => {
-  const prisma = createInMemoryPrisma('executive');
+test('debugExportHtml fingerprint changes when template switches', async () => {
+  const prisma = createInMemoryPrisma('modern');
   const service = new ResumeService(prisma, {
     isPaymentFeatureEnabled: async () => false,
     isRateLimitEnabled: async () => false,
   });
 
   const before = await service.debugExportHtml('user-1', 'resume-1');
-  assert.match(before.html, /TEMPLATE_FINGERPRINT:executive/);
-  assert.match(before.html, /data-template-id="executive"/);
+  assert.match(before.html, /TEMPLATE_FINGERPRINT:modern/);
+  assert.match(before.html, /data-template-id="modern"/);
 
   await service.update('user-1', 'resume-1', { templateId: 'classic' });
 

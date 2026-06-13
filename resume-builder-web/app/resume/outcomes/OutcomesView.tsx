@@ -13,6 +13,7 @@ import {
   CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
 import { TkxAlert, TkxButton, TkxCard, TkxCardBody, TkxCardHeader } from 'tekivex-ui';
+import DataLoader from '@/src/components/DataLoader';
 import {
   api,
   isApiRequestError,
@@ -97,7 +98,7 @@ export default function OutcomesView() {
       </header>
 
       {error && <TkxAlert variant="danger">{error}</TkxAlert>}
-      {loading && <p style={{ color: 'var(--muted, #888)' }}>Loading…</p>}
+      {loading && <DataLoader label="Loading outcome metrics…" />}
 
       {report && (
         <>

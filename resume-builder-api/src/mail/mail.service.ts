@@ -56,6 +56,185 @@ export class MailService {
     return this.transporter !== null;
   }
 
+  /**
+   * R-038 contact-relay: send the owner a message a recruiter typed
+   * into their public-portfolio "Get in touch" form. Owner's real
+   * email never leaves the server — we set Reply-To to the
+   * recruiter's address so the owner can reply directly without us
+   * having to maintain a threaded mailbox.
+   *
+   * Returns true on send, false on silent-fail (SMTP not configured
+   * or transporter error). The controller treats "configured but
+   * failed" the same as "not configured" from the visitor's
+   * perspective: a generic "could not deliver" — no probing oracle.
+   */
+  async sendShareRelayEmail(args: {
+    ownerEmail: string;
+    senderName: string;
+    senderEmail: string;
+    senderCompany?: string | null;
+    message: string;
+    slug: string;
+    publicUrl: string;
+  }): Promise<boolean> {
+    if (!this.transporter) {
+      this.logger.warn(`Cannot relay share-link message for ${args.slug}: SMTP not configured`);
+      return false;
+    }
+    const safeMsg = String(args.message || '').slice(0, 4000);
+    const subject = `New message about your resume (${args.slug})`;
+    const text = [
+      `${args.senderName} reached out via your public Pocket Resume link.`,
+      args.senderCompany ? `Company: ${args.senderCompany}` : '',
+      `Reply directly to: ${args.senderEmail}`,
+      `Link: ${args.publicUrl}`,
+      '',
+      'Message:',
+      safeMsg,
+      '',
+      '— Pocket Resume contact relay. The sender does not see your email address.',
+    ].filter(Boolean).join('\n');
+    try {
+      await this.transporter.sendMail({
+        from: this.fromAddress,
+        to: args.ownerEmail,
+        replyTo: `${args.senderName.replace(/[<>"]/g, '')} <${args.senderEmail}>`,
+        subject,
+        text,
+      });
+      this.logger.log(`Share relay sent for slug=${args.slug}`);
+      return true;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.error(`Failed to relay share message for slug=${args.slug}: ${msg.replace(/pass[^\s]*/gi, '***')}`);
+      return false;
+    }
+  }
+
+  /**
+   * R-031 outcome-nudge: "any reply from <company>?" with three
+   * one-tap links. Plain-text first (mail clients trust it more),
+   * minimal HTML with three real buttons.
+   */
+  async sendOutcomeNudgeEmail(args: {
+    to: string;
+    userName: string;
+    company: string;
+    role: string;
+    appliedAt: Date;
+    links: { noReply: string; rejected: string; interview: string; unsubscribe: string };
+  }): Promise<boolean> {
+    if (!this.transporter) {
+      this.logger.warn(`Cannot send outcome nudge to ${args.to}: SMTP not configured`);
+      return false;
+    }
+    const appliedOn = args.appliedAt.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+    const firstName = (args.userName || '').trim().split(/\s+/)[0] || 'there';
+    const subject = `Any reply from ${args.company}?`;
+    const text = [
+      `Hi ${firstName},`,
+      '',
+      `You applied to ${args.role} at ${args.company} on ${appliedOn}. One tap keeps your tracker honest:`,
+      '',
+      `No reply yet:   ${args.links.noReply}`,
+      `Rejected:       ${args.links.rejected}`,
+      `Interview! :    ${args.links.interview}`,
+      '',
+      `Recording outcomes is how Pocket Resume learns which of your resume versions actually works.`,
+      '',
+      `Stop these emails: ${args.links.unsubscribe}`,
+    ].join('\n');
+    const btn = (href: string, label: string, bg: string) =>
+      `<a href="${href}" style="display:inline-block;background:${bg};color:#ffffff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:600;margin:4px 6px 4px 0;">${label}</a>`;
+    const html = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 520px; margin: 0 auto; padding: 24px;">
+        <h2 style="color:#1a3a5c;margin:0 0 6px;">Any reply from ${escapeHtml(args.company)}?</h2>
+        <p style="color:#555;font-size:14px;margin:0 0 16px;">
+          You applied to <strong>${escapeHtml(args.role)}</strong> at <strong>${escapeHtml(args.company)}</strong> on ${appliedOn}.
+          One tap keeps your tracker honest:
+        </p>
+        <div style="margin-bottom:16px;">
+          ${btn(args.links.noReply, 'No reply yet', '#64748b')}
+          ${btn(args.links.rejected, 'Rejected', '#b91c1c')}
+          ${btn(args.links.interview, 'Interview!', '#1e7a3a')}
+        </div>
+        <p style="color:#888;font-size:12px;margin:0 0 4px;">
+          Recording outcomes is how Pocket Resume learns which of your resume versions actually works.
+        </p>
+        <p style="color:#aaa;font-size:11px;margin:12px 0 0;">
+          <a href="${args.links.unsubscribe}" style="color:#aaa;">Stop these emails</a>
+        </p>
+      </div>`;
+    try {
+      await this.transporter.sendMail({ from: this.fromAddress, to: args.to, subject, text, html });
+      this.logger.log(`Outcome nudge sent to ${args.to} for ${args.company}`);
+      return true;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.error(`Failed to send outcome nudge to ${args.to}: ${msg.replace(/pass[^\s]*/gi, '***')}`);
+      return false;
+    }
+  }
+
+  /**
+   * R-032 disambiguation: the user forwarded an outcome email but we
+   * couldn't tell which application it belongs to. One tap per
+   * candidate applies the detected outcome to that application.
+   */
+  async sendOutcomeDisambiguationEmail(args: {
+    to: string;
+    userName: string;
+    outcome: 'rejected' | 'interview' | 'offer';
+    rows: Array<{ company: string; role: string; link: string }>;
+  }): Promise<boolean> {
+    if (!this.transporter) {
+      this.logger.warn(`Cannot send disambiguation email to ${args.to}: SMTP not configured`);
+      return false;
+    }
+    const firstName = (args.userName || '').trim().split(/\s+/)[0] || 'there';
+    const OUTCOME_LABEL: Record<string, string> = {
+      rejected: 'a rejection',
+      interview: 'an interview invite',
+      offer: 'an offer',
+    };
+    const subject = `Which application was that about?`;
+    const text = [
+      `Hi ${firstName},`,
+      '',
+      `You forwarded ${OUTCOME_LABEL[args.outcome]}, but it matches more than one tracked application (or none clearly). One tap records it:`,
+      '',
+      ...args.rows.map((r) => `${r.role} @ ${r.company}:  ${r.link}`),
+      '',
+      `If none of these fit, update the application directly in your tracker.`,
+    ].join('\n');
+    const html = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 520px; margin: 0 auto; padding: 24px;">
+        <h2 style="color:#1a3a5c;margin:0 0 6px;">Which application was that about?</h2>
+        <p style="color:#555;font-size:14px;margin:0 0 16px;">
+          You forwarded ${OUTCOME_LABEL[args.outcome]}, but it matches more than one tracked
+          application. One tap records it:
+        </p>
+        ${args.rows.map((r) => `
+          <p style="margin:0 0 10px;">
+            <a href="${r.link}" style="display:inline-block;background:#1a3a5c;color:#ffffff;padding:8px 14px;border-radius:8px;text-decoration:none;font-weight:600;">
+              ${escapeHtml(r.role)} @ ${escapeHtml(r.company)}
+            </a>
+          </p>`).join('')}
+        <p style="color:#888;font-size:12px;margin:12px 0 0;">
+          If none of these fit, update the application directly in your tracker.
+        </p>
+      </div>`;
+    try {
+      await this.transporter.sendMail({ from: this.fromAddress, to: args.to, subject, text, html });
+      this.logger.log(`Disambiguation email sent to ${args.to} (${args.rows.length} candidates)`);
+      return true;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.error(`Failed to send disambiguation email to ${args.to}: ${msg.replace(/pass[^\s]*/gi, '***')}`);
+      return false;
+    }
+  }
+
   async sendOtpEmail(to: string, otp: string): Promise<boolean> {
     if (!this.transporter) {
       this.logger.warn(`Cannot send OTP email to ${to}: SMTP not configured`);

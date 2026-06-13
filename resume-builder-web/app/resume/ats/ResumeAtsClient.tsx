@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { api, type AtsScoreResult } from '@/src/lib/api';
 import { persistActiveResumeSelection, resolveCurrentSessionResumeId } from '@/src/lib/resume-flow';
 import { buildReviewAtsSuggestionSections } from '@/src/lib/review-ats';
+import DataLoader from '@/src/components/DataLoader';
 
 export default function ResumeAtsClient() {
   const router = useRouter();
@@ -61,18 +62,42 @@ export default function ResumeAtsClient() {
               Will an ATS <em>parse</em> your resume correctly?
             </p>
             <p className="small" style={{ margin: 0, color: '#5a6778' }}>
-              Checks format, structure, headings, dates, action verbs. JD is <em>optional</em> here — the score works without it.{' '}
-              <span style={{ color: '#8a98ac' }}>
-                Different from <a href="/jd-match" style={{ color: '#1a3a5c' }}>JD Match</a>, which compares your resume to a specific job&apos;s keywords.
-              </span>
+              Checks format, structure, headings, dates, action verbs. JD is <em>optional</em> here — the score works without it.
+            </p>
+            <p
+              className="small"
+              style={{
+                margin: '10px 0 0',
+                padding: '8px 12px',
+                background: '#f0f7ff',
+                border: '1px solid #c4d5e6',
+                borderRadius: 8,
+                color: '#1a3a5c',
+                lineHeight: 1.5,
+              }}
+            >
+              <strong>Three different scans, one purpose each:</strong><br />
+              <strong>ATS Score / Re-run ATS (this page)</strong> — does an ATS <em>parse</em> your resume cleanly? Format, dates, headings, action verbs.<br />
+              <strong>AI Critique (in the editor)</strong> — section-by-section rewrite suggestions powered by AI on paid plans, rule-based on Free.<br />
+              <strong><a href="/jd-match" style={{ color: '#1a3a5c' }}>JD Match</a></strong> — paste a specific JD, see which of its keywords your resume covers.
             </p>
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button className="btn secondary" onClick={() => router.push(`/resume?id=${encodeURIComponent(resumeId)}`)}>
               Back to Review
             </button>
-            <button className="btn" onClick={() => runScore()} disabled={loading}>
-              {loading ? 'Running...' : 'Re-run ATS'}
+            <button
+              className="btn"
+              onClick={() => runScore()}
+              disabled={loading}
+              aria-busy={loading}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 130 }}
+            >
+              {loading ? (
+                <DataLoader mode="inline" label="Running…" />
+              ) : (
+                'Re-run ATS'
+              )}
             </button>
           </div>
         </div>

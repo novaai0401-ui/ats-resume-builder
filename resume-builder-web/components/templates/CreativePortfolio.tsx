@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  AchievementsSection,
   allSkills,
   certificationItems,
   cleanList,
@@ -73,6 +74,7 @@ export default function CreativePortfolio({ resumeData }: TemplateProps) {
         <p>{skills.length ? skills.join(', ') : 'Add tools, software, and craft skills.'}</p>
       </section>
 
+      <AchievementsSection resumeData={normalized} />
       <section className="ats-section">
         <h2>{sectionTitle('education').toUpperCase()}</h2>
         {education.length ? education.map((item, idx) => (

@@ -4,6 +4,8 @@ import Link from 'next/link';
 import TrainingConsentCard from '@/src/components/TrainingConsentCard';
 import ByokKeyCard from '@/src/components/ByokKeyCard';
 import EncryptedBackupCard from '@/src/components/EncryptedBackupCard';
+import ShareLinksCard from '@/src/components/ShareLinksCard';
+import ReferralCard from '@/src/components/ReferralCard';
 
 /**
  * User settings.
@@ -36,8 +38,9 @@ export default function SettingsPageView() {
       <section className="card" style={{ marginTop: 16 }}>
         <h2 style={{ marginTop: 0 }}>Privacy</h2>
         <p className="small" style={{ color: '#5a6778' }}>
-          Your resume stays on this device by default. Cloud sync is opt-in and configured
-          inside the editor. We never sell your resume content.
+          Your resume is parsed and stored on our servers (HTTPS in transit, encrypted at rest)
+          so it follows you across devices. We don't sell your data and we never use your
+          resume to train AI unless you opt in below.
         </p>
         <Link className="btn secondary" href="/dashboard">Back to dashboard</Link>
       </section>
@@ -53,6 +56,10 @@ export default function SettingsPageView() {
       <div style={{ marginTop: 16 }}>
         <TrainingConsentCard />
       </div>
+
+      <ShareLinksCard />
+
+      <ReferralCard />
     </main>
   );
 }

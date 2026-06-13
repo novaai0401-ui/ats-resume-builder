@@ -399,6 +399,8 @@ See `.env.example` for the complete list with documentation.
 | `FORCE_DISABLE_RATE_LIMIT`  | `false`                  | Emergency kill switch for rate limit |
 | `ADMIN_EMAILS`              | —                        | Comma-separated admin emails         |
 | `ADMIN_MOBILES`             | —                        | Comma-separated admin phones         |
+| `AUDIT_URL`                 | —                        | Self-hosted audit-admin-analytics dashboard base URL. When set together with `AUDIT_WRITE_KEY`, every `/auth` event is forwarded server-side. Leave blank to disable cleanly. |
+| `AUDIT_WRITE_KEY`           | —                        | 32-char write key from the dashboard (Projects → "ATS Resume API"). |
 
 ---
 

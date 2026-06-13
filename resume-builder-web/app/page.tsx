@@ -29,7 +29,7 @@ export default function Page() {
           <Link className="btn secondary" href="/auth/register">Create account</Link>
         </div>
         <p className="small" style={{ marginTop: 14, opacity: 0.85 }}>
-          🔒 Your resume stays on this device. We never copy it to our server unless you turn on Cloud sync.
+          🔒 HTTPS in transit, encrypted at rest. We never sell your data and never train AI on your resume unless you opt in.
         </p>
       </section>
 
@@ -53,9 +53,9 @@ export default function Page() {
         <article className="card col-6">
           <h2>Privacy that's actually true</h2>
           <p className="small">
-            Most resume builders store every keystroke on their server. We don't. By default
-            your resume lives on your phone or laptop — not our database. We literally cannot
-            read what you write. Cloud sync is opt-in if you want cross-device access.
+            Your resume is stored in your Pocket Resume account so it's there on every device you
+            sign in from. We don't sell your data and we never train AI on your resume unless you
+            opt in (Settings → Training data). Delete any resume — or your whole account — anytime.
           </p>
         </article>
         <article className="card col-6">

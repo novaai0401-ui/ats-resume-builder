@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { TkxDrawer } from 'tekivex-ui';
 import { api, getAccessToken, isCurrentUserAdmin, startSessionHeartbeat } from '@/src/lib/api';
-import { isNavActive, RESUME_SUBROUTE_OWNED } from '@/src/lib/nav-active';
+import { NAV_HUBS, activeHubKey, type HubKey } from '@/src/lib/nav-hubs';
 import { classifyDevice, isInstallTargetDevice } from '@/src/lib/device';
 import SessionWarningModal from './SessionWarningModal';
 
@@ -31,8 +31,15 @@ export default function TopNav() {
   const [plan, setPlan] = useState<string>('FREE');
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  function navProps(href: string, excludePrefixes: string[] = []): { 'aria-current'?: 'page' } {
-    return isNavActive(pathname, href, excludePrefixes) ? { 'aria-current': 'page' } : {};
+  // R-036: the 5-hub model. activeHubKey owns prefix matching across
+  // every route the hub claims (see nav-hubs.ts) — TopNav no longer
+  // has to know whether /jd-match belongs to Resume or Applications.
+  const activeHub: HubKey | null = activeHubKey(pathname);
+  function hubProps(key: HubKey): { 'aria-current'?: 'page' } {
+    return activeHub === key ? { 'aria-current': 'page' } : {};
+  }
+  function exactProps(href: string): { 'aria-current'?: 'page' } {
+    return pathname === href ? { 'aria-current': 'page' } : {};
   }
   // TkxDrawer renders through a portal and touches `document` on mount —
   // rendering it during SSR produces markup the client can't match,
@@ -99,49 +106,53 @@ export default function TopNav() {
   const planLabel = PLAN_LABEL[plan] || plan || 'Free';
   const planTone = plan === 'PRO' ? 'plan-badge--pro' : plan === 'STUDENT' ? 'plan-badge--student' : 'plan-badge--free';
 
+  // R-036: render the five hubs (post-login) instead of 12+ flat links.
+  // The Dashboard surface stays accessible at /dashboard — it remains
+  // the post-login landing but is not a hub in its own right (it IS
+  // the post-login Home for authed users, semantically).
   const links = (
     <>
-      <Link href="/" onClick={closeDrawer} {...navProps('/')}>Home</Link>
+      {authed ? (
+        <Link href="/dashboard" onClick={closeDrawer} {...exactProps('/dashboard')}>
+          Home
+        </Link>
+      ) : (
+        <Link href="/" onClick={closeDrawer} {...hubProps('home')}>Home</Link>
+      )}
       {authed && (
         <>
-          <Link href="/dashboard" onClick={closeDrawer} {...navProps('/dashboard')}>Dashboard</Link>
-          <Link href="/resume/start" onClick={closeDrawer} {...navProps('/resume', RESUME_SUBROUTE_OWNED)}>Resume</Link>
-          <Link href="/resume/versions" onClick={closeDrawer} {...navProps('/resume/versions')}>Versions</Link>
-          <Link href="/resume/outcomes" onClick={closeDrawer} {...navProps('/resume/outcomes')}>Outcomes</Link>
-          <Link href="/resume/ats-simulate" onClick={closeDrawer} {...navProps('/resume/ats-simulate')}>ATS Simulator</Link>
-          <Link href="/recruiter-sim" onClick={closeDrawer} {...navProps('/recruiter-sim')}>Recruiter AI</Link>
-          <Link href="/jobs" onClick={closeDrawer} {...navProps('/jobs')}>Jobs</Link>
-          <Link href="/cover-letter" onClick={closeDrawer} {...navProps('/cover-letter')}>Cover Letter</Link>
-          <Link href="/portfolio" onClick={closeDrawer} {...navProps('/portfolio')}>Portfolio</Link>
-          <Link href="/career" onClick={closeDrawer} {...navProps('/career')}>Career Navigator</Link>
-          <Link href="/mentor" onClick={closeDrawer} {...navProps('/mentor')}>Mentor</Link>
-          <Link href="/sahaayak" onClick={closeDrawer} {...navProps('/sahaayak')}>Sahaayak</Link>
-          <Link href="/jd-match" onClick={closeDrawer} {...navProps('/jd-match')}>JD Match</Link>
-          <Link href="/skill-demand" onClick={closeDrawer} {...navProps('/skill-demand')}>Skill Demand</Link>
-          {plan === 'PRO' ? (
-            <>
-              <Link href="/interview-prep" onClick={closeDrawer} {...navProps('/interview-prep')}>Interview Prep</Link>
-              <Link href="/mentor/chat" onClick={closeDrawer} {...navProps('/mentor/chat')}>Mentor Chat</Link>
-            </>
-          ) : null}
-          <Link href="/settings" onClick={closeDrawer} {...navProps('/settings')}>Settings</Link>
+          {NAV_HUBS.filter((h) => h.key !== 'home' && h.key !== 'account').map((hub) => (
+            <Link
+              key={hub.key}
+              href={hub.landing}
+              onClick={closeDrawer}
+              {...hubProps(hub.key)}
+            >
+              {hub.label}
+            </Link>
+          ))}
+          <Link href="/settings" onClick={closeDrawer} {...hubProps('account')}>
+            Account
+          </Link>
           {/* Plan badge doubles as a billing-page link so users can see
               their tier at a glance and one-tap to manage. Free users
-              see "Free → Upgrade" cue colours; paid users see green. */}
+              see "Free → Upgrade" cue colours; paid users see green.
+              Lives outside the 5-hub set because it's a status chip
+              with a shortcut, not navigation. */}
           <Link
             href="/billing"
             onClick={closeDrawer}
             className={`plan-badge ${planTone}`}
             aria-label={`Current plan: ${planLabel}. Tap to manage.`}
-            {...navProps('/billing')}
+            {...exactProps('/billing')}
           >
             {planLabel}
           </Link>
         </>
       )}
-      {authed && admin ? <Link href="/admin" onClick={closeDrawer} {...navProps('/admin')}>Admin</Link> : null}
+      {authed && admin ? <Link href="/admin" onClick={closeDrawer} {...exactProps('/admin')}>Admin</Link> : null}
       {installable ? (
-        <Link href="/download" onClick={closeDrawer} className="nav-download-app" {...navProps('/download')}>
+        <Link href="/download" onClick={closeDrawer} className="nav-download-app" {...exactProps('/download')}>
           Download App
         </Link>
       ) : null}
@@ -149,8 +160,8 @@ export default function TopNav() {
         <button className="btn secondary" type="button" onClick={onLogout}>Logout</button>
       ) : (
         <>
-          <Link href="/auth/login" onClick={closeDrawer} {...navProps('/auth/login')}>Login</Link>
-          <Link href="/auth/register" onClick={closeDrawer} {...navProps('/auth/register')}>Register</Link>
+          <Link href="/auth/login" onClick={closeDrawer} {...exactProps('/auth/login')}>Login</Link>
+          <Link href="/auth/register" onClick={closeDrawer} {...exactProps('/auth/register')}>Register</Link>
         </>
       )}
     </>

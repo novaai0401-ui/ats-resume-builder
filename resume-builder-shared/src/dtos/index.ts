@@ -3,6 +3,8 @@ export type RegisterDto = {
   email: string;
   mobile: string;
   password?: string;
+  /** R-037: referral code carried from a `?ref=` link. Best-effort. */
+  referralCode?: string;
 };
 
 export type EmailOtpRequestDto = {

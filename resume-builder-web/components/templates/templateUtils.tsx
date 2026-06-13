@@ -117,3 +117,41 @@ export function certificationItems(resumeData: ResumeImportResult) {
 export function achievementItems(resumeData: ResumeImportResult): string[] {
   return cleanList((resumeData as { achievements?: string[] }).achievements || []);
 }
+
+/**
+ * TEMPLATE_SPEC §1.3 — generic achievements fallback.
+ *
+ * Only ClassicATS styles achievements first-class; every other
+ * template was silently DROPPING the section from preview + PDF
+ * (founder report: "all achievements are not listed" — the parser
+ * extracted them fine, the template threw them away). This shared
+ * block gives the other ten templates an honest plain rendering:
+ * the canonical section title + a simple list, styleable via the
+ * two style hooks so each template can match its own typography.
+ *
+ * A template "upgrades" by styling the section itself and adding
+ * 'achievements' to its supportedSections catalog entry — at which
+ * point it stops rendering this fallback.
+ */
+export function AchievementsSection({
+  resumeData,
+  headingStyle,
+  listStyle,
+}: {
+  resumeData: ResumeImportResult;
+  headingStyle?: React.CSSProperties;
+  listStyle?: React.CSSProperties;
+}) {
+  const achievements = achievementItems(resumeData);
+  if (!achievements.length) return null;
+  return (
+    <section>
+      <h2 style={headingStyle}>{sectionTitle('achievements').toUpperCase()}</h2>
+      <ul style={{ margin: '4px 0 0', paddingLeft: 18, ...listStyle }}>
+        {achievements.map((line, idx) => (
+          <li key={idx}>{line}</li>
+        ))}
+      </ul>
+    </section>
+  );
+}

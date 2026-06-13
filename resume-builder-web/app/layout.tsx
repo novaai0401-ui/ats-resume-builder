@@ -3,8 +3,10 @@ import type { Metadata, Viewport } from 'next';
 import 'tekivex-ui/styles';
 import './globals.css';
 import TopNav from '@/src/components/TopNav';
+import MobileBottomNav from '@/src/components/MobileBottomNav';
 import Providers from '@/src/components/Providers';
 import PwaInstaller from '@/src/components/PwaInstaller';
+import SkipToContent from '@/src/components/SkipToContent';
 import TrainingConsentModal from '@/src/components/TrainingConsentModal';
 
 // Site URL is read from env at build time so we can use staging /
@@ -130,14 +132,26 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         />
       </head>
       <body>
+        <SkipToContent targetId="main-content" />
         <Providers>
           <div className="main-shell">
             <header className="topbar">
               <div className="brand">Pocket Resume</div>
               <TopNav />
             </header>
-            {children}
+            {/* Skip-link target. tabindex="-1" lets us focus a non-interactive
+             * wrapper without putting it in the tab order. Most pages render
+             * their own <main> inside, so we use a plain <div> here to avoid
+             * nesting <main> landmarks. */}
+            <div id="main-content" tabIndex={-1}>
+              {children}
+            </div>
           </div>
+          {/* R-036: fixed bottom nav on phones. Renders the same 5
+              hubs as the desktop top-nav so navigation stays in one
+              place. CSS handles the breakpoint; component renders
+              only when authed. */}
+          <MobileBottomNav />
           <PwaInstaller />
           <TrainingConsentModal />
         </Providers>

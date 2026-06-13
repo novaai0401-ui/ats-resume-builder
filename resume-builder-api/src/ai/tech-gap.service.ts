@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import type { AiProvider } from './providers/ai-provider.interface';
 import { GroqProvider } from './providers/groq.provider';
 import { XaiProvider } from './providers/xai.provider';
+import { filterJdKeywords } from '../lib/keyword-stopwords';
 
 export interface TechGapInput {
   summary?: string;
@@ -181,8 +182,15 @@ export class TechGapService {
       ...(input.experience || []).flatMap((e) => [e.role, ...e.highlights]),
     ].join(' ').toLowerCase();
 
+    // Filter generic English filler / section labels — the founder's
+    // smoke test showed this surface listing "+ you + were + past +
+    // worked + following + real" as "Missing Critical Skills" because
+    // the local tokenize() had ZERO stopwords. Now shares the same
+    // filter every other "missing keywords" surface uses.
     const jdTokens = tokenize(input.jdText || '');
-    const missingFromJd = jdTokens.filter((t) => !skills.has(t) && !resumeText.includes(t));
+    const missingFromJd = filterJdKeywords(
+      jdTokens.filter((t) => !skills.has(t) && !resumeText.includes(t)),
+    );
 
     const hasLeadership = /\b(led|managed|mentored|owned|coordinated)\b/.test(resumeText);
     const hasArchitecture = /\b(architect|design|system design|scalab|micro)\b/.test(resumeText);
