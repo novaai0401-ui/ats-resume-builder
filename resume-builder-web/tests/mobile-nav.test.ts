@@ -114,3 +114,49 @@ test('mobile action bar defaults to display:none so desktop never sees it', () =
     /\.mobile-action-bar\s*\{\s*display:\s*none;?\s*\}/,
   );
 });
+
+// ── R-036 bottom-nav contract ─────────────────────────────────────
+
+test('mobile bottom nav exists and renders the 5 hubs', () => {
+  const src = readFileSync(
+    path.join(webRoot, 'src', 'components', 'MobileBottomNav.tsx'),
+    'utf8',
+  );
+  // Uses tekivex-ui so it inherits the app's component language.
+  assert.match(src, /import\s*\{\s*TkxBottomNav\s*\}\s*from\s*'tekivex-ui'/);
+  // Reads the 5-hub config — never duplicate the list, or the bottom
+  // nav and TopNav can drift.
+  assert.match(src, /NAV_HUBS/);
+  assert.match(src, /activeHubKey\(pathname\)/);
+});
+
+test('mobile bottom nav is mounted in the root layout', () => {
+  const layout = readFileSync(path.join(webRoot, 'app', 'layout.tsx'), 'utf8');
+  assert.match(layout, /import\s+MobileBottomNav\s+from/);
+  assert.match(layout, /<MobileBottomNav\s*\/>/);
+});
+
+test('mobile bottom nav is hidden above 767px and pinned bottom-safe-area below', () => {
+  // CSS-only breakpoint — keeps the component media-query-free.
+  // Default rule: display:none.
+  assert.match(globalsCss, /\.mobile-bottom-nav\s*\{\s*display:\s*none;?\s*\}/);
+  // Phone rule: position fixed + safe-area-inset-bottom (iOS home
+  // indicator overlap fix, mirrors .mobile-action-bar).
+  const below768 = collectRulesIn(globalsCss, /max-width:\s*767px/);
+  const phoneRule = below768.match(/\.mobile-bottom-nav\s*\{([^}]+)\}/);
+  assert.ok(phoneRule, '.mobile-bottom-nav phone rule missing');
+  const body = phoneRule[1];
+  assert.match(body, /position:\s*fixed/);
+  assert.match(body, /bottom:\s*0/);
+  assert.match(body, /env\(safe-area-inset-bottom/);
+});
+
+test('mobile bottom nav hides for logged-out visitors', () => {
+  // No hub navigation makes sense before login — the component
+  // returns null until getAccessToken() finds a token.
+  const src = readFileSync(
+    path.join(webRoot, 'src', 'components', 'MobileBottomNav.tsx'),
+    'utf8',
+  );
+  assert.match(src, /if\s*\(!authed\)\s*return\s*null;?/);
+});

@@ -3821,3 +3821,38 @@ html, body { max-width: 100%; overflow-x: hidden; }
     padding: 16px;
   }
 }
+
+/* ─── R-036 mobile bottom nav ──────────────────────────────────────
+ * Renders on phones only (TopNav burger + drawer handle small-screen
+ * navigation in the header; this nav lives at the bottom so common
+ * destinations are reachable without scrolling back up). The shell
+ * is the wrapper Pocket Resume owns; TkxBottomNav handles the row
+ * layout + active-state styling.
+ */
+.mobile-bottom-nav {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .mobile-bottom-nav {
+    display: block;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 50;
+    background: #ffffff;
+    border-top: 1px solid #e2e8f0;
+    /* iOS home-indicator: pad below so taps don't underlap. */
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    box-shadow: 0 -1px 4px rgba(15, 23, 42, 0.06);
+  }
+
+  /* Leave room for the bar so the last bit of a page isn't hidden.
+   * The .mobile-action-bar (editor's sticky action row) sits ABOVE
+   * the bottom nav and already has its own offset; nothing else
+   * needs adjustment because most pages have generous bottom margin. */
+  main {
+    padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+  }
+}

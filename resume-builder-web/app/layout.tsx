@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from 'next';
 import 'tekivex-ui/styles';
 import './globals.css';
 import TopNav from '@/src/components/TopNav';
+import MobileBottomNav from '@/src/components/MobileBottomNav';
 import Providers from '@/src/components/Providers';
 import PwaInstaller from '@/src/components/PwaInstaller';
 import SkipToContent from '@/src/components/SkipToContent';
@@ -146,6 +147,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               {children}
             </div>
           </div>
+          {/* R-036: fixed bottom nav on phones. Renders the same 5
+              hubs as the desktop top-nav so navigation stays in one
+              place. CSS handles the breakpoint; component renders
+              only when authed. */}
+          <MobileBottomNav />
           <PwaInstaller />
           <TrainingConsentModal />
         </Providers>
