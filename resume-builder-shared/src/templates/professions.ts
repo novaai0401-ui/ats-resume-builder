@@ -141,7 +141,7 @@ export const PROFESSION_INDUSTRIES: readonly ProfessionIndustry[] = [
     id: 'healthcare',
     label: 'Healthcare & Life Sciences',
     description: 'Clinical, nursing, pharmacy, and life-sciences roles.',
-    recommendedTemplates: ['healthcare', 'classic', 'executive'],
+    recommendedTemplates: ['healthcare', 'classic', 'consultant'],
     roles: [
       { id: 'physician', label: 'Physician / Doctor' },
       { id: 'registered-nurse', label: 'Registered Nurse' },
@@ -160,7 +160,7 @@ export const PROFESSION_INDUSTRIES: readonly ProfessionIndustry[] = [
     id: 'finance',
     label: 'Finance & Accounting',
     description: 'Banking, investing, audit, and corporate finance.',
-    recommendedTemplates: ['executive', 'consultant', 'classic'],
+    recommendedTemplates: ['modern', 'consultant', 'classic'],
     roles: [
       { id: 'financial-analyst', label: 'Financial Analyst' },
       { id: 'investment-banker', label: 'Investment Banker' },
@@ -179,7 +179,7 @@ export const PROFESSION_INDUSTRIES: readonly ProfessionIndustry[] = [
     id: 'legal',
     label: 'Legal',
     description: 'Litigation, corporate counsel, compliance, and paralegal work.',
-    recommendedTemplates: ['classic', 'executive', 'consultant'],
+    recommendedTemplates: ['classic', 'modern', 'consultant'],
     roles: [
       { id: 'lawyer', label: 'Lawyer / Advocate' },
       { id: 'corporate-counsel', label: 'Corporate Counsel' },
@@ -209,7 +209,7 @@ export const PROFESSION_INDUSTRIES: readonly ProfessionIndustry[] = [
     id: 'business-management',
     label: 'Business & Management',
     description: 'Product, project, program, and operations leadership.',
-    recommendedTemplates: ['executive', 'modern', 'consultant'],
+    recommendedTemplates: ['classic', 'modern', 'consultant'],
     roles: [
       { id: 'business-analyst', label: 'Business Analyst' },
       { id: 'product-manager', label: 'Product Manager' },
@@ -225,7 +225,7 @@ export const PROFESSION_INDUSTRIES: readonly ProfessionIndustry[] = [
     id: 'sales-marketing',
     label: 'Sales & Marketing',
     description: 'Revenue, growth, marketing, and customer-facing roles.',
-    recommendedTemplates: ['modern', 'creative', 'executive'],
+    recommendedTemplates: ['modern', 'creative', 'consultant'],
     roles: [
       { id: 'sales-executive', label: 'Sales Executive' },
       { id: 'account-executive', label: 'Account Executive' },
@@ -260,7 +260,7 @@ export const PROFESSION_INDUSTRIES: readonly ProfessionIndustry[] = [
     id: 'human-resources',
     label: 'Human Resources',
     description: 'Recruiting, HR business partners, L&D, and people ops.',
-    recommendedTemplates: ['modern', 'classic', 'executive'],
+    recommendedTemplates: ['modern', 'classic', 'consultant'],
     roles: [
       { id: 'hr-generalist', label: 'HR Generalist' },
       { id: 'recruiter', label: 'Technical / Corporate Recruiter' },
@@ -317,7 +317,7 @@ export const PROFESSION_INDUSTRIES: readonly ProfessionIndustry[] = [
     id: 'construction-real-estate',
     label: 'Construction & Real Estate',
     description: 'Architecture, site engineering, surveying, and property.',
-    recommendedTemplates: ['classic', 'technical', 'executive'],
+    recommendedTemplates: ['classic', 'technical', 'consultant'],
     roles: [
       { id: 'architect', label: 'Architect' },
       { id: 'site-engineer', label: 'Site Engineer' },
@@ -331,7 +331,7 @@ export const PROFESSION_INDUSTRIES: readonly ProfessionIndustry[] = [
     id: 'government-public-sector',
     label: 'Government & Public Sector',
     description: 'Policy, civil service, defense, and public administration.',
-    recommendedTemplates: ['classic', 'executive', 'academic'],
+    recommendedTemplates: ['classic', 'consultant', 'academic'],
     roles: [
       { id: 'policy-analyst', label: 'Policy Analyst' },
       { id: 'civil-servant', label: 'Civil Servant' },

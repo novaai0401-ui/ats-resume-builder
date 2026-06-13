@@ -76,15 +76,14 @@ export function recommendTemplates(resume: ResumeDraft): TemplateRecommendation 
   };
 
   if (experienceYears >= 8 || detection.level === 'SENIOR') {
-    bump('executive', 28, 'Leadership-heavy profiles read best with impact-first sections.');
-    bump('consultant', 12);
-    bump('classic', 10);
+    bump('consultant', 28, 'Leadership-heavy profiles read best with impact-first sections.');
+    bump('classic', 14);
     bump('modern', 8);
   }
 
   if ((resume.experience || []).length >= 4) {
-    bump('executive', 10);
-    bump('classic', 8);
+    bump('classic', 12);
+    bump('consultant', 8);
   }
 
   if (skillCount >= 12 || (resume.certifications?.length || 0) >= 3) {

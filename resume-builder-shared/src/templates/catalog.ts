@@ -1,7 +1,6 @@
 export type TemplateCatalogId =
   | 'classic'
   | 'modern'
-  | 'executive'
   | 'technical'
   | 'minimal'
   | 'consultant'
@@ -110,25 +109,6 @@ export const TEMPLATE_CATALOG: readonly TemplateCatalogItem[] = [
       'ai-machine-learning',
     ],
     componentKey: 'modern',
-    supportedSections: ['summary', 'skills', 'experience', 'projects', 'education', 'certifications', 'languages'],
-    supportedLocales: ['en-IN', 'en-US'],
-    layout: 'single-column',
-    paginationSafe: true,
-    implementedVariants: ['screen', 'print', 'ats-export'],
-  },
-  {
-    id: 'executive',
-    name: 'Executive Impact',
-    description: 'Leadership-focused single-column hierarchy with results-first bullet structure. Parses cleanly across major ATS.',
-    tags: ['ATS-safe', 'Leadership'],
-    atsSafety: 'high',
-    recommendedFor: ['Senior IC', 'Manager', 'Director'],
-    industries: [
-      'business-management', 'finance', 'sales-marketing',
-      'human-resources', 'government-public-sector', 'legal',
-      'construction-real-estate',
-    ],
-    componentKey: 'executive',
     supportedSections: ['summary', 'skills', 'experience', 'projects', 'education', 'certifications', 'languages'],
     supportedLocales: ['en-IN', 'en-US'],
     layout: 'single-column',
@@ -290,7 +270,12 @@ const TEMPLATE_ID_ALIASES: Record<string, TemplateCatalogId> = {
   'graduate-starter': 'minimal',
   'modern-professional': 'modern',
   'classic-ats': 'classic',
-  'executive-impact': 'executive',
+  // 'executive' was visually indistinguishable from 'classic' (founder
+  // smoke 2026-06: only h1 font-size and one letter-spacing differed).
+  // Removed from the catalog; both old IDs alias to 'classic' so saved
+  // resumes and profession recommendations keep working.
+  executive: 'classic',
+  'executive-impact': 'classic',
   'technical-compact': 'technical',
   'minimal-clean': 'minimal',
   'consultant-clean': 'consultant',

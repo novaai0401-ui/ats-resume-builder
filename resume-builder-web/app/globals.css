@@ -2744,16 +2744,23 @@ body.resume-embed-body .main-shell {
   font-style: italic;
 }
 
+/* Preview MUST match resume-builder-api/src/resume/resume.service.ts
+   ATS_TEMPLATE_EXPORT_CSS or the downloaded PDF won't look like the
+   preview. The preview keeps a light border so the user can see the
+   "page" edge; the border is dropped on export (the @page margin is
+   the real edge). Font, size, line-height, padding are otherwise
+   identical to the export. */
 .ats-template {
   width: 100%;
   box-sizing: border-box;
   border: 1px solid #d9e2ec;
   background: #fff;
-  padding: 18px 20px;
+  padding: 24px 28px;
   color: #111;
-  font-family: Arial, "Helvetica Neue", Helvetica, "Inter", sans-serif;
-  font-size: 11px;
-  line-height: 1.32;
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto,
+               'Helvetica Neue', 'Liberation Sans', 'DejaVu Sans', Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
   overflow-wrap: anywhere;
   word-break: break-word;
 }
@@ -2779,22 +2786,18 @@ body.resume-embed-body .main-shell {
 
 .ats-template__header h1 {
   margin: 0;
-  font-size: 21px;
+  font-size: 26px;
   line-height: 1.15;
   font-weight: 700;
+  letter-spacing: -0.01em;
   overflow-wrap: anywhere;
   word-break: break-word;
-}
-
-.ats-template--executive .ats-template__header h1 {
-  font-size: 24px;
-  letter-spacing: 0.3px;
 }
 
 .ats-template__header p {
   margin: 4px 0 0;
   color: #39495e;
-  font-size: 10.6px;
+  font-size: 12.5px;
   white-space: normal;
   overflow-wrap: anywhere;
   word-break: break-word;
@@ -2822,7 +2825,7 @@ body.resume-embed-body .main-shell {
 
 .ats-section h2 {
   margin: 0 0 6px;
-  font-size: 12.5px;
+  font-size: 14px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: #1b2b3c;
@@ -2844,7 +2847,7 @@ body.resume-embed-body .main-shell {
 
 .ats-item h3 {
   margin: 0;
-  font-size: 11.2px;
+  font-size: 13.5px;
   font-weight: 700;
   overflow-wrap: anywhere;
   word-break: break-word;
@@ -2860,7 +2863,7 @@ body.resume-embed-body .main-shell {
 
 .ats-item__meta {
   color: #4b5d74;
-  font-size: 10.4px;
+  font-size: 12.5px;
   break-after: avoid;
   page-break-after: avoid;
 }

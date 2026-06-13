@@ -4243,17 +4243,31 @@ type TemplateCertificationItem = {
   date: string;
 };
 
-const ATS_TEMPLATE_EXPORT_CSS_BUNDLE = 'inline:ats-template-css-v3';
+const ATS_TEMPLATE_EXPORT_CSS_BUNDLE = 'inline:ats-template-css-v4';
 const ATS_TEMPLATE_EXPORT_CSS = `
-      @page { size: A4; margin: 15mm; }
+      /* @page margins ARE the print margins. The previous CSS also
+         padded .ats-template by 18px and drew a 1px border around it,
+         which combined with the 15mm @page margin to push the first
+         line ~7mm further in than the preview showed and shrank the
+         usable height — visible to the founder as "blank space pushing
+         content to next page". Drop the border + most of the padding
+         and let the @page margin do the work. */
+      @page { size: A4; margin: 14mm 14mm 14mm 14mm; }
       * { box-sizing: border-box; }
       html, body { margin: 0; padding: 0; }
       body {
-        font-family: Arial, "Helvetica Neue", Helvetica, "Inter", sans-serif;
+        /* Use the same font stack as the on-screen preview so the
+           downloaded PDF matches the user's selection byte-for-byte.
+           Inter is the modern resume default (Novoresume, Resume.io,
+           Teal, LinkedIn). On headless Chrome (Render = Debian), if
+           Inter is not installed it falls through to DejaVu Sans /
+           Liberation Sans which ARE installed, never to a serif font. */
+        font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto,
+                     'Helvetica Neue', 'Liberation Sans', 'DejaVu Sans', Arial, sans-serif;
         color: #111;
         background: #ffffff;
-        font-size: 11px;
-        line-height: 1.32;
+        font-size: 10.5pt;
+        line-height: 1.4;
       }
       .resume-export-root {
         width: 100%;
@@ -4267,18 +4281,17 @@ const ATS_TEMPLATE_EXPORT_CSS = `
       .ats-template {
         width: 100%;
         box-sizing: border-box;
-        border: 1px solid #d9e2ec;
         background: #fff;
-        padding: 18px 20px;
+        padding: 0;
         color: #111;
-        font-size: 11px;
-        line-height: 1.32;
+        font-size: 10.5pt;
+        line-height: 1.4;
         overflow-wrap: anywhere;
         word-break: break-word;
       }
       .ats-template--technical {
-        padding-top: 16px;
-        padding-bottom: 16px;
+        padding-top: 0;
+        padding-bottom: 0;
       }
       .ats-template__header {
         border-bottom: 2px solid #111;
@@ -4287,20 +4300,17 @@ const ATS_TEMPLATE_EXPORT_CSS = `
       }
       .ats-template__header h1 {
         margin: 0;
-        font-size: 21px;
+        font-size: 20pt;
         line-height: 1.15;
         font-weight: 700;
+        letter-spacing: -0.01em;
         overflow-wrap: anywhere;
         word-break: break-word;
-      }
-      .ats-template--executive .ats-template__header h1 {
-        font-size: 24px;
-        letter-spacing: 0.3px;
       }
       .ats-template__header p {
         margin: 4px 0 0;
         color: #39495e;
-        font-size: 10.6px;
+        font-size: 9.5pt;
         overflow-wrap: anywhere;
         word-break: break-word;
         white-space: normal;
@@ -4323,7 +4333,7 @@ const ATS_TEMPLATE_EXPORT_CSS = `
       }
       .ats-section h2 {
         margin: 0 0 6px;
-        font-size: 12.5px;
+        font-size: 11pt;
         letter-spacing: 0.08em;
         text-transform: uppercase;
         color: #1b2b3c;
@@ -4336,14 +4346,21 @@ const ATS_TEMPLATE_EXPORT_CSS = `
         overflow-wrap: anywhere;
         word-break: break-word;
       }
+      /* Critical: do NOT mark .ats-item as page-break-inside: avoid.
+         When a multi-bullet experience item was too tall to fit at the
+         end of page 1, the whole block jumped to page 2 leaving a big
+         blank band at the bottom of page 1 — the founder's exact
+         "blank space pushing content to next page" report. Allowing
+         the bullets to break across pages, while keeping the heading
+         row glued to at least the first bullet via break-after: avoid
+         on h3/meta and orphans/widows on the <ul>, gives a clean page
+         break without orphaned headings. */
       .ats-item {
         margin-top: 8px;
-        page-break-inside: avoid;
-        break-inside: avoid;
       }
       .ats-item h3 {
         margin: 0;
-        font-size: 11.2px;
+        font-size: 10.5pt;
         font-weight: 700;
         overflow-wrap: anywhere;
         word-break: break-word;
@@ -4357,15 +4374,15 @@ const ATS_TEMPLATE_EXPORT_CSS = `
       }
       .ats-item__meta {
         color: #4b5d74;
-        font-size: 10.4px;
+        font-size: 9.5pt;
         break-after: avoid;
         page-break-after: avoid;
       }
       .ats-item ul {
         margin: 5px 0 0 18px;
         padding: 0;
-        orphans: 2;
-        widows: 2;
+        orphans: 3;
+        widows: 3;
       }
       .ats-item li {
         margin: 2px 0;
@@ -4496,7 +4513,11 @@ export function renderResumeHtml(input: RenderResumeHtmlInput): string {
 
 function renderTemplateBody(templateId: string, resume: any) {
   if (templateId === 'modern') return renderModernTemplateArticle(resume);
-  if (templateId === 'executive') return renderExecutiveTemplateArticle(resume);
+  // 'executive' was retired (visually identical to 'classic'); the
+  // alias in resume-builder-shared/templates/catalog.ts redirects the
+  // id, but defensively keep the branch falling through to classic so
+  // any old saved resume that still has templateId='executive' in the
+  // DB renders the same thing it would after alias resolution.
   if (templateId === 'technical') return renderTechnicalTemplateArticle(resume);
   if (templateId === 'consultant') return renderConsultantTemplateArticle(resume);
   if (['minimal', 'graduate'].includes(templateId)) return renderMinimalTemplateArticle(resume);
@@ -4531,16 +4552,6 @@ function renderModernTemplateArticle(resume: any) {
     <article class="ats-template ats-template--modern">
       ${templateHeader(normalized, { bar: true })}
       ${renderOrderedSections(normalized, { companyJoiner: ' | ', divided: true })}
-    </article>
-  `;
-}
-
-function renderExecutiveTemplateArticle(resume: any) {
-  const normalized = normalizeTemplateResumeData(resume);
-  return `
-    <article class="ats-template ats-template--executive">
-      ${templateHeader(normalized, { executive: true })}
-      ${renderOrderedSections(normalized, { companyJoiner: ', ', upperClassHeadings: true })}
     </article>
   `;
 }
@@ -4938,10 +4949,9 @@ function renderAccentHeaderTemplateArticle(resume: any) {
   `;
 }
 
-function templateHeader(resume: any, options?: { bar?: boolean; executive?: boolean }) {
+function templateHeader(resume: any, options?: { bar?: boolean }) {
   const classes = ['ats-template__header'];
   if (options?.bar) classes.push('ats-template__header--bar');
-  if (options?.executive) classes.push('ats-template__header--executive');
   const line = templateContactLine(resume);
   return `
       <header class="${classes.join(' ')}">
@@ -5297,15 +5307,16 @@ function normalizeTemplateId(value: unknown) {
   const aliases: Record<string, string> = {
     student: 'minimal',
     graduate: 'graduate',
-    senior: 'executive',
-    // Note: 'portfolio' used to alias to executive (legacy). The new
-    // catalog treats 'portfolio' as the creative portfolio template;
-    // route it there so the PDF matches the live preview.
+    // 'executive' was retired in favour of 'classic' (the two were
+    // visually indistinguishable). Keep alias routing so old DB rows
+    // / share links / saved selections continue to resolve.
+    executive: 'classic',
+    senior: 'classic',
     portfolio: 'creative',
     product: 'modern',
     'modern-professional': 'modern',
     'classic-ats': 'classic',
-    'executive-impact': 'executive',
+    'executive-impact': 'classic',
     'technical-compact': 'technical',
     'graduate-starter': 'graduate',
     'minimal-clean': 'minimal',

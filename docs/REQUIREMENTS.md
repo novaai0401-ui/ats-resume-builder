@@ -715,6 +715,41 @@ and every external call still feeds the Outcome Graph.
     tenant-tagged `source` field is sequenced separately once
     pattern-learner is exposed to non-personal-user data.
 
+### R-042a · Retire duplicate "Executive Impact" template + PDF preview parity
+
+- Status: **DONE** (on branch)
+- Depends-on: R-035b, C-002
+- Context
+  - Founder smoke 2026-06: "Classic ATS" and "Executive Impact" rendered
+    identically — the templates differed only by h1 21→24px, h2
+    letter-spacing 0.08→0.12em, and the experience company joiner.
+    Catalog promised "Leadership-focused, results-first" but the React
+    component shipped the same single-column block as Classic.
+  - Same smoke: downloaded PDFs had a blank band at the bottom of
+    page 1 pushing whole experience items to page 2, and the font
+    looked heavier than the on-screen preview. Root cause was
+    `page-break-inside: avoid` on `.ats-item` plus an Arial-led font
+    stack that fell back to a Linux serif on headless Chrome (Render).
+- Acceptance
+  - [x] `executive` catalog entry removed; both `executive` and
+    `executive-impact` aliased to `classic` in catalog +
+    `normalizeTemplateId` so saved resumes / share links keep working.
+  - [x] `ExecutiveImpact.tsx` deleted; `templateRegistry` no longer
+    references it; profession recommendations swapped off `executive`.
+  - [x] PDF CSS: `.ats-item { page-break-inside: avoid }` removed; the
+    heading-with-first-bullet glue is preserved via `break-after:
+    avoid` on `h3` + `orphans/widows: 3` on `ul` so a tall experience
+    block now fills the page instead of jumping to the next one.
+  - [x] Font stack unified to `'Inter', system-ui, …, 'Liberation
+    Sans', 'DejaVu Sans', Arial, sans-serif` in BOTH preview
+    (`globals.css`) and PDF export so the downloaded resume matches
+    the on-screen preview byte-for-byte; Linux fallbacks survive on
+    headless Chrome.
+  - [x] Pinning tests in `resume-export-template.unit.test.cjs`:
+    blank-space regression test + Inter-stack font test + legacy
+    `executive` id aliases-to-classic test. `template-recommendation.test.ts`
+    updated to assert `consultant` for senior resumes.
+
 ### R-042 · Placement-cell B2B pilot
 
 - Status: **BACKLOG**
