@@ -83,7 +83,7 @@ export default function OutcomesView() {
 
   return (
     <main style={pageStyle}>
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 16 }}>
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
         <div>
           <h2 style={{ margin: 0 }}>Outcome Loop</h2>
           <p style={{ margin: '4px 0 0', color: 'var(--muted, #888)', fontSize: 14 }}>
@@ -264,7 +264,7 @@ function scoreHistoryChartData(report: OutcomeReport) {
 }
 
 const pageStyle: React.CSSProperties = { padding: '32px 20px', maxWidth: 960, margin: '0 auto' };
-const selectStyle: React.CSSProperties = { padding: '6px 10px', border: '1px solid var(--border, #ddd)', borderRadius: 6, background: 'var(--surface, #fff)', color: 'var(--ink, #222)' };
+const selectStyle: React.CSSProperties = { padding: '6px 10px', border: '1px solid var(--border, #ddd)', borderRadius: 6, background: 'var(--surface, #fff)', color: 'var(--ink, #222)', maxWidth: '100%' };
 const th: React.CSSProperties = { padding: '8px 6px', fontWeight: 600 };
 const td: React.CSSProperties = { padding: '10px 6px', verticalAlign: 'top' };
 const badgeStyle: React.CSSProperties = {

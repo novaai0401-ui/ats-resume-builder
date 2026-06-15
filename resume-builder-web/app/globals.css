@@ -49,6 +49,11 @@ a {
   max-width: none;
   margin: 0 auto;
   padding: 24px;
+  /* Clear the iOS status bar / notch / Dynamic Island. With
+   * viewport-fit=cover the webview extends under the status bar, so without
+   * this the top nav (brand + burger) and the editor's action row render
+   * UNDER the clock and are untappable. */
+  padding-top: calc(24px + env(safe-area-inset-top, 0px));
 }
 
 body.resume-embed-body {
@@ -3065,6 +3070,9 @@ h2 {
   .main-shell {
     width: 100%;
     padding: 12px;
+    /* Keep the status-bar clearance from the base rule (the shorthand above
+     * would otherwise reset padding-top to 12px and re-overlap the notch). */
+    padding-top: calc(12px + env(safe-area-inset-top, 0px));
   }
 
   .topbar {

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { getAccessToken } from '@/src/lib/api';
 
 /**
  * R-038 Phase 2 — discovery surface inside the editor's Export modal.
@@ -33,7 +34,7 @@ type ShareLink = {
 };
 
 function authedFetch(path: string, init: RequestInit = {}) {
-  const token = typeof window !== 'undefined' ? window.localStorage.getItem('rb_access_token') : null;
+  const token = getAccessToken();
   return fetch(`${API_BASE}${path}`, {
     ...init,
     headers: {

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { getAccessToken } from '@/src/lib/api';
 
 /**
  * R-037 — Settings card: your referral link + credit balance.
@@ -19,7 +20,7 @@ type ReferralMe = {
 };
 
 function authedFetch(path: string, init: RequestInit = {}) {
-  const token = typeof window !== 'undefined' ? window.localStorage.getItem('rb_access_token') : null;
+  const token = getAccessToken();
   return fetch(`${API_BASE}${path}`, {
     ...init,
     headers: {
