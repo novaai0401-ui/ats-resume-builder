@@ -2833,7 +2833,7 @@ body.resume-embed-body .main-shell {
 }
 
 .ats-template__header--bar {
-  border-bottom-color: #2b3a55;
+  border-bottom-color: var(--rb-accent, #2b3a55);
   border-bottom-width: 3px;
 }
 
@@ -2857,7 +2857,7 @@ body.resume-embed-body .main-shell {
   font-size: 14px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #1b2b3c;
+  color: var(--rb-accent, #1b2b3c);
 }
 
 .ats-section h2.ats-upper {
@@ -3492,7 +3492,7 @@ html, body { max-width: 100%; overflow-x: hidden; }
 }
 
 .nb-sidebar-bold__sidebar {
-  background: #1a2e4a;
+  background: var(--rb-accent, #1a2e4a);
   color: #e8edf5;
   padding: 28px 18px;
   display: flex;
@@ -3614,12 +3614,12 @@ html, body { max-width: 100%; overflow-x: hidden; }
 .nb-sidebar-bold__content-title {
   font-size: 13px;
   font-weight: 700;
-  color: #1a2e4a;
+  color: var(--rb-accent, #1a2e4a);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   margin: 0 0 10px;
   padding-bottom: 5px;
-  border-bottom: 2px solid #1a2e4a;
+  border-bottom: 2px solid var(--rb-accent, #1a2e4a);
 }
 
 .nb-sidebar-bold__summary {
@@ -3688,7 +3688,7 @@ html, body { max-width: 100%; overflow-x: hidden; }
 }
 
 .nb-accent-header__band {
-  background: linear-gradient(135deg, #1a3a6e 0%, #2563a8 100%);
+  background: linear-gradient(135deg, var(--rb-accent, #1a3a6e) 0%, #2563a8 100%);
   color: #ffffff;
   padding: 28px 32px 24px;
 }
@@ -3726,7 +3726,7 @@ html, body { max-width: 100%; overflow-x: hidden; }
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.09em;
-  color: #2563a8;
+  color: var(--rb-accent, #2563a8);
   margin: 0 0 10px;
   display: flex;
   align-items: center;
@@ -3790,7 +3790,7 @@ html, body { max-width: 100%; overflow-x: hidden; }
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #2563a8;
+  background: var(--rb-accent, #2563a8);
   flex-shrink: 0;
 }
 

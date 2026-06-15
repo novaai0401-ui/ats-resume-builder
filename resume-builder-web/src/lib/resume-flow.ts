@@ -602,6 +602,7 @@ export function buildResumePayload(resume: ResumeDraft, sections: SectionState[]
     templateId: resume.templateId?.trim() || undefined,
     fontFamily: typeof resume.fontFamily === 'string' ? resume.fontFamily.trim() || null : (resume.fontFamily ?? undefined),
     density: typeof resume.density === 'string' ? resume.density.trim() || null : (resume.density ?? undefined),
+    accentColor: typeof resume.accentColor === 'string' ? resume.accentColor.trim() || null : (resume.accentColor ?? undefined),
   };
   return normalizeResumeForAts(payload) as typeof payload;
 }
@@ -734,6 +735,7 @@ export function resumeFromApi(resume: Resume): ResumeDraft {
     templateId: resume.templateId || '',
     fontFamily: resume.fontFamily ?? null,
     density: resume.density ?? null,
+    accentColor: resume.accentColor ?? null,
   };
 }
 

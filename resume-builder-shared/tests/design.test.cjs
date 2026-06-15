@@ -54,6 +54,30 @@ test('designCssVars omits scale/lh when density is normal', async () => {
   assert.equal(vars['--rb-lh'], undefined);
 });
 
+test('normalizeAccentColor validates and lowercases hex; rejects junk', async () => {
+  const { normalizeAccentColor } = await sharedPromise;
+  assert.equal(normalizeAccentColor('#2563A8'), '#2563a8');
+  assert.equal(normalizeAccentColor('#fff'), '#fff');
+  assert.equal(normalizeAccentColor('  #1A2E4A  '), '#1a2e4a');
+  assert.equal(normalizeAccentColor('red'), null);
+  assert.equal(normalizeAccentColor('2563a8'), null);
+  assert.equal(normalizeAccentColor(''), null);
+  assert.equal(normalizeAccentColor(null), null);
+});
+
+test('accentColor flows into resolveDesign and emits --rb-accent', async () => {
+  const { resolveDesign, designCssVars } = await sharedPromise;
+  const r = resolveDesign({ accentColor: '#0F766E' });
+  assert.equal(r.accentColor, '#0f766e');
+  assert.equal(r.isDefault, false);
+  assert.equal(designCssVars({ accentColor: '#0F766E' })['--rb-accent'], '#0f766e');
+});
+
+test('invalid accentColor alone keeps the design default (no vars)', async () => {
+  const { designCssVars } = await sharedPromise;
+  assert.deepEqual(designCssVars({ accentColor: 'not-a-color' }), {});
+});
+
 test('designCssText serializes vars to an inline style fragment', async () => {
   const { designCssText } = await sharedPromise;
   assert.equal(designCssText(null), '');

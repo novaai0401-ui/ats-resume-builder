@@ -777,8 +777,9 @@ and every external call still feeds the Outcome Graph.
 
 ### R-045 · Resume design customization (accent / font / density, then reorder + photo)
 
-- Status: **IN PROGRESS** — Phase 1a (font + density) DONE; full file-level
-  plan in `docs/DESIGN_CUSTOMIZATION_PLAN.md`
+- Status: **IN PROGRESS** — Phase 1 (font + density + accent) DONE; full
+  file-level plan in `docs/DESIGN_CUSTOMIZATION_PLAN.md`. Phases 2–3
+  (section reorder, photo/header) remain.
 - Depends-on: TEMPLATE_SPEC §1.4, §5, §9 (token layer + preview↔export parity)
 - Rationale: make templates feel "standard"/Adobe-class; the single most
   requested polish lever. Phased to protect the export pipeline + spec tests.
@@ -797,10 +798,18 @@ and every external call still feeds the Outcome Graph.
     `density` enum + `FONT_OPTIONS` resolution); CSP `font-src` already permits
     `fonts.gstatic.com`; Google Fonts preload expanded to the full set in
     `app/layout.tsx`.
-- Acceptance (Phase 1b — accent colour) — NEXT COMMIT
-  - [ ] Per-resume `accentColor` applied via the same var layer across the 10
-    template CSS blocks + the export renderer; ATS-export stays plain.
-  - [ ] ATS-export variant stays single-column/plain (§9.5).
+- Acceptance (Phase 1b — accent colour) ✅
+  - [x] Per-resume `accentColor` (validated hex; `normalizeAccentColor` on
+    client + server) persisted (migration `20260615200000_add_resume_accent`)
+    and editable via swatch presets + custom picker in the Design panel.
+  - [x] Applied via the same `--rb-accent` var layer in the preview
+    (`globals.css`) AND the export renderer (`resume.service.ts`) across the
+    ATS section headings/header-bar and the visual templates' sidebar/band/
+    section-title/timeline accents. Pinned by `tests/design.test.cjs`.
+  - [x] Zero regression when unset — `--rb-accent` resolves to each rule's
+    pre-existing colour as the `var()` fallback.
+  - [x] ATS-export variant stays single-column/plain (§9.5); accent only
+    recolours text/rules, never structure.
 - Acceptance (Phase 2 — section reorder): per-resume `sectionOrder` override
   read through `getAtsSectionOrder`; unknown/missing → canonical fallback (§9.4).
 - Acceptance (Phase 3 — photo/header): per-resume `photoUrl` / `headerStyle`;

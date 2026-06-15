@@ -70,6 +70,7 @@ export default function ResumeReviewEmbedPreview({ templateId, resumeId, mode }:
           resume={previewData}
           fontOverride={resumeDraft.fontFamily ?? undefined}
           spacing={(resumeDraft.density as 'compact' | 'normal' | 'airy' | undefined) ?? undefined}
+          accentOverride={resumeDraft.accentColor ?? undefined}
         />
       </section>
       {loadError ? <p className="small resume-embed-error">{loadError}</p> : null}

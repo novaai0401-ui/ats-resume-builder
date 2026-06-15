@@ -88,9 +88,10 @@ model Resume {
   skills    String[]
   languages String[] @default([])
   templateId String?
-  /// R-045 — design customization: font family id + density preset.
+  /// R-045 — design customization: font family id + density preset + accent.
   fontFamily String?
   density    String?
+  accentColor String?
   summary   String
   experience Json
   education  Json

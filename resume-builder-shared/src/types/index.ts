@@ -28,9 +28,10 @@ export type Resume = {
   certifications?: CertificationItem[];
   achievements?: string[];
   templateId?: string;
-  /** R-045 — design customization (font family id + density). */
+  /** R-045 — design customization (font family id + density + accent). */
   fontFamily?: string | null;
   density?: string | null;
+  accentColor?: string | null;
   createdAt: string;
   updatedAt: string;
 };

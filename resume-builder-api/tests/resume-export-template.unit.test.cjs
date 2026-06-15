@@ -183,9 +183,13 @@ test("export CSS leads font stack with 'Inter' and never falls back to a serif",
   });
 
   const rendered = await service.debugExportHtml('user-1', 'resume-1');
-  assert.match(rendered.html, /font-family:\s*'Inter',\s*system-ui/);
+  // R-045: the body font is now driven by the --rb-font design var, but the
+  // default (no design chosen) still leads with Inter via the var fallback.
+  assert.match(rendered.html, /font-family:\s*var\(--rb-font,\s*'Inter',\s*system-ui/);
   assert.match(rendered.html, /'Liberation Sans'|'DejaVu Sans'/);
-  assert.match(rendered.html, /sans-serif;/);
+  // The var() fallback list still terminates in sans-serif (now inside the
+  // var() close-paren: "...Arial, sans-serif);").
+  assert.match(rendered.html, /sans-serif\)?;/);
   // Ensure no actual serif family slipped into the stack — match on
   // bare " serif" (not "sans-serif") at end of font-family declaration.
   assert.doesNotMatch(rendered.html, /font-family:[^;]*(?:^|[\s,])serif\s*;/i);
@@ -437,7 +441,9 @@ test('sidebar-bold export emits nb-sidebar-bold markup matching the React previe
   assert.match(html, /<aside class="nb-sidebar-bold__sidebar">/);
   assert.match(html, /<main class="nb-sidebar-bold__main">/);
   assert.match(html, /class="nb-sidebar-bold__content-title">Profile</);
-  assert.match(html, /\.nb-sidebar-bold__sidebar\s*\{[^}]*background:\s*#1a2e4a/);
+  // R-045: sidebar background is now accent-driven; the default (#1a2e4a) is
+  // the var() fallback when no accent is chosen.
+  assert.match(html, /\.nb-sidebar-bold__sidebar\s*\{[^}]*background:\s*var\(--rb-accent,\s*#1a2e4a\)/);
 });
 
 // ---------------------------------------------------------------------------

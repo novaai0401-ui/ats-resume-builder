@@ -16,6 +16,28 @@ export type ResumeDensity = 'compact' | 'normal' | 'airy';
 export interface ResumeDesign {
   fontFamily?: string | null;
   density?: ResumeDensity | null;
+  /** Accent colour as a #rgb / #rrggbb hex string. Null/empty = template default. */
+  accentColor?: string | null;
+}
+
+/** Curated, ATS-safe accent presets surfaced as swatches in the picker. */
+export const ACCENT_PRESETS: readonly { id: string; label: string; value: string }[] = [
+  { id: 'navy', label: 'Navy', value: '#1a2e4a' },
+  { id: 'blue', label: 'Blue', value: '#2563a8' },
+  { id: 'teal', label: 'Teal', value: '#0f766e' },
+  { id: 'green', label: 'Green', value: '#1e7d4f' },
+  { id: 'plum', label: 'Plum', value: '#6d3a6b' },
+  { id: 'maroon', label: 'Maroon', value: '#7a2e3a' },
+  { id: 'charcoal', label: 'Charcoal', value: '#2b3a55' },
+] as const;
+
+const HEX_RE = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+
+/** Validate + normalize an accent colour. Returns null when invalid/empty. */
+export function normalizeAccentColor(value?: string | null): string | null {
+  const v = String(value || '').trim();
+  if (!HEX_RE.test(v)) return null;
+  return v.toLowerCase();
 }
 
 export interface FontOption {
@@ -67,6 +89,8 @@ export interface ResolvedDesign {
   density: ResumeDensity;
   fontScale: number;
   lineHeight: number;
+  /** Normalized accent hex, or null = use the template's default colour. */
+  accentColor: string | null;
   /** True when everything is at its default (no vars need to be emitted). */
   isDefault: boolean;
 }
@@ -81,13 +105,16 @@ export function resolveDesign(design?: ResumeDesign | null): ResolvedDesign {
   const density: ResumeDensity = densityRaw in DENSITY_MAP ? densityRaw : 'normal';
   const { scale, lineHeight } = DENSITY_MAP[density];
 
+  const accentColor = normalizeAccentColor(design?.accentColor);
+
   return {
     fontId: font ? font.id : 'system-sans',
     fontStack: isSystemOrUnknown ? null : font!.stack,
     density,
     fontScale: scale,
     lineHeight,
-    isDefault: isSystemOrUnknown && density === 'normal',
+    accentColor,
+    isDefault: isSystemOrUnknown && density === 'normal' && accentColor === null,
   };
 }
 
@@ -103,6 +130,7 @@ export function designCssVars(design?: ResumeDesign | null): Record<string, stri
   if (r.fontStack) vars['--rb-font'] = r.fontStack;
   if (r.fontScale !== 1) vars['--rb-fs-scale'] = String(r.fontScale);
   if (r.density !== 'normal') vars['--rb-lh'] = String(r.lineHeight);
+  if (r.accentColor) vars['--rb-accent'] = r.accentColor;
   return vars;
 }
 

@@ -142,6 +142,7 @@ type ResumePayload = {
   /** R-045 — design customization. */
   fontFamily?: string | null;
   density?: string | null;
+  accentColor?: string | null;
 };
 
 type ResumeUpdatePayload = Partial<ResumePayload>;

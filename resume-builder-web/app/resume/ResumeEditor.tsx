@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { TkxBottomNav, TkxDrawer } from 'tekivex-ui';
 import useFeatureFlags from '@/src/hooks/use-feature-flags';
-import { FONT_OPTIONS, DENSITY_OPTIONS } from 'resume-builder-shared';
+import { FONT_OPTIONS, DENSITY_OPTIONS, ACCENT_PRESETS } from 'resume-builder-shared';
 import { RESUME_CREATE_RATE_LIMIT_CODE, api, Resume, ResumeImportResult, UploadResumeResponse, getAccessToken, isApiRequestError } from '@/src/lib/api';
 import { PrivacyBadge } from '@/src/components/PrivacyBadge';
 import { useResumeStore } from '@/src/lib/resume-store';
@@ -122,6 +122,7 @@ type ResumeDraft = {
   /** R-045 — design customization. */
   fontFamily?: string | null;
   density?: string | null;
+  accentColor?: string | null;
 };
 
 type SectionType =
@@ -1052,7 +1053,7 @@ export default function ResumeEditor() {
   // R-045 — persist a design change (font/density). These are
   // presentation-only fields; the API skips ATS re-validation for them.
   const persistDesign = useCallback(
-    async (patch: { fontFamily?: string | null; density?: string | null }) => {
+    async (patch: { fontFamily?: string | null; density?: string | null; accentColor?: string | null }) => {
       if (!resumeId) return;
       try {
         await api.updateResume(resumeId, patch);
@@ -2154,6 +2155,62 @@ export default function ResumeEditor() {
                   <option key={opt.id} value={opt.id}>{opt.label}</option>
                 ))}
               </select>
+            </div>
+          </div>
+          <div style={{ marginTop: 12 }}>
+            <label className="label" style={{ fontSize: 12 }}>Accent colour</label>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              <button
+                type="button"
+                aria-label="Default accent (template default)"
+                title="Template default"
+                onClick={() => {
+                  setResume((prev) => ({ ...prev, accentColor: null }));
+                  persistDesign({ accentColor: null });
+                }}
+                style={{
+                  width: 26,
+                  height: 26,
+                  borderRadius: '50%',
+                  border: !resume.accentColor ? '2px solid #111' : '1px solid #cbd5e1',
+                  background: 'linear-gradient(135deg, #fff 0 50%, #94a3b8 50% 100%)',
+                  cursor: 'pointer',
+                }}
+              />
+              {ACCENT_PRESETS.map((preset) => {
+                const selected = String(resume.accentColor || '').toLowerCase() === preset.value.toLowerCase();
+                return (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    aria-label={preset.label}
+                    title={preset.label}
+                    onClick={() => {
+                      setResume((prev) => ({ ...prev, accentColor: preset.value }));
+                      persistDesign({ accentColor: preset.value });
+                    }}
+                    style={{
+                      width: 26,
+                      height: 26,
+                      borderRadius: '50%',
+                      border: selected ? '2px solid #111' : '1px solid #cbd5e1',
+                      background: preset.value,
+                      cursor: 'pointer',
+                    }}
+                  />
+                );
+              })}
+              <input
+                type="color"
+                aria-label="Custom accent colour"
+                value={String(resume.accentColor || '#2563a8')}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setResume((prev) => ({ ...prev, accentColor: value }));
+                  persistDesign({ accentColor: value });
+                }}
+                style={{ width: 34, height: 30, padding: 0, border: '1px solid #cbd5e1', borderRadius: 6, cursor: 'pointer' }}
+              />
             </div>
           </div>
         </div>

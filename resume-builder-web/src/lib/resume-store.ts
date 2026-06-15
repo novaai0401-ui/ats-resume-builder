@@ -63,6 +63,7 @@ export type ResumeDraft = {
   /** R-045 — design customization. */
   fontFamily?: string | null;
   density?: string | null;
+  accentColor?: string | null;
 };
 
 export type AtsReviewState = {

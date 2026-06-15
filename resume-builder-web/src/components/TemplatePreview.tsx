@@ -15,6 +15,7 @@ export function TemplatePreview({
   resume,
   fontOverride,
   spacing,
+  accentOverride,
 }: {
   templateId: TemplateId | string;
   resume: ResumeImportResult;
@@ -26,12 +27,13 @@ export function TemplatePreview({
   const resolvedTemplateId = resolveTemplateId(String(templateId || ''), defaultTemplateId);
   const TemplateComponent = templateRegistry[resolvedTemplateId].component;
 
-  // R-045 — apply font/density as CSS custom properties on a wrapper. When the
-  // design is default, designCssVars returns {} so nothing is emitted and the
-  // template renders byte-for-byte as before (zero-regression guarantee).
+  // R-045 — apply font/density/accent as CSS custom properties on a wrapper.
+  // When the design is default, designCssVars returns {} so nothing is emitted
+  // and the template renders byte-for-byte as before (zero-regression).
   const vars = designCssVars({
     fontFamily: fontOverride ?? null,
     density: spacing ?? null,
+    accentColor: accentOverride ?? null,
   });
   if (Object.keys(vars).length === 0) {
     return <TemplateComponent resumeData={resume} />;
