@@ -775,6 +775,32 @@ and every external call still feeds the Outcome Graph.
 
 ---
 
+### R-045 · Resume design customization (accent / font / density, then reorder + photo)
+
+- Status: **PLANNED** — full file-level plan in `docs/DESIGN_CUSTOMIZATION_PLAN.md`
+- Depends-on: TEMPLATE_SPEC §1.4, §5, §9 (token layer + preview↔export parity)
+- Rationale: make templates feel "standard"/Adobe-class; the single most
+  requested polish lever. Phased to protect the export pipeline + spec tests.
+- Acceptance (Phase 1)
+  - [ ] Per-resume `accentColor` / `fontFamily` / `density` persisted
+    (Prisma migration) and editable from an editor "Design" panel with live
+    preview.
+  - [ ] Applied identically in the React preview AND the server export
+    (`renderResumeTemplateHtml`) via a shared `designTokens()` CSS-var map —
+    parity test enforced.
+  - [ ] Zero visual regression when no design is set (each template's current
+    colour/font/spacing is the `var(--rb-*, default)` fallback).
+  - [ ] Font allow-list validated on client AND server; CSP `font-src` +
+    Google Fonts preload updated for the expanded set.
+  - [ ] ATS-export variant stays single-column/plain (§9.5).
+- Acceptance (Phase 2 — section reorder): per-resume `sectionOrder` override
+  read through `getAtsSectionOrder`; unknown/missing → canonical fallback (§9.4).
+- Acceptance (Phase 3 — photo/header): per-resume `photoUrl` / `headerStyle`;
+  default OFF for US/ATS-strict templates, ON for visual templates; ATS-export
+  always omits the image.
+
+---
+
 ## §5. Days 60–90 — monetize the graph
 
 ### R-050 · In-product benchmark insights
@@ -896,6 +922,7 @@ do not break it.
 | 2026-06-12 | Referral 30-day clawback deferred until account deletion exists | No deletion endpoint in the product today; the deletion feature must implement the clawback when it ships. | R-037 |
 | 2026-06-12 | R-040 no longer depends on R-033 | The MCP server wraps the REST API directly; the browser extension is a sibling surface, not a prerequisite. Agents are usable the moment the package is published. | R-040, R-033 |
 | 2026-06-11 | sms-gateway + resume-builder-ai standalone services flagged for archive if untouched in 90 days | Two AI call paths is one too many | — |
+| 2026-06-15 | R-045 (design customization) scoped as a phased plan, not a single rushed change | Accent theming touches 10 template CSS blocks + the separate server export renderer + a missing token layer + parity tests + a migration + CSP/fonts. Shipping it hastily risks breaking PDF export and §9 parity. Plan in docs/DESIGN_CUSTOMIZATION_PLAN.md; Phase 1 ships as its own PR. | R-045 |
 
 ---
 
