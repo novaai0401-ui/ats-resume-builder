@@ -446,6 +446,42 @@ test('sidebar-bold export emits nb-sidebar-bold markup matching the React previe
   assert.match(html, /\.nb-sidebar-bold__sidebar\s*\{[^}]*background:\s*var\(--rb-accent,\s*#1a2e4a\)/);
 });
 
+test('export honours the per-resume sectionOrder override (ATS family)', async () => {
+  // Default classic order renders SKILLS before EXPERIENCE.
+  const baseline = createInMemoryPrisma('classic');
+  const baseSvc = new ResumeService(baseline, {
+    isPaymentFeatureEnabled: async () => false,
+    isRateLimitEnabled: async () => false,
+  });
+  const baseHtml = (await baseSvc.debugExportHtml('user-1', 'resume-1')).html;
+  assert.ok(baseHtml.indexOf('>SKILLS<') < baseHtml.indexOf('>EXPERIENCE<'), 'baseline: skills before experience');
+
+  // Override moves EXPERIENCE ahead of SKILLS.
+  const reordered = createInMemoryPrisma('classic');
+  reordered.__getState().resume.sectionOrder = [
+    'summary', 'experience', 'skills', 'projects', 'achievements', 'education', 'certifications', 'languages',
+  ];
+  const svc = new ResumeService(reordered, {
+    isPaymentFeatureEnabled: async () => false,
+    isRateLimitEnabled: async () => false,
+  });
+  const html = (await svc.debugExportHtml('user-1', 'resume-1')).html;
+  assert.ok(html.indexOf('>EXPERIENCE<') < html.indexOf('>SKILLS<'), 'override: experience before skills');
+  // Header (name) still leads the document.
+  assert.ok(html.indexOf('Jane Export') < html.indexOf('>EXPERIENCE<'), 'header stays on top');
+});
+
+test('export ignores unknown sectionOrder keys and falls back to canonical', async () => {
+  const prisma = createInMemoryPrisma('classic');
+  prisma.__getState().resume.sectionOrder = ['bogus', 'photo'];
+  const svc = new ResumeService(prisma, {
+    isPaymentFeatureEnabled: async () => false,
+    isRateLimitEnabled: async () => false,
+  });
+  const html = (await svc.debugExportHtml('user-1', 'resume-1')).html;
+  assert.ok(html.indexOf('>SKILLS<') < html.indexOf('>EXPERIENCE<'), 'canonical order preserved');
+});
+
 // ---------------------------------------------------------------------------
 // Achievements — dedicated section renders in the PDF export.
 // ---------------------------------------------------------------------------

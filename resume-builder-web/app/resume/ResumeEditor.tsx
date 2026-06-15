@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { TkxBottomNav, TkxDrawer } from 'tekivex-ui';
 import useFeatureFlags from '@/src/hooks/use-feature-flags';
-import { FONT_OPTIONS, DENSITY_OPTIONS, ACCENT_PRESETS } from 'resume-builder-shared';
+import { FONT_OPTIONS, DENSITY_OPTIONS, ACCENT_PRESETS, REORDERABLE_SECTIONS, resolveSectionOrder, getAtsSectionTitle } from 'resume-builder-shared';
 import { RESUME_CREATE_RATE_LIMIT_CODE, api, Resume, ResumeImportResult, UploadResumeResponse, getAccessToken, isApiRequestError } from '@/src/lib/api';
 import { PrivacyBadge } from '@/src/components/PrivacyBadge';
 import { useResumeStore } from '@/src/lib/resume-store';
@@ -105,6 +105,23 @@ type CertificationItem = {
   details?: string[];
 };
 
+/**
+ * R-045 Phase 2 — single-column ATS templates that support body-section
+ * reorder (the visual templates have fixed two-column/banded layouts). Includes
+ * the legacy aliases that resolve to these (graduate→minimal, executive→classic).
+ */
+const ATS_FAMILY_TEMPLATE_IDS = new Set([
+  'classic',
+  'modern',
+  'minimal',
+  'technical',
+  'consultant',
+  'academic',
+  'healthcare',
+  'graduate',
+  'executive',
+]);
+
 type ResumeDraft = {
   title: string;
   contact: ContactInfo;
@@ -123,6 +140,7 @@ type ResumeDraft = {
   fontFamily?: string | null;
   density?: string | null;
   accentColor?: string | null;
+  sectionOrder?: string[] | null;
 };
 
 type SectionType =
@@ -1053,7 +1071,7 @@ export default function ResumeEditor() {
   // R-045 — persist a design change (font/density). These are
   // presentation-only fields; the API skips ATS re-validation for them.
   const persistDesign = useCallback(
-    async (patch: { fontFamily?: string | null; density?: string | null; accentColor?: string | null }) => {
+    async (patch: { fontFamily?: string | null; density?: string | null; accentColor?: string | null; sectionOrder?: string[] | null }) => {
       if (!resumeId) return;
       try {
         await api.updateResume(resumeId, patch);
@@ -1063,6 +1081,23 @@ export default function ResumeEditor() {
       }
     },
     [resumeId, showSnackbar],
+  );
+
+  // R-045 Phase 2 — move a body section up/down. We always persist the full
+  // resolved order so the stored override is self-contained.
+  const moveSection = useCallback(
+    (index: number, direction: -1 | 1) => {
+      setResume((prev) => {
+        const current = resolveSectionOrder(prev.sectionOrder ?? null);
+        const target = index + direction;
+        if (target < 0 || target >= current.length) return prev;
+        const next = [...current];
+        [next[index], next[target]] = [next[target], next[index]];
+        persistDesign({ sectionOrder: next });
+        return { ...prev, sectionOrder: next };
+      });
+    },
+    [persistDesign],
   );
 
   useEffect(() => {
@@ -2213,6 +2248,68 @@ export default function ResumeEditor() {
               />
             </div>
           </div>
+          {ATS_FAMILY_TEMPLATE_IDS.has(String(normalizedTemplateParam || resume.templateId || 'classic').trim()) ? (
+            <div style={{ marginTop: 12 }}>
+              <label className="label" style={{ fontSize: 12 }}>Section order</label>
+              <p className="small" style={{ marginTop: 0, marginBottom: 8 }}>
+                Reorder the body sections (the name/contact header always stays on top). Applies to ATS templates.
+              </p>
+              <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {resolveSectionOrder(resume.sectionOrder ?? null).map((key, idx, arr) => (
+                  <li
+                    key={key}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 8,
+                      padding: '6px 10px',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: 6,
+                      background: '#f8fafc',
+                    }}
+                  >
+                    <span style={{ fontSize: 13 }}>{getAtsSectionTitle(key)}</span>
+                    <span style={{ display: 'flex', gap: 4 }}>
+                      <button
+                        type="button"
+                        className="btn secondary"
+                        aria-label={`Move ${getAtsSectionTitle(key)} up`}
+                        disabled={idx === 0}
+                        onClick={() => moveSection(idx, -1)}
+                        style={{ padding: '2px 8px', minWidth: 0, opacity: idx === 0 ? 0.4 : 1 }}
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        className="btn secondary"
+                        aria-label={`Move ${getAtsSectionTitle(key)} down`}
+                        disabled={idx === arr.length - 1}
+                        onClick={() => moveSection(idx, 1)}
+                        style={{ padding: '2px 8px', minWidth: 0, opacity: idx === arr.length - 1 ? 0.4 : 1 }}
+                      >
+                        ↓
+                      </button>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              {resume.sectionOrder && resume.sectionOrder.length > 0 ? (
+                <button
+                  type="button"
+                  className="btn secondary"
+                  style={{ marginTop: 8, padding: '4px 10px' }}
+                  onClick={() => {
+                    setResume((prev) => ({ ...prev, sectionOrder: null }));
+                    persistDesign({ sectionOrder: null });
+                  }}
+                >
+                  Reset to default order
+                </button>
+              ) : null}
+            </div>
+          ) : null}
         </div>
 
         <div className="card" style={{ marginTop: 16 }}>

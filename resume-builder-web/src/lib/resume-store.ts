@@ -64,6 +64,7 @@ export type ResumeDraft = {
   fontFamily?: string | null;
   density?: string | null;
   accentColor?: string | null;
+  sectionOrder?: string[] | null;
 };
 
 export type AtsReviewState = {

@@ -65,6 +65,7 @@ export type CreateResumeDto = {
   fontFamily?: string | null;
   density?: string | null;
   accentColor?: string | null;
+  sectionOrder?: string[] | null;
 };
 
 export type UpdateResumeDto = {
@@ -116,6 +117,7 @@ export type UpdateResumeDto = {
   fontFamily?: string | null;
   density?: string | null;
   accentColor?: string | null;
+  sectionOrder?: string[] | null;
 };
 
 export type ParseJdDto = {

@@ -2,6 +2,8 @@ import {
   formatDateRange,
   getAtsSectionTitle,
   normalizeResumeForAts,
+  resolveSectionOrder,
+  REORDERABLE_SECTIONS,
   type AtsSectionKey,
   type ResumeImportResult,
 } from 'resume-builder-shared';
@@ -133,6 +135,153 @@ export function achievementItems(resumeData: ResumeImportResult): string[] {
  * 'achievements' to its supportedSections catalog entry — at which
  * point it stops rendering this fallback.
  */
+// ---------------------------------------------------------------------------
+// R-045 Phase 2 — shared, reorderable section renderer for the ATS family.
+//
+// All seven single-column ATS templates (classic, modern, minimal, technical,
+// consultant, academic, healthcare) render their body sections through this
+// component so the on-screen preview and the server-side export
+// (renderOrderedSections in resume.service.ts) consume the SAME ordering logic
+// and honour the per-resume `sectionOrder` override identically. `header` is
+// rendered by each template and is never reorderable.
+// ---------------------------------------------------------------------------
+
+type BodySectionKey = Exclude<AtsSectionKey, 'header'>;
+
+export type OrderedSectionsOptions = {
+  /** Joins role and company in the experience block heading. */
+  companyJoiner: ', ' | ' | ' | ' @ ';
+  /** Section modifier class: tight or divided (mutually exclusive in practice). */
+  tight?: boolean;
+  divided?: boolean;
+  /** Uppercase the section headings (classic / academic / healthcare). */
+  uppercaseHeadings?: boolean;
+  /** Pre-grouped skills line (technical template). */
+  groupedSkillLine?: string;
+  /** Per-section heading label overrides (academic / healthcare). */
+  labels?: Partial<Record<BodySectionKey, string>>;
+  /** Template default body order before the user override is applied. */
+  defaultBody?: BodySectionKey[];
+  /** Empty-state copy. */
+  summaryPlaceholder?: string;
+  skillsPlaceholder?: string;
+  experienceEmpty?: string;
+  educationEmpty?: string;
+};
+
+export function OrderedAtsSections({
+  resumeData,
+  options,
+}: {
+  resumeData: ResumeImportResult;
+  options: OrderedSectionsOptions;
+}) {
+  const summary = String(resumeData.summary || '').trim();
+  const skills = allSkills(resumeData);
+  const languages = cleanList(resumeData.languages);
+  const experience = experienceItems(resumeData);
+  const projects = projectItems(resumeData);
+  const achievements = achievementItems(resumeData);
+  const education = educationItems(resumeData);
+  const certifications = certificationItems(resumeData);
+
+  const sectionClass = `ats-section${options.tight ? ' ats-section--tight' : ''}${options.divided ? ' ats-section--divided' : ''}`;
+  const heading = (key: BodySectionKey) => {
+    const label = options.labels?.[key] || getAtsSectionTitle(key);
+    return options.uppercaseHeadings ? label.toUpperCase() : label;
+  };
+  const skillLine = options.groupedSkillLine || (skills.length ? skills.join(', ') : (options.skillsPlaceholder || 'Add role-relevant skills.'));
+
+  const blocks: Record<BodySectionKey, React.ReactNode> = {
+    summary: (
+      <section className={sectionClass} key="summary">
+        <h2>{heading('summary')}</h2>
+        <p>{summary || (options.summaryPlaceholder || 'Add a concise summary aligned to your target role.')}</p>
+      </section>
+    ),
+    skills: (
+      <section className={sectionClass} key="skills">
+        <h2>{heading('skills')}</h2>
+        <p>{skillLine}</p>
+      </section>
+    ),
+    experience: (
+      <section className={sectionClass} key="experience">
+        <h2>{heading('experience')}</h2>
+        {experience.length ? experience.map((item, idx) => (
+          <div className="ats-item" key={`exp-${idx}`}>
+            <h3>{item.role || 'Role'}{item.company ? `${options.companyJoiner}${item.company}` : ''}</h3>
+            {displayDateRange(item.startDate, item.endDate) ? <p className="ats-item__meta">{displayDateRange(item.startDate, item.endDate)}</p> : null}
+            <ul>
+              {cleanList(item.highlights).map((line, lineIdx) => (
+                <li key={`exp-line-${idx}-${lineIdx}`}>{line}</li>
+              ))}
+            </ul>
+          </div>
+        )) : <p>{options.experienceEmpty || 'No experience added.'}</p>}
+      </section>
+    ),
+    projects: projects.length ? (
+      <section className={sectionClass} key="projects">
+        <h2>{heading('projects')}</h2>
+        {projects.map((item, idx) => (
+          <div className="ats-item" key={`proj-${idx}`}>
+            <h3>{item.name || 'Project'}</h3>
+            {displayDateRange(item.startDate || '', item.endDate || '') ? <p className="ats-item__meta">{displayDateRange(item.startDate || '', item.endDate || '')}</p> : null}
+            <ul>
+              {cleanList(item.highlights).map((line, lineIdx) => (
+                <li key={`proj-line-${idx}-${lineIdx}`}>{line}</li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </section>
+    ) : null,
+    achievements: achievements.length ? (
+      <section className={sectionClass} key="achievements">
+        <h2>{heading('achievements')}</h2>
+        <ul className="ats-item">
+          {achievements.map((line, idx) => (
+            <li key={`ach-${idx}`}>{line}</li>
+          ))}
+        </ul>
+      </section>
+    ) : null,
+    education: (
+      <section className={sectionClass} key="education">
+        <h2>{heading('education')}</h2>
+        {education.length ? education.map((item, idx) => (
+          <div className="ats-item" key={`edu-${idx}`}>
+            <h3>{item.degree || 'Degree'}</h3>
+            <p>{item.institution || ''}</p>
+            {displayDateRange(item.startDate, item.endDate) ? <p className="ats-item__meta">{displayDateRange(item.startDate, item.endDate)}</p> : null}
+          </div>
+        )) : <p>{options.educationEmpty || 'No education added.'}</p>}
+      </section>
+    ),
+    certifications: certifications.length ? (
+      <section className={sectionClass} key="certifications">
+        <h2>{heading('certifications')}</h2>
+        {certifications.map((item, idx) => (
+          <div className="ats-item" key={`cert-${idx}`}>
+            <h3>{item.name || 'Certification'}</h3>
+            <p>{[item.issuer, displayDateRange(item.date || '', '')].filter(Boolean).join(' | ')}</p>
+          </div>
+        ))}
+      </section>
+    ) : null,
+    languages: languages.length ? (
+      <section className={sectionClass} key="languages">
+        <h2>{heading('languages')}</h2>
+        <p>{languages.join(', ')}</p>
+      </section>
+    ) : null,
+  };
+
+  const order = resolveSectionOrder(resumeData.sectionOrder, options.defaultBody || REORDERABLE_SECTIONS);
+  return <>{order.map((key) => blocks[key])}</>;
+}
+
 export function AchievementsSection({
   resumeData,
   headingStyle,

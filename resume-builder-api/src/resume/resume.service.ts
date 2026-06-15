@@ -6,8 +6,8 @@ import mammoth from 'mammoth';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { JD_STOPWORDS, SECTION_LABEL_WORDS, filterJdKeywords } from '../lib/keyword-stopwords';
-import type { AtsIssue, CreateResumeDto, UpdateResumeDto } from 'resume-builder-shared';
-import { designCssText, normalizeAccentColor } from 'resume-builder-shared';
+import type { AtsIssue, AtsSectionKey, CreateResumeDto, UpdateResumeDto } from 'resume-builder-shared';
+import { designCssText, normalizeAccentColor, resolveSectionOrder } from 'resume-builder-shared';
 import { ResumeSectionsSchema } from 'resume-schemas';
 import { ensureUsagePeriod } from '../billing/usage';
 import { rateLimitOrThrow } from '../limits/rate-limit';
@@ -271,6 +271,7 @@ export class ResumeService {
         fontFamily: typeof dto.fontFamily === 'string' ? dto.fontFamily.trim() || null : undefined,
         density: typeof dto.density === 'string' ? dto.density.trim() || null : undefined,
         accentColor: dto.accentColor !== undefined ? normalizeAccentColor(dto.accentColor) : undefined,
+        sectionOrder: Array.isArray(dto.sectionOrder) ? dto.sectionOrder : undefined,
       },
     });
     this.fireTrainingConfirmation(userId, created.id, created);
@@ -395,7 +396,7 @@ export class ResumeService {
     // density) — the resume CONTENT hasn't changed, so re-validating it would
     // block a simple template/design switch with unrelated content errors
     // (e.g. bullet word count, action verbs). R-045 adds fontFamily/density.
-    const presentationKeys = new Set(['templateId', 'fontFamily', 'density', 'accentColor']);
+    const presentationKeys = new Set(['templateId', 'fontFamily', 'density', 'accentColor', 'sectionOrder']);
     const dtoKeys = Object.keys(dto);
     const isPresentationOnlyUpdate =
       dtoKeys.some((key) => presentationKeys.has(key) && dto[key as keyof typeof dto] != null) &&
@@ -428,6 +429,7 @@ export class ResumeService {
         fontFamily: dto.fontFamily !== undefined ? (typeof dto.fontFamily === 'string' ? dto.fontFamily.trim() || null : null) : undefined,
         density: dto.density !== undefined ? (typeof dto.density === 'string' ? dto.density.trim() || null : null) : undefined,
         accentColor: dto.accentColor !== undefined ? normalizeAccentColor(dto.accentColor) : undefined,
+        sectionOrder: dto.sectionOrder !== undefined ? (Array.isArray(dto.sectionOrder) ? dto.sectionOrder : []) : undefined,
       },
     });
     // Only fire the auto-label promotion on substantive edits — a pure
@@ -5135,30 +5137,36 @@ function renderOrderedSections(
       </section>
     ` : '';
 
-  sections.push(summarySection);
-  if (options.educationFirst) {
-    sections.push(educationSection);
-    sections.push(experienceSection);
-    if (projectsSection) sections.push(projectsSection);
-    if (achievementsSection) sections.push(achievementsSection);
-    if (certificationsSection) sections.push(certificationsSection);
-    sections.push(skillsSection);
-  } else if (options.certificationsFirst) {
-    if (certificationsSection) sections.push(certificationsSection);
-    sections.push(educationSection);
-    sections.push(experienceSection);
-    sections.push(skillsSection);
-    if (projectsSection) sections.push(projectsSection);
-    if (achievementsSection) sections.push(achievementsSection);
-  } else {
-    sections.push(skillsSection);
-    sections.push(experienceSection);
-    if (projectsSection) sections.push(projectsSection);
-    if (achievementsSection) sections.push(achievementsSection);
-    sections.push(educationSection);
-    if (certificationsSection) sections.push(certificationsSection);
+  // R-045 Phase 2: body sections render in a resolved order. Each template
+  // has a default body order; the per-resume `sectionOrder` override (when
+  // present) wins, with unknown/missing keys falling back to the default
+  // (resolveSectionOrder). This mirrors the React OrderedAtsSections renderer
+  // so preview and export stay in lock-step.
+  const defaultBody = options.educationFirst
+    ? ['summary', 'education', 'experience', 'projects', 'achievements', 'certifications', 'skills', 'languages']
+    : options.certificationsFirst
+      ? ['summary', 'certifications', 'education', 'experience', 'skills', 'projects', 'achievements', 'languages']
+      : ['summary', 'skills', 'experience', 'projects', 'achievements', 'education', 'certifications', 'languages'];
+
+  const blockByKey: Record<string, string> = {
+    summary: summarySection,
+    skills: skillsSection,
+    experience: experienceSection,
+    projects: projectsSection,
+    achievements: achievementsSection,
+    education: educationSection,
+    certifications: certificationsSection,
+    languages: languagesSection,
+  };
+
+  const order = resolveSectionOrder(
+    resume.sectionOrder,
+    defaultBody as Exclude<AtsSectionKey, 'header'>[],
+  );
+  for (const key of order) {
+    const block = blockByKey[key];
+    if (block) sections.push(block);
   }
-  if (languagesSection) sections.push(languagesSection);
 
   return sections.join('');
 }

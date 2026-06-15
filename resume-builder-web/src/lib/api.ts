@@ -143,6 +143,7 @@ type ResumePayload = {
   fontFamily?: string | null;
   density?: string | null;
   accentColor?: string | null;
+  sectionOrder?: string[] | null;
 };
 
 type ResumeUpdatePayload = Partial<ResumePayload>;

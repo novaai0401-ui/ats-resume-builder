@@ -101,7 +101,54 @@ type ResumeLike = {
     details?: string[];
   }>;
   achievements?: string[];
+  /** R-045 Phase 2 — per-resume body-section order override (ATS family). */
+  sectionOrder?: string[] | null;
 };
+
+/**
+ * Body sections (everything except the fixed `header`) that the user may
+ * reorder. `header` is always first and is never reorderable (ATS expects the
+ * name/contact block at the very top).
+ */
+export const REORDERABLE_SECTIONS: Exclude<AtsSectionKey, 'header'>[] = [
+  'summary',
+  'skills',
+  'experience',
+  'projects',
+  'achievements',
+  'education',
+  'certifications',
+  'languages',
+];
+
+/**
+ * Resolve a stored `sectionOrder` override against a template's default body
+ * order. Override entries that are unknown or not in `defaultBody` are ignored;
+ * any `defaultBody` sections missing from the override are appended in their
+ * canonical position (§9.4 — unknown/missing falls back to canonical order).
+ */
+export function resolveSectionOrder(
+  override?: string[] | null,
+  defaultBody: Exclude<AtsSectionKey, 'header'>[] = REORDERABLE_SECTIONS,
+): Exclude<AtsSectionKey, 'header'>[] {
+  const valid = new Set(defaultBody);
+  const seen = new Set<string>();
+  const result: Exclude<AtsSectionKey, 'header'>[] = [];
+  for (const raw of override || []) {
+    const key = String(raw || '').trim();
+    if (valid.has(key as AtsSectionKey as Exclude<AtsSectionKey, 'header'>) && !seen.has(key)) {
+      result.push(key as Exclude<AtsSectionKey, 'header'>);
+      seen.add(key);
+    }
+  }
+  for (const key of defaultBody) {
+    if (!seen.has(key)) {
+      result.push(key);
+      seen.add(key);
+    }
+  }
+  return result;
+}
 
 export function sanitizeBulletText(value: string) {
   let output = String(value || '').replace(/\s+/g, ' ').trim();
@@ -289,7 +336,7 @@ export function getAtsSectionOrder(resume: ResumeLike): AtsSectionKey[] {
   const hasLanguages = (normalized.languages || []).length > 0;
   const hasAchievements = (normalized.achievements || []).length > 0;
 
-  return ATS_SECTION_ORDER.filter((section) => {
+  const isPresent = (section: AtsSectionKey): boolean => {
     if (section === 'header') return true;
     if (section === 'summary') return hasSummary;
     if (section === 'skills') return hasSkills;
@@ -300,7 +347,12 @@ export function getAtsSectionOrder(resume: ResumeLike): AtsSectionKey[] {
     if (section === 'certifications') return hasCertifications;
     if (section === 'languages') return hasLanguages;
     return false;
-  });
+  };
+
+  // R-045 Phase 2: header is always first; the body order honours the
+  // per-resume override (falling back to canonical for missing/unknown keys).
+  const body = resolveSectionOrder(resume.sectionOrder).filter(isPresent);
+  return ['header', ...body];
 }
 
 export function getAtsSectionTitle(section: Exclude<AtsSectionKey, 'header'>) {

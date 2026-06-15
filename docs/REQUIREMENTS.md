@@ -777,9 +777,9 @@ and every external call still feeds the Outcome Graph.
 
 ### R-045 · Resume design customization (accent / font / density, then reorder + photo)
 
-- Status: **IN PROGRESS** — Phase 1 (font + density + accent) DONE; full
-  file-level plan in `docs/DESIGN_CUSTOMIZATION_PLAN.md`. Phases 2–3
-  (section reorder, photo/header) remain.
+- Status: **IN PROGRESS** — Phase 1 (font + density + accent) DONE; Phase 2
+  (section reorder, ATS family) DONE; full file-level plan in
+  `docs/DESIGN_CUSTOMIZATION_PLAN.md`. Phase 3 (photo/header) remains.
 - Depends-on: TEMPLATE_SPEC §1.4, §5, §9 (token layer + preview↔export parity)
 - Rationale: make templates feel "standard"/Adobe-class; the single most
   requested polish lever. Phased to protect the export pipeline + spec tests.
@@ -810,8 +810,23 @@ and every external call still feeds the Outcome Graph.
     pre-existing colour as the `var()` fallback.
   - [x] ATS-export variant stays single-column/plain (§9.5); accent only
     recolours text/rules, never structure.
-- Acceptance (Phase 2 — section reorder): per-resume `sectionOrder` override
-  read through `getAtsSectionOrder`; unknown/missing → canonical fallback (§9.4).
+- Acceptance (Phase 2 — section reorder, ATS family) ✅
+  - [x] Per-resume `sectionOrder` override (migration
+    `20260615210000_add_resume_section_order`; empty array = default) editable
+    via up/down controls in the Design panel (shown for the 7 single-column
+    ATS templates; the name/contact header is fixed on top).
+  - [x] Resolved through a shared `resolveSectionOrder` helper consumed by BOTH
+    the React preview (new `OrderedAtsSections` renderer that the 7 ATS
+    templates now share) and the export `renderOrderedSections`, so preview ↔
+    export stay in lock-step. `getAtsSectionOrder` honours the override.
+  - [x] Unknown/missing keys fall back to the template's canonical order
+    (§9.4). Pinned by `tests/section-order.test.cjs` +
+    `tests/resume-export-template.unit.test.cjs`.
+  - [x] Visual templates (sidebar/accent/creative) keep fixed layouts (scope:
+    "ATS family only").
+  - Note: unifying the 7 ATS templates onto one renderer also fixed pre-existing
+    preview↔export drift (languages section modifier class; achievements
+    position in academic/healthcare) — export ordering is now authoritative.
 - Acceptance (Phase 3 — photo/header): per-resume `photoUrl` / `headerStyle`;
   default OFF for US/ATS-strict templates, ON for visual templates; ATS-export
   always omits the image.
@@ -939,6 +954,7 @@ do not break it.
 | 2026-06-12 | Referral 30-day clawback deferred until account deletion exists | No deletion endpoint in the product today; the deletion feature must implement the clawback when it ships. | R-037 |
 | 2026-06-12 | R-040 no longer depends on R-033 | The MCP server wraps the REST API directly; the browser extension is a sibling surface, not a prerequisite. Agents are usable the moment the package is published. | R-040, R-033 |
 | 2026-06-11 | sms-gateway + resume-builder-ai standalone services flagged for archive if untouched in 90 days | Two AI call paths is one too many | — |
+| 2026-06-15 | R-045 section reorder scoped to the 7 single-column ATS templates only (preview + export); visual templates keep fixed layouts | Two-column/banded layouts (sidebar/accent/creative) don't map to a linear body order; the reorder value is in the ATS family. The 7 ATS templates were unified onto one shared `OrderedAtsSections` renderer that mirrors the export, which also closed pre-existing preview↔export drift (languages modifier class; achievements position in academic/healthcare). Export ordering is now authoritative. | R-045 |
 | 2026-06-15 | R-045 (design customization) scoped as a phased plan, not a single rushed change | Accent theming touches 10 template CSS blocks + the separate server export renderer + a missing token layer + parity tests + a migration + CSP/fonts. Shipping it hastily risks breaking PDF export and §9 parity. Plan in docs/DESIGN_CUSTOMIZATION_PLAN.md; Phase 1 ships as its own PR. | R-045 |
 
 ---
