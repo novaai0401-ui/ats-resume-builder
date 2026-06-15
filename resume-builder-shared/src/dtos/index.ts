@@ -62,6 +62,8 @@ export type CreateResumeDto = {
   }[];
   achievements?: string[];
   templateId?: string;
+  fontFamily?: string | null;
+  density?: string | null;
 };
 
 export type UpdateResumeDto = {
@@ -110,6 +112,8 @@ export type UpdateResumeDto = {
   }[];
   achievements?: string[];
   templateId?: string;
+  fontFamily?: string | null;
+  density?: string | null;
 };
 
 export type ParseJdDto = {

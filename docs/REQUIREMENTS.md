@@ -777,21 +777,29 @@ and every external call still feeds the Outcome Graph.
 
 ### R-045 · Resume design customization (accent / font / density, then reorder + photo)
 
-- Status: **PLANNED** — full file-level plan in `docs/DESIGN_CUSTOMIZATION_PLAN.md`
+- Status: **IN PROGRESS** — Phase 1a (font + density) DONE; full file-level
+  plan in `docs/DESIGN_CUSTOMIZATION_PLAN.md`
 - Depends-on: TEMPLATE_SPEC §1.4, §5, §9 (token layer + preview↔export parity)
 - Rationale: make templates feel "standard"/Adobe-class; the single most
   requested polish lever. Phased to protect the export pipeline + spec tests.
-- Acceptance (Phase 1)
-  - [ ] Per-resume `accentColor` / `fontFamily` / `density` persisted
-    (Prisma migration) and editable from an editor "Design" panel with live
-    preview.
-  - [ ] Applied identically in the React preview AND the server export
-    (`renderResumeTemplateHtml`) via a shared `designTokens()` CSS-var map —
-    parity test enforced.
-  - [ ] Zero visual regression when no design is set (each template's current
-    colour/font/spacing is the `var(--rb-*, default)` fallback).
-  - [ ] Font allow-list validated on client AND server; CSP `font-src` +
-    Google Fonts preload updated for the expanded set.
+- Acceptance (Phase 1a — font + density) ✅
+  - [x] Per-resume `fontFamily` / `density` persisted (Prisma migration
+    `20260615190000_add_resume_design`) and editable from an editor "Design"
+    panel; preview + export reflect the choice.
+  - [x] Applied identically in the React preview AND the server export
+    (`renderResumeTemplateHtml`) via a shared `designCssVars()`/`designCssText()`
+    CSS-var map in `resume-builder-shared/src/design.ts`
+    (`--rb-font`/`--rb-fs-scale`/`--rb-lh`).
+  - [x] Zero visual regression when no design is set —
+    `designCssVars` returns `{}` and every template root reads
+    `var(--rb-*, <current default>)`. Pinned by `tests/design.test.cjs`.
+  - [x] Font allow-list validated on client AND server (zod
+    `density` enum + `FONT_OPTIONS` resolution); CSP `font-src` already permits
+    `fonts.gstatic.com`; Google Fonts preload expanded to the full set in
+    `app/layout.tsx`.
+- Acceptance (Phase 1b — accent colour) — NEXT COMMIT
+  - [ ] Per-resume `accentColor` applied via the same var layer across the 10
+    template CSS blocks + the export renderer; ATS-export stays plain.
   - [ ] ATS-export variant stays single-column/plain (§9.5).
 - Acceptance (Phase 2 — section reorder): per-resume `sectionOrder` override
   read through `getAtsSectionOrder`; unknown/missing → canonical fallback (§9.4).

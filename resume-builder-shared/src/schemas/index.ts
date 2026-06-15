@@ -80,6 +80,8 @@ export const CreateResumeSchema = z.object({
    *  Modeled as a plain string list like skills / languages. */
   achievements: z.array(z.string()).optional(),
   templateId: z.string().trim().min(1).optional(),
+  fontFamily: z.string().trim().max(40).nullish(),
+  density: z.enum(['compact','normal','airy']).nullish(),
 });
 
 export const UpdateResumeSchema = z.object({
@@ -96,6 +98,8 @@ export const UpdateResumeSchema = z.object({
   certifications: z.array(CertificationSchema).optional(),
   achievements: z.array(z.string()).optional(),
   templateId: z.string().trim().min(1).optional(),
+  fontFamily: z.string().trim().max(40).nullish(),
+  density: z.enum(['compact','normal','airy']).nullish(),
 });
 
 export const DuplicateResumeSchema = z.object({

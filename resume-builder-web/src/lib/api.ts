@@ -139,6 +139,9 @@ type ResumePayload = {
     details?: string[];
   }[];
   templateId?: string;
+  /** R-045 — design customization. */
+  fontFamily?: string | null;
+  density?: string | null;
 };
 
 type ResumeUpdatePayload = Partial<ResumePayload>;

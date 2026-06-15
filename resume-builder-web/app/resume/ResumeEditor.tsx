@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { TkxBottomNav, TkxDrawer } from 'tekivex-ui';
 import useFeatureFlags from '@/src/hooks/use-feature-flags';
+import { FONT_OPTIONS, DENSITY_OPTIONS } from 'resume-builder-shared';
 import { RESUME_CREATE_RATE_LIMIT_CODE, api, Resume, ResumeImportResult, UploadResumeResponse, getAccessToken, isApiRequestError } from '@/src/lib/api';
 import { PrivacyBadge } from '@/src/components/PrivacyBadge';
 import { useResumeStore } from '@/src/lib/resume-store';
@@ -118,6 +119,9 @@ type ResumeDraft = {
   certifications: CertificationItem[];
   achievements: string[];
   templateId?: string;
+  /** R-045 — design customization. */
+  fontFamily?: string | null;
+  density?: string | null;
 };
 
 type SectionType =
@@ -1041,6 +1045,21 @@ export default function ResumeEditor() {
         });
       pendingTemplateSaveRef.current = savePromise;
       await savePromise;
+    },
+    [resumeId, showSnackbar],
+  );
+
+  // R-045 — persist a design change (font/density). These are
+  // presentation-only fields; the API skips ATS re-validation for them.
+  const persistDesign = useCallback(
+    async (patch: { fontFamily?: string | null; density?: string | null }) => {
+      if (!resumeId) return;
+      try {
+        await api.updateResume(resumeId, patch);
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to save design.';
+        showSnackbar('error', errorMessage);
+      }
     },
     [resumeId, showSnackbar],
   );
@@ -2096,6 +2115,47 @@ export default function ResumeEditor() {
             }}
           />
           <p className="small" style={{ marginTop: 8 }}>This is for your dashboard. It does not appear on the resume.</p>
+        </div>
+
+        <div className="section-card" style={{ marginTop: 16 }}>
+          <label className="label">Design</label>
+          <p className="small" style={{ marginTop: 0, marginBottom: 10 }}>
+            Font and spacing apply to your preview and exported PDF/DOCX. All options stay ATS-safe.
+          </p>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            <div style={{ flex: '1 1 180px', minWidth: 160 }}>
+              <label className="label" style={{ fontSize: 12 }}>Font</label>
+              <select
+                className="input"
+                value={String(resume.fontFamily || 'system-sans')}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setResume((prev) => ({ ...prev, fontFamily: value }));
+                  persistDesign({ fontFamily: value });
+                }}
+              >
+                {FONT_OPTIONS.map((opt) => (
+                  <option key={opt.id} value={opt.id}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+            <div style={{ flex: '1 1 180px', minWidth: 160 }}>
+              <label className="label" style={{ fontSize: 12 }}>Spacing</label>
+              <select
+                className="input"
+                value={String(resume.density || 'normal')}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setResume((prev) => ({ ...prev, density: value }));
+                  persistDesign({ density: value });
+                }}
+              >
+                {DENSITY_OPTIONS.map((opt) => (
+                  <option key={opt.id} value={opt.id}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
 
         <div className="card" style={{ marginTop: 16 }}>

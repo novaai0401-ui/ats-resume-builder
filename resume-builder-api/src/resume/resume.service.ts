@@ -7,6 +7,7 @@ import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { JD_STOPWORDS, SECTION_LABEL_WORDS, filterJdKeywords } from '../lib/keyword-stopwords';
 import type { AtsIssue, CreateResumeDto, UpdateResumeDto } from 'resume-builder-shared';
+import { designCssText } from 'resume-builder-shared';
 import { ResumeSectionsSchema } from 'resume-schemas';
 import { ensureUsagePeriod } from '../billing/usage';
 import { rateLimitOrThrow } from '../limits/rate-limit';
@@ -267,6 +268,8 @@ export class ResumeService {
         certifications: normalized.certifications ?? [],
         achievements: normalized.achievements ?? [],
         templateId,
+        fontFamily: typeof dto.fontFamily === 'string' ? dto.fontFamily.trim() || null : undefined,
+        density: typeof dto.density === 'string' ? dto.density.trim() || null : undefined,
       },
     });
     this.fireTrainingConfirmation(userId, created.id, created);
@@ -387,13 +390,16 @@ export class ResumeService {
       // upload extracted.
       languages: normalized.languages,
     });
-    // Skip ATS validation when only templateId is being changed — the content
-    // hasn't changed, so re-validating it blocks a simple template switch with
-    // unrelated validation errors (e.g. bullet word count, action verbs).
-    const isTemplateOnlyUpdate = dto.templateId != null && Object.keys(dto).every(
-      (key) => key === 'templateId' || dto[key as keyof typeof dto] == null,
-    );
-    if (!isTemplateOnlyUpdate) {
+    // Skip ATS validation for presentation-only changes (template, font,
+    // density) — the resume CONTENT hasn't changed, so re-validating it would
+    // block a simple template/design switch with unrelated content errors
+    // (e.g. bullet word count, action verbs). R-045 adds fontFamily/density.
+    const presentationKeys = new Set(['templateId', 'fontFamily', 'density']);
+    const dtoKeys = Object.keys(dto);
+    const isPresentationOnlyUpdate =
+      dtoKeys.some((key) => presentationKeys.has(key) && dto[key as keyof typeof dto] != null) &&
+      dtoKeys.every((key) => presentationKeys.has(key) || dto[key as keyof typeof dto] == null);
+    if (!isPresentationOnlyUpdate) {
       enforceAtsResumeRules({
         summary: normalized.summary,
         skills: categories.skills,
@@ -418,11 +424,13 @@ export class ResumeService {
         certifications: normalized.certifications,
         achievements: normalized.achievements ?? [],
         templateId,
+        fontFamily: dto.fontFamily !== undefined ? (typeof dto.fontFamily === 'string' ? dto.fontFamily.trim() || null : null) : undefined,
+        density: dto.density !== undefined ? (typeof dto.density === 'string' ? dto.density.trim() || null : null) : undefined,
       },
     });
     // Only fire the auto-label promotion on substantive edits — a pure
-    // templateId swap doesn't represent the user confirming structure.
-    if (!isTemplateOnlyUpdate) {
+    // template/design swap doesn't represent the user confirming structure.
+    if (!isPresentationOnlyUpdate) {
       this.fireTrainingConfirmation(userId, id, updated);
     }
     return decorateResumeWithSkillCategories(updated);
@@ -4313,12 +4321,15 @@ const ATS_TEMPLATE_EXPORT_CSS = `
            Teal, LinkedIn). On headless Chrome (Render = Debian), if
            Inter is not installed it falls through to DejaVu Sans /
            Liberation Sans which ARE installed, never to a serif font. */
-        font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto,
-                     'Helvetica Neue', 'Liberation Sans', 'DejaVu Sans', Arial, sans-serif;
+        /* R-045: --rb-* vars (set on the export root from the resume's design)
+           override these per-resume; the literals are the zero-regression
+           fallback when no design is chosen. */
+        font-family: var(--rb-font, 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto,
+                     'Helvetica Neue', 'Liberation Sans', 'DejaVu Sans', Arial, sans-serif);
         color: #111;
         background: #ffffff;
-        font-size: 10.5pt;
-        line-height: 1.4;
+        font-size: calc(10.5pt * var(--rb-fs-scale, 1));
+        line-height: var(--rb-lh, 1.4);
       }
       .resume-export-root {
         width: 100%;
@@ -4454,7 +4465,7 @@ const ATS_TEMPLATE_EXPORT_CSS = `
          downloaded PDF looked like Classic ATS and confused users
          who picked Accent Header for the visual style.
          ─────────────────────────────────────────────────────────── */
-      .nb-accent-header { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 12px; line-height: 1.5; color: #1a2233; background: #ffffff; }
+      .nb-accent-header { font-family: var(--rb-font, 'Segoe UI', system-ui, sans-serif); font-size: calc(12px * var(--rb-fs-scale, 1)); line-height: var(--rb-lh, 1.5); color: #1a2233; background: #ffffff; }
       .nb-accent-header__band { background: linear-gradient(135deg, #1a3a6e 0%, #2563a8 100%); color: #ffffff; padding: 28px 32px 24px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .nb-accent-header__name { font-size: 26px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.02em; }
       .nb-accent-header__title { font-size: 13px; opacity: 0.85; margin: 0 0 8px; font-weight: 400; }
@@ -4486,7 +4497,7 @@ const ATS_TEMPLATE_EXPORT_CSS = `
          Sidebar Bold template — mirrors components/templates/Sidebar
          Bold.tsx. Two-column dark-navy sidebar + white main area.
          ─────────────────────────────────────────────────────────── */
-      .nb-sidebar-bold { display: grid; grid-template-columns: 220px 1fr; min-height: 100%; font-family: 'Segoe UI', system-ui, sans-serif; font-size: 12px; line-height: 1.5; color: #1a2233; }
+      .nb-sidebar-bold { display: grid; grid-template-columns: 220px 1fr; min-height: 100%; font-family: var(--rb-font, 'Segoe UI', system-ui, sans-serif); font-size: calc(12px * var(--rb-fs-scale, 1)); line-height: var(--rb-lh, 1.5); color: #1a2233; }
       .nb-sidebar-bold__sidebar { background: #1a2e4a; color: #e8edf5; padding: 28px 18px; display: flex; flex-direction: column; gap: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .nb-sidebar-bold__name-block { margin-bottom: 20px; }
       .nb-sidebar-bold__name { font-size: 18px; font-weight: 700; color: #ffffff; line-height: 1.25; margin: 0 0 4px; word-break: break-word; }
@@ -4537,7 +4548,7 @@ export function renderResumeTemplateHtml(input: RenderResumeTemplateHtmlInput): 
     <style>${ATS_TEMPLATE_EXPORT_CSS}</style>
   </head>
   <body>
-    <div class="resume-export-root" data-template-id="${safeCssClass(templateId)}" data-render-context="${mode}" data-css-bundle="${ATS_TEMPLATE_EXPORT_CSS_BUNDLE}">
+    <div class="resume-export-root" data-template-id="${safeCssClass(templateId)}" data-render-context="${mode}" data-css-bundle="${ATS_TEMPLATE_EXPORT_CSS_BUNDLE}" style="${designCssText(resume)}">
       <span class="sr-only-fingerprint">${fingerprint}</span>
       <main class="resume-export-page">
         ${body}

@@ -2784,10 +2784,12 @@ body.resume-embed-body .main-shell {
   background: #fff;
   padding: 24px 28px;
   color: #111;
-  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto,
-               'Helvetica Neue', 'Liberation Sans', 'DejaVu Sans', Arial, sans-serif;
-  font-size: 14px;
-  line-height: 1.4;
+  /* R-045: per-resume design vars override these; literals are the
+   * zero-regression fallback when no design is chosen. */
+  font-family: var(--rb-font, 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto,
+               'Helvetica Neue', 'Liberation Sans', 'DejaVu Sans', Arial, sans-serif);
+  font-size: calc(14px * var(--rb-fs-scale, 1));
+  line-height: var(--rb-lh, 1.4);
   overflow-wrap: anywhere;
   word-break: break-word;
 }
@@ -3483,9 +3485,9 @@ html, body { max-width: 100%; overflow-x: hidden; }
   display: grid;
   grid-template-columns: 220px 1fr;
   min-height: 100%;
-  font-family: 'Segoe UI', system-ui, sans-serif;
-  font-size: 12px;
-  line-height: 1.5;
+  font-family: var(--rb-font, 'Segoe UI', system-ui, sans-serif);
+  font-size: calc(12px * var(--rb-fs-scale, 1));
+  line-height: var(--rb-lh, 1.5);
   color: #1a2233;
 }
 
@@ -3678,9 +3680,9 @@ html, body { max-width: 100%; overflow-x: hidden; }
  * Full-width coloured header band + skill pills + timeline-style experience
  * ─────────────────────────────────────────────────────────────────────── */
 .nb-accent-header {
-  font-family: 'Segoe UI', system-ui, sans-serif;
-  font-size: 12px;
-  line-height: 1.5;
+  font-family: var(--rb-font, 'Segoe UI', system-ui, sans-serif);
+  font-size: calc(12px * var(--rb-fs-scale, 1));
+  line-height: var(--rb-lh, 1.5);
   color: #1a2233;
   background: #ffffff;
 }
