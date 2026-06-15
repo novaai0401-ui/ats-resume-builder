@@ -78,6 +78,36 @@ test('invalid accentColor alone keeps the design default (no vars)', async () =>
   assert.deepEqual(designCssVars({ accentColor: 'not-a-color' }), {});
 });
 
+test('normalizePhotoUrl accepts only base64 image data URIs', async () => {
+  const { normalizePhotoUrl } = await sharedPromise;
+  const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUg==';
+  assert.equal(normalizePhotoUrl(png), png);
+  assert.equal(normalizePhotoUrl('data:image/jpeg;base64,/9j/4AAQSkZJRg=='), 'data:image/jpeg;base64,/9j/4AAQSkZJRg==');
+  // rejects remote URLs, svg, non-image, junk, empty
+  assert.equal(normalizePhotoUrl('https://evil.example/x.png'), null);
+  assert.equal(normalizePhotoUrl('data:image/svg+xml;base64,PHN2Zz4='), null);
+  assert.equal(normalizePhotoUrl('data:text/html;base64,PGI+'), null);
+  assert.equal(normalizePhotoUrl('not a url'), null);
+  assert.equal(normalizePhotoUrl(''), null);
+  assert.equal(normalizePhotoUrl(null), null);
+});
+
+test('normalizePhotoUrl rejects oversize data URIs', async () => {
+  const { normalizePhotoUrl, MAX_PHOTO_DATA_URI_LENGTH } = await sharedPromise;
+  const huge = 'data:image/png;base64,' + 'A'.repeat(MAX_PHOTO_DATA_URI_LENGTH);
+  assert.equal(normalizePhotoUrl(huge), null);
+});
+
+test('templateSupportsPhoto only for the visual templates', async () => {
+  const { templateSupportsPhoto } = await sharedPromise;
+  assert.equal(templateSupportsPhoto('sidebar-bold'), true);
+  assert.equal(templateSupportsPhoto('accent-header'), true);
+  assert.equal(templateSupportsPhoto('classic'), false);
+  assert.equal(templateSupportsPhoto('creative'), false);
+  assert.equal(templateSupportsPhoto(''), false);
+  assert.equal(templateSupportsPhoto(null), false);
+});
+
 test('designCssText serializes vars to an inline style fragment', async () => {
   const { designCssText } = await sharedPromise;
   assert.equal(designCssText(null), '');

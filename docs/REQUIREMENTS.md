@@ -777,9 +777,9 @@ and every external call still feeds the Outcome Graph.
 
 ### R-045 · Resume design customization (accent / font / density, then reorder + photo)
 
-- Status: **IN PROGRESS** — Phase 1 (font + density + accent) DONE; Phase 2
-  (section reorder, ATS family) DONE; full file-level plan in
-  `docs/DESIGN_CUSTOMIZATION_PLAN.md`. Phase 3 (photo/header) remains.
+- Status: **DONE** — Phase 1 (font + density + accent), Phase 2 (section
+  reorder, ATS family), and Phase 3 (profile photo, visual templates) all
+  shipped. Full file-level plan in `docs/DESIGN_CUSTOMIZATION_PLAN.md`.
 - Depends-on: TEMPLATE_SPEC §1.4, §5, §9 (token layer + preview↔export parity)
 - Rationale: make templates feel "standard"/Adobe-class; the single most
   requested polish lever. Phased to protect the export pipeline + spec tests.
@@ -827,9 +827,22 @@ and every external call still feeds the Outcome Graph.
   - Note: unifying the 7 ATS templates onto one renderer also fixed pre-existing
     preview↔export drift (languages section modifier class; achievements
     position in academic/healthcare) — export ordering is now authoritative.
-- Acceptance (Phase 3 — photo/header): per-resume `photoUrl` / `headerStyle`;
-  default OFF for US/ATS-strict templates, ON for visual templates; ATS-export
-  always omits the image.
+- Acceptance (Phase 3 — profile photo) ✅
+  - [x] Per-resume `photoUrl` stored as a size-capped base64 `data:` URI
+    (migration `20260615220000_add_resume_photo`; no object storage in this
+    stack — CSP already permits `data:` for img-src). Validated on client AND
+    server via `normalizePhotoUrl` (png/jpeg/webp only, ≤ ~1.1 MB; remote URLs
+    / svg / oversize rejected). Uploads are downscaled client-side to ≤512px.
+  - [x] Rendered ONLY by the visual templates (`sidebar-bold`, `accent-header`)
+    in both preview and export, gated by `templateSupportsPhoto`. The editor
+    photo control only appears for those templates.
+  - [x] ATS templates and every ATS-safe export NEVER include the image, even
+    if a photo is stored (§9.5). Pinned by `tests/resume-export-template.unit.test.cjs`
+    + `tests/design.test.cjs`.
+  - Note: `headerStyle` from the original plan was descoped — the photo alone
+    delivers the region-aware (India vs US/ATS) differentiation; a separate
+    header-style axis added complexity without a clear user ask. DOCX export
+    stays text-only (ATS-oriented), so it omits the photo by design.
 
 ---
 
@@ -955,6 +968,7 @@ do not break it.
 | 2026-06-12 | R-040 no longer depends on R-033 | The MCP server wraps the REST API directly; the browser extension is a sibling surface, not a prerequisite. Agents are usable the moment the package is published. | R-040, R-033 |
 | 2026-06-11 | sms-gateway + resume-builder-ai standalone services flagged for archive if untouched in 90 days | Two AI call paths is one too many | — |
 | 2026-06-15 | R-045 section reorder scoped to the 7 single-column ATS templates only (preview + export); visual templates keep fixed layouts | Two-column/banded layouts (sidebar/accent/creative) don't map to a linear body order; the reorder value is in the ATS family. The 7 ATS templates were unified onto one shared `OrderedAtsSections` renderer that mirrors the export, which also closed pre-existing preview↔export drift (languages modifier class; achievements position in academic/healthcare). Export ordering is now authoritative. | R-045 |
+| 2026-06-15 | R-045 profile photo stored as a size-capped base64 `data:` URI, not object storage; rendered only on the 2 visual templates; `headerStyle` descoped | No S3/Cloudinary in this stack and CSP already allows `data:` for img-src, so a downscaled (≤512px) data URI is self-contained and keeps preview↔export parity for free. Photo is the region-aware (India vs US/ATS) differentiator; ATS templates + ATS-safe exports always omit it (§9.5). A separate `headerStyle` axis added complexity without a user ask. | R-045 |
 | 2026-06-15 | R-045 (design customization) scoped as a phased plan, not a single rushed change | Accent theming touches 10 template CSS blocks + the separate server export renderer + a missing token layer + parity tests + a migration + CSP/fonts. Shipping it hastily risks breaking PDF export and §9 parity. Plan in docs/DESIGN_CUSTOMIZATION_PLAN.md; Phase 1 ships as its own PR. | R-045 |
 
 ---

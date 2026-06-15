@@ -66,6 +66,7 @@ export type CreateResumeDto = {
   density?: string | null;
   accentColor?: string | null;
   sectionOrder?: string[] | null;
+  photoUrl?: string | null;
 };
 
 export type UpdateResumeDto = {
@@ -118,6 +119,7 @@ export type UpdateResumeDto = {
   density?: string | null;
   accentColor?: string | null;
   sectionOrder?: string[] | null;
+  photoUrl?: string | null;
 };
 
 export type ParseJdDto = {

@@ -604,6 +604,7 @@ export function buildResumePayload(resume: ResumeDraft, sections: SectionState[]
     density: typeof resume.density === 'string' ? resume.density.trim() || null : (resume.density ?? undefined),
     accentColor: typeof resume.accentColor === 'string' ? resume.accentColor.trim() || null : (resume.accentColor ?? undefined),
     sectionOrder: Array.isArray(resume.sectionOrder) ? resume.sectionOrder : undefined,
+    photoUrl: typeof resume.photoUrl === 'string' ? resume.photoUrl.trim() || null : (resume.photoUrl ?? undefined),
   };
   return normalizeResumeForAts(payload) as typeof payload;
 }
@@ -664,9 +665,13 @@ export function buildResumePreview(resume: ResumeDraft): ResumeImportResult {
     achievements: (resume.achievements || []).map((a) => a.trim()).filter(Boolean),
   };
   const normalizedPreview = normalizeResumeForAts(preview);
-  // R-045 Phase 2: carry the section-order override into the template render
-  // (normalizeResumeForAts only touches content fields, not presentation).
-  return { ...normalizedPreview, sectionOrder: resume.sectionOrder ?? null };
+  // R-045 Phase 2/3: carry presentation-only fields (section order + photo)
+  // into the template render (normalizeResumeForAts only touches content).
+  return {
+    ...normalizedPreview,
+    sectionOrder: resume.sectionOrder ?? null,
+    photoUrl: resume.photoUrl ?? null,
+  };
 }
 
 function normalizeDateForPayload(value?: string) {
@@ -741,6 +746,7 @@ export function resumeFromApi(resume: Resume): ResumeDraft {
     density: resume.density ?? null,
     accentColor: resume.accentColor ?? null,
     sectionOrder: Array.isArray(resume.sectionOrder) ? resume.sectionOrder : null,
+    photoUrl: resume.photoUrl ?? null,
   };
 }
 

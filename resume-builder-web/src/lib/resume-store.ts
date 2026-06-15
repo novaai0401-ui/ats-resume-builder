@@ -65,6 +65,7 @@ export type ResumeDraft = {
   density?: string | null;
   accentColor?: string | null;
   sectionOrder?: string[] | null;
+  photoUrl?: string | null;
 };
 
 export type AtsReviewState = {

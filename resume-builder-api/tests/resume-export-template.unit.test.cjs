@@ -482,6 +482,58 @@ test('export ignores unknown sectionOrder keys and falls back to canonical', asy
   assert.ok(html.indexOf('>SKILLS<') < html.indexOf('>EXPERIENCE<'), 'canonical order preserved');
 });
 
+const SAMPLE_PHOTO = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCA';
+
+test('sidebar-bold export embeds the profile photo when set', async () => {
+  const prisma = createInMemoryPrisma('sidebar-bold');
+  prisma.__getState().resume.photoUrl = SAMPLE_PHOTO;
+  const svc = new ResumeService(prisma, {
+    isPaymentFeatureEnabled: async () => false,
+    isRateLimitEnabled: async () => false,
+  });
+  const html = (await svc.debugExportHtml('user-1', 'resume-1')).html;
+  assert.match(html, /class="nb-sidebar-bold__photo"/);
+  assert.ok(html.includes(SAMPLE_PHOTO), 'data URI embedded in export');
+});
+
+test('accent-header export embeds the profile photo when set', async () => {
+  const prisma = createInMemoryPrisma('accent-header');
+  prisma.__getState().resume.photoUrl = SAMPLE_PHOTO;
+  const svc = new ResumeService(prisma, {
+    isPaymentFeatureEnabled: async () => false,
+    isRateLimitEnabled: async () => false,
+  });
+  const html = (await svc.debugExportHtml('user-1', 'resume-1')).html;
+  assert.match(html, /nb-accent-header__band--with-photo/);
+  assert.match(html, /class="nb-accent-header__photo"/);
+});
+
+test('ATS template export NEVER includes the photo even if one is stored', async () => {
+  const prisma = createInMemoryPrisma('classic');
+  prisma.__getState().resume.photoUrl = SAMPLE_PHOTO;
+  const svc = new ResumeService(prisma, {
+    isPaymentFeatureEnabled: async () => false,
+    isRateLimitEnabled: async () => false,
+  });
+  const html = (await svc.debugExportHtml('user-1', 'resume-1')).html;
+  assert.ok(!html.includes(SAMPLE_PHOTO), 'ATS export must omit the photo (§9.5)');
+  assert.ok(!/__photo"/.test(html), 'no photo element in ATS export');
+});
+
+test('export drops an invalid/oversize stored photo (defense in depth)', async () => {
+  const prisma = createInMemoryPrisma('sidebar-bold');
+  prisma.__getState().resume.photoUrl = 'https://evil.example/x.png';
+  const svc = new ResumeService(prisma, {
+    isPaymentFeatureEnabled: async () => false,
+    isRateLimitEnabled: async () => false,
+  });
+  const html = (await svc.debugExportHtml('user-1', 'resume-1')).html;
+  // The CSS rule for the class always exists in the bundle; assert the IMG
+  // element (with the class attribute) is not emitted.
+  assert.ok(!/class="nb-sidebar-bold__photo"/.test(html), 'non-data-URI photo is not rendered');
+  assert.ok(!html.includes('https://evil.example'), 'untrusted URL not embedded');
+});
+
 // ---------------------------------------------------------------------------
 // Achievements — dedicated section renders in the PDF export.
 // ---------------------------------------------------------------------------

@@ -3491,6 +3491,16 @@ html, body { max-width: 100%; overflow-x: hidden; }
   color: #1a2233;
 }
 
+.nb-sidebar-bold__photo {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid rgba(255, 255, 255, 0.85);
+  margin: 0 auto 16px;
+  display: block;
+}
+
 .nb-sidebar-bold__sidebar {
   background: var(--rb-accent, #1a2e4a);
   color: #e8edf5;
@@ -3691,6 +3701,25 @@ html, body { max-width: 100%; overflow-x: hidden; }
   background: linear-gradient(135deg, var(--rb-accent, #1a3a6e) 0%, #2563a8 100%);
   color: #ffffff;
   padding: 28px 32px 24px;
+}
+
+.nb-accent-header__band--with-photo {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.nb-accent-header__band-text {
+  min-width: 0;
+}
+
+.nb-accent-header__photo {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid rgba(255, 255, 255, 0.85);
+  flex-shrink: 0;
 }
 
 .nb-accent-header__name {

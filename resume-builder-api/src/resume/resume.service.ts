@@ -7,7 +7,7 @@ import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { JD_STOPWORDS, SECTION_LABEL_WORDS, filterJdKeywords } from '../lib/keyword-stopwords';
 import type { AtsIssue, AtsSectionKey, CreateResumeDto, UpdateResumeDto } from 'resume-builder-shared';
-import { designCssText, normalizeAccentColor, resolveSectionOrder } from 'resume-builder-shared';
+import { designCssText, normalizeAccentColor, normalizePhotoUrl, templateSupportsPhoto, resolveSectionOrder } from 'resume-builder-shared';
 import { ResumeSectionsSchema } from 'resume-schemas';
 import { ensureUsagePeriod } from '../billing/usage';
 import { rateLimitOrThrow } from '../limits/rate-limit';
@@ -272,6 +272,7 @@ export class ResumeService {
         density: typeof dto.density === 'string' ? dto.density.trim() || null : undefined,
         accentColor: dto.accentColor !== undefined ? normalizeAccentColor(dto.accentColor) : undefined,
         sectionOrder: Array.isArray(dto.sectionOrder) ? dto.sectionOrder : undefined,
+        photoUrl: dto.photoUrl !== undefined ? normalizePhotoUrl(dto.photoUrl) : undefined,
       },
     });
     this.fireTrainingConfirmation(userId, created.id, created);
@@ -396,7 +397,7 @@ export class ResumeService {
     // density) — the resume CONTENT hasn't changed, so re-validating it would
     // block a simple template/design switch with unrelated content errors
     // (e.g. bullet word count, action verbs). R-045 adds fontFamily/density.
-    const presentationKeys = new Set(['templateId', 'fontFamily', 'density', 'accentColor', 'sectionOrder']);
+    const presentationKeys = new Set(['templateId', 'fontFamily', 'density', 'accentColor', 'sectionOrder', 'photoUrl']);
     const dtoKeys = Object.keys(dto);
     const isPresentationOnlyUpdate =
       dtoKeys.some((key) => presentationKeys.has(key) && dto[key as keyof typeof dto] != null) &&
@@ -430,6 +431,7 @@ export class ResumeService {
         density: dto.density !== undefined ? (typeof dto.density === 'string' ? dto.density.trim() || null : null) : undefined,
         accentColor: dto.accentColor !== undefined ? normalizeAccentColor(dto.accentColor) : undefined,
         sectionOrder: dto.sectionOrder !== undefined ? (Array.isArray(dto.sectionOrder) ? dto.sectionOrder : []) : undefined,
+        photoUrl: dto.photoUrl !== undefined ? normalizePhotoUrl(dto.photoUrl) : undefined,
       },
     });
     // Only fire the auto-label promotion on substantive edits — a pure
@@ -4471,6 +4473,9 @@ const ATS_TEMPLATE_EXPORT_CSS = `
          ─────────────────────────────────────────────────────────── */
       .nb-accent-header { font-family: var(--rb-font, 'Segoe UI', system-ui, sans-serif); font-size: calc(12px * var(--rb-fs-scale, 1)); line-height: var(--rb-lh, 1.5); color: #1a2233; background: #ffffff; }
       .nb-accent-header__band { background: linear-gradient(135deg, var(--rb-accent, #1a3a6e) 0%, #2563a8 100%); color: #ffffff; padding: 28px 32px 24px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .nb-accent-header__band--with-photo { display: flex; align-items: center; gap: 20px; }
+      .nb-accent-header__band-text { min-width: 0; }
+      .nb-accent-header__photo { width: 84px; height: 84px; border-radius: 50%; object-fit: cover; border: 3px solid rgba(255,255,255,0.85); flex-shrink: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .nb-accent-header__name { font-size: 26px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.02em; }
       .nb-accent-header__title { font-size: 13px; opacity: 0.85; margin: 0 0 8px; font-weight: 400; }
       .nb-accent-header__contact { font-size: 11px; opacity: 0.75; margin: 0; }
@@ -4503,6 +4508,7 @@ const ATS_TEMPLATE_EXPORT_CSS = `
          ─────────────────────────────────────────────────────────── */
       .nb-sidebar-bold { display: grid; grid-template-columns: 220px 1fr; min-height: 100%; font-family: var(--rb-font, 'Segoe UI', system-ui, sans-serif); font-size: calc(12px * var(--rb-fs-scale, 1)); line-height: var(--rb-lh, 1.5); color: #1a2233; }
       .nb-sidebar-bold__sidebar { background: var(--rb-accent, #1a2e4a); color: #e8edf5; padding: 28px 18px; display: flex; flex-direction: column; gap: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .nb-sidebar-bold__photo { width: 96px; height: 96px; border-radius: 50%; object-fit: cover; border: 3px solid rgba(255,255,255,0.85); margin: 0 auto 16px; display: block; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .nb-sidebar-bold__name-block { margin-bottom: 20px; }
       .nb-sidebar-bold__name { font-size: 18px; font-weight: 700; color: #ffffff; line-height: 1.25; margin: 0 0 4px; word-break: break-word; }
       .nb-sidebar-bold__role { font-size: 11px; color: #7eb8e8; text-transform: uppercase; letter-spacing: 0.06em; margin: 0; }
@@ -4850,9 +4856,13 @@ function renderSidebarBoldTemplateArticle(resume: any) {
           }).join('')}
         </section>` : '';
 
+  const photo = normalizePhotoUrl(normalized?.photoUrl);
+  const photoBlock = photo ? `<img class="nb-sidebar-bold__photo" src="${photo}" alt="" />` : '';
+
   return `
     <article class="nb-sidebar-bold">
       <aside class="nb-sidebar-bold__sidebar">
+        ${photoBlock}
         <div class="nb-sidebar-bold__name-block">
           <h1 class="nb-sidebar-bold__name">${fullName}</h1>
           ${hasRoleSubtitle ? `<p class="nb-sidebar-bold__role">${escapeHtml(role)}</p>` : ''}
@@ -4997,12 +5007,18 @@ function renderAccentHeaderTemplateArticle(resume: any) {
         </div>
       </div>` : '';
 
+  const photo = normalizePhotoUrl(normalized?.photoUrl);
+  const photoBlock = photo ? `<img class="nb-accent-header__photo" src="${photo}" alt="" />` : '';
+
   return `
     <article class="nb-accent-header">
-      <header class="nb-accent-header__band">
-        <h1 class="nb-accent-header__name">${fullName}</h1>
-        ${hasRoleSubtitle ? `<p class="nb-accent-header__title">${escapeHtml(role)}</p>` : ''}
-        ${contact ? `<p class="nb-accent-header__contact">${escapeHtml(contact)}</p>` : ''}
+      <header class="nb-accent-header__band${photo ? ' nb-accent-header__band--with-photo' : ''}">
+        ${photoBlock}
+        <div class="nb-accent-header__band-text">
+          <h1 class="nb-accent-header__name">${fullName}</h1>
+          ${hasRoleSubtitle ? `<p class="nb-accent-header__title">${escapeHtml(role)}</p>` : ''}
+          ${contact ? `<p class="nb-accent-header__contact">${escapeHtml(contact)}</p>` : ''}
+        </div>
       </header>
       <div class="nb-accent-header__body">
         ${summarySection}

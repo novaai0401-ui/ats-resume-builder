@@ -40,6 +40,38 @@ export function normalizeAccentColor(value?: string | null): string | null {
   return v.toLowerCase();
 }
 
+/**
+ * R-045 Phase 3 — profile photo support.
+ *
+ * Photos are stored as self-contained base64 `data:` URIs (no object storage in
+ * this stack; CSP already allows `data:` for img-src). Only the visual
+ * templates render a photo; the ATS family and every ATS-safe export omit it so
+ * machine screening stays clean (TEMPLATE_SPEC §9.5).
+ */
+export const PHOTO_TEMPLATE_IDS: ReadonlySet<string> = new Set(['sidebar-bold', 'accent-header']);
+
+export function templateSupportsPhoto(templateId?: string | null): boolean {
+  return PHOTO_TEMPLATE_IDS.has(String(templateId || '').trim());
+}
+
+/** Max stored photo data-URI length (~1.1 MB of base64). Keeps the row + payload sane. */
+export const MAX_PHOTO_DATA_URI_LENGTH = 1_500_000;
+
+const PHOTO_DATA_URI_RE = /^data:image\/(?:png|jpe?g|webp);base64,[A-Za-z0-9+/]+={0,2}$/;
+
+/**
+ * Validate + normalize a profile-photo value. Accepts only base64 `data:` image
+ * URIs (png/jpeg/webp) under the size cap; everything else (remote URLs, oversize
+ * blobs, junk) returns null so we never persist or render untrusted/huge data.
+ */
+export function normalizePhotoUrl(value?: string | null): string | null {
+  const v = String(value || '').trim();
+  if (!v) return null;
+  if (v.length > MAX_PHOTO_DATA_URI_LENGTH) return null;
+  if (!PHOTO_DATA_URI_RE.test(v)) return null;
+  return v;
+}
+
 export interface FontOption {
   /** Stable id stored on the resume + used as the <select> value. */
   id: string;

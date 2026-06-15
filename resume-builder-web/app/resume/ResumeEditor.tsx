@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { TkxBottomNav, TkxDrawer } from 'tekivex-ui';
 import useFeatureFlags from '@/src/hooks/use-feature-flags';
-import { FONT_OPTIONS, DENSITY_OPTIONS, ACCENT_PRESETS, REORDERABLE_SECTIONS, resolveSectionOrder, getAtsSectionTitle } from 'resume-builder-shared';
+import { FONT_OPTIONS, DENSITY_OPTIONS, ACCENT_PRESETS, REORDERABLE_SECTIONS, resolveSectionOrder, getAtsSectionTitle, templateSupportsPhoto, normalizePhotoUrl } from 'resume-builder-shared';
 import { RESUME_CREATE_RATE_LIMIT_CODE, api, Resume, ResumeImportResult, UploadResumeResponse, getAccessToken, isApiRequestError } from '@/src/lib/api';
 import { PrivacyBadge } from '@/src/components/PrivacyBadge';
 import { useResumeStore } from '@/src/lib/resume-store';
@@ -141,6 +141,7 @@ type ResumeDraft = {
   density?: string | null;
   accentColor?: string | null;
   sectionOrder?: string[] | null;
+  photoUrl?: string | null;
 };
 
 type SectionType =
@@ -1071,7 +1072,7 @@ export default function ResumeEditor() {
   // R-045 — persist a design change (font/density). These are
   // presentation-only fields; the API skips ATS re-validation for them.
   const persistDesign = useCallback(
-    async (patch: { fontFamily?: string | null; density?: string | null; accentColor?: string | null; sectionOrder?: string[] | null }) => {
+    async (patch: { fontFamily?: string | null; density?: string | null; accentColor?: string | null; sectionOrder?: string[] | null; photoUrl?: string | null }) => {
       if (!resumeId) return;
       try {
         await api.updateResume(resumeId, patch);
@@ -1098,6 +1099,53 @@ export default function ResumeEditor() {
       });
     },
     [persistDesign],
+  );
+
+  // R-045 Phase 3 — read an image file, downscale it to a square-ish data URI
+  // (max 512px, JPEG) so the stored photo stays small and self-contained.
+  const handlePhotoFile = useCallback(
+    async (file: File) => {
+      if (!file.type.startsWith('image/')) {
+        showSnackbar('error', 'Please choose an image file.');
+        return;
+      }
+      try {
+        const dataUrl: string = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result || ''));
+          reader.onerror = () => reject(new Error('read failed'));
+          reader.readAsDataURL(file);
+        });
+        const img = new Image();
+        const resized: string = await new Promise((resolve, reject) => {
+          img.onload = () => {
+            const max = 512;
+            const scale = Math.min(1, max / Math.max(img.width, img.height));
+            const w = Math.round(img.width * scale);
+            const h = Math.round(img.height * scale);
+            const canvas = document.createElement('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return reject(new Error('no canvas'));
+            ctx.drawImage(img, 0, 0, w, h);
+            resolve(canvas.toDataURL('image/jpeg', 0.85));
+          };
+          img.onerror = () => reject(new Error('decode failed'));
+          img.src = dataUrl;
+        });
+        const normalized = normalizePhotoUrl(resized);
+        if (!normalized) {
+          showSnackbar('error', 'That image could not be used. Try a JPEG or PNG under ~1 MB.');
+          return;
+        }
+        setResume((prev) => ({ ...prev, photoUrl: normalized }));
+        persistDesign({ photoUrl: normalized });
+      } catch {
+        showSnackbar('error', 'Could not process that image.');
+      }
+    },
+    [persistDesign, showSnackbar],
   );
 
   useEffect(() => {
@@ -2308,6 +2356,59 @@ export default function ResumeEditor() {
                   Reset to default order
                 </button>
               ) : null}
+            </div>
+          ) : null}
+          {templateSupportsPhoto(String(normalizedTemplateParam || resume.templateId || 'classic').trim()) ? (
+            <div style={{ marginTop: 12 }}>
+              <label className="label" style={{ fontSize: 12 }}>Profile photo</label>
+              <p className="small" style={{ marginTop: 0, marginBottom: 8 }}>
+                Shown on this visual template only. ATS templates and ATS-safe exports never include a photo.
+              </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                {resume.photoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={resume.photoUrl}
+                    alt="Profile"
+                    style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', border: '1px solid #cbd5e1' }}
+                  />
+                ) : (
+                  <div
+                    aria-hidden
+                    style={{ width: 56, height: 56, borderRadius: '50%', background: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: 11 }}
+                  >
+                    No photo
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <label className="btn secondary" style={{ padding: '6px 12px', cursor: 'pointer', margin: 0 }}>
+                    {resume.photoUrl ? 'Replace' : 'Upload'}
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      style={{ display: 'none' }}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handlePhotoFile(file);
+                        e.target.value = '';
+                      }}
+                    />
+                  </label>
+                  {resume.photoUrl ? (
+                    <button
+                      type="button"
+                      className="btn secondary"
+                      style={{ padding: '6px 12px' }}
+                      onClick={() => {
+                        setResume((prev) => ({ ...prev, photoUrl: null }));
+                        persistDesign({ photoUrl: null });
+                      }}
+                    >
+                      Remove
+                    </button>
+                  ) : null}
+                </div>
+              </div>
             </div>
           ) : null}
         </div>

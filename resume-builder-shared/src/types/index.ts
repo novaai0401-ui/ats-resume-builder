@@ -34,6 +34,8 @@ export type Resume = {
   accentColor?: string | null;
   /** R-045 Phase 2 — per-resume body-section order (ATS family). */
   sectionOrder?: string[] | null;
+  /** R-045 Phase 3 — profile photo (base64 data URI; visual templates only). */
+  photoUrl?: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -53,6 +55,8 @@ export type ResumeImportResult = {
   achievements?: string[];
   /** R-045 Phase 2 — body-section order override carried into templates. */
   sectionOrder?: string[] | null;
+  /** R-045 Phase 3 — profile photo data URI carried into templates. */
+  photoUrl?: string | null;
   roleLevel?: 'FRESHER' | 'MID' | 'SENIOR';
   unmappedText?: string;
   text?: string;

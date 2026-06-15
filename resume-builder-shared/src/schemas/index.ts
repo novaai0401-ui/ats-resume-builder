@@ -84,6 +84,7 @@ export const CreateResumeSchema = z.object({
   density: z.enum(['compact','normal','airy']).nullish(),
   accentColor: z.string().trim().regex(/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, 'Invalid hex colour').nullish(),
   sectionOrder: z.array(z.string().trim().min(1).max(20)).max(12).nullish(),
+  photoUrl: z.string().trim().max(1_500_000).nullish(),
 });
 
 export const UpdateResumeSchema = z.object({
@@ -104,6 +105,7 @@ export const UpdateResumeSchema = z.object({
   density: z.enum(['compact','normal','airy']).nullish(),
   accentColor: z.string().trim().regex(/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, 'Invalid hex colour').nullish(),
   sectionOrder: z.array(z.string().trim().min(1).max(20)).max(12).nullish(),
+  photoUrl: z.string().trim().max(1_500_000).nullish(),
 });
 
 export const DuplicateResumeSchema = z.object({

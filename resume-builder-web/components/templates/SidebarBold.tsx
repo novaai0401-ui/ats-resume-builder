@@ -1,4 +1,5 @@
 import React from 'react';
+import { normalizePhotoUrl } from 'resume-builder-shared';
 import {
   AchievementsSection,
   certificationItems,
@@ -32,11 +33,14 @@ export default function SidebarBold({ resumeData }: TemplateProps) {
   const phone = String(normalized.contact?.phone || '').trim();
   const location = String(normalized.contact?.location || '').trim();
   const links = cleanList(normalized.contact?.links);
+  const photo = normalizePhotoUrl(normalized.photoUrl);
 
   return (
     <article className="nb-sidebar-bold">
       {/* ── Left Sidebar ───────────────────────────────── */}
       <aside className="nb-sidebar-bold__sidebar">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        {photo ? <img className="nb-sidebar-bold__photo" src={photo} alt="" /> : null}
         <div className="nb-sidebar-bold__name-block">
           <h1 className="nb-sidebar-bold__name">{fullNameOrTitle(normalized)}</h1>
           {normalized.title && normalized.contact?.fullName && (
