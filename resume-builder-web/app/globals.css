@@ -49,6 +49,11 @@ a {
   max-width: none;
   margin: 0 auto;
   padding: 24px;
+  /* Clear the iOS status bar / notch / Dynamic Island. With
+   * viewport-fit=cover the webview extends under the status bar, so without
+   * this the top nav (brand + burger) and the editor's action row render
+   * UNDER the clock and are untappable. */
+  padding-top: calc(24px + env(safe-area-inset-top, 0px));
 }
 
 body.resume-embed-body {
@@ -2779,10 +2784,12 @@ body.resume-embed-body .main-shell {
   background: #fff;
   padding: 24px 28px;
   color: #111;
-  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto,
-               'Helvetica Neue', 'Liberation Sans', 'DejaVu Sans', Arial, sans-serif;
-  font-size: 14px;
-  line-height: 1.4;
+  /* R-045: per-resume design vars override these; literals are the
+   * zero-regression fallback when no design is chosen. */
+  font-family: var(--rb-font, 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto,
+               'Helvetica Neue', 'Liberation Sans', 'DejaVu Sans', Arial, sans-serif);
+  font-size: calc(14px * var(--rb-fs-scale, 1));
+  line-height: var(--rb-lh, 1.4);
   overflow-wrap: anywhere;
   word-break: break-word;
 }
@@ -2826,7 +2833,7 @@ body.resume-embed-body .main-shell {
 }
 
 .ats-template__header--bar {
-  border-bottom-color: #2b3a55;
+  border-bottom-color: var(--rb-accent, #2b3a55);
   border-bottom-width: 3px;
 }
 
@@ -2850,7 +2857,7 @@ body.resume-embed-body .main-shell {
   font-size: 14px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #1b2b3c;
+  color: var(--rb-accent, #1b2b3c);
 }
 
 .ats-section h2.ats-upper {
@@ -3065,6 +3072,9 @@ h2 {
   .main-shell {
     width: 100%;
     padding: 12px;
+    /* Keep the status-bar clearance from the base rule (the shorthand above
+     * would otherwise reset padding-top to 12px and re-overlap the notch). */
+    padding-top: calc(12px + env(safe-area-inset-top, 0px));
   }
 
   .topbar {
@@ -3475,14 +3485,24 @@ html, body { max-width: 100%; overflow-x: hidden; }
   display: grid;
   grid-template-columns: 220px 1fr;
   min-height: 100%;
-  font-family: 'Segoe UI', system-ui, sans-serif;
-  font-size: 12px;
-  line-height: 1.5;
+  font-family: var(--rb-font, 'Segoe UI', system-ui, sans-serif);
+  font-size: calc(12px * var(--rb-fs-scale, 1));
+  line-height: var(--rb-lh, 1.5);
   color: #1a2233;
 }
 
+.nb-sidebar-bold__photo {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid rgba(255, 255, 255, 0.85);
+  margin: 0 auto 16px;
+  display: block;
+}
+
 .nb-sidebar-bold__sidebar {
-  background: #1a2e4a;
+  background: var(--rb-accent, #1a2e4a);
   color: #e8edf5;
   padding: 28px 18px;
   display: flex;
@@ -3604,12 +3624,12 @@ html, body { max-width: 100%; overflow-x: hidden; }
 .nb-sidebar-bold__content-title {
   font-size: 13px;
   font-weight: 700;
-  color: #1a2e4a;
+  color: var(--rb-accent, #1a2e4a);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   margin: 0 0 10px;
   padding-bottom: 5px;
-  border-bottom: 2px solid #1a2e4a;
+  border-bottom: 2px solid var(--rb-accent, #1a2e4a);
 }
 
 .nb-sidebar-bold__summary {
@@ -3670,17 +3690,36 @@ html, body { max-width: 100%; overflow-x: hidden; }
  * Full-width coloured header band + skill pills + timeline-style experience
  * ─────────────────────────────────────────────────────────────────────── */
 .nb-accent-header {
-  font-family: 'Segoe UI', system-ui, sans-serif;
-  font-size: 12px;
-  line-height: 1.5;
+  font-family: var(--rb-font, 'Segoe UI', system-ui, sans-serif);
+  font-size: calc(12px * var(--rb-fs-scale, 1));
+  line-height: var(--rb-lh, 1.5);
   color: #1a2233;
   background: #ffffff;
 }
 
 .nb-accent-header__band {
-  background: linear-gradient(135deg, #1a3a6e 0%, #2563a8 100%);
+  background: linear-gradient(135deg, var(--rb-accent, #1a3a6e) 0%, #2563a8 100%);
   color: #ffffff;
   padding: 28px 32px 24px;
+}
+
+.nb-accent-header__band--with-photo {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.nb-accent-header__band-text {
+  min-width: 0;
+}
+
+.nb-accent-header__photo {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid rgba(255, 255, 255, 0.85);
+  flex-shrink: 0;
 }
 
 .nb-accent-header__name {
@@ -3716,7 +3755,7 @@ html, body { max-width: 100%; overflow-x: hidden; }
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.09em;
-  color: #2563a8;
+  color: var(--rb-accent, #2563a8);
   margin: 0 0 10px;
   display: flex;
   align-items: center;
@@ -3780,7 +3819,7 @@ html, body { max-width: 100%; overflow-x: hidden; }
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #2563a8;
+  background: var(--rb-accent, #2563a8);
   flex-shrink: 0;
 }
 

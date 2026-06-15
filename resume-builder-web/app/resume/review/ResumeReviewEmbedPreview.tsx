@@ -65,7 +65,13 @@ export default function ResumeReviewEmbedPreview({ templateId, resumeId, mode }:
   return (
     <main className={`resume-embed-root ${mode === 'thumbnail' ? 'resume-embed-root--thumbnail' : ''}`}>
       <section className="resume-embed-page">
-        <TemplatePreview templateId={resolvedTemplateId} resume={previewData} />
+        <TemplatePreview
+          templateId={resolvedTemplateId}
+          resume={previewData}
+          fontOverride={resumeDraft.fontFamily ?? undefined}
+          spacing={(resumeDraft.density as 'compact' | 'normal' | 'airy' | undefined) ?? undefined}
+          accentOverride={resumeDraft.accentColor ?? undefined}
+        />
       </section>
       {loadError ? <p className="small resume-embed-error">{loadError}</p> : null}
     </main>

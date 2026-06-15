@@ -775,6 +775,77 @@ and every external call still feeds the Outcome Graph.
 
 ---
 
+### R-045 · Resume design customization (accent / font / density, then reorder + photo)
+
+- Status: **DONE** — Phase 1 (font + density + accent), Phase 2 (section
+  reorder, ATS family), and Phase 3 (profile photo, visual templates) all
+  shipped. Full file-level plan in `docs/DESIGN_CUSTOMIZATION_PLAN.md`.
+- Depends-on: TEMPLATE_SPEC §1.4, §5, §9 (token layer + preview↔export parity)
+- Rationale: make templates feel "standard"/Adobe-class; the single most
+  requested polish lever. Phased to protect the export pipeline + spec tests.
+- Acceptance (Phase 1a — font + density) ✅
+  - [x] Per-resume `fontFamily` / `density` persisted (Prisma migration
+    `20260615190000_add_resume_design`) and editable from an editor "Design"
+    panel; preview + export reflect the choice.
+  - [x] Applied identically in the React preview AND the server export
+    (`renderResumeTemplateHtml`) via a shared `designCssVars()`/`designCssText()`
+    CSS-var map in `resume-builder-shared/src/design.ts`
+    (`--rb-font`/`--rb-fs-scale`/`--rb-lh`).
+  - [x] Zero visual regression when no design is set —
+    `designCssVars` returns `{}` and every template root reads
+    `var(--rb-*, <current default>)`. Pinned by `tests/design.test.cjs`.
+  - [x] Font allow-list validated on client AND server (zod
+    `density` enum + `FONT_OPTIONS` resolution); CSP `font-src` already permits
+    `fonts.gstatic.com`; Google Fonts preload expanded to the full set in
+    `app/layout.tsx`.
+- Acceptance (Phase 1b — accent colour) ✅
+  - [x] Per-resume `accentColor` (validated hex; `normalizeAccentColor` on
+    client + server) persisted (migration `20260615200000_add_resume_accent`)
+    and editable via swatch presets + custom picker in the Design panel.
+  - [x] Applied via the same `--rb-accent` var layer in the preview
+    (`globals.css`) AND the export renderer (`resume.service.ts`) across the
+    ATS section headings/header-bar and the visual templates' sidebar/band/
+    section-title/timeline accents. Pinned by `tests/design.test.cjs`.
+  - [x] Zero regression when unset — `--rb-accent` resolves to each rule's
+    pre-existing colour as the `var()` fallback.
+  - [x] ATS-export variant stays single-column/plain (§9.5); accent only
+    recolours text/rules, never structure.
+- Acceptance (Phase 2 — section reorder, ATS family) ✅
+  - [x] Per-resume `sectionOrder` override (migration
+    `20260615210000_add_resume_section_order`; empty array = default) editable
+    via up/down controls in the Design panel (shown for the 7 single-column
+    ATS templates; the name/contact header is fixed on top).
+  - [x] Resolved through a shared `resolveSectionOrder` helper consumed by BOTH
+    the React preview (new `OrderedAtsSections` renderer that the 7 ATS
+    templates now share) and the export `renderOrderedSections`, so preview ↔
+    export stay in lock-step. `getAtsSectionOrder` honours the override.
+  - [x] Unknown/missing keys fall back to the template's canonical order
+    (§9.4). Pinned by `tests/section-order.test.cjs` +
+    `tests/resume-export-template.unit.test.cjs`.
+  - [x] Visual templates (sidebar/accent/creative) keep fixed layouts (scope:
+    "ATS family only").
+  - Note: unifying the 7 ATS templates onto one renderer also fixed pre-existing
+    preview↔export drift (languages section modifier class; achievements
+    position in academic/healthcare) — export ordering is now authoritative.
+- Acceptance (Phase 3 — profile photo) ✅
+  - [x] Per-resume `photoUrl` stored as a size-capped base64 `data:` URI
+    (migration `20260615220000_add_resume_photo`; no object storage in this
+    stack — CSP already permits `data:` for img-src). Validated on client AND
+    server via `normalizePhotoUrl` (png/jpeg/webp only, ≤ ~1.1 MB; remote URLs
+    / svg / oversize rejected). Uploads are downscaled client-side to ≤512px.
+  - [x] Rendered ONLY by the visual templates (`sidebar-bold`, `accent-header`)
+    in both preview and export, gated by `templateSupportsPhoto`. The editor
+    photo control only appears for those templates.
+  - [x] ATS templates and every ATS-safe export NEVER include the image, even
+    if a photo is stored (§9.5). Pinned by `tests/resume-export-template.unit.test.cjs`
+    + `tests/design.test.cjs`.
+  - Note: `headerStyle` from the original plan was descoped — the photo alone
+    delivers the region-aware (India vs US/ATS) differentiation; a separate
+    header-style axis added complexity without a clear user ask. DOCX export
+    stays text-only (ATS-oriented), so it omits the photo by design.
+
+---
+
 ## §5. Days 60–90 — monetize the graph
 
 ### R-050 · In-product benchmark insights
@@ -896,6 +967,9 @@ do not break it.
 | 2026-06-12 | Referral 30-day clawback deferred until account deletion exists | No deletion endpoint in the product today; the deletion feature must implement the clawback when it ships. | R-037 |
 | 2026-06-12 | R-040 no longer depends on R-033 | The MCP server wraps the REST API directly; the browser extension is a sibling surface, not a prerequisite. Agents are usable the moment the package is published. | R-040, R-033 |
 | 2026-06-11 | sms-gateway + resume-builder-ai standalone services flagged for archive if untouched in 90 days | Two AI call paths is one too many | — |
+| 2026-06-15 | R-045 section reorder scoped to the 7 single-column ATS templates only (preview + export); visual templates keep fixed layouts | Two-column/banded layouts (sidebar/accent/creative) don't map to a linear body order; the reorder value is in the ATS family. The 7 ATS templates were unified onto one shared `OrderedAtsSections` renderer that mirrors the export, which also closed pre-existing preview↔export drift (languages modifier class; achievements position in academic/healthcare). Export ordering is now authoritative. | R-045 |
+| 2026-06-15 | R-045 profile photo stored as a size-capped base64 `data:` URI, not object storage; rendered only on the 2 visual templates; `headerStyle` descoped | No S3/Cloudinary in this stack and CSP already allows `data:` for img-src, so a downscaled (≤512px) data URI is self-contained and keeps preview↔export parity for free. Photo is the region-aware (India vs US/ATS) differentiator; ATS templates + ATS-safe exports always omit it (§9.5). A separate `headerStyle` axis added complexity without a user ask. | R-045 |
+| 2026-06-15 | R-045 (design customization) scoped as a phased plan, not a single rushed change | Accent theming touches 10 template CSS blocks + the separate server export renderer + a missing token layer + parity tests + a migration + CSP/fonts. Shipping it hastily risks breaking PDF export and §9 parity. Plan in docs/DESIGN_CUSTOMIZATION_PLAN.md; Phase 1 ships as its own PR. | R-045 |
 
 ---
 

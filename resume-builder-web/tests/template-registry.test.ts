@@ -91,8 +91,11 @@ test('achievements render everywhere: first-class OR via the shared fallback', (
       'sidebar-bold': 'SidebarBold', 'accent-header': 'AccentHeader',
     }[t.id];
     const src = readFileSync(path.join(dir, `${file}.tsx`), 'utf8');
+    // R-045 Phase 2: the ATS family now renders achievements (and every other
+    // body section) through the shared OrderedAtsSections renderer; the visual
+    // templates still reference achievementItems / AchievementsSection directly.
     assert.ok(
-      /achievementItems|AchievementsSection/.test(src),
+      /achievementItems|AchievementsSection|OrderedAtsSections/.test(src),
       `${t.id} renders achievements via neither first-class styling nor the fallback`,
     );
   }

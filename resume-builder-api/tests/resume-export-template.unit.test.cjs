@@ -183,9 +183,13 @@ test("export CSS leads font stack with 'Inter' and never falls back to a serif",
   });
 
   const rendered = await service.debugExportHtml('user-1', 'resume-1');
-  assert.match(rendered.html, /font-family:\s*'Inter',\s*system-ui/);
+  // R-045: the body font is now driven by the --rb-font design var, but the
+  // default (no design chosen) still leads with Inter via the var fallback.
+  assert.match(rendered.html, /font-family:\s*var\(--rb-font,\s*'Inter',\s*system-ui/);
   assert.match(rendered.html, /'Liberation Sans'|'DejaVu Sans'/);
-  assert.match(rendered.html, /sans-serif;/);
+  // The var() fallback list still terminates in sans-serif (now inside the
+  // var() close-paren: "...Arial, sans-serif);").
+  assert.match(rendered.html, /sans-serif\)?;/);
   // Ensure no actual serif family slipped into the stack — match on
   // bare " serif" (not "sans-serif") at end of font-family declaration.
   assert.doesNotMatch(rendered.html, /font-family:[^;]*(?:^|[\s,])serif\s*;/i);
@@ -437,7 +441,97 @@ test('sidebar-bold export emits nb-sidebar-bold markup matching the React previe
   assert.match(html, /<aside class="nb-sidebar-bold__sidebar">/);
   assert.match(html, /<main class="nb-sidebar-bold__main">/);
   assert.match(html, /class="nb-sidebar-bold__content-title">Profile</);
-  assert.match(html, /\.nb-sidebar-bold__sidebar\s*\{[^}]*background:\s*#1a2e4a/);
+  // R-045: sidebar background is now accent-driven; the default (#1a2e4a) is
+  // the var() fallback when no accent is chosen.
+  assert.match(html, /\.nb-sidebar-bold__sidebar\s*\{[^}]*background:\s*var\(--rb-accent,\s*#1a2e4a\)/);
+});
+
+test('export honours the per-resume sectionOrder override (ATS family)', async () => {
+  // Default classic order renders SKILLS before EXPERIENCE.
+  const baseline = createInMemoryPrisma('classic');
+  const baseSvc = new ResumeService(baseline, {
+    isPaymentFeatureEnabled: async () => false,
+    isRateLimitEnabled: async () => false,
+  });
+  const baseHtml = (await baseSvc.debugExportHtml('user-1', 'resume-1')).html;
+  assert.ok(baseHtml.indexOf('>SKILLS<') < baseHtml.indexOf('>EXPERIENCE<'), 'baseline: skills before experience');
+
+  // Override moves EXPERIENCE ahead of SKILLS.
+  const reordered = createInMemoryPrisma('classic');
+  reordered.__getState().resume.sectionOrder = [
+    'summary', 'experience', 'skills', 'projects', 'achievements', 'education', 'certifications', 'languages',
+  ];
+  const svc = new ResumeService(reordered, {
+    isPaymentFeatureEnabled: async () => false,
+    isRateLimitEnabled: async () => false,
+  });
+  const html = (await svc.debugExportHtml('user-1', 'resume-1')).html;
+  assert.ok(html.indexOf('>EXPERIENCE<') < html.indexOf('>SKILLS<'), 'override: experience before skills');
+  // Header (name) still leads the document.
+  assert.ok(html.indexOf('Jane Export') < html.indexOf('>EXPERIENCE<'), 'header stays on top');
+});
+
+test('export ignores unknown sectionOrder keys and falls back to canonical', async () => {
+  const prisma = createInMemoryPrisma('classic');
+  prisma.__getState().resume.sectionOrder = ['bogus', 'photo'];
+  const svc = new ResumeService(prisma, {
+    isPaymentFeatureEnabled: async () => false,
+    isRateLimitEnabled: async () => false,
+  });
+  const html = (await svc.debugExportHtml('user-1', 'resume-1')).html;
+  assert.ok(html.indexOf('>SKILLS<') < html.indexOf('>EXPERIENCE<'), 'canonical order preserved');
+});
+
+const SAMPLE_PHOTO = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCA';
+
+test('sidebar-bold export embeds the profile photo when set', async () => {
+  const prisma = createInMemoryPrisma('sidebar-bold');
+  prisma.__getState().resume.photoUrl = SAMPLE_PHOTO;
+  const svc = new ResumeService(prisma, {
+    isPaymentFeatureEnabled: async () => false,
+    isRateLimitEnabled: async () => false,
+  });
+  const html = (await svc.debugExportHtml('user-1', 'resume-1')).html;
+  assert.match(html, /class="nb-sidebar-bold__photo"/);
+  assert.ok(html.includes(SAMPLE_PHOTO), 'data URI embedded in export');
+});
+
+test('accent-header export embeds the profile photo when set', async () => {
+  const prisma = createInMemoryPrisma('accent-header');
+  prisma.__getState().resume.photoUrl = SAMPLE_PHOTO;
+  const svc = new ResumeService(prisma, {
+    isPaymentFeatureEnabled: async () => false,
+    isRateLimitEnabled: async () => false,
+  });
+  const html = (await svc.debugExportHtml('user-1', 'resume-1')).html;
+  assert.match(html, /nb-accent-header__band--with-photo/);
+  assert.match(html, /class="nb-accent-header__photo"/);
+});
+
+test('ATS template export NEVER includes the photo even if one is stored', async () => {
+  const prisma = createInMemoryPrisma('classic');
+  prisma.__getState().resume.photoUrl = SAMPLE_PHOTO;
+  const svc = new ResumeService(prisma, {
+    isPaymentFeatureEnabled: async () => false,
+    isRateLimitEnabled: async () => false,
+  });
+  const html = (await svc.debugExportHtml('user-1', 'resume-1')).html;
+  assert.ok(!html.includes(SAMPLE_PHOTO), 'ATS export must omit the photo (§9.5)');
+  assert.ok(!/__photo"/.test(html), 'no photo element in ATS export');
+});
+
+test('export drops an invalid/oversize stored photo (defense in depth)', async () => {
+  const prisma = createInMemoryPrisma('sidebar-bold');
+  prisma.__getState().resume.photoUrl = 'https://evil.example/x.png';
+  const svc = new ResumeService(prisma, {
+    isPaymentFeatureEnabled: async () => false,
+    isRateLimitEnabled: async () => false,
+  });
+  const html = (await svc.debugExportHtml('user-1', 'resume-1')).html;
+  // The CSS rule for the class always exists in the bundle; assert the IMG
+  // element (with the class attribute) is not emitted.
+  assert.ok(!/class="nb-sidebar-bold__photo"/.test(html), 'non-data-URI photo is not rendered');
+  assert.ok(!html.includes('https://evil.example'), 'untrusted URL not embedded');
 });
 
 // ---------------------------------------------------------------------------

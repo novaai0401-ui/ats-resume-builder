@@ -60,6 +60,12 @@ export type ResumeDraft = {
   certifications: CertificationItem[];
   achievements: string[];
   templateId?: string;
+  /** R-045 — design customization. */
+  fontFamily?: string | null;
+  density?: string | null;
+  accentColor?: string | null;
+  sectionOrder?: string[] | null;
+  photoUrl?: string | null;
 };
 
 export type AtsReviewState = {

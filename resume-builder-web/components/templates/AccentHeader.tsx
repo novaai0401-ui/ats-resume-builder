@@ -1,4 +1,5 @@
 import React from 'react';
+import { normalizePhotoUrl } from 'resume-builder-shared';
 import {
   AchievementsSection,
   certificationItems,
@@ -27,17 +28,23 @@ export default function AccentHeader({ resumeData }: TemplateProps) {
   const education = educationItems(normalized);
   const certifications = certificationItems(normalized);
 
+  const photo = normalizePhotoUrl(normalized.photoUrl);
+
   return (
     <article className="nb-accent-header">
       {/* ── Colored header band ───────────────────────── */}
-      <header className="nb-accent-header__band">
-        <h1 className="nb-accent-header__name">{fullNameOrTitle(normalized)}</h1>
-        {normalized.title && normalized.contact?.fullName && (
-          <p className="nb-accent-header__title">{normalized.title}</p>
-        )}
-        {contactLine(normalized) && (
-          <p className="nb-accent-header__contact">{contactLine(normalized)}</p>
-        )}
+      <header className={`nb-accent-header__band${photo ? ' nb-accent-header__band--with-photo' : ''}`}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        {photo ? <img className="nb-accent-header__photo" src={photo} alt="" /> : null}
+        <div className="nb-accent-header__band-text">
+          <h1 className="nb-accent-header__name">{fullNameOrTitle(normalized)}</h1>
+          {normalized.title && normalized.contact?.fullName && (
+            <p className="nb-accent-header__title">{normalized.title}</p>
+          )}
+          {contactLine(normalized) && (
+            <p className="nb-accent-header__contact">{contactLine(normalized)}</p>
+          )}
+        </div>
       </header>
 
       <div className="nb-accent-header__body">

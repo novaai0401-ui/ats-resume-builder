@@ -256,18 +256,22 @@ export default function DashboardPageView({
     }
   }
 
+  // Preview = look at the template rendered, WITHOUT changing your resume.
+  // Lands on the dedicated preview page (with a resume if one is selected, or
+  // the sample gallery if not). Distinct from "Use Template" below.
   function handleTemplatePreview(templateId: TemplateId) {
     setSelectedTemplate(templateId);
     setStatus('');
     setError('');
     const currentResumeId = String(selectedResumeId || activeResume?.id || '').trim();
-    if (!currentResumeId) {
-      router.push(`/resume/start?template=${encodeURIComponent(templateId)}`);
-      return;
-    }
-    router.push(buildTemplateSelectionRoute(currentResumeId, templateId));
+    const params = new URLSearchParams();
+    if (currentResumeId) params.set('resumeId', currentResumeId);
+    params.set('template', templateId);
+    router.push(`/templates/preview?${params.toString()}`);
   }
 
+  // Use = apply the template to the selected resume and go straight to the
+  // editor so the user keeps working with it applied. (No resume yet → start.)
   async function handleTemplateSelect(templateId: TemplateId) {
     setSelectedTemplate(templateId);
     setStatus('');
@@ -281,7 +285,7 @@ export default function DashboardPageView({
     try {
       const updated = await apiClient.updateResume(activeResume.id, { templateId });
       setResumes((prev) => prev.map((resume) => (resume.id === activeResume.id ? updated : resume)));
-      router.push(buildTemplateSelectionRoute(activeResume.id, templateId));
+      router.push(`/resume?id=${encodeURIComponent(activeResume.id)}&template=${encodeURIComponent(templateId)}`);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to apply template.');
     } finally {

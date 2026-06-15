@@ -6,7 +6,8 @@ import mammoth from 'mammoth';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { JD_STOPWORDS, SECTION_LABEL_WORDS, filterJdKeywords } from '../lib/keyword-stopwords';
-import type { AtsIssue, CreateResumeDto, UpdateResumeDto } from 'resume-builder-shared';
+import type { AtsIssue, AtsSectionKey, CreateResumeDto, UpdateResumeDto } from 'resume-builder-shared';
+import { designCssText, normalizeAccentColor, normalizePhotoUrl, templateSupportsPhoto, resolveSectionOrder } from 'resume-builder-shared';
 import { ResumeSectionsSchema } from 'resume-schemas';
 import { ensureUsagePeriod } from '../billing/usage';
 import { rateLimitOrThrow } from '../limits/rate-limit';
@@ -267,6 +268,11 @@ export class ResumeService {
         certifications: normalized.certifications ?? [],
         achievements: normalized.achievements ?? [],
         templateId,
+        fontFamily: typeof dto.fontFamily === 'string' ? dto.fontFamily.trim() || null : undefined,
+        density: typeof dto.density === 'string' ? dto.density.trim() || null : undefined,
+        accentColor: dto.accentColor !== undefined ? normalizeAccentColor(dto.accentColor) : undefined,
+        sectionOrder: Array.isArray(dto.sectionOrder) ? dto.sectionOrder : undefined,
+        photoUrl: dto.photoUrl !== undefined ? normalizePhotoUrl(dto.photoUrl) : undefined,
       },
     });
     this.fireTrainingConfirmation(userId, created.id, created);
@@ -387,13 +393,16 @@ export class ResumeService {
       // upload extracted.
       languages: normalized.languages,
     });
-    // Skip ATS validation when only templateId is being changed — the content
-    // hasn't changed, so re-validating it blocks a simple template switch with
-    // unrelated validation errors (e.g. bullet word count, action verbs).
-    const isTemplateOnlyUpdate = dto.templateId != null && Object.keys(dto).every(
-      (key) => key === 'templateId' || dto[key as keyof typeof dto] == null,
-    );
-    if (!isTemplateOnlyUpdate) {
+    // Skip ATS validation for presentation-only changes (template, font,
+    // density) — the resume CONTENT hasn't changed, so re-validating it would
+    // block a simple template/design switch with unrelated content errors
+    // (e.g. bullet word count, action verbs). R-045 adds fontFamily/density.
+    const presentationKeys = new Set(['templateId', 'fontFamily', 'density', 'accentColor', 'sectionOrder', 'photoUrl']);
+    const dtoKeys = Object.keys(dto);
+    const isPresentationOnlyUpdate =
+      dtoKeys.some((key) => presentationKeys.has(key) && dto[key as keyof typeof dto] != null) &&
+      dtoKeys.every((key) => presentationKeys.has(key) || dto[key as keyof typeof dto] == null);
+    if (!isPresentationOnlyUpdate) {
       enforceAtsResumeRules({
         summary: normalized.summary,
         skills: categories.skills,
@@ -418,11 +427,16 @@ export class ResumeService {
         certifications: normalized.certifications,
         achievements: normalized.achievements ?? [],
         templateId,
+        fontFamily: dto.fontFamily !== undefined ? (typeof dto.fontFamily === 'string' ? dto.fontFamily.trim() || null : null) : undefined,
+        density: dto.density !== undefined ? (typeof dto.density === 'string' ? dto.density.trim() || null : null) : undefined,
+        accentColor: dto.accentColor !== undefined ? normalizeAccentColor(dto.accentColor) : undefined,
+        sectionOrder: dto.sectionOrder !== undefined ? (Array.isArray(dto.sectionOrder) ? dto.sectionOrder : []) : undefined,
+        photoUrl: dto.photoUrl !== undefined ? normalizePhotoUrl(dto.photoUrl) : undefined,
       },
     });
     // Only fire the auto-label promotion on substantive edits — a pure
-    // templateId swap doesn't represent the user confirming structure.
-    if (!isTemplateOnlyUpdate) {
+    // template/design swap doesn't represent the user confirming structure.
+    if (!isPresentationOnlyUpdate) {
       this.fireTrainingConfirmation(userId, id, updated);
     }
     return decorateResumeWithSkillCategories(updated);
@@ -4313,12 +4327,15 @@ const ATS_TEMPLATE_EXPORT_CSS = `
            Teal, LinkedIn). On headless Chrome (Render = Debian), if
            Inter is not installed it falls through to DejaVu Sans /
            Liberation Sans which ARE installed, never to a serif font. */
-        font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto,
-                     'Helvetica Neue', 'Liberation Sans', 'DejaVu Sans', Arial, sans-serif;
+        /* R-045: --rb-* vars (set on the export root from the resume's design)
+           override these per-resume; the literals are the zero-regression
+           fallback when no design is chosen. */
+        font-family: var(--rb-font, 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto,
+                     'Helvetica Neue', 'Liberation Sans', 'DejaVu Sans', Arial, sans-serif);
         color: #111;
         background: #ffffff;
-        font-size: 10.5pt;
-        line-height: 1.4;
+        font-size: calc(10.5pt * var(--rb-fs-scale, 1));
+        line-height: var(--rb-lh, 1.4);
       }
       .resume-export-root {
         width: 100%;
@@ -4367,7 +4384,7 @@ const ATS_TEMPLATE_EXPORT_CSS = `
         white-space: normal;
       }
       .ats-template__header--bar {
-        border-bottom-color: #2b3a55;
+        border-bottom-color: var(--rb-accent, #2b3a55);
         border-bottom-width: 3px;
       }
       .ats-section {
@@ -4387,7 +4404,7 @@ const ATS_TEMPLATE_EXPORT_CSS = `
         font-size: 11pt;
         letter-spacing: 0.08em;
         text-transform: uppercase;
-        color: #1b2b3c;
+        color: var(--rb-accent, #1b2b3c);
       }
       .ats-section h2.ats-upper {
         letter-spacing: 0.12em;
@@ -4454,14 +4471,17 @@ const ATS_TEMPLATE_EXPORT_CSS = `
          downloaded PDF looked like Classic ATS and confused users
          who picked Accent Header for the visual style.
          ─────────────────────────────────────────────────────────── */
-      .nb-accent-header { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 12px; line-height: 1.5; color: #1a2233; background: #ffffff; }
-      .nb-accent-header__band { background: linear-gradient(135deg, #1a3a6e 0%, #2563a8 100%); color: #ffffff; padding: 28px 32px 24px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .nb-accent-header { font-family: var(--rb-font, 'Segoe UI', system-ui, sans-serif); font-size: calc(12px * var(--rb-fs-scale, 1)); line-height: var(--rb-lh, 1.5); color: #1a2233; background: #ffffff; }
+      .nb-accent-header__band { background: linear-gradient(135deg, var(--rb-accent, #1a3a6e) 0%, #2563a8 100%); color: #ffffff; padding: 28px 32px 24px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .nb-accent-header__band--with-photo { display: flex; align-items: center; gap: 20px; }
+      .nb-accent-header__band-text { min-width: 0; }
+      .nb-accent-header__photo { width: 84px; height: 84px; border-radius: 50%; object-fit: cover; border: 3px solid rgba(255,255,255,0.85); flex-shrink: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .nb-accent-header__name { font-size: 26px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.02em; }
       .nb-accent-header__title { font-size: 13px; opacity: 0.85; margin: 0 0 8px; font-weight: 400; }
       .nb-accent-header__contact { font-size: 11px; opacity: 0.75; margin: 0; }
       .nb-accent-header__body { padding: 24px 32px; }
       .nb-accent-header__section { margin-bottom: 22px; page-break-inside: avoid; break-inside: avoid; }
-      .nb-accent-header__section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #2563a8; margin: 0 0 10px; display: flex; align-items: center; gap: 8px; }
+      .nb-accent-header__section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: var(--rb-accent, #2563a8); margin: 0 0 10px; display: flex; align-items: center; gap: 8px; }
       .nb-accent-header__section-title::after { content: ''; flex: 1; height: 1px; background: #d0dff0; }
       .nb-accent-header__summary { font-size: 11px; color: #3a4a5c; line-height: 1.7; margin: 0; }
       .nb-accent-header__skills-wrap { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -4469,7 +4489,7 @@ const ATS_TEMPLATE_EXPORT_CSS = `
       .nb-accent-header__skill-pill--soft { background: #f0f8ee; color: #1e5535; border-color: #b8dfb0; }
       .nb-accent-header__item { margin-bottom: 14px; padding-left: 18px; position: relative; page-break-inside: avoid; break-inside: avoid; }
       .nb-accent-header__item-header { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 4px; }
-      .nb-accent-header__item-dot { position: absolute; left: 0; top: 5px; width: 8px; height: 8px; border-radius: 50%; background: #2563a8; flex-shrink: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .nb-accent-header__item-dot { position: absolute; left: 0; top: 5px; width: 8px; height: 8px; border-radius: 50%; background: var(--rb-accent, #2563a8); flex-shrink: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .nb-accent-header__item-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px; flex: 1; }
       .nb-accent-header__item-role { font-size: 12px; font-weight: 600; color: #1a2e4a; }
       .nb-accent-header__item-company { font-size: 11px; color: #5a7a9a; font-style: italic; }
@@ -4486,8 +4506,9 @@ const ATS_TEMPLATE_EXPORT_CSS = `
          Sidebar Bold template — mirrors components/templates/Sidebar
          Bold.tsx. Two-column dark-navy sidebar + white main area.
          ─────────────────────────────────────────────────────────── */
-      .nb-sidebar-bold { display: grid; grid-template-columns: 220px 1fr; min-height: 100%; font-family: 'Segoe UI', system-ui, sans-serif; font-size: 12px; line-height: 1.5; color: #1a2233; }
-      .nb-sidebar-bold__sidebar { background: #1a2e4a; color: #e8edf5; padding: 28px 18px; display: flex; flex-direction: column; gap: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .nb-sidebar-bold { display: grid; grid-template-columns: 220px 1fr; min-height: 100%; font-family: var(--rb-font, 'Segoe UI', system-ui, sans-serif); font-size: calc(12px * var(--rb-fs-scale, 1)); line-height: var(--rb-lh, 1.5); color: #1a2233; }
+      .nb-sidebar-bold__sidebar { background: var(--rb-accent, #1a2e4a); color: #e8edf5; padding: 28px 18px; display: flex; flex-direction: column; gap: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .nb-sidebar-bold__photo { width: 96px; height: 96px; border-radius: 50%; object-fit: cover; border: 3px solid rgba(255,255,255,0.85); margin: 0 auto 16px; display: block; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .nb-sidebar-bold__name-block { margin-bottom: 20px; }
       .nb-sidebar-bold__name { font-size: 18px; font-weight: 700; color: #ffffff; line-height: 1.25; margin: 0 0 4px; word-break: break-word; }
       .nb-sidebar-bold__role { font-size: 11px; color: #7eb8e8; text-transform: uppercase; letter-spacing: 0.06em; margin: 0; }
@@ -4505,7 +4526,7 @@ const ATS_TEMPLATE_EXPORT_CSS = `
       .nb-sidebar-bold__edu-date { font-size: 9px; color: #7eb8e8; margin: 0; }
       .nb-sidebar-bold__main { padding: 28px 24px; background: #ffffff; }
       .nb-sidebar-bold__content-section { margin-bottom: 22px; page-break-inside: avoid; break-inside: avoid; }
-      .nb-sidebar-bold__content-title { font-size: 13px; font-weight: 700; color: #1a2e4a; text-transform: uppercase; letter-spacing: 0.06em; margin: 0 0 10px; padding-bottom: 5px; border-bottom: 2px solid #1a2e4a; }
+      .nb-sidebar-bold__content-title { font-size: 13px; font-weight: 700; color: var(--rb-accent, #1a2e4a); text-transform: uppercase; letter-spacing: 0.06em; margin: 0 0 10px; padding-bottom: 5px; border-bottom: 2px solid var(--rb-accent, #1a2e4a); }
       .nb-sidebar-bold__summary { font-size: 11px; color: #3a4a5c; line-height: 1.6; margin: 0; }
       .nb-sidebar-bold__exp-item { margin-bottom: 14px; page-break-inside: avoid; break-inside: avoid; }
       .nb-sidebar-bold__exp-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 5px; }
@@ -4537,7 +4558,7 @@ export function renderResumeTemplateHtml(input: RenderResumeTemplateHtmlInput): 
     <style>${ATS_TEMPLATE_EXPORT_CSS}</style>
   </head>
   <body>
-    <div class="resume-export-root" data-template-id="${safeCssClass(templateId)}" data-render-context="${mode}" data-css-bundle="${ATS_TEMPLATE_EXPORT_CSS_BUNDLE}">
+    <div class="resume-export-root" data-template-id="${safeCssClass(templateId)}" data-render-context="${mode}" data-css-bundle="${ATS_TEMPLATE_EXPORT_CSS_BUNDLE}" style="${designCssText(resume)}">
       <span class="sr-only-fingerprint">${fingerprint}</span>
       <main class="resume-export-page">
         ${body}
@@ -4835,9 +4856,13 @@ function renderSidebarBoldTemplateArticle(resume: any) {
           }).join('')}
         </section>` : '';
 
+  const photo = normalizePhotoUrl(normalized?.photoUrl);
+  const photoBlock = photo ? `<img class="nb-sidebar-bold__photo" src="${photo}" alt="" />` : '';
+
   return `
     <article class="nb-sidebar-bold">
       <aside class="nb-sidebar-bold__sidebar">
+        ${photoBlock}
         <div class="nb-sidebar-bold__name-block">
           <h1 class="nb-sidebar-bold__name">${fullName}</h1>
           ${hasRoleSubtitle ? `<p class="nb-sidebar-bold__role">${escapeHtml(role)}</p>` : ''}
@@ -4982,12 +5007,18 @@ function renderAccentHeaderTemplateArticle(resume: any) {
         </div>
       </div>` : '';
 
+  const photo = normalizePhotoUrl(normalized?.photoUrl);
+  const photoBlock = photo ? `<img class="nb-accent-header__photo" src="${photo}" alt="" />` : '';
+
   return `
     <article class="nb-accent-header">
-      <header class="nb-accent-header__band">
-        <h1 class="nb-accent-header__name">${fullName}</h1>
-        ${hasRoleSubtitle ? `<p class="nb-accent-header__title">${escapeHtml(role)}</p>` : ''}
-        ${contact ? `<p class="nb-accent-header__contact">${escapeHtml(contact)}</p>` : ''}
+      <header class="nb-accent-header__band${photo ? ' nb-accent-header__band--with-photo' : ''}">
+        ${photoBlock}
+        <div class="nb-accent-header__band-text">
+          <h1 class="nb-accent-header__name">${fullName}</h1>
+          ${hasRoleSubtitle ? `<p class="nb-accent-header__title">${escapeHtml(role)}</p>` : ''}
+          ${contact ? `<p class="nb-accent-header__contact">${escapeHtml(contact)}</p>` : ''}
+        </div>
       </header>
       <div class="nb-accent-header__body">
         ${summarySection}
@@ -5122,30 +5153,36 @@ function renderOrderedSections(
       </section>
     ` : '';
 
-  sections.push(summarySection);
-  if (options.educationFirst) {
-    sections.push(educationSection);
-    sections.push(experienceSection);
-    if (projectsSection) sections.push(projectsSection);
-    if (achievementsSection) sections.push(achievementsSection);
-    if (certificationsSection) sections.push(certificationsSection);
-    sections.push(skillsSection);
-  } else if (options.certificationsFirst) {
-    if (certificationsSection) sections.push(certificationsSection);
-    sections.push(educationSection);
-    sections.push(experienceSection);
-    sections.push(skillsSection);
-    if (projectsSection) sections.push(projectsSection);
-    if (achievementsSection) sections.push(achievementsSection);
-  } else {
-    sections.push(skillsSection);
-    sections.push(experienceSection);
-    if (projectsSection) sections.push(projectsSection);
-    if (achievementsSection) sections.push(achievementsSection);
-    sections.push(educationSection);
-    if (certificationsSection) sections.push(certificationsSection);
+  // R-045 Phase 2: body sections render in a resolved order. Each template
+  // has a default body order; the per-resume `sectionOrder` override (when
+  // present) wins, with unknown/missing keys falling back to the default
+  // (resolveSectionOrder). This mirrors the React OrderedAtsSections renderer
+  // so preview and export stay in lock-step.
+  const defaultBody = options.educationFirst
+    ? ['summary', 'education', 'experience', 'projects', 'achievements', 'certifications', 'skills', 'languages']
+    : options.certificationsFirst
+      ? ['summary', 'certifications', 'education', 'experience', 'skills', 'projects', 'achievements', 'languages']
+      : ['summary', 'skills', 'experience', 'projects', 'achievements', 'education', 'certifications', 'languages'];
+
+  const blockByKey: Record<string, string> = {
+    summary: summarySection,
+    skills: skillsSection,
+    experience: experienceSection,
+    projects: projectsSection,
+    achievements: achievementsSection,
+    education: educationSection,
+    certifications: certificationsSection,
+    languages: languagesSection,
+  };
+
+  const order = resolveSectionOrder(
+    resume.sectionOrder,
+    defaultBody as Exclude<AtsSectionKey, 'header'>[],
+  );
+  for (const key of order) {
+    const block = blockByKey[key];
+    if (block) sections.push(block);
   }
-  if (languagesSection) sections.push(languagesSection);
 
   return sections.join('');
 }

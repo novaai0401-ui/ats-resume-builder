@@ -88,6 +88,14 @@ model Resume {
   skills    String[]
   languages String[] @default([])
   templateId String?
+  /// R-045 — design customization: font family id + density preset + accent.
+  fontFamily String?
+  density    String?
+  accentColor String?
+  /// R-045 Phase 2 — per-resume body-section order (ATS family). Empty = default.
+  sectionOrder String[] @default([])
+  /// R-045 Phase 3 — profile photo (base64 data URI; visual templates only).
+  photoUrl   String?
   summary   String
   experience Json
   education  Json

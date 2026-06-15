@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { TkxBottomNav, TkxDrawer } from 'tekivex-ui';
 import useFeatureFlags from '@/src/hooks/use-feature-flags';
+import { FONT_OPTIONS, DENSITY_OPTIONS, ACCENT_PRESETS, REORDERABLE_SECTIONS, resolveSectionOrder, getAtsSectionTitle, templateSupportsPhoto, normalizePhotoUrl } from 'resume-builder-shared';
 import { RESUME_CREATE_RATE_LIMIT_CODE, api, Resume, ResumeImportResult, UploadResumeResponse, getAccessToken, isApiRequestError } from '@/src/lib/api';
 import { PrivacyBadge } from '@/src/components/PrivacyBadge';
 import { useResumeStore } from '@/src/lib/resume-store';
@@ -104,6 +105,23 @@ type CertificationItem = {
   details?: string[];
 };
 
+/**
+ * R-045 Phase 2 — single-column ATS templates that support body-section
+ * reorder (the visual templates have fixed two-column/banded layouts). Includes
+ * the legacy aliases that resolve to these (graduate→minimal, executive→classic).
+ */
+const ATS_FAMILY_TEMPLATE_IDS = new Set([
+  'classic',
+  'modern',
+  'minimal',
+  'technical',
+  'consultant',
+  'academic',
+  'healthcare',
+  'graduate',
+  'executive',
+]);
+
 type ResumeDraft = {
   title: string;
   contact: ContactInfo;
@@ -118,6 +136,12 @@ type ResumeDraft = {
   certifications: CertificationItem[];
   achievements: string[];
   templateId?: string;
+  /** R-045 — design customization. */
+  fontFamily?: string | null;
+  density?: string | null;
+  accentColor?: string | null;
+  sectionOrder?: string[] | null;
+  photoUrl?: string | null;
 };
 
 type SectionType =
@@ -1043,6 +1067,85 @@ export default function ResumeEditor() {
       await savePromise;
     },
     [resumeId, showSnackbar],
+  );
+
+  // R-045 — persist a design change (font/density). These are
+  // presentation-only fields; the API skips ATS re-validation for them.
+  const persistDesign = useCallback(
+    async (patch: { fontFamily?: string | null; density?: string | null; accentColor?: string | null; sectionOrder?: string[] | null; photoUrl?: string | null }) => {
+      if (!resumeId) return;
+      try {
+        await api.updateResume(resumeId, patch);
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to save design.';
+        showSnackbar('error', errorMessage);
+      }
+    },
+    [resumeId, showSnackbar],
+  );
+
+  // R-045 Phase 2 — move a body section up/down. We always persist the full
+  // resolved order so the stored override is self-contained.
+  const moveSection = useCallback(
+    (index: number, direction: -1 | 1) => {
+      setResume((prev) => {
+        const current = resolveSectionOrder(prev.sectionOrder ?? null);
+        const target = index + direction;
+        if (target < 0 || target >= current.length) return prev;
+        const next = [...current];
+        [next[index], next[target]] = [next[target], next[index]];
+        persistDesign({ sectionOrder: next });
+        return { ...prev, sectionOrder: next };
+      });
+    },
+    [persistDesign],
+  );
+
+  // R-045 Phase 3 — read an image file, downscale it to a square-ish data URI
+  // (max 512px, JPEG) so the stored photo stays small and self-contained.
+  const handlePhotoFile = useCallback(
+    async (file: File) => {
+      if (!file.type.startsWith('image/')) {
+        showSnackbar('error', 'Please choose an image file.');
+        return;
+      }
+      try {
+        const dataUrl: string = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result || ''));
+          reader.onerror = () => reject(new Error('read failed'));
+          reader.readAsDataURL(file);
+        });
+        const img = new Image();
+        const resized: string = await new Promise((resolve, reject) => {
+          img.onload = () => {
+            const max = 512;
+            const scale = Math.min(1, max / Math.max(img.width, img.height));
+            const w = Math.round(img.width * scale);
+            const h = Math.round(img.height * scale);
+            const canvas = document.createElement('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return reject(new Error('no canvas'));
+            ctx.drawImage(img, 0, 0, w, h);
+            resolve(canvas.toDataURL('image/jpeg', 0.85));
+          };
+          img.onerror = () => reject(new Error('decode failed'));
+          img.src = dataUrl;
+        });
+        const normalized = normalizePhotoUrl(resized);
+        if (!normalized) {
+          showSnackbar('error', 'That image could not be used. Try a JPEG or PNG under ~1 MB.');
+          return;
+        }
+        setResume((prev) => ({ ...prev, photoUrl: normalized }));
+        persistDesign({ photoUrl: normalized });
+      } catch {
+        showSnackbar('error', 'Could not process that image.');
+      }
+    },
+    [persistDesign, showSnackbar],
   );
 
   useEffect(() => {
@@ -2096,6 +2199,218 @@ export default function ResumeEditor() {
             }}
           />
           <p className="small" style={{ marginTop: 8 }}>This is for your dashboard. It does not appear on the resume.</p>
+        </div>
+
+        <div className="section-card" style={{ marginTop: 16 }}>
+          <label className="label">Design</label>
+          <p className="small" style={{ marginTop: 0, marginBottom: 10 }}>
+            Font and spacing apply to your preview and exported PDF/DOCX. All options stay ATS-safe.
+          </p>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            <div style={{ flex: '1 1 180px', minWidth: 160 }}>
+              <label className="label" style={{ fontSize: 12 }}>Font</label>
+              <select
+                className="input"
+                value={String(resume.fontFamily || 'system-sans')}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setResume((prev) => ({ ...prev, fontFamily: value }));
+                  persistDesign({ fontFamily: value });
+                }}
+              >
+                {FONT_OPTIONS.map((opt) => (
+                  <option key={opt.id} value={opt.id}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+            <div style={{ flex: '1 1 180px', minWidth: 160 }}>
+              <label className="label" style={{ fontSize: 12 }}>Spacing</label>
+              <select
+                className="input"
+                value={String(resume.density || 'normal')}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setResume((prev) => ({ ...prev, density: value }));
+                  persistDesign({ density: value });
+                }}
+              >
+                {DENSITY_OPTIONS.map((opt) => (
+                  <option key={opt.id} value={opt.id}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div style={{ marginTop: 12 }}>
+            <label className="label" style={{ fontSize: 12 }}>Accent colour</label>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              <button
+                type="button"
+                aria-label="Default accent (template default)"
+                title="Template default"
+                onClick={() => {
+                  setResume((prev) => ({ ...prev, accentColor: null }));
+                  persistDesign({ accentColor: null });
+                }}
+                style={{
+                  width: 26,
+                  height: 26,
+                  borderRadius: '50%',
+                  border: !resume.accentColor ? '2px solid #111' : '1px solid #cbd5e1',
+                  background: 'linear-gradient(135deg, #fff 0 50%, #94a3b8 50% 100%)',
+                  cursor: 'pointer',
+                }}
+              />
+              {ACCENT_PRESETS.map((preset) => {
+                const selected = String(resume.accentColor || '').toLowerCase() === preset.value.toLowerCase();
+                return (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    aria-label={preset.label}
+                    title={preset.label}
+                    onClick={() => {
+                      setResume((prev) => ({ ...prev, accentColor: preset.value }));
+                      persistDesign({ accentColor: preset.value });
+                    }}
+                    style={{
+                      width: 26,
+                      height: 26,
+                      borderRadius: '50%',
+                      border: selected ? '2px solid #111' : '1px solid #cbd5e1',
+                      background: preset.value,
+                      cursor: 'pointer',
+                    }}
+                  />
+                );
+              })}
+              <input
+                type="color"
+                aria-label="Custom accent colour"
+                value={String(resume.accentColor || '#2563a8')}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setResume((prev) => ({ ...prev, accentColor: value }));
+                  persistDesign({ accentColor: value });
+                }}
+                style={{ width: 34, height: 30, padding: 0, border: '1px solid #cbd5e1', borderRadius: 6, cursor: 'pointer' }}
+              />
+            </div>
+          </div>
+          {ATS_FAMILY_TEMPLATE_IDS.has(String(normalizedTemplateParam || resume.templateId || 'classic').trim()) ? (
+            <div style={{ marginTop: 12 }}>
+              <label className="label" style={{ fontSize: 12 }}>Section order</label>
+              <p className="small" style={{ marginTop: 0, marginBottom: 8 }}>
+                Reorder the body sections (the name/contact header always stays on top). Applies to ATS templates.
+              </p>
+              <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {resolveSectionOrder(resume.sectionOrder ?? null).map((key, idx, arr) => (
+                  <li
+                    key={key}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 8,
+                      padding: '6px 10px',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: 6,
+                      background: '#f8fafc',
+                    }}
+                  >
+                    <span style={{ fontSize: 13 }}>{getAtsSectionTitle(key)}</span>
+                    <span style={{ display: 'flex', gap: 4 }}>
+                      <button
+                        type="button"
+                        className="btn secondary"
+                        aria-label={`Move ${getAtsSectionTitle(key)} up`}
+                        disabled={idx === 0}
+                        onClick={() => moveSection(idx, -1)}
+                        style={{ padding: '2px 8px', minWidth: 0, opacity: idx === 0 ? 0.4 : 1 }}
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        className="btn secondary"
+                        aria-label={`Move ${getAtsSectionTitle(key)} down`}
+                        disabled={idx === arr.length - 1}
+                        onClick={() => moveSection(idx, 1)}
+                        style={{ padding: '2px 8px', minWidth: 0, opacity: idx === arr.length - 1 ? 0.4 : 1 }}
+                      >
+                        ↓
+                      </button>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              {resume.sectionOrder && resume.sectionOrder.length > 0 ? (
+                <button
+                  type="button"
+                  className="btn secondary"
+                  style={{ marginTop: 8, padding: '4px 10px' }}
+                  onClick={() => {
+                    setResume((prev) => ({ ...prev, sectionOrder: null }));
+                    persistDesign({ sectionOrder: null });
+                  }}
+                >
+                  Reset to default order
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+          {templateSupportsPhoto(String(normalizedTemplateParam || resume.templateId || 'classic').trim()) ? (
+            <div style={{ marginTop: 12 }}>
+              <label className="label" style={{ fontSize: 12 }}>Profile photo</label>
+              <p className="small" style={{ marginTop: 0, marginBottom: 8 }}>
+                Shown on this visual template only. ATS templates and ATS-safe exports never include a photo.
+              </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                {resume.photoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={resume.photoUrl}
+                    alt="Profile"
+                    style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', border: '1px solid #cbd5e1' }}
+                  />
+                ) : (
+                  <div
+                    aria-hidden
+                    style={{ width: 56, height: 56, borderRadius: '50%', background: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: 11 }}
+                  >
+                    No photo
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <label className="btn secondary" style={{ padding: '6px 12px', cursor: 'pointer', margin: 0 }}>
+                    {resume.photoUrl ? 'Replace' : 'Upload'}
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      style={{ display: 'none' }}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handlePhotoFile(file);
+                        e.target.value = '';
+                      }}
+                    />
+                  </label>
+                  {resume.photoUrl ? (
+                    <button
+                      type="button"
+                      className="btn secondary"
+                      style={{ padding: '6px 12px' }}
+                      onClick={() => {
+                        setResume((prev) => ({ ...prev, photoUrl: null }));
+                        persistDesign({ photoUrl: null });
+                      }}
+                    >
+                      Remove
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          ) : null}
         </div>
 
         <div className="card" style={{ marginTop: 16 }}>

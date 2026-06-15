@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { getAccessToken } from '@/src/lib/api';
 
 /**
  * R-038 — Settings card for managing public share links.
@@ -56,7 +57,7 @@ type VisitEvent = {
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001';
 
 function authedFetch(path: string, init: RequestInit = {}) {
-  const token = typeof window !== 'undefined' ? window.localStorage.getItem('rb_access_token') : null;
+  const token = getAccessToken();
   return fetch(`${API_BASE}${path}`, {
     ...init,
     headers: {

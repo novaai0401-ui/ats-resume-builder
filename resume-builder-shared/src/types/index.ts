@@ -28,6 +28,14 @@ export type Resume = {
   certifications?: CertificationItem[];
   achievements?: string[];
   templateId?: string;
+  /** R-045 — design customization (font family id + density + accent). */
+  fontFamily?: string | null;
+  density?: string | null;
+  accentColor?: string | null;
+  /** R-045 Phase 2 — per-resume body-section order (ATS family). */
+  sectionOrder?: string[] | null;
+  /** R-045 Phase 3 — profile photo (base64 data URI; visual templates only). */
+  photoUrl?: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -45,6 +53,10 @@ export type ResumeImportResult = {
   projects?: ProjectItem[];
   certifications?: CertificationItem[];
   achievements?: string[];
+  /** R-045 Phase 2 — body-section order override carried into templates. */
+  sectionOrder?: string[] | null;
+  /** R-045 Phase 3 — profile photo data URI carried into templates. */
+  photoUrl?: string | null;
   roleLevel?: 'FRESHER' | 'MID' | 'SENIOR';
   unmappedText?: string;
   text?: string;

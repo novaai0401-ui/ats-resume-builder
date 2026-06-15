@@ -600,6 +600,11 @@ export function buildResumePayload(resume: ResumeDraft, sections: SectionState[]
       ? (resume.achievements || []).map((a) => a.trim()).filter(Boolean)
       : [],
     templateId: resume.templateId?.trim() || undefined,
+    fontFamily: typeof resume.fontFamily === 'string' ? resume.fontFamily.trim() || null : (resume.fontFamily ?? undefined),
+    density: typeof resume.density === 'string' ? resume.density.trim() || null : (resume.density ?? undefined),
+    accentColor: typeof resume.accentColor === 'string' ? resume.accentColor.trim() || null : (resume.accentColor ?? undefined),
+    sectionOrder: Array.isArray(resume.sectionOrder) ? resume.sectionOrder : undefined,
+    photoUrl: typeof resume.photoUrl === 'string' ? resume.photoUrl.trim() || null : (resume.photoUrl ?? undefined),
   };
   return normalizeResumeForAts(payload) as typeof payload;
 }
@@ -659,7 +664,14 @@ export function buildResumePreview(resume: ResumeDraft): ResumeImportResult {
       .filter((item) => item.name),
     achievements: (resume.achievements || []).map((a) => a.trim()).filter(Boolean),
   };
-  return normalizeResumeForAts(preview);
+  const normalizedPreview = normalizeResumeForAts(preview);
+  // R-045 Phase 2/3: carry presentation-only fields (section order + photo)
+  // into the template render (normalizeResumeForAts only touches content).
+  return {
+    ...normalizedPreview,
+    sectionOrder: resume.sectionOrder ?? null,
+    photoUrl: resume.photoUrl ?? null,
+  };
 }
 
 function normalizeDateForPayload(value?: string) {
@@ -730,6 +742,11 @@ export function resumeFromApi(resume: Resume): ResumeDraft {
       .map((a) => String(a || '').trim())
       .filter(Boolean),
     templateId: resume.templateId || '',
+    fontFamily: resume.fontFamily ?? null,
+    density: resume.density ?? null,
+    accentColor: resume.accentColor ?? null,
+    sectionOrder: Array.isArray(resume.sectionOrder) ? resume.sectionOrder : null,
+    photoUrl: resume.photoUrl ?? null,
   };
 }
 
