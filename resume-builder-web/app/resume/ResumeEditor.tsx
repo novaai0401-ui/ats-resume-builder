@@ -3251,6 +3251,14 @@ export default function ResumeEditor() {
                                   {showLengthError && (
                                     <p className="hint error" style={{ marginTop: 4 }}>{lengthHelperText}</p>
                                   )}
+                                  {/* R: while reviewing freshly EXTRACTED content, nudge the user to
+                                      split an over-long or multi-sentence bullet into separate,
+                                      single-idea bullets. Non-blocking suggestion, not an error. */}
+                                  {isImportedMode && !highlightHasInputError && shouldSuggestBulletBreakdown(line || '') && (
+                                    <p className="hint" style={{ marginTop: 4 }}>
+                                      This looks like more than one idea — break it into separate bullets, one accomplishment per line, each starting with a strong action verb.
+                                    </p>
+                                  )}
                                   {localFailure && localFailure.suggestions.length > 0 && (
                                     <div className="field-meta" style={{ marginTop: 6 }}>
                                       {localFailure.suggestions.map((suggestion) => (
@@ -5187,6 +5195,24 @@ export function getHighlightLengthState(line: string, warningActive: boolean) {
     showError,
     helperText,
   };
+}
+
+/**
+ * Suggest (non-blocking) that an extracted bullet be broken into multiple
+ * single-idea bullets. Fires when the bullet is over the word limit OR clearly
+ * packs more than one sentence — exactly the shape produced when an upload
+ * concatenated several wrapped lines into one field. Used only in imported mode.
+ */
+export function shouldSuggestBulletBreakdown(line: string): boolean {
+  const text = String(line || '').trim();
+  if (!text) return false;
+  const words = countWords(text);
+  // Count sentence terminators that are followed by a space + capital (a real
+  // sentence boundary), so "Node.js" / "3.5" / trailing "." don't count.
+  const sentenceBreaks = (text.match(/[.!?]\s+[A-Z]/g) || []).length;
+  if (sentenceBreaks >= 1 && words >= 12) return true;
+  if (words > BULLET_WORD_LIMIT) return true;
+  return false;
 }
 
 export function findFirstTooLongHighlight(experience: ExperienceItem[]) {

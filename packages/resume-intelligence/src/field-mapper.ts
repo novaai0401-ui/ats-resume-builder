@@ -528,7 +528,17 @@ function mapExperience(parsed: ParsedResumeText) {
 
   const appendBulletToNearestBlock = (bullet: string) => {
     if (current) {
-      current.highlights.push(bullet);
+      // A PDF often wraps one logical bullet across several lines; when the
+      // wrapped tail also carries a bullet glyph it would otherwise become its
+      // own fragment ("...improving runtime" / "performance and stability...").
+      // Re-join it into the previous highlight so each field holds a complete
+      // sentence instead of a meaningless fragment.
+      const last = current.highlights[current.highlights.length - 1];
+      if (last && shouldMergeWrappedLine(last, bullet)) {
+        current.highlights[current.highlights.length - 1] = `${last.trimEnd()} ${bullet.trimStart()}`;
+      } else {
+        current.highlights.push(bullet);
+      }
       return true;
     }
     for (let i = blocks.length - 1; i >= 0; i -= 1) {
@@ -536,7 +546,12 @@ function mapExperience(parsed: ParsedResumeText) {
       if (currentCompany && normalizeCompany(item.company) !== normalizeCompany(currentCompany)) {
         continue;
       }
-      item.highlights = uniqueLines([...item.highlights, bullet]);
+      const last = item.highlights[item.highlights.length - 1];
+      if (last && shouldMergeWrappedLine(last, bullet)) {
+        item.highlights = [...item.highlights.slice(0, -1), `${last.trimEnd()} ${bullet.trimStart()}`];
+      } else {
+        item.highlights = uniqueLines([...item.highlights, bullet]);
+      }
       return true;
     }
     return false;

@@ -267,7 +267,7 @@ function SahaayakWorkspace({ profile, onProfileChange }: { profile: SahaayakProf
 
       <ByokHintForFreeUsers />
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 320px', gap: 20 }}>
+      <div className="sahaayak-workspace-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 320px', gap: 20 }}>
         <TkxCard>
           <TkxCardHeader>
             <strong>Conversation</strong>

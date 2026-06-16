@@ -819,7 +819,12 @@ export class ResumeService {
    * render pipeline as generatePdf, so the recruiter sees exactly
    * what the owner sees in print preview.
    */
-  async generatePdfBypassingQuota(userId: string, id: string, templateIdOverride?: string) {
+  async generatePdfBypassingQuota(
+    userId: string,
+    id: string,
+    templateIdOverride?: string,
+    options?: { watermark?: boolean },
+  ) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
     const resume = await this.get(userId, id);
@@ -832,6 +837,7 @@ export class ResumeService {
       templateId: resolvedTemplateId,
       resumeData: resume,
       mode: 'export',
+      watermark: Boolean(options?.watermark),
     });
     logExportRenderMeta({
       resumeId: id,
@@ -4271,7 +4277,58 @@ type RenderResumeTemplateHtmlInput = {
   templateId?: string | null;
   resumeData: any;
   mode: RenderContext;
+  /**
+   * When true, overlay a diagonal "POCKET RESUME" watermark on every page.
+   * Used for public share-link downloads so a recruiter can grab the PDF
+   * while the document stays visibly un-final until the owner exports a
+   * clean copy from their account.
+   */
+  watermark?: boolean;
 };
+
+/**
+ * Repeating diagonal watermark overlay (server-side mirror of the web
+ * print-preview watermark in globals.css). Fixed positioning + exact
+ * print-color-adjust so Puppeteer paints it on every page.
+ */
+const EXPORT_WATERMARK_HTML = `
+      <div class="resume-export-watermark" aria-hidden="true"></div>`;
+const EXPORT_WATERMARK_CSS = `
+      .resume-export-watermark {
+        position: fixed;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        pointer-events: none;
+        z-index: 9999;
+        background-image: repeating-linear-gradient(
+          -45deg,
+          rgba(15, 23, 42, 0.07) 0,
+          rgba(15, 23, 42, 0.07) 220px,
+          transparent 220px,
+          transparent 440px
+        );
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      .resume-export-watermark::after {
+        content: 'POCKET RESUME · POCKET RESUME · POCKET RESUME · POCKET RESUME · POCKET RESUME · POCKET RESUME · POCKET RESUME · POCKET RESUME · POCKET RESUME · POCKET RESUME · POCKET RESUME · POCKET RESUME';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) rotate(-30deg);
+        width: 200%;
+        text-align: center;
+        font-size: 34px;
+        font-weight: 800;
+        line-height: 2.6;
+        letter-spacing: 0.12em;
+        color: rgba(15, 23, 42, 0.10);
+        word-spacing: 18px;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }`;
 
 type RenderResumeTemplateHtmlOutput = {
   html: string;
@@ -4549,17 +4606,18 @@ export function renderResumeTemplateHtml(input: RenderResumeTemplateHtmlInput): 
   const title = escapeHtml(docTitle);
   const body = renderTemplateBody(templateId, resume);
   const mode = input.mode;
+  const watermark = Boolean(input.watermark);
   const html = `
 <!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <title>${title}</title>
-    <style>${ATS_TEMPLATE_EXPORT_CSS}</style>
+    <style>${ATS_TEMPLATE_EXPORT_CSS}${watermark ? EXPORT_WATERMARK_CSS : ''}</style>
   </head>
   <body>
     <div class="resume-export-root" data-template-id="${safeCssClass(templateId)}" data-render-context="${mode}" data-css-bundle="${ATS_TEMPLATE_EXPORT_CSS_BUNDLE}" style="${designCssText(resume)}">
-      <span class="sr-only-fingerprint">${fingerprint}</span>
+      <span class="sr-only-fingerprint">${fingerprint}</span>${watermark ? EXPORT_WATERMARK_HTML : ''}
       <main class="resume-export-page">
         ${body}
       </main>

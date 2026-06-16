@@ -215,6 +215,7 @@ export default function ShareLinksCard() {
             value={pickedResumeId}
             onChange={(e) => setPickedResumeId(e.target.value)}
             disabled={busy || resumes.length === 0}
+            style={{ maxWidth: '100%', width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
           >
             {resumes.length === 0 ? <option value="">No saved resumes yet</option> : null}
             {resumes.map((r) => (
