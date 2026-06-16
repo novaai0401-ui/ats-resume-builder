@@ -368,7 +368,11 @@ export class ShareLinksService {
     // Use the same generatePdf the owner uses, but in a bypass mode
     // so quota is not consumed. ResumeService.generatePdf is the only
     // PDF code path in the app — fork would be a maintenance trap.
-    const pdf = await this.resume.generatePdfBypassingQuota(link.userId, link.resumeId);
+    // Public copies carry a watermark: the recruiter gets a usable PDF
+    // while the owner's clean export stays the canonical one.
+    const pdf = await this.resume.generatePdfBypassingQuota(link.userId, link.resumeId, undefined, {
+      watermark: true,
+    });
 
     await this.recordEvent(link.id, 'download', req);
     this.analytics.track(

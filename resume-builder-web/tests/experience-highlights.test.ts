@@ -6,6 +6,7 @@ import {
   focusHighlightById,
   getHighlightLengthState,
   shouldShowBulletLengthWarning,
+  shouldSuggestBulletBreakdown,
 } from '../app/resume/ResumeEditor';
 
 test('countWords ignores extra whitespace', () => {
@@ -30,6 +31,23 @@ test('fragment-length highlights surface a too-short helper even without a serve
   assert.equal(state.isTooShort, true);
   assert.equal(state.showError, true);
   assert.match(state.helperText, /Too short/);
+});
+
+test('shouldSuggestBulletBreakdown flags multi-sentence and over-long bullets', () => {
+  // Two clear sentences → suggest splitting.
+  assert.equal(
+    shouldSuggestBulletBreakdown('Led the migration to microservices across three teams. Cut release time in half.'),
+    true,
+  );
+  // Single over-long sentence (> 28 words) → suggest splitting.
+  assert.equal(shouldSuggestBulletBreakdown(new Array(30).fill('word').join(' ')), true);
+});
+
+test('shouldSuggestBulletBreakdown leaves clean single-idea bullets alone', () => {
+  assert.equal(shouldSuggestBulletBreakdown('Improved checkout conversion by 18% by redesigning the flow.'), false);
+  // Abbreviations / decimals must not be read as sentence boundaries.
+  assert.equal(shouldSuggestBulletBreakdown('Built services in Node.js and shipped to 3.5M users monthly.'), false);
+  assert.equal(shouldSuggestBulletBreakdown(''), false);
 });
 
 test('empty inputs stay quiet — they are unfilled rows, not fragments', () => {

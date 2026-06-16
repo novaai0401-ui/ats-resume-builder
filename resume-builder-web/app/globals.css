@@ -3991,3 +3991,12 @@ a:hover { color: var(--primary-700); }
     padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
   }
 }
+
+/* R: Sahaayak/Coach workspace — the two-column grid (chat + "Log an event"
+ * card) must collapse to a single column on narrow screens, otherwise the
+ * fixed 320px sidebar squeezes the chat column until they visually overlap. */
+@media (max-width: 768px) {
+  .sahaayak-workspace-grid {
+    grid-template-columns: 1fr !important;
+  }
+}

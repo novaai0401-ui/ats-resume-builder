@@ -534,6 +534,45 @@ test('export drops an invalid/oversize stored photo (defense in depth)', async (
   assert.ok(!html.includes('https://evil.example'), 'untrusted URL not embedded');
 });
 
+test('public share-link PDF carries a watermark; the owner export does not', async () => {
+  const { renderResumeTemplateHtml } = require('../dist/resume/resume.service.js');
+  const resume = createInMemoryPrisma('classic').__getState().resume;
+
+  const clean = renderResumeTemplateHtml({ templateId: 'classic', resumeData: resume, mode: 'export' });
+  assert.ok(!/resume-export-watermark/.test(clean.html), 'owner export has no watermark');
+
+  const marked = renderResumeTemplateHtml({ templateId: 'classic', resumeData: resume, mode: 'export', watermark: true });
+  assert.match(marked.html, /class="resume-export-watermark"/);
+  assert.match(marked.html, /POCKET RESUME/);
+  assert.match(marked.html, /print-color-adjust: exact/);
+});
+
+test('share-links renderPdf requests a watermarked, quota-bypassing export', async () => {
+  // The public path must NOT consume the owner's quota AND must watermark.
+  const calls = [];
+  const fakeResumeService = {
+    generatePdfBypassingQuota: async (userId, resumeId, templateOverride, options) => {
+      calls.push({ userId, resumeId, templateOverride, options });
+      return Buffer.from('%PDF-fake');
+    },
+  };
+  const { ShareLinksService } = require('../dist/share-links/share-links.service.js');
+  // Minimal stubs for the other constructor deps; we only exercise renderPdf.
+  const link = { id: 'l1', slug: 'abc', userId: 'u1', resumeId: 'r1' };
+  const svc = Object.create(ShareLinksService.prototype);
+  svc.resume = fakeResumeService;
+  svc.analytics = { track: () => {} };
+  svc.resolveBySlug = async () => link;
+  svc.recordEvent = async () => {};
+
+  const pdf = await svc.renderPdf('abc', undefined);
+  assert.ok(Buffer.isBuffer(pdf));
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].userId, 'u1');
+  assert.equal(calls[0].resumeId, 'r1');
+  assert.deepEqual(calls[0].options, { watermark: true });
+});
+
 // ---------------------------------------------------------------------------
 // Achievements — dedicated section renders in the PDF export.
 // ---------------------------------------------------------------------------
