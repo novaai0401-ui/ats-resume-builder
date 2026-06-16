@@ -4,6 +4,13 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/src/lib/api';
+import {
+  MIN_PASSWORD_LENGTH,
+  PASSWORD_MIN_HINT,
+  PASSWORD_TOO_SHORT_MESSAGE,
+  isValidEmail,
+  EMAIL_INVALID_MESSAGE,
+} from 'resume-builder-shared';
 import { TkxPhoneInput } from 'tekivex-ui';
 import { PrivacyBadge } from '@/src/components/PrivacyBadge';
 import { LinkedInSignInButton } from '@/src/components/LinkedInSignInButton';
@@ -63,6 +70,10 @@ export function LoginPageView({ apiClient = api, routerOverride, defaultMode = '
   async function handlePasswordLogin(event: React.FormEvent) {
     event.preventDefault();
     setError('');
+    if (!isValidEmail(email)) {
+      setError(EMAIL_INVALID_MESSAGE);
+      return;
+    }
     setLoading(true);
     try {
       await apiClient.loginWithPassword(email.trim(), password);
@@ -78,6 +89,14 @@ export function LoginPageView({ apiClient = api, routerOverride, defaultMode = '
     event.preventDefault();
     setError('');
     setStatus('');
+    if (!isValidEmail(regEmail)) {
+      setError(EMAIL_INVALID_MESSAGE);
+      return;
+    }
+    if ((regPassword || '').length < MIN_PASSWORD_LENGTH) {
+      setError(PASSWORD_TOO_SHORT_MESSAGE);
+      return;
+    }
     setLoading(true);
     try {
       const referralCode = readPendingReferralCode();
@@ -116,7 +135,7 @@ export function LoginPageView({ apiClient = api, routerOverride, defaultMode = '
         {/* ─── Login form ─── */}
         <div style={{ display: 'grid', gap: 12 }}>
           {mode === 'login' ? (
-            <form onSubmit={handlePasswordLogin} style={{ display: 'grid', gap: 12 }}>
+            <form onSubmit={handlePasswordLogin} noValidate style={{ display: 'grid', gap: 12 }}>
               <label className="label" htmlFor="login-email">Email</label>
               <input
                 id="login-email"
@@ -153,7 +172,7 @@ export function LoginPageView({ apiClient = api, routerOverride, defaultMode = '
               <LinkedInSignInButton />
             </form>
           ) : (
-            <form onSubmit={handleRegister} style={{ display: 'grid', gap: 12 }}>
+            <form onSubmit={handleRegister} noValidate style={{ display: 'grid', gap: 12 }}>
               <label className="label" htmlFor="reg-name">Full Name</label>
               <input
                 id="reg-name"
@@ -203,11 +222,11 @@ export function LoginPageView({ apiClient = api, routerOverride, defaultMode = '
                 type="password"
                 autoComplete="new-password"
                 enterKeyHint="go"
-                placeholder="Min 8 characters"
+                placeholder={PASSWORD_MIN_HINT}
                 value={regPassword}
                 onChange={(e) => setRegPassword(e.target.value)}
                 required
-                minLength={8}
+                minLength={MIN_PASSWORD_LENGTH}
               />
               <button className="btn" type="submit" disabled={loading}>{loading ? 'Creating account...' : 'Create Account'}</button>
               <LinkedInSignInButton />

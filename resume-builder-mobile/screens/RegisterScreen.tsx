@@ -31,8 +31,13 @@ export default function RegisterScreen({ navigation }: Props) {
       setError('All fields are required.');
       return;
     }
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters.');
+    // Keep in sync with resume-builder-shared/src/auth.ts (server source of truth).
+    if (!/^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)*\.[^\s@.]{2,}$/.test(email.trim())) {
+      setError('Enter a valid email address, e.g. you@example.com.');
+      return;
+    }
+    if (password.length < 10) {
+      setError('Password must be at least 10 characters.');
       return;
     }
     setLoading(true);
@@ -56,7 +61,7 @@ export default function RegisterScreen({ navigation }: Props) {
           <TextInput style={styles.input} placeholder="Full Name" value={fullName} onChangeText={setFullName} autoComplete="name" />
           <TextInput style={styles.input} placeholder="Email" keyboardType="email-address" autoCapitalize="none" autoComplete="email" value={email} onChangeText={setEmail} />
           <TextInput style={styles.input} placeholder="Mobile (+91XXXXXXXXXX)" keyboardType="phone-pad" autoComplete="tel" value={mobile} onChangeText={setMobile} />
-          <TextInput style={styles.input} placeholder="Password (min 8 chars)" secureTextEntry value={password} onChangeText={setPassword} />
+          <TextInput style={styles.input} placeholder="Password (min 10 chars)" secureTextEntry value={password} onChangeText={setPassword} />
 
           <TouchableOpacity style={styles.btnPrimary} onPress={handleRegister} disabled={loading}>
             {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnPrimaryText}>Create Account</Text>}

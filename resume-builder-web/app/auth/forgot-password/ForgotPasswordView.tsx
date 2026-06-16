@@ -85,7 +85,7 @@ export default function ForgotPasswordView() {
         <ol className="small" style={{ margin: 0, paddingLeft: 20, lineHeight: 1.8 }}>
           <li>Enter your email — we send a 6-digit code if your account exists.</li>
           <li>Open the email and copy the code.</li>
-          <li>Set a new password (min 8 characters).</li>
+          <li>Set a new password (min 10 characters).</li>
           <li>Sign in with your new password.</li>
         </ol>
         <p className="small" style={{ marginTop: 12, color: 'var(--fg-muted, #666)' }}>
