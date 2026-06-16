@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { TkxBottomNav, TkxDrawer } from 'tekivex-ui';
 import useFeatureFlags from '@/src/hooks/use-feature-flags';
-import { FONT_OPTIONS, DENSITY_OPTIONS, ACCENT_PRESETS, REORDERABLE_SECTIONS, resolveSectionOrder, getAtsSectionTitle, templateSupportsPhoto, normalizePhotoUrl } from 'resume-builder-shared';
+import { FONT_OPTIONS, DENSITY_OPTIONS, ACCENT_PRESETS, REORDERABLE_SECTIONS, resolveSectionOrder, getAtsSectionTitle, templateSupportsPhoto, normalizePhotoUrl, isValidEmail, isValidPhone, EMAIL_INVALID_MESSAGE, PHONE_INVALID_MESSAGE } from 'resume-builder-shared';
 import { RESUME_CREATE_RATE_LIMIT_CODE, api, Resume, ResumeImportResult, UploadResumeResponse, getAccessToken, isApiRequestError } from '@/src/lib/api';
 import { PrivacyBadge } from '@/src/components/PrivacyBadge';
 import { useResumeStore } from '@/src/lib/resume-store';
@@ -856,6 +856,13 @@ export default function ResumeEditor() {
     return `Currently ${actionVerbRule.percentage}% (${actionVerbRule.strongBullets}/${actionVerbRule.totalBullets}) bullets start with strong verbs. Fix ${actionVerbRule.remainingToPass} more bullet${actionVerbRule.remainingToPass === 1 ? '' : 's'} to reach ${threshold}%.`;
   }, [actionVerbRule]);
   const missingContact = resume.contact && !resume.contact.email && !resume.contact.phone;
+  // R: inline contact validation (founder blocker — invalid email/phone was saved).
+  const contactEmailError = String(resume.contact.email || '').trim() && !isValidEmail(resume.contact.email)
+    ? EMAIL_INVALID_MESSAGE
+    : '';
+  const contactPhoneError = String(resume.contact.phone || '').trim() && !isValidPhone(resume.contact.phone)
+    ? PHONE_INVALID_MESSAGE
+    : '';
   const experienceCount = resume.experience.filter(isMeaningfulExperience).length;
   const detectedExperience = useMemo(
     () => detectExperienceLevelFromResume(resume as any),
@@ -2617,24 +2624,30 @@ export default function ResumeEditor() {
                     <div className="col-6">
                       <label className="label">Email</label>
                       <input
-                        className="input"
+                        className={`input${contactEmailError ? ' input-error' : ''}`}
+                        type="email"
+                        inputMode="email"
                         value={resume.contact.email || ''}
                         onChange={(e) => {
                           setResume((prev) => ({ ...prev, contact: { ...prev.contact, email: e.target.value } }));
                           markDirty();
                         }}
                       />
+                      {contactEmailError && <p className="hint error">{contactEmailError}</p>}
                     </div>
                     <div className="col-6">
                       <label className="label">Phone</label>
                       <input
-                        className="input"
+                        className={`input${contactPhoneError ? ' input-error' : ''}`}
+                        type="tel"
+                        inputMode="tel"
                         value={resume.contact.phone || ''}
                         onChange={(e) => {
                           setResume((prev) => ({ ...prev, contact: { ...prev.contact, phone: e.target.value } }));
                           markDirty();
                         }}
                       />
+                      {contactPhoneError && <p className="hint error">{contactPhoneError}</p>}
                     </div>
                   </div>
                   <p className="hint" style={{ marginTop: 8 }}>{SECTION_GUIDANCE.contact.helper}</p>
@@ -5038,10 +5051,20 @@ function validateResumeDraft(resume: ResumeDraft, sections: SectionState[]) {
   let canAutoSave = true;
 
   if (enabled.has('contact')) {
+    const emailVal = String(resume.contact.email || '').trim();
+    const phoneVal = String(resume.contact.phone || '').trim();
     if (!resume.contact.fullName || resume.contact.fullName.trim().length < 2) {
       sectionFeedback.contact = { level: 'error', text: 'Add your full name.' };
       canAutoSave = false;
-    } else if (!resume.contact.email && !resume.contact.phone) {
+    } else if (emailVal && !isValidEmail(emailVal)) {
+      // Invalid contact data must block save — these are exported onto the
+      // resume and were previously accepted unchecked (founder blocker).
+      sectionFeedback.contact = { level: 'error', text: EMAIL_INVALID_MESSAGE };
+      canAutoSave = false;
+    } else if (phoneVal && !isValidPhone(phoneVal)) {
+      sectionFeedback.contact = { level: 'error', text: PHONE_INVALID_MESSAGE };
+      canAutoSave = false;
+    } else if (!emailVal && !phoneVal) {
       sectionFeedback.contact = { level: 'warn', text: 'Add an email or phone number.' };
     }
   }

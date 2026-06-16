@@ -1,9 +1,14 @@
 import { z } from 'zod';
+import { isValidPhone, PHONE_INVALID_MESSAGE } from '../auth.js';
 
 const ContactSchema = z.object({
   fullName: z.string().min(2),
-  email: z.string().email().optional(),
-  phone: z.string().min(6).optional(),
+  email: z.string().email().optional().or(z.literal('')),
+  // R: was z.string().min(6) which let garbage like "173537282727" through.
+  phone: z
+    .string()
+    .refine((v) => !v || isValidPhone(v), { message: PHONE_INVALID_MESSAGE })
+    .optional(),
   location: z.string().min(2).optional(),
   links: z.array(z.string().min(3)).optional(),
 });

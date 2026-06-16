@@ -26,3 +26,24 @@ export function isValidEmail(value?: string | null): boolean {
 
 /** Clear, actionable message for an invalid email (better than the native tooltip). */
 export const EMAIL_INVALID_MESSAGE = 'Enter a valid email address, e.g. you@example.com.';
+
+/**
+ * Pragmatic phone check for resume contact + signup. Accepts:
+ *  - E.164 with a country code: "+" then 8–15 digits (e.g. +919876543210)
+ *  - a local 10-digit number (e.g. 9876543210)
+ *  - a local number with a trunk 0 (e.g. 09876543210)
+ * Rejects garbage like "173537282727" (12 digits, no country-code "+").
+ * Separators (spaces, dashes, dots, parens) are ignored before checking.
+ */
+export function isValidPhone(value?: string | null): boolean {
+  const cleaned = String(value || '').trim().replace(/[\s().-]/g, '');
+  if (!cleaned) return false;
+  if (/^\+\d{8,15}$/.test(cleaned)) return true;
+  if (/^0\d{10}$/.test(cleaned)) return true;
+  if (/^\d{10}$/.test(cleaned)) return true;
+  return false;
+}
+
+/** Clear, actionable message for an invalid phone number. */
+export const PHONE_INVALID_MESSAGE =
+  'Enter a valid phone number — 10 digits, or include your country code with a + (e.g. +91 98765 43210).';
