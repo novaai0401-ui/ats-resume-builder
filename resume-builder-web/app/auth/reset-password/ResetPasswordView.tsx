@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/src/lib/api';
+import { MIN_PASSWORD_LENGTH, PASSWORD_MIN_HINT, PASSWORD_TOO_SHORT_MESSAGE } from 'resume-builder-shared';
 
 export default function ResetPasswordView() {
   const router = useRouter();
@@ -36,8 +37,8 @@ export default function ResetPasswordView() {
       setError('Reset code must be a 6-digit number.');
       return;
     }
-    if (newPassword.length < 8) {
-      setError('Password must be at least 8 characters.');
+    if (newPassword.length < MIN_PASSWORD_LENGTH) {
+      setError(PASSWORD_TOO_SHORT_MESSAGE);
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -101,11 +102,11 @@ export default function ResetPasswordView() {
             className="input"
             type="password"
             autoComplete="new-password"
-            placeholder="Min 8 characters"
+            placeholder={PASSWORD_MIN_HINT}
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
             required
-            minLength={8}
+            minLength={MIN_PASSWORD_LENGTH}
           />
 
           <label className="label" htmlFor="reset-confirm">Confirm password</label>
@@ -118,7 +119,7 @@ export default function ResetPasswordView() {
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             required
-            minLength={8}
+            minLength={MIN_PASSWORD_LENGTH}
           />
 
           <button className="btn" type="submit" disabled={status === 'submitting' || status === 'done'}>

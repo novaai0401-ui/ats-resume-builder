@@ -7,6 +7,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
+import { MIN_PASSWORD_LENGTH, PASSWORD_TOO_SHORT_MESSAGE } from 'resume-builder-shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { AuthService } from './auth.service';
@@ -143,8 +144,8 @@ export class PasswordResetService {
     if (!/^\d{6}$/.test(code)) {
       throw new BadRequestException('Invalid reset code.');
     }
-    if (typeof newPassword !== 'string' || newPassword.length < 8) {
-      throw new BadRequestException('Password must be at least 8 characters.');
+    if (typeof newPassword !== 'string' || newPassword.length < MIN_PASSWORD_LENGTH) {
+      throw new BadRequestException(PASSWORD_TOO_SHORT_MESSAGE);
     }
 
     const challenge = await this.prisma.passwordResetChallenge.findFirst({

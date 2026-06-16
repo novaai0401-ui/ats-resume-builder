@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { MIN_PASSWORD_LENGTH as SHARED_MIN_PASSWORD_LENGTH, PASSWORD_TOO_SHORT_MESSAGE } from 'resume-builder-shared';
 
 /**
  * Password hygiene helpers.
@@ -10,7 +11,9 @@ import { createHash } from 'node:crypto';
  *   Ref: https://haveibeenpwned.com/API/v3#PwnedPasswords
  */
 
-export const MIN_PASSWORD_LENGTH = 10;
+// Source of truth lives in resume-builder-shared so the web/mobile input
+// hints and client checks stay in lock-step with this server enforcement.
+export const MIN_PASSWORD_LENGTH = SHARED_MIN_PASSWORD_LENGTH;
 
 const HIBP_ENDPOINT = 'https://api.pwnedpasswords.com/range/';
 const REQUEST_TIMEOUT_MS = 3_000;
@@ -18,7 +21,7 @@ const REQUEST_TIMEOUT_MS = 3_000;
 export function assertAcceptablePassword(password: string): void {
   const trimmed = String(password || '');
   if (trimmed.length < MIN_PASSWORD_LENGTH) {
-    throw new Error(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
+    throw new Error(PASSWORD_TOO_SHORT_MESSAGE);
   }
   const classes = [
     /[a-z]/.test(trimmed),
