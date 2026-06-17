@@ -6,6 +6,7 @@ import { rateLimitOrThrow } from '../limits/rate-limit';
 import { SettingsService } from '../settings/settings.service';
 import type { AiProvider } from './providers/ai-provider.interface';
 import { GroqProvider } from './providers/groq.provider';
+import { buildByokProvider } from './providers/byok-factory';
 import { XaiProvider } from './providers/xai.provider';
 import { buildCritiquePrompt, type CritiquePromptInput } from './prompts/ats-critique.prompt';
 
@@ -99,17 +100,12 @@ export class AiService {
     if (!user) {
       throw new ForbiddenException('User not found');
     }
-    const paymentFeatureEnabled = await this.isPaymentFeatureEnabled();
-    if (paymentFeatureEnabled && user.plan === 'FREE') {
-      throw new ForbiddenException('Free plan does not allow AI suggestions.');
-    }
+    // Post-pivot: no subscription tiers and no per-plan token cap. AI quality
+    // is gated by BYOK, not by plan. We still record usage for analytics.
     await ensureUsagePeriod(this.prisma, user);
     const updated = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!updated) {
       throw new ForbiddenException('User not found');
-    }
-    if (updated.aiTokensUsed + tokens > updated.aiTokensLimit) {
-      throw new ForbiddenException('AI usage limit exceeded');
     }
     await this.prisma.user.update({
       where: { id: userId },
@@ -121,7 +117,7 @@ export class AiService {
    * AI-powered ATS critique using configured provider (GROQ default).
    * Falls back to rule-based fallback if the provider fails or is unconfigured.
    */
-  async aiCritique(userId: string, input: AiCritiqueInput): Promise<AiCritiqueResponse> {
+  async aiCritique(userId: string, input: AiCritiqueInput, byok?: { provider?: string | null; key?: string | null }): Promise<AiCritiqueResponse> {
     rateLimitOrThrow({
       key: `ai:ai-critique:${userId}`,
       limit: 5,
@@ -131,8 +127,9 @@ export class AiService {
 
     await this.enforceDailyCritiqueLimit(userId);
 
-    const plan: 'free' | 'premium' = 'free'; // premium gating prepared for later
-    const provider = this.resolveProvider();
+    const plan: 'free' | 'premium' = 'free';
+    // BYOK: the user's own key powers the LLM critique; no key → rule-based.
+    const provider = buildByokProvider(byok?.provider, byok?.key);
 
     if (!provider) {
       this.logger.warn('No AI provider configured — returning rule-based fallback');

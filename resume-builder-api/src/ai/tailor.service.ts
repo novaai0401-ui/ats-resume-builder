@@ -12,6 +12,7 @@ import { rateLimitOrThrow } from '../limits/rate-limit';
 import { SettingsService } from '../settings/settings.service';
 import type { AiProvider } from './providers/ai-provider.interface';
 import { GroqProvider } from './providers/groq.provider';
+import { buildByokProvider } from './providers/byok-factory';
 
 /**
  * R-034 — One-click tailor: JD → tailored ResumeVersion.
@@ -90,7 +91,7 @@ export class TailorService {
 
   // ───────────────────────── propose ─────────────────────────
 
-  async propose(userId: string, resumeId: string, jdText: string): Promise<TailorProposal> {
+  async propose(userId: string, resumeId: string, jdText: string, byok?: { provider?: string | null; key?: string | null }): Promise<TailorProposal> {
     const jd = String(jdText || '').trim().slice(0, MAX_JD_CHARS);
     if (jd.length < 80) {
       throw new BadRequestException('Paste the full job description (at least a few sentences) so tailoring has something to work with.');
@@ -106,13 +107,11 @@ export class TailorService {
     const resume = await this.prisma.resume.findFirst({ where: { id: resumeId, userId } });
     if (!resume) throw new NotFoundException('Resume not found.');
 
-    await this.checkAndCharge(userId, APPROX_TOKENS);
-
-    const provider = this.resolveProvider();
+    // BYOK: AI tailoring requires the user's own key (no mechanical fallback).
+    const provider = buildByokProvider(byok?.provider, byok?.key);
     if (!provider) {
-      // No mechanical fallback by design — see class docblock.
       throw new ForbiddenException(
-        'AI tailoring is not available right now. Add your own AI key in Settings (free tier) or try again later.',
+        'AI tailoring needs your own AI key. Add one in Settings (it stays on your device) to use this feature.',
       );
     }
 

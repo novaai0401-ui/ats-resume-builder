@@ -79,7 +79,7 @@ export default function SkillDemandClient() {
             <strong>{result.realtime ? '✓ AI-personalized analysis' : 'Curated 2026 snapshot'}</strong>
             <p className="small" style={{ margin: '4px 0 0', color: '#5a6778' }}>{result.message}</p>
             {!result.realtime && (
-              <Link className="btn" href="/billing" style={{ marginTop: 10 }}>Unlock real-time analysis</Link>
+              <Link className="btn secondary" href="/settings" style={{ marginTop: 10 }}>Add your AI key for a tailored analysis</Link>
             )}
           </section>
 

@@ -5,6 +5,7 @@ import { rateLimitOrThrow } from '../limits/rate-limit';
 import { SettingsService } from '../settings/settings.service';
 import type { AiProvider } from './providers/ai-provider.interface';
 import { GroqProvider } from './providers/groq.provider';
+import { buildByokProvider } from './providers/byok-factory';
 import { XaiProvider } from './providers/xai.provider';
 import {
   buildCoverLetterPrompt,
@@ -52,7 +53,7 @@ export class CoverLetterService {
     @Optional() private readonly settingsService?: SettingsService,
   ) {}
 
-  async generate(userId: string, input: GenerateCoverLetterInput): Promise<GenerateCoverLetterResult> {
+  async generate(userId: string, input: GenerateCoverLetterInput, byok?: { provider?: string | null; key?: string | null }): Promise<GenerateCoverLetterResult> {
     if (!input || typeof input !== 'object') {
       throw new BadRequestException('Request body is required');
     }
@@ -78,16 +79,10 @@ export class CoverLetterService {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
 
-    const paymentFeatureEnabled = await this.isPaymentFeatureEnabled();
-    if (paymentFeatureEnabled && user.plan === 'FREE') {
-      throw new ForbiddenException(
-        'FREE_PLAN_AI_BLOCKED: Cover letter generation requires Student or Pro.',
-      );
-    }
-
     const promptInput = await this.buildPromptInput(userId, input, user.fullName);
 
-    const provider = this.resolveProvider();
+    // BYOK: user's own key drives the LLM; no key → the rule-based fallback.
+    const provider = buildByokProvider(byok?.provider, byok?.key);
     let providerName = 'fallback';
     let body: string;
     let wordCount: number;
