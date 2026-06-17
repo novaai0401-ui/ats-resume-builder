@@ -6,10 +6,10 @@
  * a keyword score; we simulate the actual AI gate the resume now passes through.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { presentVerdict } from 'resume-builder-shared';
-import { api, type RecruiterSimResult } from '@/src/lib/api';
+import { api, getAccessToken, type RecruiterSimResult } from '@/src/lib/api';
 import { useResumeStore } from '@/src/lib/resume-store';
 import { buildAddKeywordLink } from '@/src/lib/bullet-deeplink';
 import { readActiveResumeSelection } from '@/src/lib/resume-flow';
@@ -26,12 +26,30 @@ function buildResumeText(resume: { summary?: string; skills?: string[]; experien
 }
 
 export default function RecruiterSimClient() {
-  const resume = useResumeStore((state) => state.resume);
+  const storeResume = useResumeStore((state) => state.resume);
+  // The Zustand store is in-memory and empty after navigating here from another
+  // tab. Fall back to the active resume the user last opened (persisted in
+  // sessionStorage) by fetching it from the API so the screen actually loads.
+  const [fetchedResume, setFetchedResume] = useState<typeof storeResume | null>(null);
   const [jdText, setJdText] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [paywall, setPaywall] = useState(false);
   const [result, setResult] = useState<RecruiterSimResult | null>(null);
+
+  const storeText = buildResumeText(storeResume as never);
+  const resume = storeText.trim().length > 20 ? storeResume : fetchedResume;
+
+  useEffect(() => {
+    if (storeText.trim().length > 20) return; // store already has a resume
+    const activeId = readActiveResumeSelection();
+    if (!activeId || !getAccessToken()) return;
+    let cancelled = false;
+    api.getResume(activeId)
+      .then((r) => { if (!cancelled) setFetchedResume(r as never); })
+      .catch(() => { /* leave the "open a resume first" prompt */ });
+    return () => { cancelled = true; };
+  }, [storeText]);
 
   const resumeText = buildResumeText(resume as never);
   const hasResume = resumeText.trim().length > 20;
