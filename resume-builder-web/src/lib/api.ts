@@ -1513,12 +1513,17 @@ export const api = {
   recruiterSim: (input: { resumeText: string; jdText: string; currentSkills?: string[] }) =>
     request<RecruiterSimResult>(`/ai/recruiter-sim`, {
       method: 'POST',
+      headers: { ...(getByokHeader() || {}) },
       body: JSON.stringify(input),
     }),
 
   // Skill-Demand Agent — in-demand tech + companies hiring for the user's stack.
   skillDemand: (skills: string[], location?: string) =>
-    request<SkillDemandResult>(`/ai/skill-demand`, { method: 'POST', body: JSON.stringify({ skills, location }) }),
+    request<SkillDemandResult>(`/ai/skill-demand`, {
+      method: 'POST',
+      headers: { ...(getByokHeader() || {}) },
+      body: JSON.stringify({ skills, location }),
+    }),
 
   // Live job openings for a free-text query (Student/Pro).
   liveOpenings: (q: string, location?: string) =>

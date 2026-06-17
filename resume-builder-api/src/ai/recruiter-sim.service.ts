@@ -1,12 +1,13 @@
 import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
-import { ensureUsagePeriod } from '../billing/usage';
 import { rateLimitOrThrow } from '../limits/rate-limit';
 import { SettingsService } from '../settings/settings.service';
-import type { AiProvider } from './providers/ai-provider.interface';
-import { GroqProvider } from './providers/groq.provider';
+import { buildByokProvider } from './providers/byok-factory';
 import { computeRuleBasedMatch, clampPercent } from './jd-match.service';
+
+/** Optional bring-your-own-key headers forwarded from the request. */
+export type ByokOptions = { provider?: string | null; key?: string | null };
 
 /**
  * Recruiter-AI Simulator — Student/Pro feature.
@@ -49,7 +50,6 @@ export type RecruiterSimResult = {
   provider: 'groq' | 'rule-based';
 };
 
-const APPROX_TOKENS = 900;
 const MAX_INPUT_CHARS = 8000;
 
 @Injectable()
@@ -62,7 +62,7 @@ export class RecruiterSimService {
     private readonly settingsService: SettingsService,
   ) {}
 
-  async simulate(userId: string, input: RecruiterSimInput): Promise<RecruiterSimResult> {
+  async simulate(userId: string, input: RecruiterSimInput, byok?: ByokOptions): Promise<RecruiterSimResult> {
     const resumeText = String(input?.resumeText || '').slice(0, MAX_INPUT_CHARS);
     const jdText = String(input?.jdText || '').slice(0, MAX_INPUT_CHARS);
     if (!resumeText.trim() || !jdText.trim()) {
@@ -76,12 +76,12 @@ export class RecruiterSimService {
       message: 'Rate limit exceeded for Recruiter-AI Simulator. Try again shortly.',
     });
 
-    await this.checkAndCharge(userId, APPROX_TOKENS);
-
     // Rule-based baseline — guarantees a usable verdict even with no LLM.
     const baseline = buildRuleBasedVerdict(resumeText, jdText, input.currentSkills ?? []);
 
-    const provider = this.resolveProvider();
+    // Post-pivot model: AI uses the user's OWN key (BYOK). No key → the
+    // rule-based baseline is the answer (no subscription gate, no app-key spend).
+    const provider = buildByokProvider(byok?.provider, byok?.key);
     if (!provider) return baseline;
 
     const system = [
@@ -135,34 +135,6 @@ export class RecruiterSimService {
     }
   }
 
-  private async checkAndCharge(userId: string, tokens: number) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) throw new ForbiddenException('User not found');
-
-    const paymentFeatureEnabled = await this.settingsService.isPaymentFeatureEnabled();
-    if (paymentFeatureEnabled && user.plan === 'FREE') {
-      throw new ForbiddenException('FREE_PLAN_AI_BLOCKED: Recruiter-AI Simulator requires Student or Pro.');
-    }
-    await ensureUsagePeriod(this.prisma, user);
-    const updated = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!updated) throw new ForbiddenException('User not found');
-    if (updated.aiTokensUsed + tokens > updated.aiTokensLimit) {
-      throw new ForbiddenException('AI usage limit exceeded for this period.');
-    }
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { aiTokensUsed: updated.aiTokensUsed + tokens },
-    });
-  }
-
-  private resolveProvider(): AiProvider | null {
-    const providerName = this.config.get<string>('AI_PROVIDER', 'groq').toLowerCase();
-    if (providerName !== 'groq') return null;
-    const key = this.config.get<string>('GROQ_API_KEY', '');
-    if (!key) return null;
-    const model = this.config.get<string>('GROQ_MODEL', '');
-    return new GroqProvider(key, model || undefined);
-  }
 }
 
 // ── Helpers (exported for tests) ────────────────────────────────────

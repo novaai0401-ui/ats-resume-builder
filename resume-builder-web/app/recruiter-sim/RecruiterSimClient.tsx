@@ -34,7 +34,6 @@ export default function RecruiterSimClient() {
   const [jdText, setJdText] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [paywall, setPaywall] = useState(false);
   const [result, setResult] = useState<RecruiterSimResult | null>(null);
 
   const storeText = buildResumeText(storeResume as never);
@@ -56,7 +55,6 @@ export default function RecruiterSimClient() {
 
   async function handleRun() {
     setError('');
-    setPaywall(false);
     setResult(null);
     if (!hasResume) {
       setError('Build or upload a resume first — we need it to run the screen.');
@@ -76,8 +74,7 @@ export default function RecruiterSimClient() {
       setResult(data);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Simulation failed';
-      if (/FREE_PLAN_AI_BLOCKED/i.test(message)) setPaywall(true);
-      else setError(message);
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -113,14 +110,6 @@ export default function RecruiterSimClient() {
           {loading ? 'Running the screen…' : 'Run the AI screen'}
         </button>
       </section>
-
-      {paywall && (
-        <section className="card col-12" style={{ borderColor: '#b07906' }}>
-          <h3>Unlock the Recruiter-AI Simulator</h3>
-          <p className="small">This is a Student/Pro feature. Upgrade to see the verdict an AI screen would give you.</p>
-          <Link className="btn" href="/billing">See plans</Link>
-        </section>
-      )}
 
       {result && (() => {
         const v = presentVerdict(result.verdict);

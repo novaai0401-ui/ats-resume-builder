@@ -20,6 +20,19 @@ import { MentorChatService, type MentorChatInput } from './mentor-chat.service';
 import { RecruiterSimService, type RecruiterSimInput } from './recruiter-sim.service';
 import { SkillDemandService, type SkillDemandInput } from './skill-demand.service';
 
+/** Request shape with optional BYOK headers (X-User-AI-Provider / X-User-AI-Key). */
+type AuthedAiReq = { user: { userId: string }; headers?: Record<string, string | string[] | undefined> };
+
+/** Pull the user's bring-your-own-key provider + key from request headers. */
+function byokFromReq(req: AuthedAiReq): { provider?: string | null; key?: string | null } {
+  const headers = req.headers || {};
+  const pick = (name: string) => {
+    const v = headers[name] ?? headers[name.toLowerCase()];
+    return Array.isArray(v) ? v[0] : v;
+  };
+  return { provider: pick('x-user-ai-provider'), key: pick('x-user-ai-key') };
+}
+
 @Controller('ai')
 @UseGuards(JwtAuthGuard)
 export class AiController {
@@ -161,13 +174,13 @@ export class AiController {
    */
   @Post('recruiter-sim')
   recruiterSim(
-    @Req() req: { user: { userId: string } },
+    @Req() req: AuthedAiReq,
     @Body() body: RecruiterSimInput,
   ) {
     if (!body || typeof body !== 'object' || !body.resumeText || !body.jdText) {
       throw new BadRequestException('resumeText and jdText are required');
     }
-    return this.recruiterSimService.simulate(req.user.userId, body);
+    return this.recruiterSimService.simulate(req.user.userId, body, byokFromReq(req));
   }
 
   /**
