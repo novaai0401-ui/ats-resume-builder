@@ -10,6 +10,7 @@ import {
   PASSWORD_TOO_SHORT_MESSAGE,
   isValidEmail,
   EMAIL_INVALID_MESSAGE,
+  normalizeE164FromPayload,
 } from 'resume-builder-shared';
 import { TkxPhoneInput } from 'tekivex-ui';
 import { PrivacyBadge } from '@/src/components/PrivacyBadge';
@@ -212,7 +213,7 @@ export function LoginPageView({ apiClient = api, routerOverride, defaultMode = '
                 label="Mobile"
                 defaultCountry="IN"
                 value={regMobile}
-                onChange={(p) => setRegMobile(p.e164 || p.raw)}
+                onChange={(p) => setRegMobile(normalizeE164FromPayload(p))}
                 required
               />
               <label className="label" htmlFor="reg-password">Password</label>
