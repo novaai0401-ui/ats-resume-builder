@@ -4,6 +4,12 @@ const request = require('supertest');
 const puppeteer = require('puppeteer-core');
 const { Test } = require('@nestjs/testing');
 const { ResumeController } = require('../dist/resume/resume.controller.js');
+// R: ResumeController gained download-charge + outcomes/versions deps; stub them
+// so the test module can construct the controller (these endpoints aren't under test here).
+const { DownloadChargeService } = require('../dist/billing/download-charge.service.js');
+const { ResumeVersionsService } = require('../dist/resume/resume-versions.service.js');
+const { OutcomesService } = require('../dist/resume/outcomes.service.js');
+const { OutcomeShareService } = require('../dist/resume/outcome-share.service.js');
 const { ResumeService } = require('../dist/resume/resume.service.js');
 const { PrismaService } = require('../dist/prisma/prisma.service.js');
 const { JwtAuthGuard } = require('../dist/auth/jwt-auth.guard.js');
@@ -33,7 +39,7 @@ function createPrisma() {
     resume: {
       id: 'resume-1',
       userId: 'user-1',
-      templateId: 'modern-timeline',
+      templateId: 'modern',
       title: 'Template Export Resume',
       contact: {
         fullName: 'Jane Endpoint',
@@ -102,6 +108,10 @@ async function createApp(prisma) {
       ResumeService,
       { provide: PrismaService, useValue: prisma },
       JwtAuthGuard,
+      { provide: DownloadChargeService, useValue: { isFeatureEnabled: () => false, assertDownloadToken: () => {} } },
+      { provide: ResumeVersionsService, useValue: {} },
+      { provide: OutcomesService, useValue: {} },
+      { provide: OutcomeShareService, useValue: {} },
     ],
   }).compile();
 
@@ -151,7 +161,7 @@ test('GET /resumes/:id/pdf returns PDF bytes containing rendered user resume dat
     assert.ok(Buffer.isBuffer(response.body));
     const rendered = response.body.toString('utf8');
     assert.match(rendered, /Jane Endpoint/);
-    assert.match(rendered, /template-layout-timeline/);
+    assert.match(rendered, /ats-template--modern/);
     assert.equal(prisma.__getState().user.pdfExportsUsed, 1);
   } finally {
     puppeteer.launch = originalLaunch;

@@ -6,6 +6,9 @@ const { ConfigService } = require('@nestjs/config');
 const { AuthController } = require('../dist/auth/auth.controller.js');
 const { AuthService } = require('../dist/auth/auth.service.js');
 const { EmailOtpService } = require('../dist/auth/email-otp.service.js');
+const { PasswordResetService } = require('../dist/auth/password-reset.service.js');
+const { LinkedInOAuthService } = require('../dist/auth/linkedin-oauth.service.js');
+const { AnalyticsService } = require('../dist/analytics/analytics.service.js');
 
 class StubConfig {
   constructor(values = {}) {
@@ -154,6 +157,9 @@ async function createApp(prisma) {
     providers: [
       { provide: AuthService, useValue: authService },
       { provide: EmailOtpService, useValue: emailOtpService },
+      { provide: PasswordResetService, useValue: {} },
+      { provide: LinkedInOAuthService, useValue: { isConfigured: () => false } },
+      { provide: AnalyticsService, useValue: { track: () => {} } },
     ],
   }).compile();
 

@@ -3,6 +3,12 @@ const test = require('node:test');
 const request = require('supertest');
 const { Test } = require('@nestjs/testing');
 const { ResumeController } = require('../dist/resume/resume.controller.js');
+// R: ResumeController gained download-charge + outcomes/versions deps; stub them
+// so the test module can construct the controller (these endpoints aren't under test here).
+const { DownloadChargeService } = require('../dist/billing/download-charge.service.js');
+const { ResumeVersionsService } = require('../dist/resume/resume-versions.service.js');
+const { OutcomesService } = require('../dist/resume/outcomes.service.js');
+const { OutcomeShareService } = require('../dist/resume/outcome-share.service.js');
 const { ResumeService } = require('../dist/resume/resume.service.js');
 const { CompaniesController } = require('../dist/companies/companies.controller.js');
 const { MetaController } = require('../dist/meta/meta.controller.js');
@@ -114,6 +120,10 @@ async function createApp(prisma) {
       ResumeService,
       { provide: PrismaService, useValue: prisma },
       JwtAuthGuard,
+      { provide: DownloadChargeService, useValue: { isFeatureEnabled: () => false, assertDownloadToken: () => {} } },
+      { provide: ResumeVersionsService, useValue: {} },
+      { provide: OutcomesService, useValue: {} },
+      { provide: OutcomeShareService, useValue: {} },
     ],
   }).compile();
 
