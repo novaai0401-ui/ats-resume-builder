@@ -7,7 +7,7 @@
     "node": ">=18.0.0 <=22.x"
   },
   "scripts": {
-    "test": "tsx --test --test-force-exit --test-timeout=180000 tests/**/*.test.ts tests/**/*.test.tsx",
+    "test": "node scripts/test.mjs",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "build": "next build --webpack",

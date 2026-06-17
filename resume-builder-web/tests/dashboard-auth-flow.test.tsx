@@ -41,6 +41,22 @@ if (typeof (dom.window as unknown as { matchMedia?: unknown }).matchMedia !== 'f
 (globalThis as unknown as { matchMedia: typeof window.matchMedia }).matchMedia =
   (dom.window as unknown as { matchMedia: typeof window.matchMedia }).matchMedia;
 
+// cancelAnimationFrame must mirror the requestAnimationFrame polyfill above so
+// any rAF loop can actually stop (otherwise it reschedules forever in jsdom).
+(globalThis as unknown as { cancelAnimationFrame: (id: number) => void }).cancelAnimationFrame =
+  (id: number) => clearTimeout(id as unknown as ReturnType<typeof setTimeout>);
+
+{
+}
+
+// Child components (e.g. CallbackRateCard) self-fetch via the GLOBAL api client,
+// not the injected mock. With no server those real fetches leave pending sockets
+// that keep the process alive, so node:test SIGKILLs the file after its budget.
+// Reject instantly: callers all .catch and render their empty state, and no
+// socket/handle is opened.
+(globalThis as unknown as { fetch: typeof fetch }).fetch = (() =>
+  Promise.reject(new Error('network disabled in tests'))) as typeof fetch;
+
 type TestingLib = typeof import('@testing-library/react');
 type DashboardPageModule = typeof import('@/app/dashboard/DashboardPageView');
 type TemplateSelectionModule = typeof import('@/app/resume/template/TemplateSelectionView');
@@ -77,12 +93,14 @@ test.afterEach(async () => {
   window.sessionStorage.clear();
 });
 
-// Known flake: this file's 12 subtests all pass + 2 skipped, but the
-// node:test runner SIGKILLs the file process after ~45s because the
-// React renders here register internal timers / pending fetches that
-// keep the event loop alive past the runner's per-file budget. The
-// product surface itself is exercised correctly. Re-investigate when
-// migrating off node:test (e.g. to vitest with proper teardown).
+// These are heavy jsdom renders. Two harness realities:
+//  • Flaky when test FILES run in parallel (renders starve each other →
+//    waitFor timeouts) → the runner uses --test-concurrency=1.
+//  • React 18's scheduler leaves a MessageChannel/Immediate handle alive in
+//    jsdom, so this file's worker can't drain and node:test SIGKILLs it (the
+//    FILE node is marked failed even though every subtest passes). That single
+//    file-node artifact is tolerated by scripts/test.mjs, which still fails on
+//    any real `not ok` subtest. Best-effort teardown below.
 test.after(() => {
   try {
     (dom.window as unknown as { close?: () => void }).close?.();
