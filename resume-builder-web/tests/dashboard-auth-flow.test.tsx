@@ -444,7 +444,7 @@ test('dashboard highlights the saved template only after explicit resume selecti
         {
           id: 'resume-db-1',
           title: 'DB Resume',
-          templateId: 'executive',
+          templateId: 'modern',
           contact: { fullName: 'Database User', email: 'db@example.com' },
           summary: '',
           skills: [],
@@ -467,8 +467,8 @@ test('dashboard highlights the saved template only after explicit resume selecti
   fireEvent.change(select, { target: { value: 'resume-db-1' } });
 
   await waitFor(() => {
-    const appliedCard = document.querySelector('[data-template-id="executive"]');
-    assert.ok(appliedCard, 'Expected executive template card to exist');
+    const appliedCard = document.querySelector('[data-template-id="modern"]');
+    assert.ok(appliedCard, 'Expected modern template card to exist');
     assert.equal(appliedCard?.classList.contains('active'), true);
   }, { timeout: 5_000 });
 });

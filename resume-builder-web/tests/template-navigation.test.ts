@@ -59,9 +59,11 @@ test('dashboard template click navigates to template selection page', () => {
   const dashboardContent = readFileSync(dashboardPath, 'utf-8');
   assert(dashboardContent.includes('handleTemplateSelect'), 'Dashboard should define template-select handler');
   assert(dashboardContent.includes('buildTemplateSelectionRoute'), 'Dashboard should use buildTemplateSelectionRoute for navigation');
+  // Preview must forward BOTH the resume id and the chosen template so the
+  // selection page shows the user's resume in that template (not generic samples).
   assert(
-    dashboardContent.includes('buildTemplateSelectionRoute(activeResume.id, templateId)'),
-    'Dashboard should forward both resumeId and templateId to preview flow',
+    /buildTemplateSelectionRoute\(\s*\w+\s*,\s*templateId\s*\)/.test(dashboardContent),
+    'Dashboard should forward both resumeId and templateId to the preview flow',
   );
   assert(dashboardContent.includes('router.push'), 'Dashboard should use router.push for navigation');
 });
