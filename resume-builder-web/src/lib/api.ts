@@ -43,8 +43,6 @@ export type {
 import { getByokHeader } from './byok-storage';
 
 export type AuthResponse = { user: User; accessToken: string; refreshToken: string; expiresAt?: string };
-/** @deprecated Email OTP is no longer used for auth. Use social login or password. */
-export type EmailOtpRequestResponse = { ok: boolean; message: string };
 export type RegisterResponse = AuthResponse;
 
 export type TechGapRequest = {

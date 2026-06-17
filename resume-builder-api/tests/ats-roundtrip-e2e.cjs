@@ -76,12 +76,25 @@ async function main() {
   fs.writeFileSync('/tmp/ats-roundtrip.html', html, 'utf8');
   console.log('=== STEP 1: HTML generated ===\n');
 
-  // Step 2: Render HTML to PDF using Puppeteer
-  const browser = await puppeteer.launch({
-    headless: true,
-    executablePath: '/usr/bin/chromium-browser',
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu'],
-  });
+  // Step 2: Render HTML to PDF using Puppeteer. Honour the same env the app
+  // uses so CI can point at its installed Chrome; skip cleanly when no browser
+  // is available locally (instead of failing the suite).
+  const executablePath =
+    process.env.CHROME_EXECUTABLE_PATH ||
+    process.env.PUPPETEER_EXECUTABLE_PATH ||
+    '/usr/bin/chromium-browser';
+  let browser;
+  try {
+    browser = await puppeteer.launch({
+      headless: true,
+      executablePath,
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu'],
+    });
+  } catch (err) {
+    console.log(`SKIP: no Chrome/Chromium available (${executablePath}). ` +
+      'Set CHROME_EXECUTABLE_PATH to run the PDF round-trip. Details:', err.message);
+    return;
+  }
   const page = await browser.newPage();
   await page.setContent(html, { waitUntil: 'load' });
   const pdfBuffer = await page.pdf({

@@ -1,6 +1,9 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const puppeteer = require('puppeteer');
+// The service renders via puppeteer-core; mock THAT module (the old
+// require('puppeteer') both crashed — not installed — and patched the wrong
+// module, so the mock never applied).
+const puppeteer = require('puppeteer-core');
 const { ResumeService } = require('../dist/resume/resume.service.js');
 const { SettingsService } = require('../dist/settings/settings.service.js');
 
