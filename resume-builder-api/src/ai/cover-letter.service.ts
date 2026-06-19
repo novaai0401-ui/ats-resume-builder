@@ -6,6 +6,7 @@ import { SettingsService } from '../settings/settings.service';
 import type { AiProvider } from './providers/ai-provider.interface';
 import { GroqProvider } from './providers/groq.provider';
 import { buildByokProvider } from './providers/byok-factory';
+import { serverGroqProvider, isPlanActive } from './server-provider';
 import { XaiProvider } from './providers/xai.provider';
 import {
   buildCoverLetterPrompt,
@@ -81,8 +82,10 @@ export class CoverLetterService {
 
     const promptInput = await this.buildPromptInput(userId, input, user.fullName);
 
-    // BYOK: user's own key drives the LLM; no key → the rule-based fallback.
-    const provider = buildByokProvider(byok?.provider, byok?.key);
+    // Non-resume AI model: BYOK drives the LLM for free; the ₹499/mo plan
+    // unlocks OUR AI. With neither, the rule-based letter is the deliverable.
+    const byokProvider = buildByokProvider(byok?.provider, byok?.key);
+    const provider = byokProvider || (isPlanActive(user.plan) ? serverGroqProvider(this.config) : null);
     let providerName = 'fallback';
     let body: string;
     let wordCount: number;

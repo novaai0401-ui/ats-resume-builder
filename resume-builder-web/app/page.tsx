@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 const FAQ = [
   {
     q: 'Is Pocket Resume a free ATS resume builder?',
-    a: 'Yes. The resume editor and ATS scorer are free forever. Paid Student/Pro tiers add AI career features like the Recruiter-AI Simulator, mentor chat, and live job openings.',
+    a: 'Yes. The resume editor and ATS scorer are free forever. AI career features like the Recruiter-AI Simulator, mentor chat, and live job openings are free with your own AI key (BYOK), or get Pocket Resume Plus at ₹499/mo for our AI everywhere. Downloads are ₹49 each.',
   },
   {
     q: 'How is Pocket Resume different from other ATS resume builders?',
@@ -36,7 +36,7 @@ const FAQ = [
   },
   {
     q: 'Does it work for the India job market?',
-    a: 'Yes. Pocket Resume is India-first with sub-₹400/month pricing, India-aware live job openings, and Razorpay payments, while also supporting global users.',
+    a: 'Yes. Pocket Resume is India-first with Pocket Resume Plus at ₹499/mo (cancel anytime), India-aware live job openings, and Razorpay payments, while also supporting global users.',
   },
 ];
 

@@ -95,10 +95,19 @@ export class SkillDemandService {
       ? `Showing ${liveOpenings.length} live opening${liveOpenings.length === 1 ? '' : 's'}.`
       : 'Curated 2026 demand snapshot. Add your AI key in Settings for a personalized analysis.';
 
-    // BYOK powers the personalized LLM analysis; no key → the curated snapshot.
-    const provider = buildByokProvider(byok?.provider, byok?.key);
+    // BYOK powers the personalized LLM analysis for free; the ₹499/mo plan
+    // unlocks OUR AI. With neither, the curated snapshot is the deliverable.
+    const byokProvider = buildByokProvider(byok?.provider, byok?.key);
+    let provider = byokProvider;
+    if (!provider && (await this.isPaidUser(userId))) {
+      provider = this.resolveProvider();
+    }
     if (!provider) {
       return { realtime: liveOpeningsAvailable, message: liveMsg, topInDemand: TOP_IN_DEMAND_2026, yourSkills: baseline, liveOpenings, liveOpeningsAvailable, provider: 'rule-based' };
+    }
+    // Only OUR AI (the plan path) spends app tokens; BYOK is on the user.
+    if (!byokProvider) {
+      await this.chargeTokens(userId, 1100);
     }
 
     const system = [

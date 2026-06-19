@@ -85,8 +85,8 @@ const arrowStyle: React.CSSProperties = {
   fontSize: 18,
 };
 
-function badgeStyle(tier: 'PRO' | 'STUDENT+'): React.CSSProperties {
-  const bg = tier === 'PRO' ? '#1a3a5c' : '#1e7a3a';
+function badgeStyle(tier: 'PRO' | 'STUDENT+' | 'Plus' | 'AI'): React.CSSProperties {
+  const bg = tier === 'PRO' || tier === 'Plus' ? '#1a3a5c' : '#1e7a3a';
   return {
     display: 'inline-block',
     background: bg,

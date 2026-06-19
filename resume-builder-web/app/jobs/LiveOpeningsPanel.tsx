@@ -3,7 +3,8 @@
 /**
  * Live openings panel for the Job Tracker. Searches the real jobs feed and lets
  * the user one-click "Track" an opening — creating a JobApplication pre-filled
- * from the listing. Student/Pro only (the API gates it); free users see an upsell.
+ * from the listing. AI-gated (the API gates it); users without our AI see an upsell
+ * to add their own AI key (free) or get Pocket Resume Plus.
  */
 
 import { useState } from 'react';
@@ -65,7 +66,8 @@ export default function LiveOpeningsPanel({ onTracked }: { onTracked: () => void
 
       {paywall && (
         <div className="alert" style={{ background: 'rgba(176,121,6,0.1)', padding: 12, borderRadius: 8 }}>
-          Live openings are a Student/Pro feature. <Link href="/billing">See plans →</Link>
+          <Link href="/settings">Add your own AI key in Settings (free)</Link> to use this now — or get{' '}
+          <Link href="/billing">Pocket Resume Plus (₹499/mo)</Link> for our AI across every feature.
         </div>
       )}
       {error && <p className="muted" style={{ color: '#a8412c', fontSize: 13 }}>{error}</p>}

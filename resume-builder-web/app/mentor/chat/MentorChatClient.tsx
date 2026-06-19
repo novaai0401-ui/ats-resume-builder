@@ -1,7 +1,8 @@
 'use client';
 
 /**
- * Mentor Chat — Pro-only chat UI.
+ * Mentor Chat — AI chat UI. Usable with your own AI key (BYOK, free)
+ * or with Pocket Resume Plus.
  *
  * Conversation lives in memory only (no localStorage). On every send
  * we:
@@ -18,6 +19,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { api, getAccessToken } from '@/src/lib/api';
 import { useResumeStore } from '@/src/lib/resume-store';
+import { loadByokKey } from '@/src/lib/byok-storage';
 
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
 
@@ -48,10 +50,12 @@ export default function MentorChatClient() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [paywall, setPaywall] = useState(false);
+  const [hasByok, setHasByok] = useState(false);
   const transcriptRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setAuthed(Boolean(getAccessToken()));
+    setHasByok(Boolean(loadByokKey()));
     try {
       const stored = window.localStorage.getItem('rb_plan');
       if (stored === 'PRO' || stored === 'STUDENT' || stored === 'FREE') setPlan(stored);
@@ -65,12 +69,14 @@ export default function MentorChatClient() {
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages, busy]);
 
-  const isPro = plan === 'PRO';
-  const canSend = !busy && input.trim().length > 0 && isPro;
+  // Usable with Pocket Resume Plus (the 'PRO' plan value) or with the
+  // user's own AI key (BYOK, free).
+  const canUseAi = plan === 'PRO' || hasByok;
+  const canSend = !busy && input.trim().length > 0 && canUseAi;
 
   async function send(textOverride?: string) {
     const text = (textOverride ?? input).trim();
-    if (!text || busy || !isPro) return;
+    if (!text || busy || !canUseAi) return;
     setError('');
     setInput('');
     const next: ChatMessage[] = [...messages, { role: 'user', content: text }];
@@ -126,7 +132,7 @@ export default function MentorChatClient() {
       <section className="card col-12">
         <h1 style={{ marginBottom: 4 }}>
           Mentor Chat{' '}
-          <span className="plan-badge plan-badge--pro" style={{ fontSize: 11 }}>Pro</span>
+          <span className="plan-badge plan-badge--pro" style={{ fontSize: 11 }}>AI</span>
         </h1>
         <p className="small" style={{ margin: 0, color: '#5a6778' }}>
           A career mentor that knows your saved resume. Ask about role choices, skill priorities,
@@ -135,7 +141,7 @@ export default function MentorChatClient() {
         </p>
       </section>
 
-      {!isPro || paywall ? (
+      {!canUseAi || paywall ? (
         <section
           className="card col-12"
           style={{
@@ -143,13 +149,15 @@ export default function MentorChatClient() {
             borderLeft: '4px solid #1a3a5c',
           }}
         >
-          <h2 style={{ marginTop: 0 }}>Mentor Chat is a Pro feature</h2>
+          <h2 style={{ marginTop: 0 }}>Use AI for Mentor Chat</h2>
           <p className="small" style={{ color: '#3a4655', lineHeight: 1.6, marginBottom: 12 }}>
-            Pro (₹799/mo) includes Mentor Chat with full resume context, plus Interview Prep,
-            Salary band hints, and 300/200 monthly ATS scans / exports. Upgrade once to chat
-            for as long as you need across your job hunt.
+            Add your own AI key in Settings (free) to use this now — or get Pocket Resume Plus
+            (₹499/mo) for our AI across every feature, with no per-download AI fee. Cancel anytime.
           </p>
-          <Link className="btn" href="/billing">See plans</Link>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <Link className="btn primary" href="/settings">Add your AI key</Link>
+            <Link className="btn" href="/billing">Get Plus</Link>
+          </div>
         </section>
       ) : null}
 
@@ -165,7 +173,7 @@ export default function MentorChatClient() {
                     type="button"
                     className="btn ghost"
                     style={{ fontSize: 12, lineHeight: 1.4, textAlign: 'left' }}
-                    disabled={!isPro}
+                    disabled={!canUseAi}
                     onClick={() => send(p)}
                   >
                     {p}
@@ -198,7 +206,7 @@ export default function MentorChatClient() {
           <textarea
             className="input"
             rows={2}
-            placeholder={isPro ? 'Ask the mentor anything career-related…' : 'Upgrade to Pro to chat'}
+            placeholder={canUseAi ? 'Ask the mentor anything career-related…' : 'Add your AI key (free) or get Plus to chat'}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
@@ -207,7 +215,7 @@ export default function MentorChatClient() {
                 void send();
               }
             }}
-            disabled={!isPro || busy}
+            disabled={!canUseAi || busy}
             style={{ resize: 'vertical', minHeight: 60 }}
           />
           <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center', flexWrap: 'wrap' }}>

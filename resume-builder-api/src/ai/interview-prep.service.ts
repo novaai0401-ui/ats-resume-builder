@@ -6,6 +6,8 @@ import { rateLimitOrThrow } from '../limits/rate-limit';
 import { SettingsService } from '../settings/settings.service';
 import type { AiProvider } from './providers/ai-provider.interface';
 import { GroqProvider } from './providers/groq.provider';
+import { buildByokProvider } from './providers/byok-factory';
+import { isPlanActive } from './server-provider';
 
 /**
  * Interview Prep Cards — Pro only.
@@ -56,7 +58,7 @@ export class InterviewPrepService {
     private readonly settingsService: SettingsService,
   ) {}
 
-  async generate(userId: string, input: InterviewPrepInput): Promise<InterviewPrepResult> {
+  async generate(userId: string, input: InterviewPrepInput, byok?: { provider?: string | null; key?: string | null }): Promise<InterviewPrepResult> {
     const resumeText = String(input?.resumeText || '').slice(0, MAX_RESUME_CHARS);
     const targetRole = String(input?.targetRole || '').trim().slice(0, 100);
     const jdText = String(input?.jdText || '').slice(0, MAX_JD_CHARS);
@@ -71,9 +73,24 @@ export class InterviewPrepService {
       message: 'Rate limit exceeded for interview prep. Try again in a few minutes.',
     });
 
-    await this.checkAndChargePro(userId, APPROX_TOKENS);
+    // Non-resume AI: BYOK is free; ₹499/mo plan unlocks OUR AI. With
+    // neither, return the rule-based cards (free baseline + upsell), never
+    // our app key.
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new ForbiddenException('User not found');
+    const byokProvider = buildByokProvider(byok?.provider, byok?.key);
+    const planActive = isPlanActive(user.plan);
+    if (!byokProvider && !planActive) {
+      return {
+        questions: ruleBasedInterviewQuestions(targetRole, resumeText),
+        provider: 'rule-based',
+      };
+    }
+    if (!byokProvider) {
+      await this.chargePlanTokens(userId, APPROX_TOKENS);
+    }
 
-    const provider = this.resolveProvider();
+    const provider = byokProvider || this.resolveProvider();
     if (!provider) {
       this.logger.warn('No AI provider configured — returning rule-based interview prep cards');
       return {
@@ -126,17 +143,10 @@ export class InterviewPrepService {
     }
   }
 
-  /**
-   * Pro-only gate. Even when paymentFeatureEnabled is off (dev), we
-   * still throw for FREE/STUDENT users — interview prep is the marquee
-   * Pro feature and shouldn't leak.
-   */
-  private async checkAndChargePro(userId: string, tokens: number) {
+  /** Charge app-AI tokens for plan users (BYOK users don't reach here). */
+  private async chargePlanTokens(userId: string, tokens: number) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new ForbiddenException('User not found');
-    if (user.plan !== 'PRO') {
-      throw new ForbiddenException('PRO_PLAN_REQUIRED: Interview Prep Cards are a Pro feature.');
-    }
     await ensureUsagePeriod(this.prisma, user);
     const updated = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!updated) throw new ForbiddenException('User not found');

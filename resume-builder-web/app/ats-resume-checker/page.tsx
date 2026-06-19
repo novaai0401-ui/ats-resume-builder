@@ -23,7 +23,7 @@ const FAQ = [
   },
   {
     q: 'Is the ATS checker free?',
-    a: 'Yes, the ATS score and recruiter-view simulation are free. The Recruiter-AI Simulator (an LLM hiring-screen verdict against a specific job description) is a Student/Pro feature.',
+    a: 'Yes, the ATS score and recruiter-view simulation are free. The Recruiter-AI Simulator (an LLM hiring-screen verdict against a specific job description) is an AI feature — free with your own AI key, or included in Pocket Resume Plus (₹499/mo).',
   },
   {
     q: 'What is the difference between an ATS score and the ATS Simulator?',

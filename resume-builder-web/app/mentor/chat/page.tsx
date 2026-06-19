@@ -5,7 +5,7 @@ export const metadata: Metadata = {
   title: 'Mentor Chat',
   description:
     'Chat with an AI career mentor that knows your resume and recent job applications. ' +
-    'Pro plan only.',
+    'Use your own AI key (free) or Pocket Resume Plus (₹499/mo).',
 };
 
 export default function MentorChatPage() {

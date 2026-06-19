@@ -5,10 +5,12 @@ import path from 'node:path';
 
 /**
  * Source-level guardrails for the Free vs Paid feature matrix and the
- * ₹49 explainer on the billing page. The numbers in this UI must match
- * resume-builder-api/src/billing/plan-limits.ts — if a plan limit
- * changes server-side and this file is left stale, users get a wrong
- * promise on the billing page. These tests pin the contract.
+ * ₹49 explainer on the billing page.
+ *
+ * Post-pivot (R-071) there is ONE paid plan — "Pocket Resume Plus" at
+ * ₹499/mo (the 'PRO' value internally). The Free column doubles as the
+ * BYOK path. The numbers must match
+ * resume-builder-api/src/billing/plan-limits.ts (FREE + PRO).
  */
 
 const src = readFileSync(
@@ -21,27 +23,24 @@ test('exports the comparison table and the ₹49 explainer', () => {
   assert.match(src, /export function MicroPaymentExplainer/);
 });
 
-test('quotas match plan-limits.ts source of truth', () => {
-  // FREE: 2 resumes / 2 ATS scans / 5 PDFs / 8000 tokens
+test('quotas match plan-limits.ts source of truth (FREE + Plus/PRO)', () => {
+  // FREE: 2 resumes / 2 ATS scans; AI runs on the user's own key.
   assert.match(src, /Saved resumes[\s\S]*?free:\s*'2'/);
   assert.match(src, /ATS scans \/ month[\s\S]*?free:\s*'2'/);
-  assert.match(src, /PDF \+ Word exports \/ month[\s\S]*?free:\s*'5/);
-  assert.match(src, /AI tokens \/ month[\s\S]*?free:\s*'8,000'/);
-  // STUDENT quotas
-  assert.match(src, /student:\s*'10'/);
-  assert.match(src, /student:\s*'50'/);
-  assert.match(src, /student:\s*'25 \(included\)'/);
-  assert.match(src, /student:\s*'40,000'/);
-  // PRO quotas
-  assert.match(src, /pro:\s*'100'/);
-  assert.match(src, /pro:\s*'300'/);
-  assert.match(src, /pro:\s*'200 \(included\)'/);
-  assert.match(src, /pro:\s*'120,000'/);
+  assert.match(src, /AI tokens \/ month[\s\S]*?free:\s*'Your own key'/);
+  // Plus (PRO) quotas: 100 resumes / 300 scans / 120,000 tokens.
+  assert.match(src, /plus:\s*'100'/);
+  assert.match(src, /plus:\s*'300'/);
+  assert.match(src, /plus:\s*'120,000'/);
 });
 
-test('plan prices match plan-limits.ts (₹199 Student, ₹499 Pro)', () => {
-  assert.match(src, /₹199\/mo/);
+test('single paid plan is ₹499/mo and labelled Pocket Resume Plus', () => {
+  assert.match(src, /Pocket Resume Plus/);
   assert.match(src, /₹499\/mo/);
+  // No legacy tiers/prices should linger.
+  assert.doesNotMatch(src, /₹199/);
+  assert.doesNotMatch(src, /₹399/);
+  assert.doesNotMatch(src, /₹799/);
 });
 
 test('₹49 explainer states what the micro-payment unlocks', () => {
@@ -53,21 +52,14 @@ test('₹49 explainer states what the micro-payment unlocks', () => {
   assert.match(src, /GST invoice/);
 });
 
-test('explainer up-sells to Student plan with break-even pitch', () => {
-  assert.match(src, /Student plan at ₹199\/mo/);
-  assert.match(src, /breaks even at 5 downloads/);
+test('explainer up-sells the ₹499 Plus plan and the free BYOK path', () => {
+  assert.match(src, /Pocket Resume Plus at ₹499\/mo/);
+  assert.match(src, /own AI key/);
 });
 
-test('comparison table calls out Pro-only features', () => {
-  // Pro-exclusives must be false for FREE and STUDENT
-  assert.match(
-    src,
-    /Mentor Chat[^}]*free:\s*false[^}]*student:\s*false[^}]*pro:\s*true/,
-  );
-  assert.match(
-    src,
-    /Interview Prep Cards[^}]*free:\s*false[^}]*student:\s*false[^}]*pro:\s*true/,
-  );
+test('Plus-only perks are not on Free', () => {
+  assert.match(src, /Salary band hints[^}]*free:\s*false[^}]*plus:\s*true/);
+  assert.match(src, /Priority AI queue[^}]*free:\s*false[^}]*plus:\s*true/);
 });
 
 test('GST disclosure is present', () => {

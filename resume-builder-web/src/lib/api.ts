@@ -1038,9 +1038,9 @@ export const api = {
         answerOutline: string[];
       }>;
       provider: 'groq' | 'rule-based';
-    }>(`/ai/interview-prep`, { method: 'POST', body: JSON.stringify(input) }),
+    }>(`/ai/interview-prep`, { method: 'POST', headers: { ...(getByokHeader() || {}) }, body: JSON.stringify(input) }),
 
-  /** Mentor Chat — Pro only. Stateless; pass the full history each turn. */
+  /** Mentor Chat — BYOK (free) or the ₹499/mo plan. Stateless; pass full history each turn. */
   mentorChat: (input: {
     messages: Array<{ role: 'user' | 'assistant'; content: string }>;
     resumeText?: string;
@@ -1048,7 +1048,7 @@ export const api = {
   }) =>
     request<{ reply: string; provider: 'groq' | 'unavailable'; tokensUsed: number }>(
       `/ai/mentor-chat`,
-      { method: 'POST', body: JSON.stringify(input) },
+      { method: 'POST', headers: { ...(getByokHeader() || {}) }, body: JSON.stringify(input) },
     ),
 
   loginWithPassword: (email: string, password: string) =>

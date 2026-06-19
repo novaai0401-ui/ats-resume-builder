@@ -1,22 +1,22 @@
 'use client';
 
 /**
- * Interview Prep Cards — Pro only.
+ * Interview Prep Cards — AI feature.
  *
  * Generates 8 likely interview questions from the user's resume +
  * target role. Each card has the question, why it's asked, and an
  * answer outline (3 bullets).
  *
- * Free / Student users see a paywall card explaining what they'd
- * unlock at Pro. We deliberately don't run the rule-based fallback
- * for non-Pro users — interview prep is the marquee Pro feature and
- * shouldn't leak.
+ * Usable with the user's own AI key (BYOK, free) or with Pocket
+ * Resume Plus. Users without either see a paywall card pointing them
+ * to add a key in Settings or get Plus.
  */
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api, getAccessToken } from '@/src/lib/api';
 import { useResumeStore } from '@/src/lib/resume-store';
+import { loadByokKey } from '@/src/lib/byok-storage';
 
 type Card = {
   category: 'behavioral' | 'technical' | 'role-specific';
@@ -60,16 +60,19 @@ export default function InterviewPrepClient() {
   const [cards, setCards] = useState<Card[]>([]);
   const [provider, setProvider] = useState<'groq' | 'rule-based' | null>(null);
   const [openIdx, setOpenIdx] = useState<number | null>(0);
+  const [hasByok, setHasByok] = useState(false);
 
   useEffect(() => {
     setAuthed(Boolean(getAccessToken()));
+    setHasByok(Boolean(loadByokKey()));
     try {
       const stored = window.localStorage.getItem('rb_plan');
       if (stored === 'PRO' || stored === 'STUDENT' || stored === 'FREE') setPlan(stored);
     } catch { /* ignore */ }
   }, []);
 
-  const isPro = plan === 'PRO';
+  // Usable with Pocket Resume Plus (the 'PRO' plan value) or BYOK key.
+  const canUseAi = plan === 'PRO' || hasByok;
   const resumeText = buildResumeText(resume as never);
   const hasResume = resumeText.trim().length > 30;
 
@@ -121,7 +124,7 @@ export default function InterviewPrepClient() {
       <section className="card col-12">
         <h1 style={{ marginBottom: 4 }}>
           Interview Prep Cards{' '}
-          <span className="plan-badge plan-badge--pro" style={{ fontSize: 11 }}>Pro</span>
+          <span className="plan-badge plan-badge--pro" style={{ fontSize: 11 }}>AI</span>
         </h1>
         <p className="small" style={{ margin: 0, color: '#5a6778' }}>
           We&rsquo;ll generate 8 likely interview questions from your saved resume — three
@@ -130,7 +133,7 @@ export default function InterviewPrepClient() {
         </p>
       </section>
 
-      {!isPro ? (
+      {!canUseAi ? (
         <section
           className="card col-12"
           style={{
@@ -138,12 +141,15 @@ export default function InterviewPrepClient() {
             borderLeft: '4px solid #1a3a5c',
           }}
         >
-          <h2 style={{ marginTop: 0 }}>This is a Pro feature</h2>
+          <h2 style={{ marginTop: 0 }}>Use AI for Interview Prep</h2>
           <p className="small" style={{ color: '#3a4655', lineHeight: 1.6, marginBottom: 12 }}>
-            Pro (₹799/mo) includes Interview Prep, Salary band hints, Mentor Chat, and 300/200
-            monthly ATS scans / exports. Upgrade once to use this feature for your full job hunt.
+            Add your own AI key in Settings (free) to use this now — or get Pocket Resume Plus
+            (₹499/mo) for our AI across every feature, with no per-download AI fee. Cancel anytime.
           </p>
-          <Link className="btn" href="/billing">See plans</Link>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <Link className="btn primary" href="/settings">Add your AI key</Link>
+            <Link className="btn" href="/billing">Get Plus</Link>
+          </div>
         </section>
       ) : null}
 
@@ -174,14 +180,15 @@ export default function InterviewPrepClient() {
           </div>
         </div>
         <div style={{ marginTop: 12 }}>
-          <button className="btn" onClick={handleGenerate} disabled={loading || !isPro}>
+          <button className="btn" onClick={handleGenerate} disabled={loading || !canUseAi}>
             {loading ? 'Generating cards…' : 'Generate prep cards'}
           </button>
         </div>
         {error ? <p className="hint error" style={{ marginTop: 10 }}>{error}</p> : null}
         {paywall ? (
           <p className="small" style={{ marginTop: 10, color: '#5a6778' }}>
-            Upgrade to Pro on the <Link href="/billing">billing page</Link> to use Interview Prep.
+            <Link href="/settings">Add your AI key</Link> (free) or{' '}
+            <Link href="/billing">get Pocket Resume Plus</Link> to use Interview Prep.
           </p>
         ) : null}
       </section>
@@ -191,7 +198,7 @@ export default function InterviewPrepClient() {
           <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
             <h2 style={{ margin: 0 }}>{cards.length} prep cards</h2>
             <span className="small" style={{ color: '#7a8a99' }}>
-              {provider === 'groq' ? 'Powered by AI' : 'Rule-based — upgrade for tailored AI cards'}
+              {provider === 'groq' ? 'Powered by AI' : 'Rule-based — add an AI key or get Plus for tailored AI cards'}
             </span>
           </header>
           <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 10 }}>

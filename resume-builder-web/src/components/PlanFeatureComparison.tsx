@@ -12,49 +12,51 @@
  *
  * Source of truth: resume-builder-api/src/billing/plan-limits.ts
  * (FREE 8k tokens / 2 scans / 5 PDFs / 2 resumes;
- *  STUDENT 40k / 50 / 25 / 10 @ ₹199/mo;
- *  PRO 120k / 300 / 200 / 100 @ ₹499/mo)
+ *  PRO — sold as "Pocket Resume Plus" — 120k / 300 / 200 / 100 @ ₹499/mo)
  * Keep this file in sync if those limits ever move.
+ *
+ * Note: the only paid plan is "Pocket Resume Plus" (the 'PRO' plan
+ * value internally). The "Free" column doubles as the BYOK path: every
+ * AI feature is usable on Free when the user adds their own AI key.
  */
 
 type Row = {
   feature: string;
   free: string | boolean;
-  student: string | boolean;
-  pro: string | boolean;
+  /** "Pocket Resume Plus" column (the 'PRO' plan value internally). */
+  plus: string | boolean;
 };
 
 const ROWS: Row[] = [
   // Quotas
-  { feature: 'Saved resumes', free: '2', student: '10', pro: '100' },
-  { feature: 'ATS scans / month', free: '2', student: '50', pro: '300' },
-  { feature: 'PDF + Word exports / month', free: '5 (₹49 each)', student: '25 (included)', pro: '200 (included)' },
-  { feature: 'AI tokens / month', free: '8,000', student: '40,000', pro: '120,000' },
+  { feature: 'Saved resumes', free: '2', plus: '100' },
+  { feature: 'ATS scans / month', free: '2', plus: '300' },
+  { feature: 'PDF + Word exports / month', free: '₹49 each', plus: '₹49 each' },
+  { feature: 'AI tokens / month', free: 'Your own key', plus: '120,000' },
 
   // Core
-  { feature: 'Resume editor & ATS-safe templates', free: true, student: true, pro: true },
-  { feature: 'Rule-based ATS scoring', free: true, student: true, pro: true },
-  { feature: 'Action-verb + bullet-length checks', free: true, student: true, pro: true },
-  { feature: 'Job tracker (Kanban)', free: true, student: true, pro: true },
-  { feature: 'Version history (up to 25 per resume)', free: true, student: true, pro: true },
-  { feature: 'Bring-your-own AI key (BYOK)', free: true, student: true, pro: true },
+  { feature: 'Resume editor & ATS-safe templates', free: true, plus: true },
+  { feature: 'Rule-based ATS scoring', free: true, plus: true },
+  { feature: 'Action-verb + bullet-length checks', free: true, plus: true },
+  { feature: 'Job tracker (Kanban)', free: true, plus: true },
+  { feature: 'Version history (up to 25 per resume)', free: true, plus: true },
+  { feature: 'Bring-your-own AI key (BYOK)', free: true, plus: true },
 
-  // Paid AI
-  { feature: 'AI Resume Critique (LLM rewrites)', free: false, student: true, pro: true },
-  { feature: 'AI Bullet Rewriter (✨ one-tap)', free: false, student: true, pro: true },
-  { feature: 'JD Match Score + missing keywords', free: false, student: true, pro: true },
-  { feature: 'Tech Gap Analysis', free: false, student: true, pro: true },
-  { feature: 'Cover Letter Studio', free: false, student: true, pro: true },
-  { feature: 'Mentor Mode (career insights)', free: false, student: true, pro: true },
-  { feature: 'Outcome Loop (response / interview / offer tracking)', free: true, student: true, pro: true },
+  // AI — free with your own key, or our AI on Plus
+  { feature: 'AI Resume Critique (LLM rewrites)', free: 'With your key', plus: 'Our AI' },
+  { feature: 'AI Bullet Rewriter (✨ one-tap)', free: 'With your key', plus: 'Our AI' },
+  { feature: 'JD Match Score + missing keywords', free: 'With your key', plus: 'Our AI' },
+  { feature: 'Tech Gap Analysis', free: 'With your key', plus: 'Our AI' },
+  { feature: 'Cover Letter Studio', free: 'With your key', plus: 'Our AI' },
+  { feature: 'Mentor Mode (career insights)', free: 'With your key', plus: 'Our AI' },
+  { feature: 'Mentor Chat (resume-aware)', free: 'With your key', plus: 'Our AI' },
+  { feature: 'Interview Prep Cards (8 per role)', free: 'With your key', plus: 'Our AI' },
+  { feature: 'Outcome Loop (response / interview / offer tracking)', free: true, plus: true },
 
-  // Pro-only
-  { feature: 'Mentor Chat (resume-aware)', free: false, student: false, pro: true },
-  { feature: 'Interview Prep Cards (8 per role)', free: false, student: false, pro: true },
-  { feature: 'Salary band hints (25/50/75 percentile)', free: false, student: false, pro: true },
-  { feature: 'Priority AI queue (skip rate-limits)', free: false, student: false, pro: true },
-  { feature: 'Priority support (24h SLA + Slack)', free: false, student: false, pro: true },
-  { feature: 'Email support (48h SLA)', free: false, student: true, pro: true },
+  // Plus perks
+  { feature: 'Salary band hints (25/50/75 percentile)', free: false, plus: true },
+  { feature: 'Priority AI queue (skip rate-limits)', free: false, plus: true },
+  { feature: 'Priority support (24h SLA + Slack)', free: false, plus: true },
 ];
 
 function cell(value: string | boolean): React.ReactNode {
@@ -82,8 +84,9 @@ export default function PlanFeatureComparison() {
         Free vs Paid — what changes
       </h2>
       <p className="small" style={{ color: '#5a6778', marginTop: 4, marginBottom: 12 }}>
-        Everything in the Free tier stays free forever. Paid tiers unlock the AI
-        features and lift the monthly quotas.
+        Everything in the Free tier stays free forever. Add your own AI key to use every
+        AI feature for free, or get Pocket Resume Plus (₹499/mo) for our AI everywhere
+        and the higher monthly quotas. Cancel anytime.
       </p>
 
       <div style={{ overflowX: 'auto' }}>
@@ -118,21 +121,7 @@ export default function PlanFeatureComparison() {
                   color: '#1a3a5c',
                 }}
               >
-                Student
-                <span className="small" style={{ display: 'block', fontWeight: 400, color: '#5a6778' }}>
-                  ₹199/mo
-                </span>
-              </th>
-              <th
-                scope="col"
-                style={{
-                  padding: '10px 12px',
-                  borderBottom: '1px solid #d0dbe7',
-                  textAlign: 'center',
-                  color: '#1a3a5c',
-                }}
-              >
-                Pro
+                Pocket Resume Plus
                 <span className="small" style={{ display: 'block', fontWeight: 400, color: '#5a6778' }}>
                   ₹499/mo
                 </span>
@@ -157,8 +146,7 @@ export default function PlanFeatureComparison() {
                   {row.feature}
                 </th>
                 <td style={{ padding: '10px 12px', textAlign: 'center' }}>{cell(row.free)}</td>
-                <td style={{ padding: '10px 12px', textAlign: 'center' }}>{cell(row.student)}</td>
-                <td style={{ padding: '10px 12px', textAlign: 'center' }}>{cell(row.pro)}</td>
+                <td style={{ padding: '10px 12px', textAlign: 'center' }}>{cell(row.plus)}</td>
               </tr>
             ))}
           </tbody>
@@ -234,9 +222,10 @@ export function MicroPaymentExplainer() {
       </ul>
 
       <p className="small" style={{ color: '#5a6778', marginTop: 8 }}>
-        Need more than one or two exports a month? The <strong>Student plan at ₹199/mo</strong>{' '}
-        already includes 25 exports and unlocks the AI critique, JD match, and Mentor Mode —
-        breaks even at 5 downloads.
+        Want AI everywhere without managing your own key? <strong>Pocket Resume Plus at ₹499/mo</strong>{' '}
+        unlocks our AI across every feature — AI critique, JD match, Mentor Mode, and more.
+        Prefer free? Add your own AI key in Settings and every AI feature is free. Downloads
+        stay ₹49 each on any plan.
       </p>
     </section>
   );

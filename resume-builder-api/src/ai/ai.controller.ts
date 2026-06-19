@@ -215,13 +215,13 @@ export class AiController {
    */
   @Post('interview-prep')
   interviewPrep(
-    @Req() req: { user: { userId: string } },
+    @Req() req: AuthedAiReq,
     @Body() body: InterviewPrepInput,
   ) {
     if (!body || typeof body !== 'object' || !body.resumeText) {
       throw new BadRequestException('resumeText is required');
     }
-    return this.interviewPrepService.generate(req.user.userId, body);
+    return this.interviewPrepService.generate(req.user.userId, body, byokFromReq(req));
   }
 
   /**
@@ -231,13 +231,13 @@ export class AiController {
    */
   @Post('mentor-chat')
   mentorChat(
-    @Req() req: { user: { userId: string } },
+    @Req() req: AuthedAiReq,
     @Body() body: MentorChatInput,
   ) {
     if (!body || typeof body !== 'object' || !Array.isArray(body.messages)) {
       throw new BadRequestException('messages[] is required');
     }
-    return this.mentorChatService.chat(req.user.userId, body);
+    return this.mentorChatService.chat(req.user.userId, body, byokFromReq(req));
   }
 
   @Get('cover-letters')

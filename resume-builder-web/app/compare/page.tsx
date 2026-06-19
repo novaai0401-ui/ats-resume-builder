@@ -27,7 +27,7 @@ const FAQ = [
   },
   {
     q: 'Is Pocket Resume free?',
-    a: 'Yes — the resume editor and ATS scorer are free forever. Paid Student/Pro tiers add AI career features, priced India-first (sub-₹400/month).',
+    a: 'Yes — the resume editor and ATS scorer are free forever. AI career features are free with your own AI key (BYOK), or get Pocket Resume Plus at ₹499/mo for our AI everywhere. Downloads are ₹49 each.',
   },
 ];
 

@@ -901,6 +901,18 @@ and every external call still feeds the Outcome Graph.
   - [x] Upgrade-to-Student/Pro prompts on ATS critique + JD-match
     replaced with "add your own AI key (free)" messaging.
   - [x] Pinning test `tests/download-ai-fee.unit.test.cjs`.
+  - [x] Single ₹499/mo plan ("Pocket Resume Plus") — the ONLY
+    subscription, reuses internal `PRO` value. Razorpay
+    `PRO_MONTHLY` = 49900 paise; billing page wires create-order +
+    verify.
+  - [x] Non-resume AI (Mentor, Interview-Prep, Recruiter-sim,
+    Skill-demand, Cover-letter): BYOK free, OR ₹499 plan unlocks OUR
+    AI; otherwise rule-based baseline + upsell — app key never spent
+    for a free, key-less, plan-less user. Shared gate in
+    `src/ai/server-provider.ts`; test
+    `tests/non-resume-ai-gate.unit.test.cjs`.
+  - [x] Marketing/paywall copy across web replaced (no Student/Pro,
+    no ₹199/₹399/₹799).
 
 ---
 
@@ -996,6 +1008,7 @@ do not break it.
 | 2026-06-16 | Pre-prod fixes: (1) extraction mapping re-joins PDF-wrapped bullet fragments into whole sentences + imported-mode "break it down" hint; (2) Sahaayak workspace grid collapses to 1 col ≤768px; (3) share-links resume `<select>` ellipsis/overflow; (4) public share-link PDF download now watermarked (quota-bypassing path) | Founder smoke-test on prod URL surfaced 4 issues: meaningless bullet fragments in inputs (R-007/R-010 population logic), two mobile CSS overlaps, and a request to let recruiters download a watermarked copy from the public share page (R-038). Watermark is server-side in `renderResumeTemplateHtml` so preview/export share one path. | R-007, R-010, R-038, R-003 |
 | 2026-06-15 | R-045 profile photo stored as a size-capped base64 `data:` URI, not object storage; rendered only on the 2 visual templates; `headerStyle` descoped | No S3/Cloudinary in this stack and CSP already allows `data:` for img-src, so a downscaled (≤512px) data URI is self-contained and keeps preview↔export parity for free. Photo is the region-aware (India vs US/ATS) differentiator; ATS templates + ATS-safe exports always omit it (§9.5). A separate `headerStyle` axis added complexity without a user ask. | R-045 |
 | 2026-06-15 | R-045 (design customization) scoped as a phased plan, not a single rushed change | Accent theming touches 10 template CSS blocks + the separate server export renderer + a missing token layer + parity tests + a migration + CSP/fonts. Shipping it hastily risks breaking PDF export and §9 parity. Plan in docs/DESIGN_CUSTOMIZATION_PLAN.md; Phase 1 ships as its own PR. | R-045 |
+| 2026-06-19 | Monetization refined (supersedes the 2026-06-16 "no plans" pivot): (1) resume-upgrade AI without a key now runs OUR AI and adds a flat per-download AI fee (`Resume.aiAssistUsed` flag, `aiFeeApplies()`), waived on the ₹499 plan; (2) reintroduced a SINGLE ₹499/mo plan ("Pocket Resume Plus", internal `PRO`, Razorpay `PRO_MONTHLY`=49900 paise) as the only subscription; (3) non-resume AI (Mentor, Interview-Prep, Recruiter-sim, Skill-demand, Cover-letter) gated to BYOK-or-plan with rule-based baseline + upsell (no app-key spend for free/key-less/plan-less users), shared gate in `src/ai/server-provider.ts`; (4) web copy purged of Student/Pro and ₹199/₹399/₹799. | Founder decision: BYOK-only left no revenue from non-key users; charge a flat AI fee on download for our-AI resume help, and offer one ₹499/mo plan for everything-AI. | R-071, R-003, R-005 |
 
 ---
 
