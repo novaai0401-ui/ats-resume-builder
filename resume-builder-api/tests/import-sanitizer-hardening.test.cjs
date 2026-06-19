@@ -11,22 +11,12 @@
  */
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { execSync } = require('node:child_process');
-const path = require('node:path');
-const fs = require('node:fs');
-const os = require('node:os');
 
-const SRC = path.join(__dirname, '..', 'src', 'resume', 'import-sanitizer.ts');
-const TMP_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'sanitizer-build-'));
-const TMP_SRC = path.join(TMP_DIR, 'import-sanitizer.ts');
-fs.copyFileSync(SRC, TMP_SRC);
-
-execSync(
-  `npx --yes tsc --target es2022 --module commonjs --esModuleInterop --skipLibCheck --outDir ${TMP_DIR} ${TMP_SRC}`,
-  { stdio: 'pipe', cwd: TMP_DIR },
-);
-
-const { sanitizeImportedResume } = require(path.join(TMP_DIR, 'import-sanitizer.js'));
+// Use the already-built output (npm test runs `nest build` first). The old
+// approach shelled out to `npx --yes tsc` at runtime — slow, needs network, and
+// fails on the CI runner (Node 24), turning a passing unit test into a
+// file-load failure.
+const { sanitizeImportedResume } = require('../dist/resume/import-sanitizer.js');
 
 test('strips script tags from summary and skills', () => {
   const out = sanitizeImportedResume({
