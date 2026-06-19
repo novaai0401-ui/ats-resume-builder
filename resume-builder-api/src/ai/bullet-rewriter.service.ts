@@ -38,6 +38,8 @@ export type RewriteBulletInput = {
   role?: string;
   company?: string;
   jdText?: string;
+  /** Resume being edited — flags our-AI assist for the per-download fee. */
+  resumeId?: string;
 };
 
 export type RewriteBulletOutput = {
@@ -74,7 +76,8 @@ export class BulletRewriterService {
     });
 
     // Resume-upgrade AI: user's own key (free) else OUR AI (billed at download).
-    const provider = buildByokProvider(byok?.provider, byok?.key) || this.resolveProvider();
+    const byokProvider = buildByokProvider(byok?.provider, byok?.key);
+    const provider = byokProvider || this.resolveProvider();
     if (!provider) {
       this.logger.warn('No AI provider configured — returning rule-based bullet rewrites');
       return {
@@ -121,6 +124,11 @@ export class BulletRewriterService {
           tokensUsed: APPROX_TOKENS,
         };
       }
+      // OUR AI assisted this resume — flag it so the next download carries
+      // the flat AI fee (unless on the ₹499 plan). BYOK stays free.
+      if (!byokProvider && input.resumeId) {
+        await this.flagResumeAiAssist(userId, input.resumeId);
+      }
       return {
         alternatives: parsed.slice(0, 3),
         provider: 'groq',
@@ -165,6 +173,18 @@ export class BulletRewriterService {
     if (!key) return null;
     const model = this.config.get<string>('GROQ_MODEL', '');
     return new GroqProvider(key, model || undefined);
+  }
+
+  /** Mark that OUR AI assisted this resume — drives the per-download AI fee. */
+  private async flagResumeAiAssist(userId: string, resumeId: string): Promise<void> {
+    try {
+      await this.prisma.resume.updateMany({
+        where: { id: resumeId, userId },
+        data: { aiAssistUsed: true },
+      });
+    } catch {
+      // Non-critical — never block the AI response on the flag write.
+    }
   }
 }
 

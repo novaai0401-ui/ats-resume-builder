@@ -131,7 +131,8 @@ export class AiService {
     // Resume-upgrade AI: the user's own key (free) if present, otherwise OUR AI
     // (billed via the flat per-download fee). Only falls back to rule-based when
     // no provider is configured at all.
-    const provider = buildByokProvider(byok?.provider, byok?.key) || this.resolveProvider();
+    const byokProvider = buildByokProvider(byok?.provider, byok?.key);
+    const provider = byokProvider || this.resolveProvider();
 
     if (!provider) {
       this.logger.warn('No AI provider configured — returning rule-based fallback');
@@ -173,6 +174,11 @@ export class AiService {
 
       const critique = parseAiCritiqueJson(raw, plan);
       await this.recordCritiqueUsage(userId);
+      // Our AI (not the user's own key) assisted this resume → flag it for the
+      // flat per-download AI fee.
+      if (!byokProvider && input.resumeId) {
+        await this.flagResumeAiAssist(userId, input.resumeId);
+      }
 
       return {
         success: true,
@@ -184,6 +190,18 @@ export class AiService {
       const msg = err instanceof Error ? err.message : String(err);
       this.logger.error(`AI critique failed (provider=${provider.name}): ${msg}`);
       return this.buildFallbackCritique(input, plan);
+    }
+  }
+
+  /** Mark that OUR AI assisted this resume (drives the flat per-download fee). */
+  private async flagResumeAiAssist(userId: string, resumeId: string): Promise<void> {
+    try {
+      await this.prisma.resume.updateMany({
+        where: { id: resumeId, userId },
+        data: { aiAssistUsed: true },
+      });
+    } catch {
+      // Non-critical: never fail the AI response over the billing flag.
     }
   }
 
@@ -341,6 +359,8 @@ export interface AiCritiqueInput {
   atsWeaknesses?: string[];
   missingKeywords?: string[];
   currentScore?: number;
+  /** Resume this critique is for — used to flag our-AI assist for the download fee. */
+  resumeId?: string;
 }
 
 export interface AiCritiqueSuggestion {

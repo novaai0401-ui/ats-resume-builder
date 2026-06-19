@@ -997,6 +997,7 @@ export default function ResumeEditor() {
           currentBullet: bullet,
           role: exp?.role || '',
           company: exp?.company || '',
+          resumeId: resumeId || undefined,
         });
         setBulletRewrites((prev) => ({
           ...prev,
@@ -1438,6 +1439,7 @@ export default function ResumeEditor() {
     setAiCritiqueResult(null);
     try {
       const result = await api.aiCritique({
+        resumeId: resumeId || undefined,
         summary: resume.summary,
         skills: allSkills,
         experience: resume.experience.map((e) => ({
@@ -1550,6 +1552,7 @@ export default function ResumeEditor() {
     setPremiumOptimizing(true);
     try {
       const result = await api.aiCritique({
+        resumeId: resumeId || undefined,
         summary: resume.summary,
         skills: allSkills,
         experience: resume.experience.map((e) => ({

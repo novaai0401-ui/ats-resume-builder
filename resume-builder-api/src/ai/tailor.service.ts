@@ -108,7 +108,8 @@ export class TailorService {
     if (!resume) throw new NotFoundException('Resume not found.');
 
     // Resume-upgrade AI: user's own key (free) else OUR AI (billed at download).
-    const provider = buildByokProvider(byok?.provider, byok?.key) || this.resolveProvider();
+    const byokProvider = buildByokProvider(byok?.provider, byok?.key);
+    const provider = byokProvider || this.resolveProvider();
     if (!provider) {
       throw new ForbiddenException(
         'AI tailoring is unavailable right now. Add your own AI key in Settings (free) to use it.',
@@ -169,6 +170,11 @@ export class TailorService {
     }
 
     const parsed = parseTailorResponse(raw, bulletsCatalog);
+    // OUR AI assisted this resume — flag it so the next download carries
+    // the flat AI fee (unless the user is on the ₹499 plan). BYOK is free.
+    if (!byokProvider) {
+      await this.flagResumeAiAssist(userId, resumeId);
+    }
     return {
       summary: parsed.summary && parsed.summary !== String(resume.summary || '').trim()
         ? { before: String(resume.summary || ''), after: parsed.summary }
@@ -301,6 +307,18 @@ export class TailorService {
     if (!key) return null;
     const model = this.config.get<string>('GROQ_MODEL', '');
     return new GroqProvider(key, model || undefined);
+  }
+
+  /** Mark that OUR AI assisted this resume — drives the per-download AI fee. */
+  private async flagResumeAiAssist(userId: string, resumeId: string): Promise<void> {
+    try {
+      await this.prisma.resume.updateMany({
+        where: { id: resumeId, userId },
+        data: { aiAssistUsed: true },
+      });
+    } catch {
+      // Non-critical — never block the AI response on the flag write.
+    }
   }
 }
 

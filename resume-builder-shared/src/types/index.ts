@@ -225,6 +225,8 @@ export type AiCritiqueRequest = {
   atsWeaknesses?: string[];
   missingKeywords?: string[];
   currentScore?: number;
+  /** Resume being critiqued — flags our-AI assist for the per-download fee. */
+  resumeId?: string;
 };
 
 export type AiCritiqueSuggestion = {

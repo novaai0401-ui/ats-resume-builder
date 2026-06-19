@@ -28,7 +28,23 @@ import { PrismaService } from '../prisma/prisma.service';
 
 const DEFAULT_INR_PAISE = 4900; // ₹49
 const DEFAULT_USD_CENTS = 99;   // $0.99
+// Flat AI-assist fee added to a download when OUR AI helped that resume and the
+// user is not on the ₹499 plan / not using their own key.
+const DEFAULT_AI_FEE_INR_PAISE = 2000; // ₹20
+const DEFAULT_AI_FEE_USD_CENTS = 50;   // ~$0.50
 const TOKEN_TTL_SECONDS = 15 * 60;
+
+/**
+ * Pure fee policy (exported for tests):
+ *  • Every download is the base price.
+ *  • A flat AI fee is added ONLY when OUR AI assisted that resume AND the
+ *    user is not on a paid plan. BYOK clears the flag upstream, so it never
+ *    reaches here; ₹499 plan users have planActive=true and are exempt.
+ */
+export function aiFeeApplies(aiAssistUsed: boolean, plan: string | null | undefined): boolean {
+  const planActive = Boolean(plan && plan !== 'FREE');
+  return Boolean(aiAssistUsed) && !planActive;
+}
 
 @Injectable()
 export class DownloadChargeService {
@@ -79,20 +95,30 @@ export class DownloadChargeService {
     const user = await this.prisma.user.findUnique({ where: { id: params.userId } });
     if (!user) throw new ForbiddenException('User not found');
 
-    // Model (post-pivot): no subscription tiers. EVERY download is ₹49
-    // (or ~$0.99 outside India). There is no plan-based exemption.
+    // Every download is ₹49 (or ~$0.99). On top of that, if OUR AI assisted
+    // this resume and the user isn't on the ₹499 plan, add a flat AI fee.
+    const resume = await this.prisma.resume.findFirst({
+      where: { id: params.resumeId, userId: params.userId },
+      select: { aiAssistUsed: true },
+    });
+    const feeApplies = aiFeeApplies(Boolean(resume?.aiAssistUsed), user.plan);
+
     const isIndia = (params.region || '').trim().toUpperCase() === 'IN';
     if (isIndia) {
-      return this.createRazorpayOrder(params.userId, params.resumeId, user.email);
+      return this.createRazorpayOrder(params.userId, params.resumeId, user.email, feeApplies);
     }
-    return this.createStripeSession(params.userId, params.resumeId, user.email);
+    return this.createStripeSession(params.userId, params.resumeId, user.email, feeApplies);
   }
 
-  private async createRazorpayOrder(userId: string, resumeId: string, userEmail: string) {
+  private async createRazorpayOrder(userId: string, resumeId: string, userEmail: string, aiFeeApplies = false) {
     if (!this.razorpay) {
       throw new ServiceUnavailableException('Razorpay is not configured on the server.');
     }
-    const amount = Number(this.config.get<string>('DOWNLOAD_CHARGE_INR_PAISE', '')) || DEFAULT_INR_PAISE;
+    const base = Number(this.config.get<string>('DOWNLOAD_CHARGE_INR_PAISE', '')) || DEFAULT_INR_PAISE;
+    const aiFee = aiFeeApplies
+      ? (Number(this.config.get<string>('DOWNLOAD_AI_FEE_INR_PAISE', '')) || DEFAULT_AI_FEE_INR_PAISE)
+      : 0;
+    const amount = base + aiFee;
     const receipt = `dl_${resumeId.slice(0, 8)}_${Date.now()}`;
     const order = await this.razorpay.orders.create({
       amount,
@@ -115,17 +141,22 @@ export class DownloadChargeService {
       provider: 'razorpay' as const,
       orderId: order.id,
       amount,
+      aiFee,
       currency: 'INR',
       keyId: this.razorpayKeyId,
       resumeId,
     };
   }
 
-  private async createStripeSession(userId: string, resumeId: string, userEmail: string) {
+  private async createStripeSession(userId: string, resumeId: string, userEmail: string, aiFeeApplies = false) {
     if (!this.stripeSecretKey) {
       throw new ServiceUnavailableException('Stripe is not configured on the server.');
     }
-    const amount = Number(this.config.get<string>('DOWNLOAD_CHARGE_USD_CENTS', '')) || DEFAULT_USD_CENTS;
+    const baseCents = Number(this.config.get<string>('DOWNLOAD_CHARGE_USD_CENTS', '')) || DEFAULT_USD_CENTS;
+    const aiFeeCents = aiFeeApplies
+      ? (Number(this.config.get<string>('DOWNLOAD_AI_FEE_USD_CENTS', '')) || DEFAULT_AI_FEE_USD_CENTS)
+      : 0;
+    const amount = baseCents + aiFeeCents;
     const successUrl = this.config.get<string>('DOWNLOAD_CHARGE_SUCCESS_URL', '');
     const cancelUrl = this.config.get<string>('DOWNLOAD_CHARGE_CANCEL_URL', '');
     if (!successUrl || !cancelUrl) {
@@ -208,7 +239,20 @@ export class DownloadChargeService {
       where: { providerOrderId: params.razorpay_order_id },
       data: { status: 'captured', providerPaymentId: params.razorpay_payment_id },
     });
+    await this.clearResumeAiAssist(params.userId, params.resumeId);
     return { downloadToken: this.issueDownloadToken(params.userId, params.resumeId) };
+  }
+
+  /** Clear the AI-assist flag once the (possibly AI-fee-bearing) download is paid. */
+  private async clearResumeAiAssist(userId: string, resumeId: string): Promise<void> {
+    try {
+      await this.prisma.resume.updateMany({
+        where: { id: resumeId, userId },
+        data: { aiAssistUsed: false },
+      });
+    } catch {
+      // Non-critical.
+    }
   }
 
   /**
@@ -235,6 +279,7 @@ export class DownloadChargeService {
       where: { providerOrderId: params.sessionId },
       data: { status: 'captured' },
     });
+    await this.clearResumeAiAssist(params.userId, params.resumeId);
     return { downloadToken: this.issueDownloadToken(params.userId, params.resumeId) };
   }
 

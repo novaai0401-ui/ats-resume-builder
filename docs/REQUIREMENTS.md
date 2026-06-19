@@ -881,6 +881,27 @@ and every external call still feeds the Outcome Graph.
     marketing.
 - Decision deadline: 30 days post-launch.
 
+### R-071 · Resume-AI: BYOK-free or flat per-download AI fee
+
+- Status: **IN PROGRESS** (commit pending)
+- Depends-on: R-003 (download charge), R-005 (BYOK pivot)
+- Context: subscriptions are gone. Resume-upgrade AI (AI critique,
+  bullet rewrite, JD-match/tailor) is free with the user's own key
+  (BYOK). If the user has no key, OUR AI runs and a flat fee is added
+  to that resume's next ₹49 download. Non-resume AI stays BYOK-only
+  until the single ₹499/mo plan ships (separate commit).
+- Acceptance
+  - [x] `Resume.aiAssistUsed` flag (schema + migration) set server-side
+    when OUR AI assists a resume (critique, bullet rewrite, tailor);
+    BYOK never sets it.
+  - [x] `DownloadChargeService` adds a flat AI fee (`DOWNLOAD_AI_FEE_*`,
+    default ₹20 / $0.50) when `aiAssistUsed` and the user is not on a
+    paid plan; fee math is the pure, tested `aiFeeApplies()`.
+  - [x] Flag cleared on successful paid verify (Razorpay + Stripe).
+  - [x] Upgrade-to-Student/Pro prompts on ATS critique + JD-match
+    replaced with "add your own AI key (free)" messaging.
+  - [x] Pinning test `tests/download-ai-fee.unit.test.cjs`.
+
 ---
 
 ## §6. Cross-cutting constants

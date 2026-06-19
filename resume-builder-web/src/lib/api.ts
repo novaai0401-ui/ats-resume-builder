@@ -975,7 +975,7 @@ export const api = {
    * based variants when no LLM is configured — the response shape is
    * identical, so the caller doesn't have to branch.
    */
-  rewriteBullet: (input: { currentBullet: string; role?: string; company?: string; jdText?: string }) =>
+  rewriteBullet: (input: { currentBullet: string; role?: string; company?: string; jdText?: string; resumeId?: string }) =>
     request<{ alternatives: string[]; provider: 'groq' | 'rule-based'; tokensUsed: number }>(
       `/ai/rewrite-bullet`,
       { method: 'POST', headers: { ...(getByokHeader() || {}) }, body: JSON.stringify(input) },
