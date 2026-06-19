@@ -128,8 +128,10 @@ export class AiService {
     await this.enforceDailyCritiqueLimit(userId);
 
     const plan: 'free' | 'premium' = 'free';
-    // BYOK: the user's own key powers the LLM critique; no key → rule-based.
-    const provider = buildByokProvider(byok?.provider, byok?.key);
+    // Resume-upgrade AI: the user's own key (free) if present, otherwise OUR AI
+    // (billed via the flat per-download fee). Only falls back to rule-based when
+    // no provider is configured at all.
+    const provider = buildByokProvider(byok?.provider, byok?.key) || this.resolveProvider();
 
     if (!provider) {
       this.logger.warn('No AI provider configured — returning rule-based fallback');

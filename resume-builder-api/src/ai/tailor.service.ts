@@ -107,11 +107,11 @@ export class TailorService {
     const resume = await this.prisma.resume.findFirst({ where: { id: resumeId, userId } });
     if (!resume) throw new NotFoundException('Resume not found.');
 
-    // BYOK: AI tailoring requires the user's own key (no mechanical fallback).
-    const provider = buildByokProvider(byok?.provider, byok?.key);
+    // Resume-upgrade AI: user's own key (free) else OUR AI (billed at download).
+    const provider = buildByokProvider(byok?.provider, byok?.key) || this.resolveProvider();
     if (!provider) {
       throw new ForbiddenException(
-        'AI tailoring needs your own AI key. Add one in Settings (it stays on your device) to use this feature.',
+        'AI tailoring is unavailable right now. Add your own AI key in Settings (free) to use it.',
       );
     }
 

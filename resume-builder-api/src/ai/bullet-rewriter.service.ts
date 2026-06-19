@@ -73,8 +73,8 @@ export class BulletRewriterService {
       message: 'Rate limit exceeded for bullet rewriter. Try again shortly.',
     });
 
-    // BYOK: use the user's own AI key; no key → rule-based rewrites below.
-    const provider = buildByokProvider(byok?.provider, byok?.key);
+    // Resume-upgrade AI: user's own key (free) else OUR AI (billed at download).
+    const provider = buildByokProvider(byok?.provider, byok?.key) || this.resolveProvider();
     if (!provider) {
       this.logger.warn('No AI provider configured — returning rule-based bullet rewrites');
       return {

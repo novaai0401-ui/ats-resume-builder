@@ -93,7 +93,8 @@ export class JdMatchService {
     // produces stronger keyword coverage).
     const baseline = computeRuleBasedMatch(resumeText, jdText, input.currentSkills ?? []);
 
-    const provider = buildByokProvider(byok?.provider, byok?.key);
+    // Resume-upgrade AI: user's own key (free) else OUR AI (billed at download).
+    const provider = buildByokProvider(byok?.provider, byok?.key) || this.resolveProvider();
     if (!provider) {
       return {
         matchPercent: baseline.matchPercent,

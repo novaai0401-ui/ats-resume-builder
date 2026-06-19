@@ -183,12 +183,12 @@ export default function JdMatchClient() {
             borderLeft: '4px solid #1a3a5c',
           }}
         >
-          <h2 style={{ marginTop: 0 }}>JD Match Score is a paid feature</h2>
+          <h2 style={{ marginTop: 0 }}>Add an AI key for tailored JD matching</h2>
           <p className="small" style={{ color: '#3a4655', lineHeight: 1.6 }}>
-            Upgrade to Student (₹399/mo) to compare your resume against any job description and
-            get tailored bullet suggestions.
+            Add your own AI key in Settings (free) for tailored bullet suggestions — or our AI
+            runs automatically and is billed once via the per-download fee.
           </p>
-          <Link className="btn" href="/billing">See plans</Link>
+          <Link className="btn" href="/settings">Add your AI key</Link>
         </section>
       ) : null}
 

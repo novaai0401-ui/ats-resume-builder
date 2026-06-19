@@ -1460,7 +1460,7 @@ export default function ResumeEditor() {
       });
       setAiCritiqueResult(result);
       if (result.provider === 'fallback') {
-        showSnackbar('error', 'AI provider unavailable — showing rule-based suggestions.');
+        showSnackbar('success', 'Showing basic suggestions. Add your own AI key in Settings (free) for tailored, higher-quality critique.');
       } else {
         showSnackbar('success', 'AI critique ready.');
       }
@@ -3197,14 +3197,14 @@ export default function ResumeEditor() {
                                     if (entry.status === 'paywall') {
                                       return (
                                         <div className="bullet-rewrite-panel bullet-rewrite-panel--paywall">
-                                          <strong>AI Bullet Rewriter is a paid feature</strong>
+                                          <strong>Add an AI key to rewrite bullets</strong>
                                           <p className="small" style={{ margin: '4px 0 8px' }}>
-                                            Upgrade to Student (₹399/mo) to get LLM-quality rewrites
-                                            for every bullet, plus AI Critique, Tech Gap, and Cover
-                                            Letter Studio.
+                                            Add your own AI key in Settings (free) for unlimited
+                                            rewrites — or our AI runs automatically and is billed
+                                            once via the per-download fee.
                                           </p>
                                           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                                            <Link className="btn" href="/billing" style={{ fontSize: 13 }}>See plans</Link>
+                                            <Link className="btn" href="/settings" style={{ fontSize: 13 }}>Add your AI key</Link>
                                             <button
                                               type="button"
                                               className="btn ghost"
@@ -4053,7 +4053,7 @@ export default function ResumeEditor() {
                     // it on 'success' (green) rather than the red 'error' tone.
                     showSnackbar(
                       'success',
-                      'No new suggestions on the free tier. Upgrade your plan for AI-powered critique, or edit bullets manually.',
+                      'No new AI suggestions right now. Add your own AI key in Settings (free) for tailored critique, or edit bullets manually.',
                     );
                     return;
                   }
@@ -5299,14 +5299,14 @@ function detectQuotaState(error: unknown) {
     return {
       resumeBlocked: true,
       atsBlocked: false,
-      message: 'Free plan limit reached: you can create up to 2 resumes. Upgrade to create more.',
+      message: 'You have reached the limit of 2 resumes for now.',
     };
   }
   if (/FREE_PLAN_ATS_LIMIT_EXCEEDED/i.test(raw)) {
     return {
       resumeBlocked: false,
       atsBlocked: true,
-      message: 'Free plan ATS limit reached after 2 scans. Upgrade to continue ATS checks.',
+      message: 'ATS scan limit reached after 2 scans for now.',
     };
   }
   return { resumeBlocked: false, atsBlocked: false, message: '' };
