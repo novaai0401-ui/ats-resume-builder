@@ -3,6 +3,12 @@ const test = require('node:test');
 const request = require('supertest');
 const { Test } = require('@nestjs/testing');
 const { ResumeController } = require('../dist/resume/resume.controller.js');
+// R: ResumeController gained download-charge + outcomes/versions deps; stub them
+// so the test module can construct the controller (these endpoints aren't under test here).
+const { DownloadChargeService } = require('../dist/billing/download-charge.service.js');
+const { ResumeVersionsService } = require('../dist/resume/resume-versions.service.js');
+const { OutcomesService } = require('../dist/resume/outcomes.service.js');
+const { OutcomeShareService } = require('../dist/resume/outcome-share.service.js');
 const {
   ResumeService,
   RESUME_CREATE_RATE_LIMIT,
@@ -163,6 +169,10 @@ async function createApp(prisma, userId) {
       SettingsService,
       { provide: PrismaService, useValue: prisma },
       JwtAuthGuard,
+      { provide: DownloadChargeService, useValue: { isFeatureEnabled: () => false, assertDownloadToken: () => {} } },
+      { provide: ResumeVersionsService, useValue: {} },
+      { provide: OutcomesService, useValue: {} },
+      { provide: OutcomeShareService, useValue: {} },
     ],
   }).compile();
 
@@ -229,6 +239,9 @@ test('rate limiter blocks when rate-limit flag is enabled and returns code', asy
     {
       FORCE_DISABLE_RATE_LIMIT: undefined,
       RESUME_CREATION_RATE_LIMIT_DEFAULT: 'true',
+      // Rate limiting is gated behind product-flow restrictions + payment
+      // feature (see SettingsService.areProductFlowRestrictionsEnabled).
+      PRODUCT_FLOW_RESTRICTIONS_ENABLED: 'true',
       NODE_ENV: 'production',
     },
     async () => {

@@ -54,4 +54,32 @@ Lead @ Globex | 2020 - 2022
   assert.equal(highlights.length, 2, 'separate complete bullets stay separate');
 }
 
+// Direct unit on the post-pass helper with the exact founder screenshots.
+{
+  const { mergeWrappedHighlights } = require('../dist/index.js');
+
+  // Dropped-ligature split: "...incomplete" + "elds in editable PDF..." (fields).
+  const a = mergeWrappedHighlights([
+    'Delivered a GenAI-based proof of concept for document analysis, integrating prompt-based AI APIs to identify missing or incomplete',
+    'elds in editable PDF documents; the solution was recognized by management as a viable automation opportunity.',
+  ]);
+  assert.equal(a.length, 1, 'ligature split rejoined');
+  assert.ok(/incomplete elds in editable PDF/.test(a[0]));
+
+  // "non-functional" wrapped: "...requirements, non" + "functional requirements...".
+  const b = mergeWrappedHighlights([
+    'Drove UI design, and microfrontend adoption, while mentoring engineers and ensuring alignment between business requirements, non',
+    'functional requirements, and long-term platform stability.',
+  ]);
+  assert.equal(b.length, 1, 'non-functional split rejoined');
+  assert.ok(/requirements, non functional requirements/.test(b[0]));
+
+  // Two complete, capitalized sentences stay separate.
+  const c = mergeWrappedHighlights([
+    'Owned frontend technical leadership for enterprise UI platforms.',
+    'Built a backend-driven UI rule engine that cut release time in half.',
+  ]);
+  assert.equal(c.length, 2, 'complete sentences stay separate');
+}
+
 console.log('wrapped-bullet-merge: OK');

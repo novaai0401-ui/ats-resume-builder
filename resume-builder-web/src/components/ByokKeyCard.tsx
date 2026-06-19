@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import {
   BYOK_PROVIDERS,
   clearByokKey,
-  isPaidPlan,
   loadByokKey,
   maskedKey,
   saveByokKey,
@@ -24,7 +23,6 @@ import {
  * classes would resolve to nothing.
  */
 export default function ByokKeyCard() {
-  const [plan, setPlan] = useState<string>('FREE');
   const [record, setRecord] = useState<ByokKeyRecord | null>(null);
   const [provider, setProvider] = useState<ByokProvider>('groq');
   const [input, setInput] = useState('');
@@ -33,12 +31,6 @@ export default function ByokKeyCard() {
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
 
   useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem('rb_plan') || 'FREE';
-      setPlan(stored);
-    } catch {
-      setPlan('FREE');
-    }
     setRecord(loadByokKey());
   }, []);
 
@@ -67,26 +59,11 @@ export default function ByokKeyCard() {
     setRecord(null);
   };
 
-  // Paid users: never see the input. Show a quiet positive note so
-  // the section feels intentional rather than missing.
-  if (isPaidPlan(plan)) {
-    return (
-      <section className="card">
-        <h2 style={{ marginTop: 0 }}>AI Access</h2>
-        <p className="small" style={{ color: '#1e5535', margin: '0 0 6px', fontWeight: 600 }}>
-          ✓ AI is included with your {plan === 'PRO' ? 'Pro' : 'Student'} plan.
-        </p>
-        <p className="small" style={{ color: '#5a6778', margin: 0 }}>
-          Sahaayak, Mentor, JD critique and bullet rewrites all run on our
-          managed AI. You don&rsquo;t need to bring your own key.
-        </p>
-      </section>
-    );
-  }
-
+  // No subscription tiers: AI features are powered by the user's own key.
+  // Everyone sees the key input.
   return (
     <section className="card">
-      <h2 style={{ marginTop: 0 }}>Bring your own AI key (free tier)</h2>
+      <h2 style={{ marginTop: 0 }}>Bring your own AI key</h2>
       <p className="small" style={{ color: '#5a6778', margin: '0 0 12px' }}>
         Plug in an AI key from any supported provider and the conversational features
         (Sahaayak, Mentor, JD critique) will use it. <strong>Groq is free</strong> — get a

@@ -8,6 +8,7 @@ import { LiveJobsService } from '../live-jobs/live-jobs.service';
 import type { JobOpening } from '../live-jobs/adzuna.util';
 import type { AiProvider } from './providers/ai-provider.interface';
 import { GroqProvider } from './providers/groq.provider';
+import { buildByokProvider } from './providers/byok-factory';
 import {
   analyzeSkillsRuleBased,
   TOP_IN_DEMAND_2026,
@@ -49,12 +50,6 @@ export type SkillDemandResult = {
   provider: 'groq' | 'rule-based';
 };
 
-const APPROX_TOKENS = 700;
-const UPSELL =
-  'Showing our curated 2026 trends. Subscribe to Student or Pro for real-time, ' +
-  'AI-personalized demand analysis and live openings matched to your exact skills.';
-const PAID_NOTE = 'AI-personalized to your stack. Verify live openings on the linked job boards.';
-
 @Injectable()
 export class SkillDemandService {
   private readonly logger = new Logger(SkillDemandService.name);
@@ -76,7 +71,7 @@ export class SkillDemandService {
     return this.liveJobs.search(query, { where: location, limit: 8 });
   }
 
-  async analyze(userId: string, input: SkillDemandInput): Promise<SkillDemandResult> {
+  async analyze(userId: string, input: SkillDemandInput, byok?: { provider?: string | null; key?: string | null }): Promise<SkillDemandResult> {
     const skills = Array.isArray(input?.skills) ? input.skills.filter((s) => typeof s === 'string' && s.trim()) : [];
     if (skills.length === 0) {
       throw new ForbiddenException('Add at least one skill to analyze.');
@@ -93,21 +88,15 @@ export class SkillDemandService {
     // guaranteed fallback for paid users when the LLM is unavailable.
     const baseline = analyzeSkillsRuleBased(skills);
 
-    const paid = await this.isPaidUser(userId);
-    if (!paid) {
-      // Free users never get live openings — that's the headline paid upgrade.
-      return { realtime: false, message: UPSELL, topInDemand: TOP_IN_DEMAND_2026, yourSkills: baseline, liveOpenings: [], liveOpeningsAvailable: false, provider: 'rule-based' };
-    }
-
-    // Paid: pull real openings for the user's core stack (best-effort).
+    // No tiers: live openings are available to everyone (best-effort, external).
     const liveOpenings = await this.fetchLiveOpenings(skills, input.location);
     const liveOpeningsAvailable = this.liveJobs.isConfigured();
     const liveMsg = liveOpeningsAvailable
-      ? `${PAID_NOTE} Showing ${liveOpenings.length} live opening${liveOpenings.length === 1 ? '' : 's'}.`
-      : PAID_NOTE;
+      ? `Showing ${liveOpenings.length} live opening${liveOpenings.length === 1 ? '' : 's'}.`
+      : 'Curated 2026 demand snapshot. Add your AI key in Settings for a personalized analysis.';
 
-    await this.chargeTokens(userId, APPROX_TOKENS);
-    const provider = this.resolveProvider();
+    // BYOK powers the personalized LLM analysis; no key → the curated snapshot.
+    const provider = buildByokProvider(byok?.provider, byok?.key);
     if (!provider) {
       return { realtime: liveOpeningsAvailable, message: liveMsg, topInDemand: TOP_IN_DEMAND_2026, yourSkills: baseline, liveOpenings, liveOpeningsAvailable, provider: 'rule-based' };
     }
@@ -153,8 +142,6 @@ export class SkillDemandService {
   /** Standalone live-openings search (Student/Pro). Reusable by other features. */
   async searchOpenings(userId: string, query: string, location?: string): Promise<{ available: boolean; openings: JobOpening[] }> {
     if (!query || !query.trim()) throw new ForbiddenException('A search query is required.');
-    const paid = await this.isPaidUser(userId);
-    if (!paid) throw new ForbiddenException('LIVE_JOBS_REQUIRES_PLAN: Live openings are a Student/Pro feature.');
     rateLimitOrThrow({
       key: `ai:live-openings:${userId}`,
       limit: 30,

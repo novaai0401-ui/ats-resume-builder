@@ -481,7 +481,9 @@ function mapExperience(parsed: ParsedResumeText) {
     current.role = cleanLooseText(current.role);
     current.startDate = normalizeDateToken(cleanLooseText(current.startDate));
     current.endDate = normalizeDateToken(cleanLooseText(current.endDate));
-    current.highlights = uniqueLines(current.highlights.map((line: string) => cleanLooseText(line)).filter(Boolean));
+    current.highlights = mergeWrappedHighlights(
+      uniqueLines(current.highlights.map((line: string) => cleanLooseText(line)).filter(Boolean)),
+    );
     if (current.company) currentCompany = current.company;
     if (isMeaningfulExperience(current)) {
       blocks.push(current);
@@ -999,6 +1001,8 @@ function mapProjects(sections: Record<string, string[]>) {
     else if (line.length > 10) current.highlights.push(line);
   }
   if (current && current.highlights.length) projects.push(current);
+  // Re-join PDF-wrapped fragments so each project bullet is a whole sentence.
+  for (const p of projects) p.highlights = mergeWrappedHighlights(p.highlights);
   return projects;
 }
 
@@ -1527,10 +1531,12 @@ function sanitizeExperienceForStrictSave(items: ExperienceItem[]) {
     const role = cleanLooseText(item.role);
     const startDate = normalizeDateToken(cleanLooseText(item.startDate));
     const endDate = normalizeDateToken(cleanLooseText(item.endDate));
-    const highlights = uniqueLines(
-      item.highlights
-        .map((line: string) => cleanLooseText(line))
-        .filter((line: string) => isMeaningfulHighlight(line)),
+    const highlights = mergeWrappedHighlights(
+      uniqueLines(
+        item.highlights
+          .map((line: string) => cleanLooseText(line))
+          .filter((line: string) => isMeaningfulHighlight(line)),
+      ),
     );
 
     const hasAnyContent = Boolean(company || role || startDate || endDate || highlights.length);
@@ -1974,6 +1980,29 @@ export function shouldMergeWrappedLine(prev: string, next: string): boolean {
   //    when prev didn't terminate.
   if (n.length <= 28) return true;
   return false;
+}
+
+/**
+ * Final, path-independent pass over a block's highlights: re-join any adjacent
+ * pair where the second is a wrapped continuation of the first (PDF line-wrap
+ * or dropped-ligature splits like "...incomplete" + "elds in editable PDF..."
+ * or "...requirements, non" + "functional requirements..."). Runs regardless
+ * of which assembly path produced the highlights, so no fragment survives to
+ * the editor as its own bullet.
+ */
+export function mergeWrappedHighlights(highlights: string[]): string[] {
+  const out: string[] = [];
+  for (const raw of highlights || []) {
+    const next = String(raw || '').trim();
+    if (!next) continue;
+    const prev = out[out.length - 1];
+    if (prev && shouldMergeWrappedLine(prev, next)) {
+      out[out.length - 1] = `${prev.replace(/\s+$/, '')} ${next.replace(/^\s+/, '')}`;
+    } else {
+      out.push(next);
+    }
+  }
+  return out;
 }
 
 function cleanCompanyName(value: string) {

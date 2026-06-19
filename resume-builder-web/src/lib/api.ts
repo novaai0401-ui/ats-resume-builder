@@ -43,8 +43,6 @@ export type {
 import { getByokHeader } from './byok-storage';
 
 export type AuthResponse = { user: User; accessToken: string; refreshToken: string; expiresAt?: string };
-/** @deprecated Email OTP is no longer used for auth. Use social login or password. */
-export type EmailOtpRequestResponse = { ok: boolean; message: string };
 export type RegisterResponse = AuthResponse;
 
 export type TechGapRequest = {
@@ -375,6 +373,11 @@ export function setAuthTokens(auth: AuthResponse) {
   }
   persistSessionExpiry(auth);
   markSessionActivity(true);
+  // Reset the session-warning window to NOW on every login/refresh. Without
+  // this a stale `rb_session_start` from a previous session made the expiry
+  // modal fire minutes after a fresh login (users saw "session expires in 5:00"
+  // right away). Keep this key in sync with SessionWarningModal.
+  try { localStorage.setItem('rb_session_start', String(Date.now())); } catch { /* ignore */ }
   notifyAuthStateChanged();
 }
 
@@ -388,6 +391,7 @@ export function clearAuthTokens() {
   localStorage.removeItem(storageKeys.sessionLastActivityAt);
   localStorage.removeItem('rb_isAdmin');
   localStorage.removeItem('rb_plan');
+  localStorage.removeItem('rb_session_start');
   try {
     window.sessionStorage.removeItem('resume-builder.active-resume-id.v1');
     window.sessionStorage.removeItem('dashboard.imported-resume.v1');
@@ -954,6 +958,7 @@ export const api = {
   aiCritique: (input: AiCritiqueRequest) =>
     request<AiCritiqueResult>(`/ai/ai-critique`, {
       method: 'POST',
+      headers: { ...(getByokHeader() || {}) },
       body: JSON.stringify(input),
     }),
 
@@ -973,7 +978,7 @@ export const api = {
   rewriteBullet: (input: { currentBullet: string; role?: string; company?: string; jdText?: string }) =>
     request<{ alternatives: string[]; provider: 'groq' | 'rule-based'; tokensUsed: number }>(
       `/ai/rewrite-bullet`,
-      { method: 'POST', body: JSON.stringify(input) },
+      { method: 'POST', headers: { ...(getByokHeader() || {}) }, body: JSON.stringify(input) },
     ),
 
   /**
@@ -988,7 +993,7 @@ export const api = {
       missingKeywords: string[];
       bulletSuggestions: string[];
       provider: 'groq' | 'rule-based';
-    }>(`/ai/jd-match`, { method: 'POST', body: JSON.stringify(input) }),
+    }>(`/ai/jd-match`, { method: 'POST', headers: { ...(getByokHeader() || {}) }, body: JSON.stringify(input) }),
 
   /** R-034 step 1: propose tailored rewrites against a JD. */
   tailorPropose: (resumeId: string, jdText: string) =>
@@ -1000,6 +1005,7 @@ export const api = {
       tokensUsed: number;
     }>(`/ai/tailor/${encodeURIComponent(resumeId)}/propose`, {
       method: 'POST',
+      headers: { ...(getByokHeader() || {}) },
       body: JSON.stringify({ jdText }),
     }),
 
@@ -1363,6 +1369,7 @@ export const api = {
   generateCoverLetter: (payload: CoverLetterGenerateRequest) =>
     request<CoverLetterGenerateResponse>('/ai/cover-letter', {
       method: 'POST',
+      headers: { ...(getByokHeader() || {}) },
       body: JSON.stringify(payload),
     }),
 
@@ -1513,12 +1520,17 @@ export const api = {
   recruiterSim: (input: { resumeText: string; jdText: string; currentSkills?: string[] }) =>
     request<RecruiterSimResult>(`/ai/recruiter-sim`, {
       method: 'POST',
+      headers: { ...(getByokHeader() || {}) },
       body: JSON.stringify(input),
     }),
 
   // Skill-Demand Agent — in-demand tech + companies hiring for the user's stack.
   skillDemand: (skills: string[], location?: string) =>
-    request<SkillDemandResult>(`/ai/skill-demand`, { method: 'POST', body: JSON.stringify({ skills, location }) }),
+    request<SkillDemandResult>(`/ai/skill-demand`, {
+      method: 'POST',
+      headers: { ...(getByokHeader() || {}) },
+      body: JSON.stringify({ skills, location }),
+    }),
 
   // Live job openings for a free-text query (Student/Pro).
   liveOpenings: (q: string, location?: string) =>

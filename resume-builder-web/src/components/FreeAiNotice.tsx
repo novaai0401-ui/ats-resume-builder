@@ -33,10 +33,10 @@ export default function FreeAiNotice({ variant = 'inline' }: { variant?: 'inline
         };
 
   return (
-    <div role="note" aria-label="Free AI disclaimer" style={style}>
-      <strong>Free AI — may make mistakes.</strong>{' '}
-      This analysis uses our free AI tier. Results are useful signal, not guaranteed accuracy.
-      For a full 100% ATS optimisation and detailed tech-gap plan, consider subscribing after you download.
+    <div role="note" aria-label="AI disclaimer" style={style}>
+      <strong>Basic analysis — may make mistakes.</strong>{' '}
+      This uses our built-in rule-based engine — useful signal, not guaranteed accuracy.
+      Add your own AI key in Settings for a tailored, higher-quality analysis (your key stays on your device).
     </div>
   );
 }

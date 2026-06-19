@@ -20,6 +20,19 @@ import { MentorChatService, type MentorChatInput } from './mentor-chat.service';
 import { RecruiterSimService, type RecruiterSimInput } from './recruiter-sim.service';
 import { SkillDemandService, type SkillDemandInput } from './skill-demand.service';
 
+/** Request shape with optional BYOK headers (X-User-AI-Provider / X-User-AI-Key). */
+type AuthedAiReq = { user: { userId: string }; headers?: Record<string, string | string[] | undefined> };
+
+/** Pull the user's bring-your-own-key provider + key from request headers. */
+function byokFromReq(req: AuthedAiReq): { provider?: string | null; key?: string | null } {
+  const headers = req.headers || {};
+  const pick = (name: string) => {
+    const v = headers[name] ?? headers[name.toLowerCase()];
+    return Array.isArray(v) ? v[0] : v;
+  };
+  return { provider: pick('x-user-ai-provider'), key: pick('x-user-ai-key') };
+}
+
 @Controller('ai')
 @UseGuards(JwtAuthGuard)
 export class AiController {
@@ -64,11 +77,11 @@ export class AiController {
   }
 
   @Post('ai-critique')
-  aiCritique(@Req() req: { user: { userId: string } }, @Body() body: AiCritiqueInput) {
+  aiCritique(@Req() req: AuthedAiReq, @Body() body: AiCritiqueInput) {
     if (!body || typeof body !== 'object') {
       throw new BadRequestException('Request body is required');
     }
-    return this.aiService.aiCritique(req.user.userId, body);
+    return this.aiService.aiCritique(req.user.userId, body, byokFromReq(req));
   }
 
   @Post('tech-gap')
@@ -81,10 +94,10 @@ export class AiController {
 
   @Post('cover-letter')
   generateCoverLetter(
-    @Req() req: { user: { userId: string } },
+    @Req() req: AuthedAiReq,
     @Body() body: GenerateCoverLetterInput,
   ) {
-    return this.coverLetterService.generate(req.user.userId, body);
+    return this.coverLetterService.generate(req.user.userId, body, byokFromReq(req));
   }
 
   /**
@@ -96,13 +109,13 @@ export class AiController {
    */
   @Post('rewrite-bullet')
   rewriteBullet(
-    @Req() req: { user: { userId: string } },
+    @Req() req: AuthedAiReq,
     @Body() body: RewriteBulletInput,
   ) {
     if (!body || typeof body !== 'object' || !body.currentBullet) {
       throw new BadRequestException('currentBullet is required');
     }
-    return this.bulletRewriter.rewrite(req.user.userId, body);
+    return this.bulletRewriter.rewrite(req.user.userId, body, byokFromReq(req));
   }
 
   /**
@@ -114,14 +127,14 @@ export class AiController {
    */
   @Post('tailor/:resumeId/propose')
   tailorPropose(
-    @Req() req: { user: { userId: string } },
+    @Req() req: AuthedAiReq,
     @Param('resumeId') resumeId: string,
     @Body() body: { jdText: string },
   ) {
     if (!body || typeof body !== 'object' || !body.jdText) {
       throw new BadRequestException('jdText is required');
     }
-    return this.tailorService.propose(req.user.userId, resumeId, body.jdText);
+    return this.tailorService.propose(req.user.userId, resumeId, body.jdText, byokFromReq(req));
   }
 
   /**
@@ -146,13 +159,13 @@ export class AiController {
    */
   @Post('jd-match')
   jdMatch(
-    @Req() req: { user: { userId: string } },
+    @Req() req: AuthedAiReq,
     @Body() body: JdMatchInput,
   ) {
     if (!body || typeof body !== 'object' || !body.resumeText || !body.jdText) {
       throw new BadRequestException('resumeText and jdText are required');
     }
-    return this.jdMatchService.match(req.user.userId, body);
+    return this.jdMatchService.match(req.user.userId, body, byokFromReq(req));
   }
 
   /**
@@ -161,13 +174,13 @@ export class AiController {
    */
   @Post('recruiter-sim')
   recruiterSim(
-    @Req() req: { user: { userId: string } },
+    @Req() req: AuthedAiReq,
     @Body() body: RecruiterSimInput,
   ) {
     if (!body || typeof body !== 'object' || !body.resumeText || !body.jdText) {
       throw new BadRequestException('resumeText and jdText are required');
     }
-    return this.recruiterSimService.simulate(req.user.userId, body);
+    return this.recruiterSimService.simulate(req.user.userId, body, byokFromReq(req));
   }
 
   /**
@@ -176,13 +189,13 @@ export class AiController {
    */
   @Post('skill-demand')
   skillDemand(
-    @Req() req: { user: { userId: string } },
+    @Req() req: AuthedAiReq,
     @Body() body: SkillDemandInput,
   ) {
     if (!body || !Array.isArray(body.skills)) {
       throw new BadRequestException('skills (string[]) is required');
     }
-    return this.skillDemandService.analyze(req.user.userId, body);
+    return this.skillDemandService.analyze(req.user.userId, body, byokFromReq(req));
   }
 
   /** Live job openings for a free-text query (Student/Pro). */

@@ -79,22 +79,8 @@ export class DownloadChargeService {
     const user = await this.prisma.user.findUnique({ where: { id: params.userId } });
     if (!user) throw new ForbiddenException('User not found');
 
-    // Subscribers (Student / Pro) get downloads as part of their plan
-    // up to their monthly pdfExportsLimit — they shouldn't be billed
-    // again per export. Skip the payment gateway entirely and issue a
-    // download token straight away. The PDF route still increments
-    // pdfExportsUsed and rejects past the plan limit, so this isn't a
-    // free-for-all — it's "subscription includes exports."
-    //
-    // The Plan Benefits card on /dashboard and /billing already
-    // promises this; the fix here is making the code match the copy.
-    if (user.plan === 'STUDENT' || user.plan === 'PRO') {
-      return {
-        included: true as const,
-        downloadToken: this.issueDownloadToken(params.userId, params.resumeId),
-      };
-    }
-
+    // Model (post-pivot): no subscription tiers. EVERY download is ₹49
+    // (or ~$0.99 outside India). There is no plan-based exemption.
     const isIndia = (params.region || '').trim().toUpperCase() === 'IN';
     if (isIndia) {
       return this.createRazorpayOrder(params.userId, params.resumeId, user.email);

@@ -15,11 +15,6 @@ import SessionWarningModal from './SessionWarningModal';
 // without making another API call. We keep the mapping small and
 // explicit so a future plan key (e.g. TEAM) doesn't accidentally fall
 // through to the wrong badge.
-const PLAN_LABEL: Record<string, string> = {
-  FREE: 'Free',
-  STUDENT: 'Student',
-  PRO: 'Pro',
-};
 
 export default function TopNav() {
   const router = useRouter();
@@ -28,7 +23,6 @@ export default function TopNav() {
   const pathname = usePathname() || '';
   const [authed, setAuthed] = useState(false);
   const [admin, setAdmin] = useState(false);
-  const [plan, setPlan] = useState<string>('FREE');
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   // R-036: the 5-hub model. activeHubKey owns prefix matching across
@@ -69,13 +63,6 @@ export default function TopNav() {
       const hasToken = Boolean(getAccessToken());
       setAuthed(hasToken);
       setAdmin(hasToken ? isCurrentUserAdmin() : false);
-      // Read plan from localStorage. The billing page writes 'rb_plan'
-      // on successful upgrade/downgrade. If the API has fresher data
-      // it'll get pulled the next time a billing-aware page mounts.
-      try {
-        const stored = window.localStorage.getItem('rb_plan');
-        if (stored) setPlan(stored);
-      } catch { /* private mode */ }
     };
     update();
     window.addEventListener('storage', update);
@@ -103,8 +90,6 @@ export default function TopNav() {
     }
   }
 
-  const planLabel = PLAN_LABEL[plan] || plan || 'Free';
-  const planTone = plan === 'PRO' ? 'plan-badge--pro' : plan === 'STUDENT' ? 'plan-badge--student' : 'plan-badge--free';
 
   // R-036: render the five hubs (post-login) instead of 12+ flat links.
   // The Dashboard surface stays accessible at /dashboard — it remains
@@ -134,19 +119,15 @@ export default function TopNav() {
           <Link href="/settings" onClick={closeDrawer} {...hubProps('account')}>
             Account
           </Link>
-          {/* Plan badge doubles as a billing-page link so users can see
-              their tier at a glance and one-tap to manage. Free users
-              see "Free → Upgrade" cue colours; paid users see green.
-              Lives outside the 5-hub set because it's a status chip
-              with a shortcut, not navigation. */}
+          {/* No subscription tiers — just a link to the pricing page that
+              explains the ₹49-per-download + bring-your-own-AI-key model. */}
           <Link
             href="/billing"
             onClick={closeDrawer}
-            className={`plan-badge ${planTone}`}
-            aria-label={`Current plan: ${planLabel}. Tap to manage.`}
+            aria-label="Pricing"
             {...exactProps('/billing')}
           >
-            {planLabel}
+            Pricing
           </Link>
         </>
       )}

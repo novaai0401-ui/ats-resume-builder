@@ -10,6 +10,7 @@ import { rateLimitOrThrow } from '../limits/rate-limit';
 import { SettingsService } from '../settings/settings.service';
 import type { AiProvider } from './providers/ai-provider.interface';
 import { GroqProvider } from './providers/groq.provider';
+import { buildByokProvider } from './providers/byok-factory';
 
 /**
  * AI Bullet Rewriter — Student/Pro feature.
@@ -59,7 +60,7 @@ export class BulletRewriterService {
     private readonly settingsService: SettingsService,
   ) {}
 
-  async rewrite(userId: string, input: RewriteBulletInput): Promise<RewriteBulletOutput> {
+  async rewrite(userId: string, input: RewriteBulletInput, byok?: { provider?: string | null; key?: string | null }): Promise<RewriteBulletOutput> {
     const bullet = String(input?.currentBullet || '').trim().slice(0, MAX_INPUT_CHARS);
     if (!bullet) {
       throw new ForbiddenException('No bullet text provided.');
@@ -72,9 +73,8 @@ export class BulletRewriterService {
       message: 'Rate limit exceeded for bullet rewriter. Try again shortly.',
     });
 
-    await this.checkAndCharge(userId, APPROX_TOKENS);
-
-    const provider = this.resolveProvider();
+    // BYOK: use the user's own AI key; no key → rule-based rewrites below.
+    const provider = buildByokProvider(byok?.provider, byok?.key);
     if (!provider) {
       this.logger.warn('No AI provider configured — returning rule-based bullet rewrites');
       return {

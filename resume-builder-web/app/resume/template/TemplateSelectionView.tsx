@@ -135,6 +135,7 @@ export default function TemplateSelectionView({
   const [pendingUploadFileName, setPendingUploadFileName] = useState('');
   const pendingTemplateSaveRef = useRef<Promise<void> | null>(null);
   const templateSaveRunRef = useRef(0);
+  const previewPaneRef = useRef<HTMLElement | null>(null);
   const activeTemplateMeta = useMemo(() => TEMPLATE_OPTIONS.find((template) => template.id === selectedTemplate), [selectedTemplate]);
   const ActiveTemplateComponent = templateRegistry[selectedTemplate].component;
   const previewResume = useMemo(() => (resumeDraft ? buildResumePreview(resumeDraft) : null), [resumeDraft]);
@@ -241,6 +242,15 @@ export default function TemplateSelectionView({
     setResumeDraft((prev) => (prev ? { ...prev, templateId: template } : prev));
     setResumeStore((prev) => ({ ...prev, templateId: template }));
     setToast('');
+    // On mobile the live preview + action buttons (Use / Download) are stacked
+    // ABOVE the catalog (preview-pane order:-1), so tapping a card looks like
+    // "nothing happened". Bring the preview into view so the change + the
+    // actions are immediately visible.
+    if (typeof window !== 'undefined' && window.innerWidth <= 900) {
+      requestAnimationFrame(() => {
+        previewPaneRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    }
   };
 
   const handleSaveTemplate = async () => {
@@ -467,7 +477,7 @@ export default function TemplateSelectionView({
         ) : null}
       </section>
 
-      <section className="card col-5 preview-pane" data-testid="template-selection-preview" data-active-template={selectedTemplate}>
+      <section ref={previewPaneRef} className="card col-5 preview-pane" data-testid="template-selection-preview" data-active-template={selectedTemplate}>
         <div className="template-live">
           <div className="template-live__header">
             <div>

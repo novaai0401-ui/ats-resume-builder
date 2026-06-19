@@ -5,6 +5,14 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+
+# @playwright/test (web devDep) pulls in `playwright`, whose npm postinstall
+# downloads browsers. The unit/build jobs don't need them (the e2e workflow
+# installs browsers explicitly), so skip the download to keep `npm ci` fast and
+# offline-safe.
+env:
+  PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
 
 jobs:
   lint-and-test-web:
@@ -99,5 +107,15 @@ jobs:
       - name: Build API
         run: npm run build
 
+      # Install a real Chrome so the PDF export + ATS round-trip e2e actually
+      # render (the app uses puppeteer-core, which ships no browser).
+      - name: Set up Chrome
+        id: setup-chrome
+        uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: stable
+
       - name: Run tests
         run: npm test
+        env:
+          CHROME_EXECUTABLE_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}

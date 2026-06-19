@@ -5,6 +5,7 @@ exports.extractInlineLanguages = extractInlineLanguages;
 exports.extractInlineCertifications = extractInlineCertifications;
 exports.extractInlineAchievements = extractInlineAchievements;
 exports.shouldMergeWrappedLine = shouldMergeWrappedLine;
+exports.mergeWrappedHighlights = mergeWrappedHighlights;
 const resume_schemas_1 = require("resume-schemas");
 const resume_parser_js_1 = require("./resume-parser.js");
 const experience_level_js_1 = require("./experience-level.js");
@@ -456,7 +457,7 @@ function mapExperience(parsed) {
         current.role = cleanLooseText(current.role);
         current.startDate = normalizeDateToken(cleanLooseText(current.startDate));
         current.endDate = normalizeDateToken(cleanLooseText(current.endDate));
-        current.highlights = uniqueLines(current.highlights.map((line) => cleanLooseText(line)).filter(Boolean));
+        current.highlights = mergeWrappedHighlights(uniqueLines(current.highlights.map((line) => cleanLooseText(line)).filter(Boolean)));
         if (current.company)
             currentCompany = current.company;
         if (isMeaningfulExperience(current)) {
@@ -980,6 +981,9 @@ function mapProjects(sections) {
     }
     if (current && current.highlights.length)
         projects.push(current);
+    // Re-join PDF-wrapped fragments so each project bullet is a whole sentence.
+    for (const p of projects)
+        p.highlights = mergeWrappedHighlights(p.highlights);
     return projects;
 }
 /**
@@ -1556,9 +1560,9 @@ function sanitizeExperienceForStrictSave(items) {
         const role = cleanLooseText(item.role);
         const startDate = normalizeDateToken(cleanLooseText(item.startDate));
         const endDate = normalizeDateToken(cleanLooseText(item.endDate));
-        const highlights = uniqueLines(item.highlights
+        const highlights = mergeWrappedHighlights(uniqueLines(item.highlights
             .map((line) => cleanLooseText(line))
-            .filter((line) => isMeaningfulHighlight(line)));
+            .filter((line) => isMeaningfulHighlight(line))));
         const hasAnyContent = Boolean(company || role || startDate || endDate || highlights.length);
         if (!hasAnyContent)
             continue;
@@ -2040,6 +2044,30 @@ function shouldMergeWrappedLine(prev, next) {
     if (n.length <= 28)
         return true;
     return false;
+}
+/**
+ * Final, path-independent pass over a block's highlights: re-join any adjacent
+ * pair where the second is a wrapped continuation of the first (PDF line-wrap
+ * or dropped-ligature splits like "...incomplete" + "elds in editable PDF..."
+ * or "...requirements, non" + "functional requirements..."). Runs regardless
+ * of which assembly path produced the highlights, so no fragment survives to
+ * the editor as its own bullet.
+ */
+function mergeWrappedHighlights(highlights) {
+    const out = [];
+    for (const raw of highlights || []) {
+        const next = String(raw || '').trim();
+        if (!next)
+            continue;
+        const prev = out[out.length - 1];
+        if (prev && shouldMergeWrappedLine(prev, next)) {
+            out[out.length - 1] = `${prev.replace(/\s+$/, '')} ${next.replace(/^\s+/, '')}`;
+        }
+        else {
+            out.push(next);
+        }
+    }
+    return out;
 }
 function cleanCompanyName(value) {
     const normalized = cleanLooseText(value);

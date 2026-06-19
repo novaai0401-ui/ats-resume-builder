@@ -176,7 +176,7 @@ describe('PasswordResetService.confirmReset', () => {
     const svc = new PasswordResetService(makePrismaMock(), makeMailMock(), makeAuthMock());
     await assert.rejects(() => svc.confirmReset('bad-email', '123456', 'longenough123'), /Invalid email/);
     await assert.rejects(() => svc.confirmReset('a@b.com', 'abc', 'longenough123'), /Invalid reset code/);
-    await assert.rejects(() => svc.confirmReset('a@b.com', '123456', 'short'), /at least 8/);
+    await assert.rejects(() => svc.confirmReset('a@b.com', '123456', 'short'), /at least 10/);
   });
 
   it('rejects when no challenge exists', async () => {

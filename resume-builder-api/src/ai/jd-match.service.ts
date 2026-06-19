@@ -6,6 +6,7 @@ import { rateLimitOrThrow } from '../limits/rate-limit';
 import { SettingsService } from '../settings/settings.service';
 import type { AiProvider } from './providers/ai-provider.interface';
 import { GroqProvider } from './providers/groq.provider';
+import { buildByokProvider } from './providers/byok-factory';
 
 /**
  * JD Match Score — Student/Pro feature.
@@ -72,7 +73,7 @@ export class JdMatchService {
     private readonly settingsService: SettingsService,
   ) {}
 
-  async match(userId: string, input: JdMatchInput): Promise<JdMatchResult> {
+  async match(userId: string, input: JdMatchInput, byok?: { provider?: string | null; key?: string | null }): Promise<JdMatchResult> {
     const resumeText = String(input?.resumeText || '').slice(0, MAX_INPUT_CHARS);
     const jdText = String(input?.jdText || '').slice(0, MAX_INPUT_CHARS);
     if (!resumeText.trim() || !jdText.trim()) {
@@ -86,15 +87,13 @@ export class JdMatchService {
       message: 'Rate limit exceeded for JD match. Try again shortly.',
     });
 
-    await this.checkAndCharge(userId, APPROX_TOKENS);
-
     // Always compute a rule-based score first. It guarantees the user
     // sees *something* even when the LLM is unavailable, and gives us
     // a baseline to compare against (the LLM result is taken when it
     // produces stronger keyword coverage).
     const baseline = computeRuleBasedMatch(resumeText, jdText, input.currentSkills ?? []);
 
-    const provider = this.resolveProvider();
+    const provider = buildByokProvider(byok?.provider, byok?.key);
     if (!provider) {
       return {
         matchPercent: baseline.matchPercent,

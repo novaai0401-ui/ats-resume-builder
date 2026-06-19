@@ -5,7 +5,6 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import type { ResumeImportResult } from 'resume-builder-shared';
 import ClassicATS from '@/components/templates/ClassicATS';
 import ConsultantClean from '@/components/templates/ConsultantClean';
-import ExecutiveImpact from '@/components/templates/ExecutiveImpact';
 import MinimalClean from '@/components/templates/MinimalClean';
 import ModernProfessional from '@/components/templates/ModernProfessional';
 import TechnicalCompact from '@/components/templates/TechnicalCompact';
@@ -61,16 +60,6 @@ test('Modern Professional template renders divider sections', () => {
   assert(markup.indexOf('<h2>Skills</h2>') < markup.indexOf('<h2>Experience</h2>'));
 });
 
-test('Executive Impact template uses ATS section names and no legacy impact prefixes', () => {
-  const markup = renderToStaticMarkup(React.createElement(ExecutiveImpact, { resumeData }));
-  assert(markup.includes('SUMMARY'));
-  assert(markup.includes('SKILLS'));
-  assert(markup.includes('EXPERIENCE'));
-  assert(!markup.includes('EXECUTIVE SUMMARY'));
-  assert(!markup.includes('PROFESSIONAL IMPACT'));
-  assert(!markup.includes('Impact:'), 'Executive template should not prefix each bullet with "Impact:"');
-});
-
 test('Technical Compact template renders grouped skills', () => {
   const markup = renderToStaticMarkup(React.createElement(TechnicalCompact, { resumeData }));
   assert(markup.includes('<h2>Skills</h2>'));
@@ -117,12 +106,6 @@ test('Modern Professional template merges technicalSkills and softSkills into Sk
   assert(markup.includes('React'), 'Modern should display technicalSkills');
   assert(markup.includes('Teamwork'), 'Modern should display softSkills');
   assert(!markup.includes('Add role-specific skills'), 'Modern should not show placeholder when skills exist');
-});
-
-test('Executive Impact template merges technicalSkills and softSkills into Skills section', () => {
-  const markup = renderToStaticMarkup(React.createElement(ExecutiveImpact, { resumeData: skillsOnlyResume }));
-  assert(markup.includes('React'), 'Executive should display technicalSkills');
-  assert(markup.includes('Teamwork'), 'Executive should display softSkills');
 });
 
 test('Minimal Clean template merges technicalSkills and softSkills into Skills section', () => {

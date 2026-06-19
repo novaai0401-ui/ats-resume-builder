@@ -1,0 +1,24 @@
+Chandan Kumar
+Pune, MH 411057 | cks011992@example.com | +91 93070 03382
+https://www.linkedin.com/in/chandankumar007
+
+SUMMARY
+Engineering leader with 11+ years building frontend-heavy enterprise platforms
+and modernizing legacy systems for measurable delivery outcomes.
+
+EXPERIENCE
+Engineering Lead, Acme Corp
+Jan 2022 - Present
+- Initiated and delivered a React-Redux modernization program for a legacy
+  enterprise application, significantly improving runtime performance and
+  application stability while achieving zero production defects.
+- Designed a backend-driven UI rule engine, moving conditional UI logic to
+  backend-controlled rules, enabling faster rule changes and reducing frontend
+  complexity across releases.
+
+EDUCATION
+B.E. Telecommunication, Siddaganga Institute
+2010 - 2014
+
+SKILLS
+React, Redux, Node.js, TypeScript, MongoDB

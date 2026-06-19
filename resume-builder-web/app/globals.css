@@ -1060,6 +1060,15 @@ body.resume-embed-body .main-shell {
   opacity: 1;
 }
 
+/* Touch devices have no hover, so the "Open preview" affordance must be
+   visible and tappable by default — otherwise mobile users see a dead card. */
+@media (hover: none) {
+  .template-card__preview-overlay {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
 .template-card__preview-overlay-button {
   border: 0;
   cursor: pointer;

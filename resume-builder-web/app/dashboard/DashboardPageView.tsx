@@ -17,7 +17,6 @@ import {
 import { getSampleResumeForIndustry } from '@/src/lib/sample-resume-data';
 import { recommendTemplates } from '@/src/lib/template-recommendation';
 import { PrivacyBadge } from '@/src/components/PrivacyBadge';
-import { PlanBenefitsCard } from '@/src/components/PlanBenefitsCard';
 import { CallbackRateCard } from '@/src/components/CallbackRateCard';
 import { defaultTemplateId, resolveTemplateId, templateRegistry, type TemplateId } from '@/shared/templateRegistry';
 
@@ -264,10 +263,14 @@ export default function DashboardPageView({
     setStatus('');
     setError('');
     const currentResumeId = String(selectedResumeId || activeResume?.id || '').trim();
-    const params = new URLSearchParams();
-    if (currentResumeId) params.set('resumeId', currentResumeId);
-    params.set('template', templateId);
-    router.push(`/templates/preview?${params.toString()}`);
+    // With a resume selected, Preview should show THE USER'S resume in this
+    // template (the selection page, which also offers Use/Download) — not the
+    // generic sample gallery. Only fall back to samples when there's no resume.
+    if (currentResumeId) {
+      router.push(buildTemplateSelectionRoute(currentResumeId, templateId));
+      return;
+    }
+    router.push(`/templates/preview?template=${encodeURIComponent(templateId)}`);
   }
 
   // Use = apply the template to the selected resume and go straight to the
@@ -303,7 +306,6 @@ export default function DashboardPageView({
       </header>
 
       <PrivacyBadge variant="dashboard" />
-      <PlanBenefitsCard />
       <CallbackRateCard resumeId={activeResume?.id || sortedResumes[0]?.id} />
 
       <section

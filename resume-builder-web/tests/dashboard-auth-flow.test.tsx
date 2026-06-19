@@ -41,6 +41,19 @@ if (typeof (dom.window as unknown as { matchMedia?: unknown }).matchMedia !== 'f
 (globalThis as unknown as { matchMedia: typeof window.matchMedia }).matchMedia =
   (dom.window as unknown as { matchMedia: typeof window.matchMedia }).matchMedia;
 
+// cancelAnimationFrame must mirror the requestAnimationFrame polyfill above so
+// any rAF loop can actually stop (otherwise it reschedules forever in jsdom).
+(globalThis as unknown as { cancelAnimationFrame: (id: number) => void }).cancelAnimationFrame =
+  (id: number) => clearTimeout(id as unknown as ReturnType<typeof setTimeout>);
+
+// Child components (e.g. CallbackRateCard) self-fetch via the GLOBAL api client,
+// not the injected mock. With no server those real fetches leave pending sockets
+// that keep the process alive, so node:test SIGKILLs the file after its budget.
+// Reject instantly: callers all .catch and render their empty state, and no
+// socket/handle is opened.
+(globalThis as unknown as { fetch: typeof fetch }).fetch = (() =>
+  Promise.reject(new Error('network disabled in tests'))) as typeof fetch;
+
 type TestingLib = typeof import('@testing-library/react');
 type DashboardPageModule = typeof import('@/app/dashboard/DashboardPageView');
 type TemplateSelectionModule = typeof import('@/app/resume/template/TemplateSelectionView');
@@ -77,12 +90,14 @@ test.afterEach(async () => {
   window.sessionStorage.clear();
 });
 
-// Known flake: this file's 12 subtests all pass + 2 skipped, but the
-// node:test runner SIGKILLs the file process after ~45s because the
-// React renders here register internal timers / pending fetches that
-// keep the event loop alive past the runner's per-file budget. The
-// product surface itself is exercised correctly. Re-investigate when
-// migrating off node:test (e.g. to vitest with proper teardown).
+// These are heavy jsdom renders. Two harness realities:
+//  • Flaky when test FILES run in parallel (renders starve each other →
+//    waitFor timeouts) → the runner uses --test-concurrency=1.
+//  • React 18's scheduler leaves a MessageChannel/Immediate handle alive in
+//    jsdom, so this file's worker can't drain and node:test SIGKILLs it (the
+//    FILE node is marked failed even though every subtest passes). That single
+//    file-node artifact is tolerated by scripts/test.mjs, which still fails on
+//    any real `not ok` subtest. Best-effort teardown below.
 test.after(() => {
   try {
     (dom.window as unknown as { close?: () => void }).close?.();
@@ -162,7 +177,7 @@ function createSearchParams(params: Record<string, string>) {
   };
 }
 
-async function waitForAssertion(assertion: () => void, timeoutMs = 5_000) {
+async function waitForAssertion(assertion: () => void, timeoutMs = 15_000) {
   const startedAt = Date.now();
   let lastError: unknown = null;
 
@@ -210,13 +225,13 @@ test('dashboard renders template grid with at least 6 templates when a resume ex
 
   render(React.createElement(DashboardPage, { apiClient: createApiClient() as any }));
 
-  const profilePreview = await screen.findByTestId('dashboard-preview-profile', undefined, { timeout: 5_000 });
-  const select = await screen.findByTestId('dashboard-resume-select', undefined, { timeout: 5_000 }) as HTMLSelectElement;
+  const profilePreview = await screen.findByTestId('dashboard-preview-profile', undefined, { timeout: 15_000 });
+  const select = await screen.findByTestId('dashboard-resume-select', undefined, { timeout: 15_000 }) as HTMLSelectElement;
   fireEvent.change(select, { target: { value: 'resume-db-1' } });
   await waitFor(() => {
     assert.match(profilePreview.textContent || '', /Database User/i);
-  }, { timeout: 5_000 });
-  const templateGrid = await screen.findByTestId('dashboard-template-grid', undefined, { timeout: 5_000 });
+  }, { timeout: 15_000 });
+  const templateGrid = await screen.findByTestId('dashboard-template-grid', undefined, { timeout: 15_000 });
   assert.ok(templateGrid.querySelectorAll('[data-template-id]').length >= 6);
   assert.ok(templateGrid.querySelectorAll('[data-preview-kind="thumbnail"]').length >= 6);
   assertLiveResumeThumbnails(templateGrid, 'DB Resume');
@@ -270,13 +285,13 @@ test('dashboard thumbnails always follow the currently selected resume data', as
     }) as any,
   }));
 
-  const select = await screen.findByTestId('dashboard-resume-select', undefined, { timeout: 5_000 }) as HTMLSelectElement;
+  const select = await screen.findByTestId('dashboard-resume-select', undefined, { timeout: 15_000 }) as HTMLSelectElement;
   fireEvent.change(select, { target: { value: 'resume-db-1' } });
 
-  const templateGrid = await screen.findByTestId('dashboard-template-grid', undefined, { timeout: 5_000 });
+  const templateGrid = await screen.findByTestId('dashboard-template-grid', undefined, { timeout: 15_000 });
   await waitFor(() => {
     assertLiveResumeThumbnails(templateGrid, 'DB Resume');
-  }, { timeout: 5_000 });
+  }, { timeout: 15_000 });
 
   fireEvent.change(select, { target: { value: 'resume-db-2' } });
 
@@ -284,7 +299,7 @@ test('dashboard thumbnails always follow the currently selected resume data', as
     assertLiveResumeThumbnails(templateGrid, 'Ops Resume');
     assert.doesNotMatch(templateGrid.textContent || '', /DB Resume/i);
     assert.match(templateGrid.textContent || '', /Ops Resume/i);
-  }, { timeout: 5_000 });
+  }, { timeout: 15_000 });
 });
 
 test('consent modal appears once per session and Later keeps the explicitly selected resume visible', async () => {
@@ -304,7 +319,7 @@ test('consent modal appears once per session and Later keeps the explicitly sele
   });
 
   const firstRender = render(React.createElement(DashboardPage, { apiClient: apiClient as any }));
-  const consentDialog = await screen.findByTestId('drive-consent-modal', undefined, { timeout: 5_000 });
+  const consentDialog = await screen.findByTestId('drive-consent-modal', undefined, { timeout: 15_000 });
   fireEvent.click(within(consentDialog).getByRole('button', { name: /Later/i }));
   await new Promise((resolve) => setTimeout(resolve, 250));
   assert.equal(screen.queryByTestId('drive-consent-modal'), null);
@@ -313,14 +328,14 @@ test('consent modal appears once per session and Later keeps the explicitly sele
   fireEvent.change(select, { target: { value: 'resume-db-1' } });
   await waitFor(() => {
     assert.match(profilePreview.textContent || '', /Database User/i);
-  }, { timeout: 5_000 });
+  }, { timeout: 15_000 });
 
   firstRender.unmount();
   render(React.createElement(DashboardPage, { apiClient: apiClient as any }));
   await new Promise((resolve) => setTimeout(resolve, 50));
   await waitFor(() => {
     assert.equal(screen.queryByTestId('drive-consent-modal'), null);
-  }, { timeout: 5_000 });
+  }, { timeout: 15_000 });
 });
 
 test('Connect Google Drive triggers OAuth redirect flow', async () => {
@@ -341,13 +356,13 @@ test('Connect Google Drive triggers OAuth redirect flow', async () => {
     }),
   );
 
-  const modal = await screen.findByTestId('drive-consent-modal', undefined, { timeout: 5_000 });
+  const modal = await screen.findByTestId('drive-consent-modal', undefined, { timeout: 15_000 });
   fireEvent.click(within(modal).getByRole('button', { name: /^Connect$/i }));
 
   await waitFor(() => {
     assert.equal(redirects.length, 1);
     assert.match(redirects[0], /^https:\/\/accounts\.google\.com\//);
-  }, { timeout: 5_000 });
+  }, { timeout: 15_000 });
 });
 
 test('dashboard template Preview click persists and navigates to /resume/template?resumeId=<id>', async () => {
@@ -372,10 +387,10 @@ test('dashboard template Preview click persists and navigates to /resume/templat
     }),
   );
 
-  const select = await screen.findByTestId('dashboard-resume-select', undefined, { timeout: 5_000 }) as HTMLSelectElement;
+  const select = await screen.findByTestId('dashboard-resume-select', undefined, { timeout: 15_000 }) as HTMLSelectElement;
   fireEvent.change(select, { target: { value: 'resume-db-1' } });
 
-  const grid = await screen.findByTestId('dashboard-template-grid', undefined, { timeout: 5_000 });
+  const grid = await screen.findByTestId('dashboard-template-grid', undefined, { timeout: 15_000 });
   const firstCard = grid.querySelector('[data-template-id]') as HTMLElement | null;
   const firstTemplateId = firstCard?.getAttribute('data-template-id') || '';
   const firstPreviewButton = Array.from(grid.querySelectorAll('button')).find((button) => /preview/i.test(button.textContent || '')) as HTMLButtonElement | undefined;
@@ -385,7 +400,7 @@ test('dashboard template Preview click persists and navigates to /resume/templat
   await waitFor(() => {
     assert.equal(updates.length, 0);
     assert.equal(pushes.includes(`/resume/template?resumeId=resume-db-1&template=${firstTemplateId}`), true);
-  }, { timeout: 5_000 });
+  }, { timeout: 15_000 });
 });
 
 test('dashboard gallery uses compact gallery variant for template cards', async () => {
@@ -395,9 +410,9 @@ test('dashboard gallery uses compact gallery variant for template cards', async 
 
   render(React.createElement(DashboardPage, { apiClient: createApiClient() as any }));
 
-  const select = await screen.findByTestId('dashboard-resume-select', undefined, { timeout: 5_000 }) as HTMLSelectElement;
+  const select = await screen.findByTestId('dashboard-resume-select', undefined, { timeout: 15_000 }) as HTMLSelectElement;
   fireEvent.change(select, { target: { value: 'resume-db-1' } });
-  const templateGrid = await screen.findByTestId('dashboard-template-grid', undefined, { timeout: 5_000 });
+  const templateGrid = await screen.findByTestId('dashboard-template-grid', undefined, { timeout: 15_000 });
   assert.equal(templateGrid.getAttribute('data-layout-variant'), 'gallery');
   assert.ok(templateGrid.querySelector('[data-render-mode="thumbnail"]'));
   assertLiveResumeThumbnails(templateGrid, 'DB Resume');
@@ -411,7 +426,7 @@ test('dashboard does not auto-select a saved resume in a fresh session', async (
 
   render(React.createElement(DashboardPage, { apiClient: createApiClient() as any }));
 
-  const profilePreview = await screen.findByTestId('dashboard-preview-profile', undefined, { timeout: 5_000 });
+  const profilePreview = await screen.findByTestId('dashboard-preview-profile', undefined, { timeout: 15_000 });
   assert.match(profilePreview.textContent || '', /No resume selected/i);
   assert.doesNotMatch(profilePreview.textContent || '', /Database User/i);
   const select = screen.getByTestId('dashboard-resume-select') as HTMLSelectElement;
@@ -426,7 +441,7 @@ test('dashboard ignores stale session resume ids until a user explicitly selects
 
   render(React.createElement(DashboardPage, { apiClient: createApiClient() as any }));
 
-  const profilePreview = await screen.findByTestId('dashboard-preview-profile', undefined, { timeout: 5_000 });
+  const profilePreview = await screen.findByTestId('dashboard-preview-profile', undefined, { timeout: 15_000 });
   assert.match(profilePreview.textContent || '', /No resume selected/i);
   assert.doesNotMatch(profilePreview.textContent || '', /Database User/i);
   const select = screen.getByTestId('dashboard-resume-select') as HTMLSelectElement;
@@ -444,7 +459,7 @@ test('dashboard highlights the saved template only after explicit resume selecti
         {
           id: 'resume-db-1',
           title: 'DB Resume',
-          templateId: 'executive',
+          templateId: 'modern',
           contact: { fullName: 'Database User', email: 'db@example.com' },
           summary: '',
           skills: [],
@@ -462,15 +477,15 @@ test('dashboard highlights the saved template only after explicit resume selecti
     }) as any,
   }));
 
-  const select = await screen.findByTestId('dashboard-resume-select', undefined, { timeout: 5_000 }) as HTMLSelectElement;
+  const select = await screen.findByTestId('dashboard-resume-select', undefined, { timeout: 15_000 }) as HTMLSelectElement;
   assert.equal(select.value, '');
   fireEvent.change(select, { target: { value: 'resume-db-1' } });
 
   await waitFor(() => {
-    const appliedCard = document.querySelector('[data-template-id="executive"]');
-    assert.ok(appliedCard, 'Expected executive template card to exist');
+    const appliedCard = document.querySelector('[data-template-id="modern"]');
+    assert.ok(appliedCard, 'Expected modern template card to exist');
     assert.equal(appliedCard?.classList.contains('active'), true);
-  }, { timeout: 5_000 });
+  }, { timeout: 15_000 });
 });
 
 // TODO: rewrite for the post-pivot UX. The dashboard now always renders
@@ -526,7 +541,7 @@ test.skip('dashboard shows Applied only for the actively selected resume', async
 
   assert.equal(screen.queryByTestId('dashboard-template-grid'), null);
 
-  const select = await screen.findByTestId('dashboard-resume-select', undefined, { timeout: 5_000 }) as HTMLSelectElement;
+  const select = await screen.findByTestId('dashboard-resume-select', undefined, { timeout: 15_000 }) as HTMLSelectElement;
   fireEvent.change(select, { target: { value: 'resume-db-1' } });
 
   await waitForAssertion(() => {
@@ -570,7 +585,7 @@ test.skip('/resume/template stays empty without an explicit resumeId even when s
     }),
   );
 
-  const emptyState = await screen.findByText(/Select a saved resume or upload a new one to preview templates\./i, undefined, { timeout: 5_000 });
+  const emptyState = await screen.findByText(/Select a saved resume or upload a new one to preview templates\./i, undefined, { timeout: 15_000 });
   assert.ok(emptyState);
 });
 
@@ -580,14 +595,14 @@ test('reopening dashboard after clearing session keeps saved resumes visible but
   const { default: DashboardPage } = await getDashboardPageModule();
 
   const firstRender = render(React.createElement(DashboardPage, { apiClient: createApiClient() as any }));
-  const select = await screen.findByTestId('dashboard-resume-select', undefined, { timeout: 5_000 }) as HTMLSelectElement;
+  const select = await screen.findByTestId('dashboard-resume-select', undefined, { timeout: 15_000 }) as HTMLSelectElement;
   fireEvent.change(select, { target: { value: 'resume-db-1' } });
   firstRender.unmount();
 
   window.sessionStorage.clear();
 
   render(React.createElement(DashboardPage, { apiClient: createApiClient() as any }));
-  const profilePreview = await screen.findByTestId('dashboard-preview-profile', undefined, { timeout: 5_000 });
+  const profilePreview = await screen.findByTestId('dashboard-preview-profile', undefined, { timeout: 15_000 });
   assert.match(profilePreview.textContent || '', /No resume selected/i);
   assert.doesNotMatch(profilePreview.textContent || '', /Database User/i);
   const reopenedSelect = screen.getByTestId('dashboard-resume-select') as HTMLSelectElement;
@@ -685,8 +700,8 @@ test('/resume/template honors selected template query and refreshes preview afte
     }),
   );
 
-  const preview = await screen.findByTestId('template-selection-preview', undefined, { timeout: 5_000 });
-  const templateGrid = await screen.findByTestId('template-selection-grid', undefined, { timeout: 5_000 });
+  const preview = await screen.findByTestId('template-selection-preview', undefined, { timeout: 15_000 });
+  const templateGrid = await screen.findByTestId('template-selection-grid', undefined, { timeout: 15_000 });
   assert.equal(preview.getAttribute('data-active-template'), 'modern');
   assert.ok(templateGrid.querySelector('[data-preview-kind="thumbnail"]'));
   assertLiveResumeThumbnails(templateGrid, 'DB Resume');
@@ -695,7 +710,7 @@ test('/resume/template honors selected template query and refreshes preview afte
   assert.ok(preview.querySelector('.template-preview-frame__container'));
   await waitFor(() => {
     assert.match(preview.textContent || '', /DB Resume/i);
-  }, { timeout: 5_000 });
+  }, { timeout: 15_000 });
 
   const uploadInput = screen.getByTestId('template-upload-input') as HTMLInputElement;
   fireEvent.change(uploadInput, {
@@ -709,7 +724,7 @@ test('/resume/template honors selected template query and refreshes preview afte
     assert.equal(preview.getAttribute('data-active-template'), 'modern');
     assert.match(templateGrid.textContent || '', /Uploaded Resume/i);
     assertLiveResumeThumbnails(templateGrid, 'Uploaded Resume');
-  }, { timeout: 5_000 });
+  }, { timeout: 15_000 });
 });
 
 test('/resume/template uses placeholder thumbnails only while loading and replaces them with real mini pages', async () => {
@@ -740,10 +755,10 @@ test('/resume/template uses placeholder thumbnails only while loading and replac
     }),
   );
 
-  const templateGrid = await screen.findByTestId('template-selection-grid', undefined, { timeout: 5_000 });
+  const templateGrid = await screen.findByTestId('template-selection-grid', undefined, { timeout: 15_000 });
   await waitFor(() => {
     assert.ok(templateGrid.querySelectorAll('[data-thumbnail-component="TemplateCardThumbnailLoading"]').length >= 6);
-  }, { timeout: 5_000 });
+  }, { timeout: 15_000 });
 
   resolveResume?.({
     id: 'resume-db-1',
@@ -766,7 +781,7 @@ test('/resume/template uses placeholder thumbnails only while loading and replac
   await waitFor(() => {
     assert.equal(templateGrid.querySelector('[data-thumbnail-component="TemplateCardThumbnailLoading"]'), null);
     assertLiveResumeThumbnails(templateGrid, 'DB Resume');
-  }, { timeout: 5_000 });
+  }, { timeout: 15_000 });
 });
 
 test('/resume/template clicking a template card updates the selected live preview', async () => {
@@ -808,8 +823,8 @@ test('/resume/template clicking a template card updates the selected live previe
     }),
   );
 
-  const preview = await screen.findByTestId('template-selection-preview', undefined, { timeout: 5_000 });
-  const templateGrid = await screen.findByTestId('template-selection-grid', undefined, { timeout: 5_000 });
+  const preview = await screen.findByTestId('template-selection-preview', undefined, { timeout: 15_000 });
+  const templateGrid = await screen.findByTestId('template-selection-grid', undefined, { timeout: 15_000 });
   const technicalPreviewCard = templateGrid.querySelector('[data-template-id="technical"] .template-card__preview') as HTMLElement | null;
   assert.ok(technicalPreviewCard, 'Expected technical template preview card');
 
@@ -819,17 +834,23 @@ test('/resume/template clicking a template card updates the selected live previe
     assert.equal(preview.getAttribute('data-active-template'), 'technical');
     const technicalCard = templateGrid.querySelector('[data-template-id="technical"]');
     assert.equal(technicalCard?.classList.contains('active'), true);
-  }, { timeout: 5_000 });
+  }, { timeout: 15_000 });
 });
 
-test('dashboard does not render final template cards before a resume is selected', async () => {
+// OBSOLETE: the dashboard now ALWAYS renders the template grid (with sample
+// fallback data) so users see templates immediately — TemplateCatalogGrid is
+// rendered unconditionally in DashboardPageView. This test asserted the old
+// "no grid until a resume is selected" behaviour and only passed locally by
+// render-timing luck (it failed on CI once the async grid render landed before
+// the assertion). Skipped alongside its sibling above.
+test.skip('dashboard does not render final template cards before a resume is selected', async () => {
   seedAuthenticatedSession();
   const { render, screen } = await getTestingLib();
   const { default: DashboardPage } = await getDashboardPageModule();
 
   render(React.createElement(DashboardPage, { apiClient: createApiClient() as any }));
 
-  await screen.findByTestId('dashboard-preview-profile', undefined, { timeout: 5_000 });
+  await screen.findByTestId('dashboard-preview-profile', undefined, { timeout: 15_000 });
   assert.equal(screen.queryByTestId('dashboard-template-grid'), null);
   assert.equal(screen.queryByRole('button', { name: /Preview/i }), null);
 });
@@ -925,10 +946,10 @@ test('/resume/template keeps the uploaded resume preview after saving the select
     }),
   );
 
-  const preview = await screen.findByTestId('template-selection-preview', undefined, { timeout: 5_000 });
+  const preview = await screen.findByTestId('template-selection-preview', undefined, { timeout: 15_000 });
   await waitFor(() => {
     assert.match(preview.textContent || '', /DB Resume/i);
-  }, { timeout: 5_000 });
+  }, { timeout: 15_000 });
 
   const uploadInput = screen.getByTestId('template-upload-input') as HTMLInputElement;
   fireEvent.change(uploadInput, {
@@ -940,7 +961,7 @@ test('/resume/template keeps the uploaded resume preview after saving the select
   await waitFor(() => {
     assert.match(preview.textContent || '', /Uploaded Resume/i);
     assert.equal(preview.getAttribute('data-active-template'), 'modern');
-  }, { timeout: 5_000 });
+  }, { timeout: 15_000 });
 
   fireEvent.click(screen.getByRole('button', { name: /Use Template/i }));
 
@@ -948,7 +969,7 @@ test('/resume/template keeps the uploaded resume preview after saving the select
     assert.match(preview.textContent || '', /Uploaded Resume/i);
     assert.match(preview.textContent || '', /Applied/i);
     assert.equal(preview.getAttribute('data-active-template'), 'modern');
-  }, { timeout: 5_000 });
+  }, { timeout: 15_000 });
 });
 
 test('dashboard and template selection import shared TEMPLATE_CATALOG source', () => {

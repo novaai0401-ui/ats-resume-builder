@@ -115,8 +115,11 @@ export default function SessionWarningModal() {
   async function handleContinue() {
     setExtending(true);
     try {
-      const storedRefreshToken = typeof window !== 'undefined' ? localStorage.getItem('rb_refreshToken') : null;
-      const storedUserId = typeof window !== 'undefined' ? localStorage.getItem('rb_userId') : null;
+      // These MUST match the keys setAuthTokens writes ('refreshToken' / 'userId').
+      // The old 'rb_'-prefixed keys never existed, so Continue always fell
+      // through to doLogout — i.e. "Continue session" force-logged users out.
+      const storedRefreshToken = typeof window !== 'undefined' ? localStorage.getItem('refreshToken') : null;
+      const storedUserId = typeof window !== 'undefined' ? localStorage.getItem('userId') : null;
       if (!storedRefreshToken || !storedUserId) {
         await doLogout();
         return;

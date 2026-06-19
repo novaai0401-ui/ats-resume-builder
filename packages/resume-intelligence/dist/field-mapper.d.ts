@@ -37,4 +37,13 @@ export declare function extractInlineAchievements(bullets: string[]): string[];
  *      than wrong-merge).
  */
 export declare function shouldMergeWrappedLine(prev: string, next: string): boolean;
+/**
+ * Final, path-independent pass over a block's highlights: re-join any adjacent
+ * pair where the second is a wrapped continuation of the first (PDF line-wrap
+ * or dropped-ligature splits like "...incomplete" + "elds in editable PDF..."
+ * or "...requirements, non" + "functional requirements..."). Runs regardless
+ * of which assembly path produced the highlights, so no fragment survives to
+ * the editor as its own bullet.
+ */
+export declare function mergeWrappedHighlights(highlights: string[]): string[];
 //# sourceMappingURL=field-mapper.d.ts.map
