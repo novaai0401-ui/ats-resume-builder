@@ -7,6 +7,13 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# @playwright/test (web devDep) pulls in `playwright`, whose npm postinstall
+# downloads browsers. The unit/build jobs don't need them (the e2e workflow
+# installs browsers explicitly), so skip the download to keep `npm ci` fast and
+# offline-safe.
+env:
+  PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+
 jobs:
   lint-and-test-web:
     name: Lint & Test (Web)

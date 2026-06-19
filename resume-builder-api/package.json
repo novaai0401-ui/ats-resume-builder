@@ -11,7 +11,7 @@
     "start:dev": "nest start --watch",
     "prebuild": "npm run bootstrap:deps && npm run build:deps",
     "build": "nest build",
-    "test": "npm run build && node --test tests/**/*.test.cjs",
+    "test": "npm run build && node --test tests/*.test.cjs",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio"
