@@ -85,11 +85,11 @@ export class AiController {
   }
 
   @Post('tech-gap')
-  techGap(@Body() body: TechGapInput) {
+  techGap(@Req() req: AuthedAiReq, @Body() body: TechGapInput) {
     if (!body || typeof body !== 'object') {
       throw new BadRequestException('Request body is required');
     }
-    return this.techGapService.analyze(body);
+    return this.techGapService.analyze(req.user.userId, body, byokFromReq(req));
   }
 
   @Post('cover-letter')

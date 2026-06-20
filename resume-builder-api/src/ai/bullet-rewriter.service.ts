@@ -11,6 +11,7 @@ import { SettingsService } from '../settings/settings.service';
 import type { AiProvider } from './providers/ai-provider.interface';
 import { GroqProvider } from './providers/groq.provider';
 import { buildByokProvider } from './providers/byok-factory';
+import { isPlanActive } from './server-provider';
 
 /**
  * AI Bullet Rewriter — Student/Pro feature.
@@ -75,11 +76,17 @@ export class BulletRewriterService {
       message: 'Rate limit exceeded for bullet rewriter. Try again shortly.',
     });
 
-    // Resume-upgrade AI: user's own key (free) else OUR AI (billed at download).
+    // Bullet rewrite is NOT one of the two free-user AI features (only AI
+    // Critique + Tech Gap are). OUR AI runs only with the user's own key
+    // (BYOK) or the ₹499 plan; everyone else gets rule-based variants.
     const byokProvider = buildByokProvider(byok?.provider, byok?.key);
-    const provider = byokProvider || this.resolveProvider();
+    let provider = byokProvider;
     if (!provider) {
-      this.logger.warn('No AI provider configured — returning rule-based bullet rewrites');
+      const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { plan: true } });
+      if (isPlanActive(user?.plan)) provider = this.resolveProvider();
+    }
+    if (!provider) {
+      this.logger.warn('No eligible AI provider — returning rule-based bullet rewrites');
       return {
         alternatives: ruleBasedRewrites(bullet),
         provider: 'rule-based',
@@ -123,11 +130,6 @@ export class BulletRewriterService {
           provider: 'rule-based',
           tokensUsed: APPROX_TOKENS,
         };
-      }
-      // OUR AI assisted this resume — flag it so the next download carries
-      // the flat AI fee (unless on the ₹499 plan). BYOK stays free.
-      if (!byokProvider && input.resumeId) {
-        await this.flagResumeAiAssist(userId, input.resumeId);
       }
       return {
         alternatives: parsed.slice(0, 3),
@@ -173,18 +175,6 @@ export class BulletRewriterService {
     if (!key) return null;
     const model = this.config.get<string>('GROQ_MODEL', '');
     return new GroqProvider(key, model || undefined);
-  }
-
-  /** Mark that OUR AI assisted this resume — drives the per-download AI fee. */
-  private async flagResumeAiAssist(userId: string, resumeId: string): Promise<void> {
-    try {
-      await this.prisma.resume.updateMany({
-        where: { id: resumeId, userId },
-        data: { aiAssistUsed: true },
-      });
-    } catch {
-      // Non-critical — never block the AI response on the flag write.
-    }
   }
 }
 

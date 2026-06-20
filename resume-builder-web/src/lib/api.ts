@@ -53,6 +53,7 @@ export type TechGapRequest = {
   certifications?: Array<{ name: string }>;
   targetRole?: string;
   jdText?: string;
+  resumeId?: string;
 };
 
 export type TechGapResult = {
@@ -965,6 +966,7 @@ export const api = {
   techGap: (input: TechGapRequest) =>
     request<TechGapResult>(`/ai/tech-gap`, {
       method: 'POST',
+      headers: { ...(getByokHeader() || {}) },
       body: JSON.stringify(input),
     }),
 

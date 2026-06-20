@@ -1505,6 +1505,7 @@ export default function ResumeEditor() {
         certifications: resume.certifications?.map((c) => ({ name: c.name || '' })),
         targetRole: jdText ? undefined : resume.title,
         jdText: jdText || undefined,
+        resumeId: resumeId || undefined,
       });
       setTechGapResult(result);
       showSnackbar('success', 'Technology gap analysis complete.');
@@ -3200,11 +3201,11 @@ export default function ResumeEditor() {
                                     if (entry.status === 'paywall') {
                                       return (
                                         <div className="bullet-rewrite-panel bullet-rewrite-panel--paywall">
-                                          <strong>Add an AI key to rewrite bullets</strong>
+                                          <strong>AI bullet rewrites need AI access</strong>
                                           <p className="small" style={{ margin: '4px 0 8px' }}>
-                                            Add your own AI key in Settings (free) for unlimited
-                                            rewrites — or our AI runs automatically and is billed
-                                            once via the per-download fee.
+                                            Add your own AI key in Settings (free), or get the
+                                            ₹499/mo plan. Without either, only basic rewrites are
+                                            shown here.
                                           </p>
                                           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                                             <Link className="btn" href="/settings" style={{ fontSize: 13 }}>Add your AI key</Link>

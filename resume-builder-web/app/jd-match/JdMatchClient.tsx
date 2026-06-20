@@ -183,10 +183,10 @@ export default function JdMatchClient() {
             borderLeft: '4px solid #1a3a5c',
           }}
         >
-          <h2 style={{ marginTop: 0 }}>Add an AI key for tailored JD matching</h2>
+          <h2 style={{ marginTop: 0 }}>AI JD matching needs AI access</h2>
           <p className="small" style={{ color: '#3a4655', lineHeight: 1.6 }}>
-            Add your own AI key in Settings (free) for tailored bullet suggestions — or our AI
-            runs automatically and is billed once via the per-download fee.
+            Add your own AI key in Settings (free), or get the ₹499/mo plan, for AI-tailored
+            matching. Without either, a rule-based match score is shown.
           </p>
           <Link className="btn" href="/settings">Add your AI key</Link>
         </section>

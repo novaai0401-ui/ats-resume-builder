@@ -95,8 +95,20 @@ export class DownloadChargeService {
     const user = await this.prisma.user.findUnique({ where: { id: params.userId } });
     if (!user) throw new ForbiddenException('User not found');
 
+    // ₹499/mo plan ("Pocket Resume Plus") includes downloads — no charge.
+    // Issue a download token directly so the PDF/DOCX route unlocks.
+    if (user.plan && user.plan !== 'FREE') {
+      await this.clearResumeAiAssist(params.userId, params.resumeId);
+      return {
+        included: true as const,
+        downloadToken: this.issueDownloadToken(params.userId, params.resumeId),
+        resumeId: params.resumeId,
+      };
+    }
+
     // Every download is ₹49 (or ~$0.99). On top of that, if OUR AI assisted
-    // this resume and the user isn't on the ₹499 plan, add a flat AI fee.
+    // this resume, add a flat AI fee (only the two free-user AI features —
+    // AI Critique + Tech Gap — set this flag).
     const resume = await this.prisma.resume.findFirst({
       where: { id: params.resumeId, userId: params.userId },
       select: { aiAssistUsed: true },

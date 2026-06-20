@@ -8,6 +8,8 @@ type RazorpayInitResult = {
   provider: 'razorpay';
   orderId: string;
   amount: number;
+  /** Flat AI fee (paise) included in `amount` when our AI improved this resume. */
+  aiFee?: number;
   currency: string;
   keyId: string;
   resumeId: string;
@@ -194,6 +196,12 @@ export default function DownloadChargeModal({
         <p className="small">
           <strong>Amount: {amountLabel || '—'}</strong>
         </p>
+        {init && init.provider === 'razorpay' && init.aiFee ? (
+          <p className="small" style={{ color: '#8a5a00', marginTop: -4 }}>
+            Includes a ₹{(init.aiFee / 100).toFixed(0)} AI fee for the AI help used on this resume.
+            Waived with your own AI key or the ₹499/mo plan.
+          </p>
+        ) : null}
         {error && <p className="small" style={{ color: '#b91c1c' }}>{error}</p>}
         <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
           <button className="btn secondary" onClick={onCancel} disabled={busy}>Cancel</button>
