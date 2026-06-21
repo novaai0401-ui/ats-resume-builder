@@ -99,6 +99,21 @@ export default function BillingPage() {
     }
   }
 
+  async function handleCancel() {
+    setBusy(true);
+    setError('');
+    setNotice('');
+    try {
+      const res = await api.directDowngrade();
+      setPlan(res.plan);
+      setNotice('Your plan was cancelled. You’re back on Free — downloads are ₹49 and AI uses your key or the ₹20 per-download option.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Could not cancel the plan.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <main className="grid">
       <section className="card col-12">
@@ -148,7 +163,12 @@ export default function BillingPage() {
           <li>Cancel anytime</li>
         </ul>
         {planActive ? (
-          <p className="hint" style={{ color: '#1e7a3a', marginTop: 10 }}>You’re on Plus. ✓</p>
+          <div style={{ marginTop: 10 }}>
+            <p className="hint" style={{ color: '#1e7a3a', margin: '0 0 8px' }}>You’re on Plus. ✓</p>
+            <button className="btn ghost" onClick={handleCancel} disabled={busy}>
+              {busy ? 'Working…' : 'Cancel plan (switch to Free)'}
+            </button>
+          </div>
         ) : (
           <button className="btn" style={{ marginTop: 10 }} onClick={handleSubscribe} disabled={busy}>
             {busy ? 'Starting…' : 'Get Plus — ₹499/mo'}
