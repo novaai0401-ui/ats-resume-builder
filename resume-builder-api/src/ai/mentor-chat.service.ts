@@ -6,6 +6,8 @@ import { rateLimitOrThrow } from '../limits/rate-limit';
 import { SettingsService } from '../settings/settings.service';
 import type { AiProvider } from './providers/ai-provider.interface';
 import { GroqProvider } from './providers/groq.provider';
+import { buildByokProvider } from './providers/byok-factory';
+import { isPlanActive, NON_RESUME_AI_UPSELL } from './server-provider';
 
 /**
  * Mentor Chat — Pro only, the marquee Pro differentiator.
@@ -67,7 +69,7 @@ export class MentorChatService {
     private readonly settingsService: SettingsService,
   ) {}
 
-  async chat(userId: string, input: MentorChatInput): Promise<MentorChatResult> {
+  async chat(userId: string, input: MentorChatInput, byok?: { provider?: string | null; key?: string | null }): Promise<MentorChatResult> {
     const messages = sanitizeHistory(input?.messages ?? []);
     if (messages.length === 0 || messages[messages.length - 1].role !== 'user') {
       throw new ForbiddenException('The last message must be from the user.');
@@ -87,9 +89,26 @@ export class MentorChatService {
       message: 'Slow down — Mentor Chat is rate-limited to 6 turns per minute.',
     });
 
-    await this.checkAndChargePro(userId, APPROX_TOKENS_PER_TURN);
+    // Non-resume AI: BYOK is free; otherwise the ₹499/mo plan unlocks OUR
+    // AI. With neither, there's no useful rule-based chat — show the upsell.
+    const dbUser = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!dbUser) throw new ForbiddenException('User not found');
+    const byokProvider = buildByokProvider(byok?.provider, byok?.key);
+    const planActive = isPlanActive(dbUser.plan);
+    if (!byokProvider && !planActive) {
+      return {
+        reply: `Mentor Chat runs on AI. ${NON_RESUME_AI_UPSELL}`,
+        provider: 'unavailable',
+        tokensUsed: 0,
+      };
+    }
 
-    const provider = this.resolveProvider();
+    // Only OUR AI (the plan path) spends app tokens; BYOK is on the user.
+    if (!byokProvider) {
+      await this.chargePlanTokens(userId, APPROX_TOKENS_PER_TURN);
+    }
+
+    const provider = byokProvider || this.resolveProvider();
     if (!provider) {
       // No fallback — chat without an LLM isn't useful enough to
       // bother with rule-based replies. The user gets a clear
@@ -136,12 +155,10 @@ export class MentorChatService {
     }
   }
 
-  private async checkAndChargePro(userId: string, tokens: number) {
+  /** Charge app-AI tokens for plan users (BYOK users don't reach here). */
+  private async chargePlanTokens(userId: string, tokens: number) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new ForbiddenException('User not found');
-    if (user.plan !== 'PRO') {
-      throw new ForbiddenException('PRO_PLAN_REQUIRED: Mentor Chat is a Pro feature.');
-    }
     await ensureUsagePeriod(this.prisma, user);
     const updated = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!updated) throw new ForbiddenException('User not found');

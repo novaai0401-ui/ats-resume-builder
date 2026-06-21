@@ -429,7 +429,7 @@ test('dashboard does not auto-select a saved resume in a fresh session', async (
   const profilePreview = await screen.findByTestId('dashboard-preview-profile', undefined, { timeout: 15_000 });
   assert.match(profilePreview.textContent || '', /No resume selected/i);
   assert.doesNotMatch(profilePreview.textContent || '', /Database User/i);
-  const select = screen.getByTestId('dashboard-resume-select') as HTMLSelectElement;
+  const select = await screen.findByTestId('dashboard-resume-select', undefined, { timeout: 15_000 }) as HTMLSelectElement;
   assert.equal(select.value, '');
 });
 
@@ -444,7 +444,7 @@ test('dashboard ignores stale session resume ids until a user explicitly selects
   const profilePreview = await screen.findByTestId('dashboard-preview-profile', undefined, { timeout: 15_000 });
   assert.match(profilePreview.textContent || '', /No resume selected/i);
   assert.doesNotMatch(profilePreview.textContent || '', /Database User/i);
-  const select = screen.getByTestId('dashboard-resume-select') as HTMLSelectElement;
+  const select = await screen.findByTestId('dashboard-resume-select', undefined, { timeout: 15_000 }) as HTMLSelectElement;
   assert.equal(select.value, '');
 });
 

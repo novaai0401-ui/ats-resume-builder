@@ -19,11 +19,11 @@ export const metadata: Metadata = {
 const FAQ = [
   {
     q: 'Is there a resume builder made for the India job market?',
-    a: 'Yes. Pocket Resume is India-first: sub-₹400/month pricing, UPI/card/netbanking payments via Razorpay, India-aware live job openings, and templates that pass both Indian and global applicant tracking systems.',
+    a: 'Yes. Pocket Resume is India-first: Pocket Resume Plus at ₹499/mo (cancel anytime), UPI/card/netbanking payments via Razorpay, India-aware live job openings, and templates that pass both Indian and global applicant tracking systems.',
   },
   {
     q: 'How much does it cost in India?',
-    a: 'You can build and score resumes for free. Paid Student/Pro plans are priced for India (sub-₹400/month) and unlock AI features; a one-time micro-charge applies per clean PDF/Word export.',
+    a: 'You can build and score resumes for free. AI features are free with your own AI key (BYOK), or unlock our AI everywhere with Pocket Resume Plus at ₹499/mo; a ₹49 charge applies per clean PDF/Word export.',
   },
   {
     q: 'Does it support UPI and Indian payment methods?',

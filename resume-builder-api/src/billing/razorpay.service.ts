@@ -7,14 +7,17 @@ import { resetUsageForPlan } from './usage';
 
 /**
  * Plan pricing in paise (INR smallest unit).
- * $4.99 ≈ ₹419 → 41900 paise; $9.99 ≈ ₹839 → 83900 paise
- * These are overridden by env vars if set.
+ *
+ * Post-pivot there is ONE paid plan — "Pocket Resume Plus" at ₹499/mo —
+ * which maps to the internal 'PRO' value. STUDENT is retained only so old
+ * payment history keeps resolving; it is not offered in the UI.
+ * Overridable via RAZORPAY_PRICE_<PLAN>_<INTERVAL> env vars.
  */
 const DEFAULT_PLAN_PRICES: Record<string, { amount: number; currency: string }> = {
   STUDENT_MONTHLY: { amount: 41900, currency: 'INR' },
-  PRO_MONTHLY: { amount: 83900, currency: 'INR' },
+  PRO_MONTHLY: { amount: 49900, currency: 'INR' },      // ₹499/mo — the single plan
   STUDENT_ANNUAL: { amount: 419000, currency: 'INR' },  // 10 months (2 free)
-  PRO_ANNUAL: { amount: 839000, currency: 'INR' },      // 10 months (2 free)
+  PRO_ANNUAL: { amount: 499000, currency: 'INR' },      // 10 months (2 free)
 };
 
 @Injectable()

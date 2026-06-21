@@ -11,6 +11,7 @@ import { SettingsService } from '../settings/settings.service';
 import type { AiProvider } from './providers/ai-provider.interface';
 import { GroqProvider } from './providers/groq.provider';
 import { buildByokProvider } from './providers/byok-factory';
+import { isPlanActive } from './server-provider';
 
 /**
  * AI Bullet Rewriter — Student/Pro feature.
@@ -38,6 +39,8 @@ export type RewriteBulletInput = {
   role?: string;
   company?: string;
   jdText?: string;
+  /** Resume being edited — flags our-AI assist for the per-download fee. */
+  resumeId?: string;
 };
 
 export type RewriteBulletOutput = {
@@ -73,10 +76,17 @@ export class BulletRewriterService {
       message: 'Rate limit exceeded for bullet rewriter. Try again shortly.',
     });
 
-    // BYOK: use the user's own AI key; no key → rule-based rewrites below.
-    const provider = buildByokProvider(byok?.provider, byok?.key);
+    // Bullet rewrite is NOT one of the two free-user AI features (only AI
+    // Critique + Tech Gap are). OUR AI runs only with the user's own key
+    // (BYOK) or the ₹499 plan; everyone else gets rule-based variants.
+    const byokProvider = buildByokProvider(byok?.provider, byok?.key);
+    let provider = byokProvider;
     if (!provider) {
-      this.logger.warn('No AI provider configured — returning rule-based bullet rewrites');
+      const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { plan: true } });
+      if (isPlanActive(user?.plan)) provider = this.resolveProvider();
+    }
+    if (!provider) {
+      this.logger.warn('No eligible AI provider — returning rule-based bullet rewrites');
       return {
         alternatives: ruleBasedRewrites(bullet),
         provider: 'rule-based',

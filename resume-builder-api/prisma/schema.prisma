@@ -96,6 +96,9 @@ model Resume {
   sectionOrder String[] @default([])
   /// R-045 Phase 3 — profile photo (base64 data URI; visual templates only).
   photoUrl   String?
+  /// Set true when OUR AI (not the user's BYOK key) assisted this resume since
+  /// its last paid download → a flat AI fee is added to the next download.
+  aiAssistUsed Boolean @default(false)
   summary   String
   experience Json
   education  Json

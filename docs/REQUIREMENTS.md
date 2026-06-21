@@ -881,6 +881,61 @@ and every external call still feeds the Outcome Graph.
     marketing.
 - Decision deadline: 30 days post-launch.
 
+### R-071 · Resume-AI: BYOK-free or flat per-download AI fee
+
+- Status: **IN PROGRESS** (commit pending)
+- Depends-on: R-003 (download charge), R-005 (BYOK pivot)
+- Context: subscriptions are gone. Resume-upgrade AI (AI critique,
+  bullet rewrite, JD-match/tailor) is free with the user's own key
+  (BYOK). If the user has no key, OUR AI runs and a flat fee is added
+  to that resume's next ₹49 download. Non-resume AI stays BYOK-only
+  until the single ₹499/mo plan ships (separate commit).
+- Acceptance
+  - [x] `Resume.aiAssistUsed` flag (schema + migration) set server-side
+    when OUR AI assists a resume (critique, bullet rewrite, tailor);
+    BYOK never sets it.
+  - [x] `DownloadChargeService` adds a flat AI fee (`DOWNLOAD_AI_FEE_*`,
+    default ₹20 / $0.50) when `aiAssistUsed` and the user is not on a
+    paid plan; fee math is the pure, tested `aiFeeApplies()`.
+  - [x] Flag cleared on successful paid verify (Razorpay + Stripe).
+  - [x] Upgrade-to-Student/Pro prompts on ATS critique + JD-match
+    replaced with "add your own AI key (free)" messaging.
+  - [x] Pinning test `tests/download-ai-fee.unit.test.cjs`.
+  - [x] Single ₹499/mo plan ("Pocket Resume Plus") — the ONLY
+    subscription, reuses internal `PRO` value. Razorpay
+    `PRO_MONTHLY` = 49900 paise; billing page wires create-order +
+    verify.
+  - [x] Non-resume AI (Mentor, Interview-Prep, Recruiter-sim,
+    Skill-demand, Cover-letter): BYOK free, OR ₹499 plan unlocks OUR
+    AI; otherwise rule-based baseline + upsell — app key never spent
+    for a free, key-less, plan-less user. Shared gate in
+    `src/ai/server-provider.ts`; test
+    `tests/non-resume-ai-gate.unit.test.cjs`.
+  - [x] Marketing/paywall copy across web replaced (no Student/Pro,
+    no ₹199/₹399/₹799).
+  - [x] Refined model (dev-testing): the ONLY two AI features a free,
+    key-less, non-subscriber user may run are **AI Critique** and
+    **Tech Gap** (both on the editor page); these run OUR AI and flag
+    `aiAssistUsed` so the next download carries the AI fee. ALL other
+    AI (bullet rewrite, JD-match, tailor, and every non-resume
+    feature) is BYOK-or-₹499-plan only, otherwise rule-based / blocked
+    — no app-key spend.
+  - [x] ₹499 plan users download FREE: `createOrder` returns
+    `{ included, downloadToken }` for any non-FREE plan (no Razorpay
+    checkout).
+  - [x] BYOK users: all AI unlocked on their own key, still pay ₹49
+    per download (no AI fee).
+  - [x] Download AI fee disclosed in `DownloadChargeModal`.
+  - [x] Explicit opt-in: a free, key-less, non-subscriber user who clicks
+    AI Critique / Tech Gap is shown a dialog ("Use AI — adds ₹20 at
+    download" / "Add my AI key (free)" / "Cancel"). OUR AI runs and flags
+    the fee ONLY on opt-in (`aiOptIn` flag through `ai-critique` +
+    `tech-gap`); without it they get the rule-based result, no charge.
+    BYOK / plan users skip the dialog.
+  - Note: "everyone pays to download" requires `ENABLE_DOWNLOAD_CHARGE=true`
+    (+ Razorpay keys) in the environment; the code hard-blocks the
+    PDF/DOCX routes via the download token when the flag is on.
+
 ---
 
 ## §6. Cross-cutting constants
@@ -975,6 +1030,8 @@ do not break it.
 | 2026-06-16 | Pre-prod fixes: (1) extraction mapping re-joins PDF-wrapped bullet fragments into whole sentences + imported-mode "break it down" hint; (2) Sahaayak workspace grid collapses to 1 col ≤768px; (3) share-links resume `<select>` ellipsis/overflow; (4) public share-link PDF download now watermarked (quota-bypassing path) | Founder smoke-test on prod URL surfaced 4 issues: meaningless bullet fragments in inputs (R-007/R-010 population logic), two mobile CSS overlaps, and a request to let recruiters download a watermarked copy from the public share page (R-038). Watermark is server-side in `renderResumeTemplateHtml` so preview/export share one path. | R-007, R-010, R-038, R-003 |
 | 2026-06-15 | R-045 profile photo stored as a size-capped base64 `data:` URI, not object storage; rendered only on the 2 visual templates; `headerStyle` descoped | No S3/Cloudinary in this stack and CSP already allows `data:` for img-src, so a downscaled (≤512px) data URI is self-contained and keeps preview↔export parity for free. Photo is the region-aware (India vs US/ATS) differentiator; ATS templates + ATS-safe exports always omit it (§9.5). A separate `headerStyle` axis added complexity without a user ask. | R-045 |
 | 2026-06-15 | R-045 (design customization) scoped as a phased plan, not a single rushed change | Accent theming touches 10 template CSS blocks + the separate server export renderer + a missing token layer + parity tests + a migration + CSP/fonts. Shipping it hastily risks breaking PDF export and §9 parity. Plan in docs/DESIGN_CUSTOMIZATION_PLAN.md; Phase 1 ships as its own PR. | R-045 |
+| 2026-06-20 | Monetization tightened (dev-testing, no real users so no grandfathering): (1) free-user OUR-AI access narrowed to exactly TWO editor features — AI Critique + Tech Gap — which flag `aiAssistUsed` for the per-download AI fee; (2) bullet rewrite, JD-match, tailor de-gated from free OUR-AI → BYOK-or-₹499-plan, else rule-based (tailor blocks); (3) ₹499 plan users now download FREE (`createOrder` returns an included token, no Razorpay); (4) Tech Gap wired through auth + BYOK + resumeId (was anonymous, always-our-AI); (5) AI fee disclosed in the download modal; copy corrected to match (C-003). "All users pay to download" is enforced via `ENABLE_DOWNLOAD_CHARGE=true` (ops). | Founder: BYOK-only/flat-free model leaked our AI everywhere; restrict app-AI to the two resume-page features (charged at download), make the plan the only way to skip download charges, hard-block elsewhere. | R-071, R-003 |
+| 2026-06-19 | Monetization refined (supersedes the 2026-06-16 "no plans" pivot): (1) resume-upgrade AI without a key now runs OUR AI and adds a flat per-download AI fee (`Resume.aiAssistUsed` flag, `aiFeeApplies()`), waived on the ₹499 plan; (2) reintroduced a SINGLE ₹499/mo plan ("Pocket Resume Plus", internal `PRO`, Razorpay `PRO_MONTHLY`=49900 paise) as the only subscription; (3) non-resume AI (Mentor, Interview-Prep, Recruiter-sim, Skill-demand, Cover-letter) gated to BYOK-or-plan with rule-based baseline + upsell (no app-key spend for free/key-less/plan-less users), shared gate in `src/ai/server-provider.ts`; (4) web copy purged of Student/Pro and ₹199/₹399/₹799. | Founder decision: BYOK-only left no revenue from non-key users; charge a flat AI fee on download for our-AI resume help, and offer one ₹499/mo plan for everything-AI. | R-071, R-003, R-005 |
 
 ---
 

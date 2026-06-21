@@ -1,8 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { PrismaService } from '../prisma/prisma.service';
 import type { AiProvider } from './providers/ai-provider.interface';
 import { GroqProvider } from './providers/groq.provider';
 import { XaiProvider } from './providers/xai.provider';
+import { buildByokProvider } from './providers/byok-factory';
+import { isPlanActive } from './server-provider';
 import { filterJdKeywords } from '../lib/keyword-stopwords';
 
 export interface TechGapInput {
@@ -22,6 +25,10 @@ export interface TechGapInput {
   certifications?: Array<{ name: string }>;
   targetRole?: string;
   jdText?: string;
+  /** Resume being analyzed — flags our-AI assist for the per-download fee. */
+  resumeId?: string;
+  /** Free, key-less, non-subscriber users must opt in to OUR AI (adds the ₹20 download fee). */
+  aiOptIn?: boolean;
 }
 
 export interface TechGapResult {
@@ -79,10 +86,38 @@ OUTPUT: Respond with valid JSON only matching this schema:
 export class TechGapService {
   private readonly logger = new Logger(TechGapService.name);
 
-  constructor(private readonly config: ConfigService) {}
+  constructor(
+    private readonly config: ConfigService,
+    private readonly prisma: PrismaService,
+  ) {}
 
-  async analyze(input: TechGapInput): Promise<TechGapResult> {
-    const provider = this.resolveProvider();
+  /**
+   * Tech Gap is ONE of the two AI features (with AI Critique) that a
+   * free, key-less, non-subscriber user is allowed to run on the editor
+   * page. For that user OUR AI runs and the resume is flagged so the next
+   * download carries the AI fee. BYOK runs on the user's own key (free);
+   * the ₹499 plan runs OUR AI with no per-download fee.
+   */
+  async analyze(
+    userId: string,
+    input: TechGapInput,
+    byok?: { provider?: string | null; key?: string | null },
+  ): Promise<TechGapResult> {
+    // AI access resolution (R-071): BYOK → free; ₹499 plan → OUR AI free;
+    // free/key-less/non-subscriber → OUR AI only on explicit opt-in, which
+    // flags the resume for the ₹20 download fee. Otherwise rule-based.
+    const byokProvider = buildByokProvider(byok?.provider, byok?.key);
+    let provider = byokProvider;
+    let chargeable = false;
+    if (!provider) {
+      const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { plan: true } });
+      if (isPlanActive(user?.plan)) {
+        provider = this.resolveProvider();
+      } else if (input.aiOptIn) {
+        provider = this.resolveProvider();
+        chargeable = true;
+      }
+    }
 
     if (!provider) {
       return this.buildRuleBasedAnalysis(input);
@@ -96,11 +131,28 @@ export class TechGapService {
         temperature: 0.3,
         timeoutMs: 30_000,
       });
-      return this.parseResponse(raw);
+      const result = this.parseResponse(raw);
+      // Only the opted-in, free-user path is chargeable → flag the resume.
+      if (chargeable && input.resumeId) {
+        await this.flagResumeAiAssist(userId, input.resumeId);
+      }
+      return result;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       this.logger.error(`Tech gap AI analysis failed: ${msg}`);
       return this.buildRuleBasedAnalysis(input);
+    }
+  }
+
+  /** Flag the resume so its next download carries the ₹20 AI fee. */
+  private async flagResumeAiAssist(userId: string, resumeId: string): Promise<void> {
+    try {
+      await this.prisma.resume.updateMany({
+        where: { id: resumeId, userId },
+        data: { aiAssistUsed: true },
+      });
+    } catch {
+      // Non-critical — never fail the AI response over the billing flag.
     }
   }
 
@@ -216,14 +268,9 @@ export class TechGapService {
         overall: 'Partial match — upgrade for deeper AI analysis',
         technical: `${input.skills?.length || 0} skills listed`,
         leadership: hasLeadership ? 'Some leadership signals present' : 'Leadership signals weak',
-        domain: 'Deeper domain assessment unlocks on paid plans.',
+        domain: 'Deeper domain assessment available with AI analysis.',
       },
-      // User-facing copy must not name internal env vars (GROQ_API_KEY)
-      // — that leaked implementation detail into a customer-visible
-      // string. Free users get rule-based gap analysis; the prompt to
-      // unlock LLM-powered analysis is "upgrade your plan", not
-      // "configure an env var".
-      roleAlignmentSummary: 'Rule-based analysis on the free tier. Upgrade to Student or Pro to unlock AI-powered gap analysis tailored to your resume + JD.',
+      roleAlignmentSummary: 'Showing a basic gap analysis. AI-powered analysis is unavailable right now — try again shortly.',
     };
   }
 

@@ -53,6 +53,8 @@ export type TechGapRequest = {
   certifications?: Array<{ name: string }>;
   targetRole?: string;
   jdText?: string;
+  resumeId?: string;
+  aiOptIn?: boolean;
 };
 
 export type TechGapResult = {
@@ -965,6 +967,7 @@ export const api = {
   techGap: (input: TechGapRequest) =>
     request<TechGapResult>(`/ai/tech-gap`, {
       method: 'POST',
+      headers: { ...(getByokHeader() || {}) },
       body: JSON.stringify(input),
     }),
 
@@ -975,7 +978,7 @@ export const api = {
    * based variants when no LLM is configured — the response shape is
    * identical, so the caller doesn't have to branch.
    */
-  rewriteBullet: (input: { currentBullet: string; role?: string; company?: string; jdText?: string }) =>
+  rewriteBullet: (input: { currentBullet: string; role?: string; company?: string; jdText?: string; resumeId?: string }) =>
     request<{ alternatives: string[]; provider: 'groq' | 'rule-based'; tokensUsed: number }>(
       `/ai/rewrite-bullet`,
       { method: 'POST', headers: { ...(getByokHeader() || {}) }, body: JSON.stringify(input) },
@@ -1038,9 +1041,9 @@ export const api = {
         answerOutline: string[];
       }>;
       provider: 'groq' | 'rule-based';
-    }>(`/ai/interview-prep`, { method: 'POST', body: JSON.stringify(input) }),
+    }>(`/ai/interview-prep`, { method: 'POST', headers: { ...(getByokHeader() || {}) }, body: JSON.stringify(input) }),
 
-  /** Mentor Chat — Pro only. Stateless; pass the full history each turn. */
+  /** Mentor Chat — BYOK (free) or the ₹499/mo plan. Stateless; pass full history each turn. */
   mentorChat: (input: {
     messages: Array<{ role: 'user' | 'assistant'; content: string }>;
     resumeText?: string;
@@ -1048,7 +1051,7 @@ export const api = {
   }) =>
     request<{ reply: string; provider: 'groq' | 'unavailable'; tokensUsed: number }>(
       `/ai/mentor-chat`,
-      { method: 'POST', body: JSON.stringify(input) },
+      { method: 'POST', headers: { ...(getByokHeader() || {}) }, body: JSON.stringify(input) },
     ),
 
   loginWithPassword: (email: string, password: string) =>

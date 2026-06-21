@@ -21,8 +21,8 @@ export type HubTool = {
   label: string;
   /** One-line explainer shown on the hub landing page. */
   blurb: string;
-  /** When set, surfaced as a badge ("PRO", "Student+") on the card. */
-  planBadge?: 'PRO' | 'STUDENT+';
+  /** When set, surfaced as a badge ("AI", "Plus") on the card. */
+  planBadge?: 'PRO' | 'STUDENT+' | 'Plus' | 'AI';
 };
 
 export type Hub = {
@@ -91,9 +91,9 @@ export const NAV_HUBS: Hub[] = [
     tools: [
       { href: '/jobs', label: 'Job tracker', blurb: 'Kanban of every role you have applied to. Statuses + reminders.' },
       { href: '/jd-match', label: 'JD Match', blurb: 'Paste a job description, see what your resume covers and what to add.' },
-      { href: '/recruiter-sim', label: 'Recruiter AI', blurb: 'See the verdict an AI hiring screen would give you against a JD.', planBadge: 'STUDENT+' },
+      { href: '/recruiter-sim', label: 'Recruiter AI', blurb: 'See the verdict an AI hiring screen would give you against a JD.', planBadge: 'AI' },
       { href: '/resume/outcomes', label: 'Outcomes', blurb: 'Per-version response, interview, and offer rates. The moat.' },
-      { href: '/cover-letter', label: 'Cover Letter', blurb: 'Tailored cover letters per JD with tone control.', planBadge: 'STUDENT+' },
+      { href: '/cover-letter', label: 'Cover Letter', blurb: 'Tailored cover letters per JD with tone control.', planBadge: 'AI' },
     ],
   },
   {
@@ -110,10 +110,10 @@ export const NAV_HUBS: Hub[] = [
       '/sahaayak',
     ],
     tools: [
-      { href: '/mentor', label: 'Mentor', blurb: 'Curated tech/keyword/learning playlist for your role.', planBadge: 'STUDENT+' },
-      { href: '/mentor/chat', label: 'Mentor Chat', blurb: 'Live chat with an AI mentor that knows your resume.', planBadge: 'PRO' },
-      { href: '/interview-prep', label: 'Interview Prep', blurb: '8 likely questions per role with answer outlines.', planBadge: 'PRO' },
-      { href: '/career', label: 'Career Navigator', blurb: 'Tech-gap and role-readiness analysis.', planBadge: 'STUDENT+' },
+      { href: '/mentor', label: 'Mentor', blurb: 'Curated tech/keyword/learning playlist for your role.', planBadge: 'AI' },
+      { href: '/mentor/chat', label: 'Mentor Chat', blurb: 'Live chat with an AI mentor that knows your resume.', planBadge: 'AI' },
+      { href: '/interview-prep', label: 'Interview Prep', blurb: '8 likely questions per role with answer outlines.', planBadge: 'AI' },
+      { href: '/career', label: 'Career Navigator', blurb: 'Tech-gap and role-readiness analysis.', planBadge: 'AI' },
       { href: '/skill-demand', label: 'Skill Demand', blurb: 'Which of your skills are in demand, what to learn next, who is hiring.' },
       { href: '/sahaayak', label: 'Sahaayak', blurb: 'A quiet companion for the job-search journey.' },
     ],

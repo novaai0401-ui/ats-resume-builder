@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { rateLimitOrThrow } from '../limits/rate-limit';
 import { SettingsService } from '../settings/settings.service';
 import { buildByokProvider } from './providers/byok-factory';
+import { serverGroqProvider, isPlanActive } from './server-provider';
 import { computeRuleBasedMatch, clampPercent } from './jd-match.service';
 
 /** Optional bring-your-own-key headers forwarded from the request. */
@@ -79,9 +80,15 @@ export class RecruiterSimService {
     // Rule-based baseline — guarantees a usable verdict even with no LLM.
     const baseline = buildRuleBasedVerdict(resumeText, jdText, input.currentSkills ?? []);
 
-    // Post-pivot model: AI uses the user's OWN key (BYOK). No key → the
-    // rule-based baseline is the answer (no subscription gate, no app-key spend).
-    const provider = buildByokProvider(byok?.provider, byok?.key);
+    // Non-resume AI model: BYOK is free; the ₹499/mo plan unlocks OUR AI.
+    // With neither, return the rule-based baseline — our app key is never
+    // spent for a free, key-less, plan-less user.
+    const byokProvider = buildByokProvider(byok?.provider, byok?.key);
+    let provider = byokProvider;
+    if (!provider) {
+      const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { plan: true } });
+      if (isPlanActive(user?.plan)) provider = serverGroqProvider(this.config);
+    }
     if (!provider) return baseline;
 
     const system = [

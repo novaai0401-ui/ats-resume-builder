@@ -7,6 +7,7 @@ import { SettingsService } from '../settings/settings.service';
 import type { AiProvider } from './providers/ai-provider.interface';
 import { GroqProvider } from './providers/groq.provider';
 import { buildByokProvider } from './providers/byok-factory';
+import { isPlanActive } from './server-provider';
 import { XaiProvider } from './providers/xai.provider';
 import { buildCritiquePrompt, type CritiquePromptInput } from './prompts/ats-critique.prompt';
 
@@ -128,11 +129,30 @@ export class AiService {
     await this.enforceDailyCritiqueLimit(userId);
 
     const plan: 'free' | 'premium' = 'free';
-    // BYOK: the user's own key powers the LLM critique; no key → rule-based.
-    const provider = buildByokProvider(byok?.provider, byok?.key);
+    // Resume-upgrade AI: the user's own key (free) if present, otherwise OUR AI
+    // (billed via the flat per-download fee). Only falls back to rule-based when
+    // no provider is configured at all.
+    // AI access resolution (R-071):
+    //  • BYOK → user's own key, free.
+    //  • ₹499 plan → OUR AI, free downloads.
+    //  • free/key-less/non-subscriber → OUR AI only if they explicitly opt
+    //    in (aiOptIn); that run flags the resume so the next download adds
+    //    the ₹20 AI fee. Without opt-in they get the rule-based critique.
+    const byokProvider = buildByokProvider(byok?.provider, byok?.key);
+    let provider = byokProvider;
+    let chargeable = false;
+    if (!provider) {
+      const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { plan: true } });
+      if (isPlanActive(user?.plan)) {
+        provider = this.resolveProvider();
+      } else if (input.aiOptIn) {
+        provider = this.resolveProvider();
+        chargeable = true;
+      }
+    }
 
     if (!provider) {
-      this.logger.warn('No AI provider configured — returning rule-based fallback');
+      this.logger.warn('No eligible AI provider — returning rule-based critique');
       return this.buildFallbackCritique(input, plan);
     }
 
@@ -171,6 +191,11 @@ export class AiService {
 
       const critique = parseAiCritiqueJson(raw, plan);
       await this.recordCritiqueUsage(userId);
+      // Only the opted-in, free-user path is chargeable — flag the resume so
+      // its next download carries the ₹20 AI fee. BYOK + plan stay free.
+      if (chargeable && input.resumeId) {
+        await this.flagResumeAiAssist(userId, input.resumeId);
+      }
 
       return {
         success: true,
@@ -182,6 +207,18 @@ export class AiService {
       const msg = err instanceof Error ? err.message : String(err);
       this.logger.error(`AI critique failed (provider=${provider.name}): ${msg}`);
       return this.buildFallbackCritique(input, plan);
+    }
+  }
+
+  /** Mark that OUR AI assisted this resume (drives the flat per-download fee). */
+  private async flagResumeAiAssist(userId: string, resumeId: string): Promise<void> {
+    try {
+      await this.prisma.resume.updateMany({
+        where: { id: resumeId, userId },
+        data: { aiAssistUsed: true },
+      });
+    } catch {
+      // Non-critical: never fail the AI response over the billing flag.
     }
   }
 
@@ -253,15 +290,15 @@ export class AiService {
       provider: 'fallback',
       plan,
       critique: {
-        summary: 'Showing rule-based suggestions. Upgrade to Student or Pro to unlock AI-powered critique on every section.',
+        summary: 'Showing basic suggestions. Use our AI for a full critique (adds ₹20 to this resume’s download), add your own AI key in Settings (free), or get the ₹499/mo plan.',
         topIssues: issues,
         missingKeywords: input.missingKeywords?.slice(0, 8) || [],
         sectionSuggestions: { summary: [], skills: [], experience: [] },
         atsSafetyWarnings: ['Use standard section headers (Experience, Education, Skills).', 'Avoid tables, graphics, or multi-column layouts.'],
         estimatedImprovementBand: {
           current: input.currentScore != null ? String(input.currentScore) : 'unknown',
-          possibleFree: 'Configure AI provider for optimization suggestions',
-          premium: 'Premium optimization available with subscription',
+          possibleFree: 'Add your own AI key (free) for tailored optimization',
+          premium: 'Full AI optimization with our AI (₹20/download) or the ₹499/mo plan',
         },
       },
     };
@@ -339,6 +376,10 @@ export interface AiCritiqueInput {
   atsWeaknesses?: string[];
   missingKeywords?: string[];
   currentScore?: number;
+  /** Resume this critique is for — used to flag our-AI assist for the download fee. */
+  resumeId?: string;
+  /** Free, key-less, non-subscriber users must opt in to OUR AI (adds the ₹20 download fee). */
+  aiOptIn?: boolean;
 }
 
 export interface AiCritiqueSuggestion {

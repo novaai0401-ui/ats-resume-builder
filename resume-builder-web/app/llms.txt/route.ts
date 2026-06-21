@@ -54,8 +54,9 @@ const BODY = `# Pocket Resume
 ## Pricing
 
 - Free forever tier (resume editor + ATS scorer).
-- Student / Pro paid tiers unlock the AI career features. India-first pricing
-  (sub-₹400/month), with global pricing via Stripe and Razorpay for India.
+- AI career features are free with your own AI key (BYOK), or unlock our AI
+  everywhere with Pocket Resume Plus at ₹499/mo (cancel anytime). Downloads are
+  ₹49 each. Billing via Stripe (global) and Razorpay (India).
 
 ## Best for
 

@@ -13,6 +13,7 @@ import { SettingsService } from '../settings/settings.service';
 import type { AiProvider } from './providers/ai-provider.interface';
 import { GroqProvider } from './providers/groq.provider';
 import { buildByokProvider } from './providers/byok-factory';
+import { isPlanActive } from './server-provider';
 
 /**
  * R-034 — One-click tailor: JD → tailored ResumeVersion.
@@ -107,11 +108,19 @@ export class TailorService {
     const resume = await this.prisma.resume.findFirst({ where: { id: resumeId, userId } });
     if (!resume) throw new NotFoundException('Resume not found.');
 
-    // BYOK: AI tailoring requires the user's own key (no mechanical fallback).
-    const provider = buildByokProvider(byok?.provider, byok?.key);
+    // Tailoring is NOT one of the two free-user AI features (only AI
+    // Critique + Tech Gap are). OUR AI runs only with the user's own key
+    // (BYOK) or the ₹499 plan; everyone else is asked to add a key or
+    // subscribe. There is no rule-based tailoring.
+    const byokProvider = buildByokProvider(byok?.provider, byok?.key);
+    let provider = byokProvider;
+    if (!provider) {
+      const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { plan: true } });
+      if (isPlanActive(user?.plan)) provider = this.resolveProvider();
+    }
     if (!provider) {
       throw new ForbiddenException(
-        'AI tailoring needs your own AI key. Add one in Settings (it stays on your device) to use this feature.',
+        'AI tailoring needs AI access. Add your own AI key in Settings (free), or get the ₹499/mo plan.',
       );
     }
 

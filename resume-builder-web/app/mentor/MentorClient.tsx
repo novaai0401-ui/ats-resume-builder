@@ -3,7 +3,7 @@
 /**
  * Mentor Mode — premium career-guidance feature.
  *
- * Job-to-be-done: a Student/Pro user picks a target role and an
+ * Job-to-be-done: a user with AI (own key or Plus) picks a target role and an
  * experience level; we surface (a) the technologies they should be
  * fluent in, (b) the skills recruiters actually search for, and (c)
  * curated free learning resources. Acts as a non-chatty mentor — no
@@ -24,6 +24,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { getAccessToken } from '@/src/lib/api';
+import { loadByokKey } from '@/src/lib/byok-storage';
 import {
   SALARY_CITIES,
   SALARY_ROLES,
@@ -41,7 +42,7 @@ type RoleSeed = {
 };
 
 // Static curated map. Swap with a server-side call later, but for v1
-// this gives every Student/Pro user a useful payload immediately. The
+// this gives every user with AI a useful payload immediately. The
 // roles below are weighted toward the Indian market (the owner's
 // stated audience): IT services, fintech, edtech, healthcare-IT.
 const ROLE_SEEDS: RoleSeed[] = [
@@ -167,9 +168,11 @@ export default function MentorClient() {
   // reasonable answer.
   const [city, setCity] = useState<string>('Bangalore');
   const [showResult, setShowResult] = useState(false);
+  const [hasByok, setHasByok] = useState(false);
 
   useEffect(() => {
     setAuthed(Boolean(getAccessToken()));
+    setHasByok(Boolean(loadByokKey()));
     try {
       const stored = window.localStorage.getItem('rb_plan');
       if (stored === 'PRO' || stored === 'STUDENT') setPlan(stored);
@@ -184,7 +187,10 @@ export default function MentorClient() {
     () => (showResult ? getSalaryBand(role, level as SalaryLevel, city) : null),
     [showResult, role, level, city],
   );
-  const isPaid = plan === 'STUDENT' || plan === 'PRO';
+  // Mentor path unlocks with Pocket Resume Plus (the 'PRO'/'STUDENT'
+  // plan values) or the user's own AI key (BYOK, free). The salary band
+  // is a Plus perk (kept on the paid plan value).
+  const isPaid = plan === 'STUDENT' || plan === 'PRO' || hasByok;
   const isPro = plan === 'PRO';
 
   return (
@@ -282,13 +288,11 @@ export default function MentorClient() {
               ))}
             </ul>
 
-            {/* Salary band — Pro only. Student/Pro both see the
-                section heading so Student users know the feature
-                exists and what they're paying extra for at the Pro
-                tier. Free users land in the outer paywall card and
-                never reach this branch. */}
+            {/* Salary band — a Pocket Resume Plus perk. Everyone who
+                reaches the result sees the heading; BYOK and free users
+                see the upsell card below it. */}
             <h3 style={{ marginTop: 24 }}>
-              Expected salary <span className="plan-badge plan-badge--pro" style={{ fontSize: 10, padding: '2px 8px' }}>Pro</span>
+              Expected salary <span className="plan-badge plan-badge--pro" style={{ fontSize: 10, padding: '2px 8px' }}>Plus</span>
             </h3>
             {isPro && salaryBand ? (
               <div className="salary-band">
@@ -323,22 +327,22 @@ export default function MentorClient() {
                 }}
               >
                 <p style={{ margin: 0, fontWeight: 600, color: '#1a3a5c' }}>
-                  Salary bands are a Pro feature
+                  Salary bands are a Pocket Resume Plus perk
                 </p>
                 <p className="small" style={{ marginTop: 6, color: '#5a6778', lineHeight: 1.5 }}>
-                  Pro shows the 25th / 50th / 75th percentile annual compensation for your role,
+                  Plus shows the 25th / 50th / 75th percentile annual compensation for your role,
                   level, and city — sourced from public 2024–2025 surveys.
                 </p>
                 <Link className="btn" href="/billing" style={{ marginTop: 10, fontSize: 13 }}>
-                  Upgrade to Pro — ₹799/mo
+                  Get Pocket Resume Plus — ₹499/mo
                 </Link>
               </div>
             )}
 
             <p className="small" style={{ marginTop: 18, color: '#5a6778' }}>
               {isPro
-                ? 'Pro tip: head over to the Cover Letter Studio to draft a tailored letter for any of these roles.'
-                : 'Student covers AI critique, Cover Letter, and Mentor Mode. Pro adds salary bands, interview prep, and priority AI access.'}
+                ? 'Tip: head over to the Cover Letter Studio to draft a tailored letter for any of these roles.'
+                : 'Add your own AI key (free) or get Pocket Resume Plus (₹499/mo) to unlock our AI across every feature, including salary bands.'}
             </p>
           </section>
         ) : (
@@ -350,19 +354,23 @@ export default function MentorClient() {
             }}
             aria-label="Premium feature paywall"
           >
-            <h2 style={{ marginTop: 0 }}>Mentor Mode is a Student / Pro feature</h2>
+            <h2 style={{ marginTop: 0 }}>Use AI for Mentor Mode</h2>
             <p className="small" style={{ color: '#3a4655', lineHeight: 1.6 }}>
               You picked <strong>{seed.role} — {seed.level}</strong>. To see the full path
               (technologies recruiters expect, ATS keywords for this role, curated free
-              learning resources), upgrade to the Student plan for ₹399/mo. Cancel anytime.
+              learning resources), add your own AI key in Settings (free) — or get Pocket
+              Resume Plus (₹499/mo) for our AI across every feature. Cancel anytime.
             </p>
             <ul className="small" style={{ paddingLeft: 18, lineHeight: 1.7, marginBottom: 14 }}>
-              <li>50 ATS scans/mo · 25 PDF + Word exports/mo</li>
-              <li>AI Resume Critique with the GROQ Llama 3.3 70B model</li>
+              <li>Every AI feature, free, with your own AI key</li>
+              <li>Or Pocket Resume Plus — our AI everywhere, no per-download AI fee</li>
               <li>Tech Gap analysis tailored to your industry</li>
               <li>This Mentor Mode page, fully unlocked</li>
             </ul>
-            <Link className="btn" href="/billing">See plans</Link>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <Link className="btn primary" href="/settings">Add your AI key</Link>
+              <Link className="btn" href="/billing">Get Plus</Link>
+            </div>
           </section>
         )
       ) : null}
