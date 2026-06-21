@@ -227,6 +227,8 @@ export type AiCritiqueRequest = {
   currentScore?: number;
   /** Resume being critiqued — flags our-AI assist for the per-download fee. */
   resumeId?: string;
+  /** Free, key-less, non-subscriber users must opt in to OUR AI (adds the ₹20 download fee). */
+  aiOptIn?: boolean;
 };
 
 export type AiCritiqueSuggestion = {

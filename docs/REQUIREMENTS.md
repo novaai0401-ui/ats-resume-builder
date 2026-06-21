@@ -926,6 +926,12 @@ and every external call still feeds the Outcome Graph.
   - [x] BYOK users: all AI unlocked on their own key, still pay ₹49
     per download (no AI fee).
   - [x] Download AI fee disclosed in `DownloadChargeModal`.
+  - [x] Explicit opt-in: a free, key-less, non-subscriber user who clicks
+    AI Critique / Tech Gap is shown a dialog ("Use AI — adds ₹20 at
+    download" / "Add my AI key (free)" / "Cancel"). OUR AI runs and flags
+    the fee ONLY on opt-in (`aiOptIn` flag through `ai-critique` +
+    `tech-gap`); without it they get the rule-based result, no charge.
+    BYOK / plan users skip the dialog.
   - Note: "everyone pays to download" requires `ENABLE_DOWNLOAD_CHARGE=true`
     (+ Razorpay keys) in the environment; the code hard-blocks the
     PDF/DOCX routes via the download token when the flag is on.

@@ -8,6 +8,7 @@ import { TkxBottomNav, TkxDrawer } from 'tekivex-ui';
 import useFeatureFlags from '@/src/hooks/use-feature-flags';
 import { FONT_OPTIONS, DENSITY_OPTIONS, ACCENT_PRESETS, REORDERABLE_SECTIONS, resolveSectionOrder, getAtsSectionTitle, templateSupportsPhoto, normalizePhotoUrl, isValidEmail, isValidPhone, EMAIL_INVALID_MESSAGE, PHONE_INVALID_MESSAGE } from 'resume-builder-shared';
 import { RESUME_CREATE_RATE_LIMIT_CODE, api, Resume, ResumeImportResult, UploadResumeResponse, getAccessToken, isApiRequestError } from '@/src/lib/api';
+import { loadByokKey, isPaidPlan } from '@/src/lib/byok-storage';
 import { PrivacyBadge } from '@/src/components/PrivacyBadge';
 import { useResumeStore } from '@/src/lib/resume-store';
 import {
@@ -356,6 +357,9 @@ export default function ResumeEditor() {
   const [aiCritiqueError, setAiCritiqueError] = useState('');
   const [techGapResult, setTechGapResult] = useState<import('@/src/lib/api').TechGapResult | null>(null);
   const [techGapLoading, setTechGapLoading] = useState(false);
+  // Opt-in prompt shown to free, key-less, non-subscriber users before OUR AI
+  // runs on AI Critique / Tech Gap (adds the ₹20 fee to this resume's download).
+  const [aiOptInPrompt, setAiOptInPrompt] = useState<{ feature: 'critique' | 'techgap' } | null>(null);
   const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [premiumOptimizing, setPremiumOptimizing] = useState(false);
   const [postDownloadPopup, setPostDownloadPopup] = useState<{ score: number | null } | null>(null);
@@ -1433,13 +1437,31 @@ export default function ResumeEditor() {
     }
   }
 
-  async function critique() {
+  // Free, key-less, non-subscriber users must consciously opt in to OUR AI
+  // for AI Critique / Tech Gap, because that adds the ₹20 fee to this
+  // resume's next download. BYOK and ₹499-plan users skip the prompt.
+  function aiAccessMode(): 'byok' | 'plan' | 'free' {
+    if (loadByokKey()) return 'byok';
+    if (isPaidPlan(currentPlan)) return 'plan';
+    return 'free';
+  }
+
+  function critique() {
+    if (aiAccessMode() === 'free') {
+      setAiOptInPrompt({ feature: 'critique' });
+      return;
+    }
+    void runCritique(false);
+  }
+
+  async function runCritique(aiOptIn: boolean) {
     setAiCritiqueLoading(true);
     setAiCritiqueError('');
     setAiCritiqueResult(null);
     try {
       const result = await api.aiCritique({
         resumeId: resumeId || undefined,
+        aiOptIn,
         summary: resume.summary,
         skills: allSkills,
         experience: resume.experience.map((e) => ({
@@ -1484,11 +1506,21 @@ export default function ResumeEditor() {
     }
   }
 
-  async function analyzeTechGap() {
+  function analyzeTechGap() {
+    if (aiAccessMode() === 'free') {
+      setAiOptInPrompt({ feature: 'techgap' });
+      return;
+    }
+    void runTechGap(false);
+  }
+
+  async function runTechGap(aiOptIn: boolean) {
     setTechGapLoading(true);
     setTechGapResult(null);
     try {
       const result = await api.techGap({
+        aiOptIn,
+        resumeId: resumeId || undefined,
         summary: resume.summary,
         skills: allSkills,
         experience: resume.experience.map((e) => ({
@@ -1505,7 +1537,6 @@ export default function ResumeEditor() {
         certifications: resume.certifications?.map((c) => ({ name: c.name || '' })),
         targetRole: jdText ? undefined : resume.title,
         jdText: jdText || undefined,
-        resumeId: resumeId || undefined,
       });
       setTechGapResult(result);
       showSnackbar('success', 'Technology gap analysis complete.');
@@ -4198,6 +4229,46 @@ export default function ResumeEditor() {
           </div>
         )}
         {/* ─── Per-download payment gate (feature-flagged) ─── */}
+        {aiOptInPrompt && (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="ai-optin-title"
+            className="session-warning-overlay"
+            onClick={() => setAiOptInPrompt(null)}
+          >
+            <div className="card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 460 }}>
+              <h3 id="ai-optin-title" style={{ marginTop: 0 }}>
+                Use AI for {aiOptInPrompt.feature === 'critique' ? 'AI Critique' : 'Tech Gap'}?
+              </h3>
+              <p className="small" style={{ color: '#3a4655', lineHeight: 1.6 }}>
+                You don&rsquo;t have an AI key or the ₹499/mo plan. We can run our AI on this resume
+                now — a one-time <strong>₹20 AI fee</strong> is then added to this resume&rsquo;s next
+                download (₹49 → ₹69). It applies once, no matter how many times you run AI here.
+              </p>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 14 }}>
+                <button
+                  className="btn"
+                  onClick={() => {
+                    const feature = aiOptInPrompt.feature;
+                    setAiOptInPrompt(null);
+                    if (feature === 'critique') void runCritique(true);
+                    else void runTechGap(true);
+                  }}
+                >
+                  Use AI — adds ₹20 at download
+                </button>
+                <button className="btn ghost" onClick={() => { setAiOptInPrompt(null); router.push('/settings'); }}>
+                  Add my AI key (free)
+                </button>
+                <button className="btn ghost" onClick={() => setAiOptInPrompt(null)}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {downloadChargeOpen && resumeId && (
           <DownloadChargeModal
             resumeId={resumeId}

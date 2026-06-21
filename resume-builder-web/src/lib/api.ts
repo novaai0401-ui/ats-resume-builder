@@ -54,6 +54,7 @@ export type TechGapRequest = {
   targetRole?: string;
   jdText?: string;
   resumeId?: string;
+  aiOptIn?: boolean;
 };
 
 export type TechGapResult = {

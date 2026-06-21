@@ -27,6 +27,8 @@ export interface TechGapInput {
   jdText?: string;
   /** Resume being analyzed — flags our-AI assist for the per-download fee. */
   resumeId?: string;
+  /** Free, key-less, non-subscriber users must opt in to OUR AI (adds the ₹20 download fee). */
+  aiOptIn?: boolean;
 }
 
 export interface TechGapResult {
@@ -101,8 +103,21 @@ export class TechGapService {
     input: TechGapInput,
     byok?: { provider?: string | null; key?: string | null },
   ): Promise<TechGapResult> {
+    // AI access resolution (R-071): BYOK → free; ₹499 plan → OUR AI free;
+    // free/key-less/non-subscriber → OUR AI only on explicit opt-in, which
+    // flags the resume for the ₹20 download fee. Otherwise rule-based.
     const byokProvider = buildByokProvider(byok?.provider, byok?.key);
-    const provider = byokProvider || this.resolveProvider();
+    let provider = byokProvider;
+    let chargeable = false;
+    if (!provider) {
+      const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { plan: true } });
+      if (isPlanActive(user?.plan)) {
+        provider = this.resolveProvider();
+      } else if (input.aiOptIn) {
+        provider = this.resolveProvider();
+        chargeable = true;
+      }
+    }
 
     if (!provider) {
       return this.buildRuleBasedAnalysis(input);
@@ -117,10 +132,9 @@ export class TechGapService {
         timeoutMs: 30_000,
       });
       const result = this.parseResponse(raw);
-      // OUR AI assisted this resume (the user didn't bring a key) → flag it
-      // so the next download charges the AI fee, unless they're on the plan.
-      if (!byokProvider && input.resumeId) {
-        await this.flagResumeAiAssistIfChargeable(userId, input.resumeId);
+      // Only the opted-in, free-user path is chargeable → flag the resume.
+      if (chargeable && input.resumeId) {
+        await this.flagResumeAiAssist(userId, input.resumeId);
       }
       return result;
     } catch (err: unknown) {
@@ -130,11 +144,9 @@ export class TechGapService {
     }
   }
 
-  /** Flag the resume for the per-download AI fee (skipped for plan users). */
-  private async flagResumeAiAssistIfChargeable(userId: string, resumeId: string): Promise<void> {
+  /** Flag the resume so its next download carries the ₹20 AI fee. */
+  private async flagResumeAiAssist(userId: string, resumeId: string): Promise<void> {
     try {
-      const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { plan: true } });
-      if (isPlanActive(user?.plan)) return; // plan users get free downloads
       await this.prisma.resume.updateMany({
         where: { id: resumeId, userId },
         data: { aiAssistUsed: true },
