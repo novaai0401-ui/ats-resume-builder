@@ -18,14 +18,6 @@ import { useResumeStore, type ResumeDraft } from '@/src/lib/resume-store';
 import { TemplatePreviewFrame } from '@/src/components/TemplatePreviewFrame';
 import { resolveTemplateId, templateRegistry, type TemplateId } from '@/shared/templateRegistry';
 
-// Mirrors the editor: default ON unless explicitly disabled in env. The
-// server-side gate (ENABLE_DOWNLOAD_CHARGE) returns 403 Forbidden when
-// the client skips the charge modal, which is what was happening on the
-// template page before this fix — the click went straight to the API
-// and bounced with "Payment required to download this resume."
-const DOWNLOAD_CHARGE_ENABLED =
-  (process.env.NEXT_PUBLIC_ENABLE_DOWNLOAD_CHARGE || 'true').toLowerCase() !== 'false';
-
 function friendlyPdfError(error: unknown, fallback: string): string {
   if (isApiRequestError(error)) {
     if (error.status === 503) {
@@ -48,7 +40,8 @@ function friendlyPdfError(error: unknown, fallback: string): string {
 
 const TEMPLATE_OPTIONS = TEMPLATE_CATALOG.map((template) => templateRegistry[template.id]);
 
-type TemplateSelectionApiClient = Pick<typeof api, 'downloadPdf' | 'getResume' | 'ingestResume' | 'updateResume'>;
+type TemplateSelectionApiClient = Pick<typeof api, 'downloadPdf' | 'getResume' | 'ingestResume' | 'updateResume'>
+  & Partial<Pick<typeof api, 'getDownloadChargeConfig'>>;
 
 type RouterLike = {
   push: (href: string) => Promise<boolean> | void;
@@ -130,6 +123,19 @@ export default function TemplateSelectionView({
   const [uploading, setUploading] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [downloadChargeOpen, setDownloadChargeOpen] = useState(false);
+  // Server decides whether downloads are charged (API ENABLE_DOWNLOAD_CHARGE),
+  // fetched from /billing/download-charge/config. Never guess from a
+  // NEXT_PUBLIC_* env — a web/API mismatch makes the charge modal open while
+  // the API rejects the order init, breaking downloads. Default false until
+  // resolved so a mid-load click never opens a modal the server would reject.
+  const [downloadChargeEnabled, setDownloadChargeEnabled] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    apiClient.getDownloadChargeConfig?.()
+      .then((cfg) => { if (!cancelled) setDownloadChargeEnabled(Boolean(cfg?.enabled)); })
+      .catch(() => { if (!cancelled) setDownloadChargeEnabled(false); });
+    return () => { cancelled = true; };
+  }, [apiClient]);
   const [toast, setToast] = useState('');
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateId>(requestedTemplate);
   const [pendingUploadFileName, setPendingUploadFileName] = useState('');
@@ -311,7 +317,7 @@ export default function TemplateSelectionView({
     // Mirror the editor flow: when the per-download charge is enabled,
     // surface the payment modal first and only run the actual download
     // after the gateway confirms a paid token. Otherwise download directly.
-    if (DOWNLOAD_CHARGE_ENABLED) {
+    if (downloadChargeEnabled) {
       setDownloadChargeOpen(true);
       return;
     }

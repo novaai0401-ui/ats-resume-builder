@@ -34,6 +34,7 @@ function loadScript(src: string): Promise<void> {
 export default function BillingPage() {
   const router = useRouter();
   const [plan, setPlan] = useState<string>('FREE');
+  const [razorpayConfigured, setRazorpayConfigured] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -44,7 +45,9 @@ export default function BillingPage() {
       router.push('/auth/login');
       return;
     }
-    api.getBillingStatus().then((s) => setPlan(s.plan)).catch(() => undefined);
+    api.getBillingStatus()
+      .then((s) => { setPlan(s.plan); setRazorpayConfigured(Boolean(s.razorpayConfigured)); })
+      .catch(() => undefined);
   }, [router]);
 
   const planActive = plan && plan !== 'FREE';
@@ -169,8 +172,13 @@ export default function BillingPage() {
               {busy ? 'Working…' : 'Cancel plan (switch to Free)'}
             </button>
           </div>
+        ) : razorpayConfigured === false ? (
+          <p className="hint" style={{ marginTop: 10, color: '#8a5a00' }}>
+            Online payments aren’t available yet. Meanwhile, add your own AI key in Settings (free)
+            to use every AI feature.
+          </p>
         ) : (
-          <button className="btn" style={{ marginTop: 10 }} onClick={handleSubscribe} disabled={busy}>
+          <button className="btn" style={{ marginTop: 10 }} onClick={handleSubscribe} disabled={busy || razorpayConfigured === null}>
             {busy ? 'Starting…' : 'Get Plus — ₹499/mo'}
           </button>
         )}
