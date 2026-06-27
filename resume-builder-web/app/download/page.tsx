@@ -42,7 +42,7 @@ export default async function DownloadPage() {
   return (
     <main style={{ maxWidth: 760, margin: '0 auto', padding: '32px 20px 80px' }}>
       <h1 style={{ fontSize: 28, marginBottom: 8 }}>Get Pocket Resume on your phone</h1>
-      <p style={{ color: '#5a6778', lineHeight: 1.55, marginBottom: 24 }}>
+      <p style={{ color: 'var(--muted)', lineHeight: 1.55, marginBottom: 24 }}>
         Pocket Resume isn&rsquo;t in the App Store or Play Store yet. Install one of the options
         below — your account works the same on every platform.
       </p>
@@ -75,7 +75,7 @@ export default async function DownloadPage() {
             <summary style={{ cursor: 'pointer', fontWeight: 600 }}>
               Verify your download
             </summary>
-            <div style={{ marginTop: 12, fontSize: 13, color: '#3a4655' }}>
+            <div style={{ marginTop: 12, fontSize: 13, color: 'var(--ink)' }}>
               <p style={{ margin: '4px 0' }}>
                 After downloading, run these commands to confirm the file matches what we
                 published. If either value differs, do not install — re-download from this
@@ -93,7 +93,7 @@ export default async function DownloadPage() {
 
         <details style={{ marginTop: 16 }}>
           <summary style={{ cursor: 'pointer', fontWeight: 600 }}>Install steps (Android)</summary>
-          <ol style={{ marginTop: 12, color: '#3a4655', lineHeight: 1.55, paddingLeft: 20 }}>
+          <ol style={{ marginTop: 12, color: 'var(--ink)', lineHeight: 1.55, paddingLeft: 20 }}>
             <li>Tap <strong>Download APK</strong> above.</li>
             <li>When prompted, tap <strong>Open</strong>. Android will warn that the file is from an unknown source.</li>
             <li>Tap <strong>Settings</strong> → enable <em>&ldquo;Allow from this source&rdquo;</em> for your browser.</li>
@@ -112,7 +112,7 @@ export default async function DownloadPage() {
         <p style={cardBody}>
           Apple doesn&rsquo;t allow direct APK-style installs. Two options:
         </p>
-        <ol style={{ color: '#3a4655', lineHeight: 1.6, paddingLeft: 20 }}>
+        <ol style={{ color: 'var(--ink)', lineHeight: 1.6, paddingLeft: 20 }}>
           <li style={{ marginBottom: 12 }}>
             <strong>Install as a PWA</strong> (works today, no developer account needed).{' '}
             Open this site in Safari → tap <strong>Share</strong> → <strong>Add to Home Screen</strong>.
@@ -143,9 +143,9 @@ export default async function DownloadPage() {
       </section>
 
       {/* ── Trust footer ───────────────────────────────────────────── */}
-      <section style={{ ...cardStyle, background: '#f7f9fc', border: '1px solid #d9e3ec' }}>
+      <section style={{ ...cardStyle, background: 'var(--surface-alt)', border: '1px solid var(--border)' }}>
         <h2 style={{ fontSize: 16, margin: '0 0 8px' }}>Why no app store yet?</h2>
-        <p style={{ color: '#3a4655', lineHeight: 1.55, margin: 0 }}>
+        <p style={{ color: 'var(--ink)', lineHeight: 1.55, margin: 0 }}>
           We&rsquo;re a small team and the App Store + Play Store fees ($99/yr + $25 one-time) plus
           weeks of review aren&rsquo;t worth it until we have product-market fit. Our APK is signed
           with a stable key, served over HTTPS, and verified at runtime — see{' '}
@@ -173,9 +173,9 @@ function formatSize(bytes: number): string {
 }
 
 const cardStyle: React.CSSProperties = {
-  background: '#fff',
-  border: '1px solid #e2e8f0',
-  borderRadius: 14,
+  background: 'var(--card)',
+  border: '1px solid var(--border)',
+  borderRadius: 'var(--radius-lg)',
   padding: 24,
   marginBottom: 16,
 };
@@ -186,8 +186,8 @@ const cardHeader: React.CSSProperties = {
   marginBottom: 8,
   gap: 12,
 };
-const cardTitle: React.CSSProperties = { fontSize: 18, margin: 0, color: '#1a3a5c' };
-const cardBody: React.CSSProperties = { color: '#3a4655', lineHeight: 1.55, margin: '0 0 16px' };
-const pill: React.CSSProperties = { background: '#eef5ff', color: '#1a3a5c', padding: '4px 10px', borderRadius: 999, fontSize: 12, fontWeight: 600 };
-const primaryBtn: React.CSSProperties = { display: 'inline-block', background: '#1a3a5c', color: '#fff', padding: '12px 18px', borderRadius: 10, fontWeight: 600, textDecoration: 'none' };
-const disabledBtn: React.CSSProperties = { background: '#cbd5e0', color: '#fff', padding: '12px 18px', borderRadius: 10, fontWeight: 600, border: 0, cursor: 'not-allowed' };
+const cardTitle: React.CSSProperties = { fontSize: 18, margin: 0, color: 'var(--primary)' };
+const cardBody: React.CSSProperties = { color: 'var(--ink)', lineHeight: 1.55, margin: '0 0 16px' };
+const pill: React.CSSProperties = { background: 'var(--surface-alt)', color: 'var(--primary)', padding: '4px 10px', borderRadius: 999, fontSize: 12, fontWeight: 600 };
+const primaryBtn: React.CSSProperties = { display: 'inline-block', background: 'var(--primary)', color: '#fff', padding: '12px 18px', borderRadius: 'var(--radius)', fontWeight: 600, textDecoration: 'none' };
+const disabledBtn: React.CSSProperties = { background: '#cbd5e0', color: '#fff', padding: '12px 18px', borderRadius: 'var(--radius)', fontWeight: 600, border: 0, cursor: 'not-allowed' };

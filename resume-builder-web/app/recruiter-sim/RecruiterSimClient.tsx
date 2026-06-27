@@ -120,14 +120,14 @@ export default function RecruiterSimClient() {
               <span style={{ padding: '6px 14px', borderRadius: 999, fontWeight: 700, color: v.color, background: v.background }}>
                 {v.label}
               </span>
-              <span style={{ fontSize: 32, fontWeight: 800 }}>{result.score}<span style={{ fontSize: 16, color: '#7a8aa0' }}> / 100 fit</span></span>
-              <span className="small" style={{ color: '#5a6778' }}>{v.blurb}</span>
+              <span style={{ fontSize: 32, fontWeight: 800 }}>{result.score}<span style={{ fontSize: 16, color: 'var(--muted)' }}> / 100 fit</span></span>
+              <span className="small" style={{ color: 'var(--muted)' }}>{v.blurb}</span>
             </div>
-            <blockquote style={{ margin: '14px 0 0', padding: '10px 14px', borderLeft: '3px solid #3b6cf6', background: 'var(--surface-alt, #f5f7fa)', borderRadius: 6 }}>
+            <blockquote style={{ margin: '14px 0 0', padding: '10px 14px', borderLeft: '3px solid var(--primary)', background: 'var(--surface-alt, #f5f7fa)', borderRadius: 6 }}>
               <strong>What the AI would tell the recruiter:</strong><br />“{result.recruiterNote}”
             </blockquote>
             {result.provider === 'rule-based' && (
-              <p className="small" style={{ color: '#9aa7b8', marginTop: 8 }}>
+              <p className="small" style={{ color: 'var(--muted)', marginTop: 8 }}>
                 Offline estimate (AI provider unavailable) — based on keyword coverage.
               </p>
             )}
@@ -144,7 +144,7 @@ export default function RecruiterSimClient() {
             {result.missingMustHaves.length > 0 && (
               <>
                 <h4 style={{ marginBottom: 4, color: '#a8412c' }}>Missing must-haves</h4>
-                <p className="small" style={{ margin: '0 0 6px', color: '#7a8aa0' }}>
+                <p className="small" style={{ margin: '0 0 6px', color: 'var(--muted)' }}>
                   Tap one to jump into the editor and work it into a bullet with the AI rewriter.
                 </p>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>

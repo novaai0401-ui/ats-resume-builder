@@ -142,7 +142,7 @@ export default function ResumeStartClient() {
               style={{
                 marginTop: 8,
                 marginBottom: 0,
-                color: '#5a6778',
+                color: 'var(--muted)',
                 minHeight: '1.4em',
               }}
             >
@@ -244,7 +244,7 @@ export default function ResumeStartClient() {
           without going hunting. Skip the tools that mean
           "start/upload" (that's literally the rest of this page). */}
       <section className="card col-12" aria-labelledby="resume-hub-more">
-        <h2 id="resume-hub-more" style={{ marginTop: 0, fontSize: 16, color: '#1a3a5c' }}>
+        <h2 id="resume-hub-more" style={{ marginTop: 0, fontSize: 16, color: 'var(--primary)' }}>
           More resume tools
         </h2>
         <div
@@ -267,15 +267,15 @@ export default function ResumeStartClient() {
               style={{
                 display: 'block',
                 padding: '10px 12px',
-                borderRadius: 8,
-                border: '1px solid #e2e8f0',
-                background: '#ffffff',
+                borderRadius: 'var(--radius)',
+                border: '1px solid var(--border)',
+                background: 'var(--card)',
                 textDecoration: 'none',
                 color: 'inherit',
               }}
             >
-              <strong style={{ color: '#1a3a5c', fontSize: 14 }}>{t.label}</strong>
-              <div className="small" style={{ color: '#5a6778', marginTop: 2 }}>{t.blurb}</div>
+              <strong style={{ color: 'var(--primary)', fontSize: 14 }}>{t.label}</strong>
+              <div className="small" style={{ color: 'var(--muted)', marginTop: 2 }}>{t.blurb}</div>
             </a>
           ))}
         </div>

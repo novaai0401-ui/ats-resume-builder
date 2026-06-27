@@ -3,6 +3,7 @@
 import { useCallback, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getAccessToken, api } from '@/src/lib/api';
+import { TkxButton } from 'tekivex-ui';
 
 export type PremiumFeature =
   | 'ATS_100_BOOST'
@@ -95,8 +96,10 @@ export default function PremiumGate({ feature, children }: PremiumGateProps) {
 
         <div style={{ display: 'grid', gap: 10, maxWidth: 340, margin: '0 auto' }}>
           {/* Cheapest option first */}
-          <button
-            className="btn"
+          <TkxButton
+            variant="solid"
+            colorScheme="primary"
+            isFullWidth
             onClick={async () => {
               try {
                 await api.addPremiumCredits(5);
@@ -108,26 +111,27 @@ export default function PremiumGate({ feature, children }: PremiumGateProps) {
                 router.push('/billing');
               }
             }}
-            style={{ background: '#2f5f8f' }}
           >
             Get Boost Pack (5 credits) — Free Trial
-          </button>
+          </TkxButton>
 
-          <button className="btn secondary" onClick={() => router.push('/billing')}>
+          <TkxButton variant="outline" colorScheme="primary" isFullWidth onClick={() => router.push('/billing')}>
             View All Plans
-          </button>
+          </TkxButton>
 
-          <button
-            className="btn ghost"
+          <TkxButton
+            variant="ghost"
+            colorScheme="primary"
+            isFullWidth
             onClick={() => setShowModal(false)}
             style={{ fontSize: '0.8rem' }}
           >
             Continue with free features
-          </button>
+          </TkxButton>
         </div>
 
         {credits > 0 && (
-          <p className="small" style={{ marginTop: 8, color: '#5a6778' }}>
+          <p className="small" style={{ marginTop: 8, color: 'var(--muted)' }}>
             You have {credits} premium credit{credits !== 1 ? 's' : ''} remaining.
           </p>
         )}
@@ -141,7 +145,7 @@ export default function PremiumGate({ feature, children }: PremiumGateProps) {
       <button className="btn" onClick={checkAccess} disabled={checking}>
         {checking ? 'Checking access...' : `Unlock ${featureInfo.title}`}
       </button>
-      <p className="small" style={{ marginTop: 6, color: '#5a6778' }}>Premium feature — requires upgrade or credits</p>
+      <p className="small" style={{ marginTop: 6, color: 'var(--muted)' }}>Premium feature — requires upgrade or credits</p>
     </div>
   );
 }

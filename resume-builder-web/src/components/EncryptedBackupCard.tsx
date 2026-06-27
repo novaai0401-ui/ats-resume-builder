@@ -70,7 +70,7 @@ export default function EncryptedBackupCard() {
   return (
     <section className="card" data-testid="encrypted-backup-card">
       <h2 style={{ marginTop: 0 }}>Encrypted backup</h2>
-      <p className="small" style={{ color: '#5a6778' }}>
+      <p className="small" style={{ color: 'var(--muted)' }}>
         Download your resumes as a single encrypted file. We can never read it — only your
         passphrase can. This is the safety net for the privacy-first storage model: lose your
         device, keep your data.
@@ -101,8 +101,8 @@ export default function EncryptedBackupCard() {
           />
         </label>
       </div>
-      {status && <p className="small" style={{ color: '#147a3a', marginTop: 10 }}>{status}</p>}
-      {error && <p className="small" style={{ color: '#b91c1c', marginTop: 10 }}>{error}</p>}
+      {status && <p className="small" style={{ color: 'var(--success)', marginTop: 10 }}>{status}</p>}
+      {error && <p className="small" style={{ color: 'var(--danger)', marginTop: 10 }}>{error}</p>}
     </section>
   );
 }

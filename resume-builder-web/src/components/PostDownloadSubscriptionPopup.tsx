@@ -43,7 +43,7 @@ export default function PostDownloadSubscriptionPopup({
           style={{ maxWidth: 440, textAlign: 'center' }}
         >
           <h3 id="post-dl-ask-title" style={{ marginBottom: 8 }}>Your download is ready</h3>
-          <p style={{ margin: '6px 0 14px', color: '#444' }}>
+          <p style={{ margin: '6px 0 14px', color: 'var(--muted)' }}>
             ATS score is <strong>{score ?? '—'}</strong>. If you want to push it to 100% and see your full tech gap, use our subscription.
           </p>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
@@ -88,7 +88,7 @@ export default function PostDownloadSubscriptionPopup({
           </button>
           <button
             className="btn"
-            style={{ width: '100%', background: '#2f5f8f' }}
+            style={{ width: '100%', background: 'var(--primary)' }}
             onClick={() => {
               onClose();
               router.push('/billing');

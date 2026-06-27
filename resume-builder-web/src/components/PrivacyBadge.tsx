@@ -81,15 +81,15 @@ export function PrivacyBadge({ variant }: { variant: Variant }) {
       role="note"
       aria-label="Privacy notice"
       style={{
-        background: '#eef5ff',
-        border: '1px solid #c4dbf2',
-        borderLeft: '4px solid #1a3a5c',
-        borderRadius: 12,
+        background: 'var(--surface-alt)',
+        border: '1px solid var(--border)',
+        borderLeft: '4px solid var(--primary)',
+        borderRadius: 'var(--radius-lg)',
         padding: '12px 14px',
         margin: '12px 0',
         fontSize: 13,
         lineHeight: 1.5,
-        color: '#1a3a5c',
+        color: 'var(--primary)',
         position: 'relative',
         display: 'flex',
         gap: 10,
@@ -108,7 +108,7 @@ export function PrivacyBadge({ variant }: { variant: Variant }) {
           style={{
             background: 'transparent',
             border: 0,
-            color: '#1a3a5c',
+            color: 'var(--primary)',
             opacity: 0.6,
             fontSize: 18,
             cursor: 'pointer',

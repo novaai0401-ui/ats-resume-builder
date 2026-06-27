@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/src/lib/api';
+import { TkxButton } from 'tekivex-ui';
 
 export default function ForgotPasswordView() {
   const router = useRouter();
@@ -40,7 +41,7 @@ export default function ForgotPasswordView() {
     <main className="grid">
       <section className="card col-5 auth-card">
         <h2 style={{ marginBottom: 4 }}>Reset your password</h2>
-        <p className="small" style={{ marginBottom: 16, color: 'var(--fg-muted, #666)' }}>
+        <p className="small" style={{ marginBottom: 16, color: 'var(--muted)' }}>
           We&apos;ll email you a 6-digit code if an account exists for that address.
         </p>
 
@@ -61,9 +62,9 @@ export default function ForgotPasswordView() {
             onChange={(e) => setEmail(e.target.value)}
             required
           />
-          <button className="btn" type="submit" disabled={status === 'sending'}>
+          <TkxButton variant="solid" colorScheme="primary" type="submit" isFullWidth isLoading={status === 'sending'} disabled={status === 'sending'}>
             {status === 'sending' ? 'Sending…' : 'Send reset code'}
-          </button>
+          </TkxButton>
 
           {message ? (
             <div className="message-banner success" role="status">
@@ -88,7 +89,7 @@ export default function ForgotPasswordView() {
           <li>Set a new password (min 10 characters).</li>
           <li>Sign in with your new password.</li>
         </ol>
-        <p className="small" style={{ marginTop: 12, color: 'var(--fg-muted, #666)' }}>
+        <p className="small" style={{ marginTop: 12, color: 'var(--muted)' }}>
           For security, our response is the same whether or not the email is registered.
           If you don&apos;t receive an email within a few minutes, double-check the address
           you used to register.

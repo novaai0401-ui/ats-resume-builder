@@ -74,13 +74,13 @@ export default function ReferralCard() {
   return (
     <section className="card" style={{ marginTop: 16 }} aria-labelledby="referral-title">
       <h2 id="referral-title" style={{ marginTop: 0 }}>Refer a friend, earn exports</h2>
-      <p className="small" style={{ color: '#5a6778', marginTop: 4 }}>
+      <p className="small" style={{ color: 'var(--muted)', marginTop: 4 }}>
         Each friend who signs up with your link earns you <strong>1 free resume
         export</strong> — usable even after your monthly limit runs out.
       </p>
 
       {me === null ? (
-        <p className="small" style={{ color: '#5a6778' }}>Loading…</p>
+        <p className="small" style={{ color: 'var(--muted)' }}>Loading…</p>
       ) : (
         <>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', marginTop: 8 }}>
@@ -88,8 +88,8 @@ export default function ReferralCard() {
               style={{
                 flex: 1,
                 minWidth: 0,
-                background: '#f1f5f9',
-                border: '1px solid #e2e8f0',
+                background: 'var(--surface-alt)',
+                border: '1px solid var(--border)',
                 borderRadius: 6,
                 padding: '6px 10px',
                 fontSize: 13,
@@ -104,9 +104,9 @@ export default function ReferralCard() {
               {copied ? 'Copied ✓' : 'Copy link'}
             </button>
           </div>
-          <p className="small" style={{ margin: '10px 0 0', color: '#5a6778' }}>
+          <p className="small" style={{ margin: '10px 0 0', color: 'var(--muted)' }}>
             {me.creditedReferrals} successful referral{me.creditedReferrals === 1 ? '' : 's'} ·{' '}
-            <strong style={{ color: '#1e7a3a' }}>
+            <strong style={{ color: 'var(--success)' }}>
               {me.credits} export credit{me.credits === 1 ? '' : 's'}
             </strong>{' '}
             available

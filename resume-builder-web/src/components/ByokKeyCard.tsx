@@ -64,15 +64,15 @@ export default function ByokKeyCard() {
   return (
     <section className="card">
       <h2 style={{ marginTop: 0 }}>Bring your own AI key</h2>
-      <p className="small" style={{ color: '#5a6778', margin: '0 0 12px' }}>
+      <p className="small" style={{ color: 'var(--muted)', margin: '0 0 12px' }}>
         Plug in an AI key from any supported provider and the conversational features
         (Sahaayak, Mentor, JD critique) will use it. <strong>Groq is free</strong> — get a
         key in under a minute at{' '}
-        <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer" style={{ color: '#1a3a5c' }}>
+        <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)' }}>
           console.groq.com/keys
         </a>.
       </p>
-      <p className="small" style={{ color: '#5a6778', margin: '0 0 16px' }}>
+      <p className="small" style={{ color: 'var(--muted)', margin: '0 0 16px' }}>
         <strong>Privacy:</strong> your key stays on this device. We attach it to AI requests
         as a header only when you actually use a feature — never stored on our server,
         never logged.
@@ -84,7 +84,7 @@ export default function ByokKeyCard() {
             <p style={{ margin: 0, fontWeight: 600 }}>
               {record.provider === 'groq' ? 'Groq' : record.provider === 'openai' ? 'OpenAI' : 'Anthropic'} key active
             </p>
-            <p className="small" style={{ margin: '2px 0 0', color: '#5a6778' }}>
+            <p className="small" style={{ margin: '2px 0 0', color: 'var(--muted)' }}>
               {maskedKey(record)} · added {new Date(record.addedAt).toLocaleDateString()}
             </p>
           </div>
@@ -146,17 +146,17 @@ export default function ByokKeyCard() {
           </button>
         </div>
         {error ? (
-          <p className="small" role="alert" style={{ marginTop: 8, color: '#a02020' }}>
+          <p className="small" role="alert" style={{ marginTop: 8, color: 'var(--danger)' }}>
             {error}
           </p>
         ) : null}
       </div>
 
       <details style={{ marginTop: 16 }}>
-        <summary style={{ cursor: 'pointer', fontSize: 13, color: '#5a6778' }}>
+        <summary style={{ cursor: 'pointer', fontSize: 13, color: 'var(--muted)' }}>
           Why bring my own key?
         </summary>
-        <p className="small" style={{ color: '#5a6778', marginTop: 8, lineHeight: 1.55 }}>
+        <p className="small" style={{ color: 'var(--muted)', marginTop: 8, lineHeight: 1.55 }}>
           We don&rsquo;t pay for AI on free accounts — the LLM cost would force us to either
           charge everyone or kill the free tier. Bringing your own key (especially Groq&rsquo;s
           free one) keeps the conversational features available to you at zero cost.

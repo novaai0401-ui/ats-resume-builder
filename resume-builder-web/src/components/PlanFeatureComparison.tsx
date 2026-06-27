@@ -62,19 +62,19 @@ const ROWS: Row[] = [
 function cell(value: string | boolean): React.ReactNode {
   if (value === true) {
     return (
-      <span aria-label="Included" style={{ color: '#1e7a3a', fontWeight: 700 }}>
+      <span aria-label="Included" style={{ color: 'var(--success)', fontWeight: 700 }}>
         ✓
       </span>
     );
   }
   if (value === false) {
     return (
-      <span aria-label="Not included" style={{ color: '#94a3b8' }}>
+      <span aria-label="Not included" style={{ color: 'var(--muted)' }}>
         —
       </span>
     );
   }
-  return <span style={{ color: '#1a3a5c' }}>{value}</span>;
+  return <span style={{ color: 'var(--primary)' }}>{value}</span>;
 }
 
 export default function PlanFeatureComparison() {
@@ -83,7 +83,7 @@ export default function PlanFeatureComparison() {
       <h2 id="plan-compare-title" style={{ marginTop: 0 }}>
         Free vs Paid — what changes
       </h2>
-      <p className="small" style={{ color: '#5a6778', marginTop: 4, marginBottom: 12 }}>
+      <p className="small" style={{ color: 'var(--muted)', marginTop: 4, marginBottom: 12 }}>
         Everything in the Free tier stays free forever. Add your own AI key to use every
         AI feature for free, or get Pocket Resume Plus (₹499/mo) for our AI everywhere
         and the higher monthly quotas. Cancel anytime.
@@ -99,16 +99,16 @@ export default function PlanFeatureComparison() {
           }}
         >
           <thead>
-            <tr style={{ background: '#f3f6fa', textAlign: 'left' }}>
+            <tr style={{ background: 'var(--surface-alt)', textAlign: 'left' }}>
               <th
                 scope="col"
-                style={{ padding: '10px 12px', borderBottom: '1px solid #d0dbe7', width: '46%' }}
+                style={{ padding: '10px 12px', borderBottom: '1px solid var(--border)', width: '46%' }}
               >
                 Feature
               </th>
               <th
                 scope="col"
-                style={{ padding: '10px 12px', borderBottom: '1px solid #d0dbe7', textAlign: 'center' }}
+                style={{ padding: '10px 12px', borderBottom: '1px solid var(--border)', textAlign: 'center' }}
               >
                 Free
               </th>
@@ -116,13 +116,13 @@ export default function PlanFeatureComparison() {
                 scope="col"
                 style={{
                   padding: '10px 12px',
-                  borderBottom: '1px solid #d0dbe7',
+                  borderBottom: '1px solid var(--border)',
                   textAlign: 'center',
-                  color: '#1a3a5c',
+                  color: 'var(--primary)',
                 }}
               >
                 Pocket Resume Plus
-                <span className="small" style={{ display: 'block', fontWeight: 400, color: '#5a6778' }}>
+                <span className="small" style={{ display: 'block', fontWeight: 400, color: 'var(--muted)' }}>
                   ₹499/mo
                 </span>
               </th>
@@ -132,14 +132,14 @@ export default function PlanFeatureComparison() {
             {ROWS.map((row, i) => (
               <tr
                 key={row.feature}
-                style={{ background: i % 2 === 0 ? '#ffffff' : '#fafcfe' }}
+                style={{ background: i % 2 === 0 ? 'var(--card)' : 'var(--surface-alt)' }}
               >
                 <th
                   scope="row"
                   style={{
                     padding: '10px 12px',
                     fontWeight: 500,
-                    color: '#1a3a5c',
+                    color: 'var(--primary)',
                     textAlign: 'left',
                   }}
                 >
@@ -153,7 +153,7 @@ export default function PlanFeatureComparison() {
         </table>
       </div>
 
-      <p className="small" style={{ color: '#5a6778', marginTop: 12 }}>
+      <p className="small" style={{ color: 'var(--muted)', marginTop: 12 }}>
         Prices shown ex-GST. Indian customers are billed an additional 18% GST at checkout.
       </p>
     </section>
@@ -172,13 +172,13 @@ export function MicroPaymentExplainer() {
       aria-labelledby="micro-pay-title"
       style={{
         background: 'linear-gradient(180deg, #fff7e6 0%, #ffffff 100%)',
-        borderLeft: '4px solid #d68900',
+        borderLeft: '4px solid var(--warning)',
       }}
     >
-      <h2 id="micro-pay-title" style={{ marginTop: 0, color: '#1a3a5c' }}>
-        What does <span style={{ color: '#d68900' }}>₹49</span> get you?
+      <h2 id="micro-pay-title" style={{ marginTop: 0, color: 'var(--primary)' }}>
+        What does <span style={{ color: 'var(--warning)' }}>₹49</span> get you?
       </h2>
-      <p className="small" style={{ color: '#5a6778', marginTop: 4, marginBottom: 12 }}>
+      <p className="small" style={{ color: 'var(--muted)', marginTop: 4, marginBottom: 12 }}>
         Don't want a monthly plan? Free users can pay <strong>₹49 per export</strong>{' '}
         whenever they need a finished PDF — no subscription, no auto-renewal.
       </p>
@@ -210,18 +210,18 @@ export function MicroPaymentExplainer() {
           },
         ].map((b) => (
           <li key={b.label} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-            <span aria-hidden="true" style={{ color: '#d68900', fontWeight: 700, lineHeight: 1.4 }}>
+            <span aria-hidden="true" style={{ color: 'var(--warning)', fontWeight: 700, lineHeight: 1.4 }}>
               ✓
             </span>
             <span style={{ flex: 1, lineHeight: 1.4 }}>
-              <strong style={{ color: '#1a3a5c' }}>{b.label}</strong>
-              <span className="small" style={{ color: '#5a6778' }}> — {b.details}</span>
+              <strong style={{ color: 'var(--primary)' }}>{b.label}</strong>
+              <span className="small" style={{ color: 'var(--muted)' }}> — {b.details}</span>
             </span>
           </li>
         ))}
       </ul>
 
-      <p className="small" style={{ color: '#5a6778', marginTop: 8 }}>
+      <p className="small" style={{ color: 'var(--muted)', marginTop: 8 }}>
         Want AI everywhere without managing your own key? <strong>Pocket Resume Plus at ₹499/mo</strong>{' '}
         unlocks our AI across every feature — AI critique, JD match, Mentor Mode, and more.
         Prefer free? Add your own AI key in Settings and every AI feature is free. Downloads

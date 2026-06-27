@@ -134,7 +134,7 @@ export default function MentorChatClient() {
           Mentor Chat{' '}
           <span className="plan-badge plan-badge--pro" style={{ fontSize: 11 }}>AI</span>
         </h1>
-        <p className="small" style={{ margin: 0, color: '#5a6778' }}>
+        <p className="small" style={{ margin: 0, color: 'var(--muted)' }}>
           A career mentor that knows your saved resume. Ask about role choices, skill priorities,
           interview strategy, or anything career-adjacent. Replies stay short and concrete —
           no fluff.
@@ -145,12 +145,12 @@ export default function MentorChatClient() {
         <section
           className="card col-12"
           style={{
-            background: 'linear-gradient(180deg, #eef5ff 0%, #ffffff 100%)',
-            borderLeft: '4px solid #1a3a5c',
+            background: 'linear-gradient(180deg, var(--surface) 0%, var(--card) 100%)',
+            borderLeft: '4px solid var(--primary)',
           }}
         >
           <h2 style={{ marginTop: 0 }}>Use AI for Mentor Chat</h2>
-          <p className="small" style={{ color: '#3a4655', lineHeight: 1.6, marginBottom: 12 }}>
+          <p className="small" style={{ color: 'var(--ink)', lineHeight: 1.6, marginBottom: 12 }}>
             Add your own AI key in Settings (free) to use this now — or get Pocket Resume Plus
             (₹499/mo) for our AI across every feature, with no per-download AI fee. Cancel anytime.
           </p>
@@ -165,7 +165,7 @@ export default function MentorChatClient() {
         <div ref={transcriptRef} className="mentor-chat-transcript" aria-live="polite">
           {messages.length === 0 ? (
             <div className="mentor-chat-empty">
-              <p style={{ margin: 0, color: '#5a6778' }}>Start with one of these, or type your own:</p>
+              <p style={{ margin: 0, color: 'var(--muted)' }}>Start with one of these, or type your own:</p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
                 {STARTER_PROMPTS.map((p) => (
                   <button
@@ -192,7 +192,7 @@ export default function MentorChatClient() {
           {busy ? (
             <div className="mentor-chat-bubble mentor-chat-bubble--assistant" aria-label="Mentor is thinking">
               <span className="mentor-chat-role">Mentor</span>
-              <span className="mentor-chat-content" style={{ fontStyle: 'italic', color: '#5a6778' }}>
+              <span className="mentor-chat-content" style={{ fontStyle: 'italic', color: 'var(--muted)' }}>
                 thinking…
               </span>
             </div>
@@ -227,7 +227,7 @@ export default function MentorChatClient() {
                 Restart conversation
               </button>
             ) : null}
-            <span className="small" style={{ color: '#7a8a99', marginLeft: 'auto' }}>
+            <span className="small" style={{ color: 'var(--muted)', marginLeft: 'auto' }}>
               ⏎ to send · Shift+⏎ for newline
             </span>
           </div>

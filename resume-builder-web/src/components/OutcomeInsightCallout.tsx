@@ -70,7 +70,7 @@ export default function OutcomeInsightCallout({
         borderLeft: '4px solid #1e7a3a',
       }}
     >
-      <p className="small" style={{ margin: '0 0 8px', color: '#3a4655', fontWeight: 600 }}>
+      <p className="small" style={{ margin: '0 0 8px', color: 'var(--ink)', fontWeight: 600 }}>
         {LEAD[context]}
       </p>
       <div style={{ display: 'flex', gap: 28, flexWrap: 'wrap', alignItems: 'flex-end' }}>
@@ -85,7 +85,7 @@ export default function OutcomeInsightCallout({
           title={`${baseline.label || 'Baseline'} (${baseline.applied} application${baseline.applied === 1 ? '' : 's'})`}
           value={pct(baseline.responseRate)}
           suffix="% replies"
-          valueStyle={{ color: '#5a6778' }}
+          valueStyle={{ color: 'var(--muted)' }}
         />
         {report.lift.multiplier && report.lift.multiplier > 1 ? (
           <TkxTag colorScheme="success" variant="subtle">
@@ -93,9 +93,9 @@ export default function OutcomeInsightCallout({
           </TkxTag>
         ) : null}
       </div>
-      <p className="small" style={{ margin: '10px 0 0', color: '#5a6778' }}>
+      <p className="small" style={{ margin: '10px 0 0', color: 'var(--muted)' }}>
         {report.lift.headline}{' '}
-        <Link href={`/resume/outcomes?id=${encodeURIComponent(resumeId!)}`} style={{ color: '#1a3a5c' }}>
+        <Link href={`/resume/outcomes?id=${encodeURIComponent(resumeId!)}`} style={{ color: 'var(--primary)' }}>
           Full breakdown →
         </Link>
       </p>

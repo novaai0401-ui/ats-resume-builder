@@ -58,10 +58,10 @@ export default function ResumeAtsClient() {
         <div className="editor-header">
           <div>
             <h2>ATS Review</h2>
-            <p className="small" style={{ margin: '4px 0 4px', color: '#1b2b3c', fontWeight: 600 }}>
+            <p className="small" style={{ margin: '4px 0 4px', color: 'var(--ink)', fontWeight: 600 }}>
               Will an ATS <em>parse</em> your resume correctly?
             </p>
-            <p className="small" style={{ margin: 0, color: '#5a6778' }}>
+            <p className="small" style={{ margin: 0, color: 'var(--muted)' }}>
               Checks format, structure, headings, dates, action verbs. JD is <em>optional</em> here — the score works without it.
             </p>
             <p
@@ -69,17 +69,17 @@ export default function ResumeAtsClient() {
               style={{
                 margin: '10px 0 0',
                 padding: '8px 12px',
-                background: '#f0f7ff',
-                border: '1px solid #c4d5e6',
-                borderRadius: 8,
-                color: '#1a3a5c',
+                background: 'var(--surface-alt)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius)',
+                color: 'var(--primary)',
                 lineHeight: 1.5,
               }}
             >
               <strong>Three different scans, one purpose each:</strong><br />
               <strong>ATS Score / Re-run ATS (this page)</strong> — does an ATS <em>parse</em> your resume cleanly? Format, dates, headings, action verbs.<br />
               <strong>AI Critique (in the editor)</strong> — section-by-section rewrite suggestions powered by AI on paid plans, rule-based on Free.<br />
-              <strong><a href="/jd-match" style={{ color: '#1a3a5c' }}>JD Match</a></strong> — paste a specific JD, see which of its keywords your resume covers.
+              <strong><a href="/jd-match" style={{ color: 'var(--primary)' }}>JD Match</a></strong> — paste a specific JD, see which of its keywords your resume covers.
             </p>
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

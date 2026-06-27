@@ -103,8 +103,8 @@ export function PlanBenefitsCard({ defaultPlan }: { defaultPlan?: Plan } = {}) {
     <section
       className="card"
       style={{
-        background: isFree ? '#f7f9fc' : 'linear-gradient(180deg, #f3fbf6 0%, #ffffff 100%)',
-        borderLeft: isFree ? '4px solid #c4d5e0' : '4px solid #1e7a3a',
+        background: isFree ? 'var(--surface-alt)' : 'linear-gradient(180deg, #f3fbf6 0%, #ffffff 100%)',
+        borderLeft: isFree ? '4px solid var(--border)' : '4px solid var(--success)',
         marginBottom: 18,
       }}
       aria-label="Plan benefits"
@@ -125,17 +125,17 @@ export function PlanBenefitsCard({ defaultPlan }: { defaultPlan?: Plan } = {}) {
       <ul style={{ margin: '12px 0 0', paddingLeft: 0, listStyle: 'none', display: 'grid', gap: 8 }}>
         {benefits.map((b) => (
           <li key={b.label} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-            <span aria-hidden="true" style={{ color: '#1e7a3a', fontWeight: 700, lineHeight: 1.4 }}>✓</span>
+            <span aria-hidden="true" style={{ color: 'var(--success)', fontWeight: 700, lineHeight: 1.4 }}>✓</span>
             <span style={{ flex: 1, lineHeight: 1.4 }}>
-              <strong style={{ color: '#1a3a5c' }}>{b.label}</strong>
-              {b.details ? <span className="small" style={{ color: '#5a6778' }}> — {b.details}</span> : null}
+              <strong style={{ color: 'var(--primary)' }}>{b.label}</strong>
+              {b.details ? <span className="small" style={{ color: 'var(--muted)' }}> — {b.details}</span> : null}
             </span>
           </li>
         ))}
       </ul>
 
       {isFree ? (
-        <p className="small" style={{ marginTop: 14, color: '#5a6778' }}>
+        <p className="small" style={{ marginTop: 14, color: 'var(--muted)' }}>
           Pocket Resume stays free forever for the basics. Add your own AI key to use every
           AI feature for free, or get Pocket Resume Plus for our AI everywhere — AI critique,
           tech-gap analysis, and Mentor Mode — at ₹499/mo, cancel anytime.

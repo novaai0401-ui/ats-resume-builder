@@ -51,13 +51,13 @@ export default function TrainingConsentCard() {
   return (
     <section className="card">
       <h2 style={{ marginTop: 0 }}>Help improve resume parsing</h2>
-      <p className="small" style={{ color: '#5a6778' }}>
+      <p className="small" style={{ color: 'var(--muted)' }}>
         We learn from patterns and structure only. Names, emails, phone numbers,
         and links are stripped before anything is saved for training.
       </p>
 
       <div style={rowStyle}>
-        <span style={{ fontSize: 14, color: '#1b2b3c' }}>
+        <span style={{ fontSize: 14, color: 'var(--ink)' }}>
           {state.enabled ? 'Currently sharing patterns' : 'Not sharing'}
         </span>
         <button
@@ -68,7 +68,7 @@ export default function TrainingConsentCard() {
           aria-label="Toggle training participation"
           style={{
             ...trackStyle,
-            background: state.enabled ? '#1a3a5c' : '#cbd5e1',
+            background: state.enabled ? 'var(--primary)' : 'var(--border)',
             opacity: busy ? 0.6 : 1,
             cursor: busy ? 'default' : 'pointer',
           }}
@@ -93,7 +93,7 @@ export default function TrainingConsentCard() {
             padding: 0,
             fontSize: 14,
             fontWeight: 600,
-            color: '#c0392b',
+            color: 'var(--danger)',
             cursor: busy ? 'default' : 'pointer',
             opacity: busy ? 0.6 : 1,
           }}
@@ -101,7 +101,7 @@ export default function TrainingConsentCard() {
           Delete all my training samples
         </button>
         {purgeResult && (
-          <p className="small" style={{ marginTop: 8, color: '#5a6778' }}>{purgeResult}</p>
+          <p className="small" style={{ marginTop: 8, color: 'var(--muted)' }}>{purgeResult}</p>
         )}
       </div>
     </section>
@@ -132,7 +132,7 @@ const knobStyle: React.CSSProperties = {
   width: 20,
   height: 20,
   borderRadius: '50%',
-  background: '#ffffff',
+  background: 'var(--card)',
   boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
   transition: 'transform 0.15s ease',
 };
@@ -140,5 +140,5 @@ const knobStyle: React.CSSProperties = {
 const dividerStyle: React.CSSProperties = {
   marginTop: 16,
   paddingTop: 16,
-  borderTop: '1px solid #e6ebf1',
+  borderTop: '1px solid var(--border)',
 };

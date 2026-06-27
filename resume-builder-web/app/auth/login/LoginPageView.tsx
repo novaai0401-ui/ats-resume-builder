@@ -12,7 +12,7 @@ import {
   EMAIL_INVALID_MESSAGE,
   normalizeE164FromPayload,
 } from 'resume-builder-shared';
-import { TkxPhoneInput } from 'tekivex-ui';
+import { TkxPhoneInput, TkxButton } from 'tekivex-ui';
 import { PrivacyBadge } from '@/src/components/PrivacyBadge';
 import { LinkedInSignInButton } from '@/src/components/LinkedInSignInButton';
 import { readPendingReferralCode, storePendingReferralCode } from '@/src/lib/referral';
@@ -127,7 +127,7 @@ export function LoginPageView({ apiClient = api, routerOverride, defaultMode = '
     <main className="grid">
       <section className="card col-5">
         <h2 style={{ marginBottom: 4 }}>{mode === 'login' ? 'Sign In' : 'Create Account'}</h2>
-        <p className="small" style={{ marginBottom: 16, color: 'var(--fg-muted, #666)' }}>
+        <p className="small" style={{ marginBottom: 16, color: 'var(--muted)' }}>
           {mode === 'login'
             ? 'Sign in with your email and password.'
             : 'Get started with your free account.'}
@@ -166,7 +166,7 @@ export function LoginPageView({ apiClient = api, routerOverride, defaultMode = '
                 required
                 minLength={8}
               />
-              <button className="btn" type="submit" disabled={loading}>{loading ? 'Signing in…' : 'Sign In'}</button>
+              <TkxButton variant="solid" colorScheme="primary" type="submit" isFullWidth isLoading={loading} disabled={loading}>{loading ? 'Signing in…' : 'Sign In'}</TkxButton>
               <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: '0.85rem' }}>
                 <Link href="/auth/forgot-password" className="auth-forgot-link">Forgot password?</Link>
               </div>
@@ -229,12 +229,12 @@ export function LoginPageView({ apiClient = api, routerOverride, defaultMode = '
                 required
                 minLength={MIN_PASSWORD_LENGTH}
               />
-              <button className="btn" type="submit" disabled={loading}>{loading ? 'Creating account...' : 'Create Account'}</button>
+              <TkxButton variant="solid" colorScheme="primary" type="submit" isFullWidth isLoading={loading} disabled={loading}>{loading ? 'Creating account...' : 'Create Account'}</TkxButton>
               <LinkedInSignInButton />
             </form>
           )}
 
-          {status ? <p className="small" style={{ color: '#1e5b35' }}>{status}</p> : null}
+          {status ? <p className="small" style={{ color: 'var(--success)' }}>{status}</p> : null}
           {error ? (
             <div className="alert alert-error" role="alert" aria-live="assertive">
               {error}
