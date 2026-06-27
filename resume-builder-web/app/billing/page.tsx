@@ -184,18 +184,30 @@ export default function BillingPage() {
         )}
       </section>
 
-      <section className="card col-12">
-        <h3 style={{ marginTop: 0, color: '#1a3a5c' }}>Prefer to use your own AI key? It&rsquo;s free.</h3>
-        <p className="small" style={{ maxWidth: 680 }}>
-          Add your own AI key (Groq, OpenAI or Anthropic) in Settings and every AI feature runs on
-          your key at no charge from us. Your key is stored only on your device and is sent only to
-          make the single call you requested. You still pay just ₹49 per resume download.
-        </p>
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 8 }}>
-          <Link className="btn ghost" href="/settings">Add your AI key</Link>
-          <button className="btn ghost" onClick={() => router.push('/dashboard')}>Back to Dashboard</button>
-        </div>
-      </section>
+      {!planActive ? (
+        <section className="card col-12">
+          <h3 style={{ marginTop: 0, color: '#1a3a5c' }}>Prefer to use your own AI key? It&rsquo;s free.</h3>
+          <p className="small" style={{ maxWidth: 680 }}>
+            Add your own AI key (Groq, OpenAI or Anthropic) in Settings and every AI feature runs on
+            your key at no charge from us. Your key is stored only on your device and is sent only to
+            make the single call you requested. You still pay just ₹49 per resume download.
+          </p>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 8 }}>
+            <Link className="btn ghost" href="/settings">Add your AI key</Link>
+            <button className="btn ghost" onClick={() => router.push('/dashboard')}>Back to Dashboard</button>
+          </div>
+        </section>
+      ) : (
+        <section className="card col-12">
+          <p className="small" style={{ margin: 0 }}>
+            You’re on Pocket Resume Plus — our AI is unlocked across every feature, with no
+            per-download AI fee. Downloads are free on your plan.
+          </p>
+          <div style={{ marginTop: 10 }}>
+            <button className="btn ghost" onClick={() => router.push('/dashboard')}>Back to Dashboard</button>
+          </div>
+        </section>
+      )}
     </main>
   );
 }

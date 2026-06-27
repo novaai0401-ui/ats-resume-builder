@@ -328,10 +328,16 @@ function SahaayakWorkspace({ profile, onProfileChange }: { profile: SahaayakProf
       </div>
 
       <footer style={{ marginTop: 18, textAlign: 'center', fontSize: 13, color: 'var(--muted, #888)' }}>
-        In crisis? Reach a person now:{' '}
-        <a href="tel:+919152987821">iCall +91 9152987821</a> ·{' '}
-        <a href="tel:18602662345">Vandrevala 1860-2662-345</a> ·{' '}
-        <a href="https://findahelpline.com" target="_blank" rel="noreferrer">findahelpline.com</a>
+        <div>
+          In crisis? Reach a trained counsellor now:{' '}
+          <a href="tel:+919152987821">iCall +91 9152987821</a> ·{' '}
+          <a href="tel:18602662345">Vandrevala 1860-2662-345</a> ·{' '}
+          <a href="https://findahelpline.com" target="_blank" rel="noreferrer">findahelpline.com</a>
+        </div>
+        <div style={{ marginTop: 6 }}>
+          Questions or feedback about Pocket Resume?{' '}
+          <a href="mailto:novaai0401@gmail.com">novaai0401@gmail.com</a>
+        </div>
       </footer>
     </main>
   );
@@ -417,6 +423,10 @@ function EventSidebar({ events, onChanged }: { events: SahaayakEvent[]; onChange
     <TkxCard>
       <TkxCardHeader><strong>Log an event</strong></TkxCardHeader>
       <TkxCardBody>
+        <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--muted)', lineHeight: 1.5 }}>
+          Note a career moment — a rejection, interview, or offer. It feeds your Outcome timeline so
+          you (and Sahaayak) can see patterns over time. Optional and private.
+        </p>
         <label style={labelStyle}>Kind</label>
         <select value={kind} onChange={(e) => setKind(e.target.value)} style={inputStyle}>
           {EVENT_KINDS.map((k) => <option key={k.kind} value={k.kind}>{k.label}</option>)}
