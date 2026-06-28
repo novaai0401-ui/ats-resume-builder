@@ -1059,8 +1059,18 @@ export class ResumeService {
     }
 
     try {
+      // ADDITIVE PRE-PASS (does nothing unless a tabular header is present):
+      // Word/DOCX resumes often put the whole job header on ONE tab/2+space
+      // separated line — "Company, City \t Role \t Date". Collapsing
+      // whitespace later destroys those column boundaries, so we split such
+      // lines (inside the experience section only) into the canonical
+      // Role / Company (Location) / (Date) shape the parser already handles.
+      // Non-matching lines pass through byte-for-byte → zero impact on the
+      // formats that already extract correctly.
+      const preprocessed = splitTabularExperienceHeaders(trimmed);
+
       // Primary extraction over the fully normalized text.
-      const primary = this.buildStructuredResume(normalizeUploadText(trimmed), options?.title);
+      const primary = this.buildStructuredResume(normalizeUploadText(preprocessed), options?.title);
 
       // SELF-HEALING: if the cross-check between the raw resume text and the
       // structured result fails, re-run extraction internally over an
@@ -1072,7 +1082,7 @@ export class ResumeService {
       let alt: typeof primary | null = null;
       if (!primary.verification.ok) {
         try {
-          alt = this.buildStructuredResume(trimmed, options?.title);
+          alt = this.buildStructuredResume(preprocessed, options?.title);
         } catch {
           // Alternative pass failed (e.g. its sanitized payload didn't
           // validate) — keep the primary result.
@@ -2985,6 +2995,79 @@ function normalizeText(text: string) {
 }
 
 const LEGACY_BULLET_PREFIX_RE = /^\s*(?:[-*•·]+|\d{1,3}[.)]|[a-z][.)])?\s*(impact|achievement|result|highlights?|accomplishment)s?:\s*/i;
+
+// ── Tabular experience-header splitter (ADDITIVE) ───────────────────────
+// Recognises the "Company, City <gap> Role <gap> Date" single-line job
+// header common in Word/DOCX resumes, where columns are separated by tabs
+// or runs of 2+ spaces. Such a line is rewritten into the three-line
+// canonical shape the parser already extracts correctly:
+//     Role
+//     Company (Location)
+//     (Date range)
+// Anything that does not strictly match passes through unchanged.
+
+const EXP_SECTION_START_RE = /^(?:work\s+|professional\s+|employment\s+|relevant\s+)?(?:experience|employment(?:\s+history)?|work\s+history|career\s+(?:history|summary))\s*:?\s*$/i;
+// Other top-level section headings that END the experience region.
+const NON_EXP_SECTION_RE = /^(?:education|academics?|skills?|technical\s+skills?|projects?|certifications?|achievements?|awards?|summary|profile|objective|languages?|interests?|hobbies|references?|publications?|personal\s+details?)\s*:?\s*$/i;
+// A trailing segment that reads like a date / date-range.
+const TABULAR_DATE_SEG_RE = /(?:\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s*'?\d{2,4}|\b(?:19|20)\d{2}\b|'\d{2}\b|present|till\s*date|current|ongoing|to\s*date)/i;
+
+function normalizeTabularDateSegment(seg: string): string {
+  let s = seg.trim();
+  // "Jan'21" / "Dec' 22" → "Jan 2021"; '99 → 1999, '05 → 2005.
+  s = s.replace(/'\s*(\d{2})\b/g, (_m, yy) => {
+    const n = parseInt(yy, 10);
+    return ` ${n <= 40 ? 2000 + n : 1900 + n}`;
+  });
+  s = s.replace(/\b(till\s*date|to\s*date|present|current|ongoing)\b/gi, 'Present');
+  return s.replace(/\s{2,}/g, ' ').trim();
+}
+
+function looksLikeTabularRole(seg: string): boolean {
+  const s = seg.trim();
+  if (!s || s.length > 60) return false;
+  if (/[.;]$/.test(s)) return false; // sentences/bullets end with punctuation
+  const words = s.split(/\s+/);
+  if (words.length > 8) return false;
+  return /\b(manager|lead|director|engineer|developer|analyst|consultant|architect|designer|specialist|officer|head|associate|intern|administrator|executive|president|vp|avp|scientist|coordinator|strategist|owner|principal|trainee)\b/i.test(s)
+    || /^[A-Z][A-Za-z.&/ -]+$/.test(s); // or a short Title-case phrase
+}
+
+function formatTabularCompany(seg: string): string {
+  const s = seg.trim().replace(/\s{2,}/g, ' ');
+  // "Ernst and Young LLP, Pune" → "Ernst and Young LLP (Pune)" when the
+  // tail after the last comma is a 1-2 word location.
+  const m = s.match(/^(.*),\s*([A-Z][A-Za-z.]+(?:\s+[A-Z][A-Za-z.]+)?)$/);
+  if (m && m[1].length >= 2) {
+    return `${m[1].trim()} (${m[2].trim()})`;
+  }
+  return s;
+}
+
+export function splitTabularExperienceHeaders(rawText: string): string {
+  if (!rawText || (!rawText.includes('\t') && !/ {2,}/.test(rawText))) return rawText;
+  const lines = rawText.split('\n');
+  const out: string[] = [];
+  let inExp = false;
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (EXP_SECTION_START_RE.test(trimmed)) { inExp = true; out.push(line); continue; }
+    if (inExp && NON_EXP_SECTION_RE.test(trimmed)) { inExp = false; out.push(line); continue; }
+
+    if (inExp && !/^\s*[-*•·]/.test(line)) {
+      const segs = line.split(/\t+| {2,}/).map((s) => s.trim()).filter(Boolean);
+      if (segs.length === 3 && TABULAR_DATE_SEG_RE.test(segs[2]) && !TABULAR_DATE_SEG_RE.test(segs[0])
+        && looksLikeTabularRole(segs[1]) && /[A-Za-z]/.test(segs[0]) && segs[0].length >= 2) {
+        out.push(segs[1]);                              // Role
+        out.push(formatTabularCompany(segs[0]));        // Company (Location)
+        out.push(`(${normalizeTabularDateSegment(segs[2])})`); // (Date range)
+        continue;
+      }
+    }
+    out.push(line);
+  }
+  return out.join('\n');
+}
 
 export function normalizeUploadText(text: string) {
   // Security: sanitize extracted text to prevent XSS and injection

@@ -350,7 +350,11 @@ function mapSkills(sections: Record<string, string[]>) {
   const tokens = lines
     .flatMap((line) => {
       // Remove common leading labels like "Skills:", "Technical Skills:", etc.
+      // Additive: also strip category sub-labels that resumes prefix to a
+      // skill group ("Frontend: HTML, CSS", "Databases: MySQL") so the first
+      // token doesn't become "Frontend: HTML".
       const cleaned = line.replace(/^(?:skills?|technical\s+skills?|soft\s+skills?|core\s+skills?|key\s+skills?|technologies)\s*:?\s*/i, '')
+        .replace(/^(?:frontend|front-end|backend|back-end|full[\s-]?stack|languages?|frameworks?|libraries|library|databases?|tools?|cloud|devops|testing|platforms?|methodologies|technologies|programming(?:\s+languages?)?|web|mobile|design|analytics|ml\/?ai|ai\/?ml)\s*:\s*/i, '')
         .replace(/^[-*\u2022\u25e6\u25aa\u25cf\u25cb]\s*/, '');
       if (mostAreSingleItems) {
         const parts = cleaned.split(/,|;|\|/);
