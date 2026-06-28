@@ -9,6 +9,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { TkxButton } from 'tekivex-ui';
 import { api, type JobOpening } from '@/src/lib/api';
 import { openingToJobInput } from '@/src/lib/job-utils';
 
@@ -61,7 +62,7 @@ export default function LiveOpeningsPanel({ onTracked }: { onTracked: () => void
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
         <input className="input" placeholder="Role or skill, e.g. React Engineer" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && search()} style={{ flex: '1 1 220px' }} />
         <input className="input" placeholder="Location (optional)" value={location} onChange={(e) => setLocation(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && search()} style={{ flex: '1 1 160px' }} />
-        <button className="btn primary" onClick={search} disabled={loading}>{loading ? 'Searching…' : 'Search'}</button>
+        <TkxButton variant="solid" colorScheme="primary" onClick={search} disabled={loading}>{loading ? 'Searching…' : 'Search'}</TkxButton>
       </div>
 
       {paywall && (
@@ -70,7 +71,7 @@ export default function LiveOpeningsPanel({ onTracked }: { onTracked: () => void
           <Link href="/billing">Pocket Resume Plus (₹499/mo)</Link> for our AI across every feature.
         </div>
       )}
-      {error && <p className="muted" style={{ color: '#a8412c', fontSize: 13 }}>{error}</p>}
+      {error && <p className="muted" style={{ color: 'var(--danger)', fontSize: 13 }}>{error}</p>}
 
       {openings && openings.length === 0 && !error && (
         <p className="muted" style={{ fontSize: 13 }}>No openings matched. Try a broader role or location.</p>

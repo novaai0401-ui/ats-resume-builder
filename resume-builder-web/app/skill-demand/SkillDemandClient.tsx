@@ -56,7 +56,7 @@ export default function SkillDemandClient() {
           See which of your skills are in demand right now, what to learn next, and which companies are hiring.
         </p>
         {skills.length > 0 ? (
-          <p className="small" style={{ color: '#5a6778' }}>Analyzing {skills.length} skill{skills.length === 1 ? '' : 's'} from your current resume.</p>
+          <p className="small" style={{ color: 'var(--muted)' }}>Analyzing {skills.length} skill{skills.length === 1 ? '' : 's'} from your current resume.</p>
         ) : (
           <p className="small" style={{ color: '#a8412c' }}>No skills on your resume yet. <Link href="/dashboard">Open a resume</Link> first.</p>
         )}
@@ -77,7 +77,7 @@ export default function SkillDemandClient() {
         <>
           <section className="card col-12" style={{ borderLeft: `4px solid ${result.realtime ? '#147a3a' : '#b07906'}` }}>
             <strong>{result.realtime ? '✓ AI-personalized analysis' : 'Curated 2026 snapshot'}</strong>
-            <p className="small" style={{ margin: '4px 0 0', color: '#5a6778' }}>{result.message}</p>
+            <p className="small" style={{ margin: '4px 0 0', color: 'var(--muted)' }}>{result.message}</p>
             {!result.realtime && (
               <Link className="btn secondary" href="/settings" style={{ marginTop: 10 }}>Add your AI key for a tailored analysis</Link>
             )}
@@ -95,12 +95,12 @@ export default function SkillDemandClient() {
           {result.liveOpenings.length > 0 && (
             <section className="card col-12">
               <h3 style={{ marginTop: 0 }}>Live openings for your stack</h3>
-              <p className="small" style={{ color: '#5a6778', marginTop: 0 }}>Real listings, refreshed from the jobs feed.</p>
+              <p className="small" style={{ color: 'var(--muted)', marginTop: 0 }}>Real listings, refreshed from the jobs feed.</p>
               <div style={{ display: 'grid', gap: 8 }}>
                 {result.liveOpenings.map((job, i) => (
                   <a key={i} href={job.url} target="_blank" rel="noreferrer" style={{ display: 'block', padding: 12, border: '1px solid var(--border, #ddd)', borderRadius: 8, textDecoration: 'none' }}>
                     <div style={{ fontWeight: 600 }}>{job.title}</div>
-                    <div className="small" style={{ color: '#5a6778' }}>
+                    <div className="small" style={{ color: 'var(--muted)' }}>
                       {[job.company, job.location, job.salaryText].filter(Boolean).join(' · ')}
                     </div>
                   </a>

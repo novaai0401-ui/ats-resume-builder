@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { TkxCard, TkxButton, TkxBadge, TkxAlert } from 'tekivex-ui';
 import { api, getAccessToken, getCurrentUserEmail } from '@/src/lib/api';
 
 /**
@@ -34,6 +35,7 @@ function loadScript(src: string): Promise<void> {
 export default function BillingPage() {
   const router = useRouter();
   const [plan, setPlan] = useState<string>('FREE');
+  const [razorpayConfigured, setRazorpayConfigured] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -44,7 +46,9 @@ export default function BillingPage() {
       router.push('/auth/login');
       return;
     }
-    api.getBillingStatus().then((s) => setPlan(s.plan)).catch(() => undefined);
+    api.getBillingStatus()
+      .then((s) => { setPlan(s.plan); setRazorpayConfigured(Boolean(s.razorpayConfigured)); })
+      .catch(() => undefined);
   }, [router]);
 
   const planActive = plan && plan !== 'FREE';
@@ -99,75 +103,137 @@ export default function BillingPage() {
     }
   }
 
+  async function handleCancel() {
+    setBusy(true);
+    setError('');
+    setNotice('');
+    try {
+      const res = await api.directDowngrade();
+      setPlan(res.plan);
+      setNotice('Your plan was cancelled. You’re back on Free — downloads are ₹49 and AI uses your key or the ₹20 per-download option.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Could not cancel the plan.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const featureLi = (text: React.ReactNode) => (
+    <li style={{ display: 'flex', gap: 9, alignItems: 'flex-start', lineHeight: 1.5 }}>
+      <span aria-hidden style={{ color: 'var(--success)', fontWeight: 800, marginTop: 1 }}>✓</span>
+      <span style={{ color: 'var(--ink)' }}>{text}</span>
+    </li>
+  );
+
   return (
-    <main className="grid">
-      <section className="card col-12">
-        <h2 style={{ marginTop: 0 }}>Simple, honest pricing</h2>
-        <p className="small" style={{ maxWidth: 680 }}>
-          Build and ATS-check resumes for free. Pay ₹49 only when you download a finished resume.
-          Use AI for free with your own key, or get one plan — <strong>₹499/mo</strong> — for our AI
-          everywhere.
+    <main style={{ maxWidth: 1100, margin: '0 auto', padding: '8px 4px 40px' }}>
+      <header style={{ textAlign: 'center', maxWidth: 660, margin: '8px auto 24px' }}>
+        <h1 style={{ margin: '0 0 8px', fontSize: 32, letterSpacing: '-0.02em' }}>Simple, honest pricing</h1>
+        <p style={{ margin: 0, color: 'var(--muted)', fontSize: 16, lineHeight: 1.6 }}>
+          Build and ATS-check resumes for free. Pay <strong>₹49</strong> only when you download a
+          finished resume. Use AI free with your own key — or get one plan,{' '}
+          <strong>₹499/mo</strong>, for our AI everywhere.
         </p>
-        {notice ? <p className="hint" style={{ color: '#1e7a3a' }}>{notice}</p> : null}
-        {error ? <p className="hint error">{error}</p> : null}
-      </section>
+      </header>
 
-      <section className="card col-4">
-        <h3 style={{ marginTop: 0, color: '#1a3a5c' }}>Build for free</h3>
-        <ul className="small" style={{ paddingLeft: 16, lineHeight: 2, margin: 0 }}>
-          <li>Resume editing &amp; all ATS-safe templates</li>
-          <li>ATS scoring &amp; section guidance</li>
-          <li>JD match &amp; Recruiter-AI screen (rule-based)</li>
-          <li>Public share link with a watermarked PDF</li>
-        </ul>
-      </section>
+      {notice ? <div style={{ marginBottom: 16 }}><TkxAlert variant="success">{notice}</TkxAlert></div> : null}
+      {error ? <div style={{ marginBottom: 16 }}><TkxAlert variant="danger">{error}</TkxAlert></div> : null}
 
-      <section className="card col-4" style={{ borderColor: '#2f5f8f', borderWidth: 2 }}>
-        <h3 style={{ marginTop: 0, color: '#1a3a5c' }}>Pay only to download</h3>
-        <p style={{ fontSize: '1.6rem', fontWeight: 800, color: '#1a3a5c', margin: '6px 0' }}>
-          ₹49 <span className="small" style={{ fontWeight: 400 }}>per download (~$0.99)</span>
-        </p>
-        <ul className="small" style={{ paddingLeft: 16, lineHeight: 2, margin: 0 }}>
-          <li>Clean, watermark-free PDF &amp; Word export</li>
-          <li>One-time charge — no plan, no auto-renewal</li>
-          <li>
-            If our AI improved that resume (and you have no key / plan), a small flat AI fee is added
-            to that one download.
-          </li>
-        </ul>
-      </section>
+      <div style={{ display: 'grid', gap: 18, gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', alignItems: 'stretch' }}>
+        {/* Free */}
+        <TkxCard variant="outlined" padding="lg">
+          <h3 style={{ marginTop: 0, marginBottom: 4 }}>Build for free</h3>
+          <p style={{ fontSize: 30, fontWeight: 800, margin: '4px 0 14px', letterSpacing: '-0.02em' }}>₹0</p>
+          <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 10, fontSize: 14 }}>
+            {featureLi('Resume editing & all ATS-safe templates')}
+            {featureLi('ATS scoring & section guidance')}
+            {featureLi('JD match & Recruiter-AI screen (rule-based)')}
+            {featureLi('Public share link with a watermarked PDF')}
+          </ul>
+        </TkxCard>
 
-      <section className="card col-4" style={{ borderColor: '#1a3a5c', borderWidth: 2, background: 'linear-gradient(180deg, #eef5ff 0%, #ffffff 100%)' }}>
-        <h3 style={{ marginTop: 0, color: '#1a3a5c' }}>Pocket Resume Plus</h3>
-        <p style={{ fontSize: '1.6rem', fontWeight: 800, color: '#1a3a5c', margin: '6px 0' }}>
-          ₹499 <span className="small" style={{ fontWeight: 400 }}>/ month</span>
-        </p>
-        <ul className="small" style={{ paddingLeft: 16, lineHeight: 2, margin: 0 }}>
-          <li>Our AI across <strong>every</strong> feature — Mentor, Interview Prep, Recruiter-AI, Skill-Demand, Cover Letter</li>
-          <li>No per-download AI fee — only the ₹49 download</li>
-          <li>Cancel anytime</li>
-        </ul>
-        {planActive ? (
-          <p className="hint" style={{ color: '#1e7a3a', marginTop: 10 }}>You’re on Plus. ✓</p>
+        {/* Pay per download */}
+        <TkxCard variant="elevated" padding="lg">
+          <h3 style={{ marginTop: 0, marginBottom: 4 }}>Pay only to download</h3>
+          <p style={{ fontSize: 30, fontWeight: 800, margin: '4px 0 14px', letterSpacing: '-0.02em' }}>
+            ₹49 <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--muted)' }}>/ download (~$0.99)</span>
+          </p>
+          <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 10, fontSize: 14 }}>
+            {featureLi('Clean, watermark-free PDF & Word export')}
+            {featureLi('One-time charge — no plan, no auto-renewal')}
+            {featureLi('If our AI improved that resume (no key / plan), a small flat AI fee is added to that one download.')}
+          </ul>
+        </TkxCard>
+
+        {/* Plus */}
+        <TkxCard
+          variant="elevated"
+          padding="lg"
+          style={{
+            position: 'relative',
+            borderColor: 'var(--primary)',
+            boxShadow: 'var(--shadow-lg)',
+            background: 'linear-gradient(180deg, #f3f2ff 0%, #ffffff 60%)',
+          }}
+        >
+          <div style={{ position: 'absolute', top: 14, right: 14 }}>
+            <TkxBadge variant="primary">Most popular</TkxBadge>
+          </div>
+          <h3 style={{ marginTop: 0, marginBottom: 4 }}>Pocket Resume Plus</h3>
+          <p style={{ fontSize: 30, fontWeight: 800, margin: '4px 0 14px', letterSpacing: '-0.02em' }}>
+            ₹499 <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--muted)' }}>/ month</span>
+          </p>
+          <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 16px', display: 'grid', gap: 10, fontSize: 14 }}>
+            {featureLi(<>Our AI across <strong>every</strong> feature — Mentor, Interview Prep, Recruiter-AI, Skill-Demand, Cover Letter</>)}
+            {featureLi('No per-download AI fee — only the ₹49 download')}
+            {featureLi('Cancel anytime')}
+          </ul>
+          {planActive ? (
+            <>
+              <TkxBadge variant="success" style={{ marginBottom: 10 }}>You’re on Plus ✓</TkxBadge>
+              <TkxButton variant="outline" colorScheme="secondary" isFullWidth onClick={handleCancel} isLoading={busy}>
+                Cancel plan (switch to Free)
+              </TkxButton>
+            </>
+          ) : razorpayConfigured === false ? (
+            <p style={{ margin: 0, color: 'var(--warning)', fontSize: 13, lineHeight: 1.5 }}>
+              Online payments aren’t available yet. Meanwhile, add your own AI key in Settings (free)
+              to use every AI feature.
+            </p>
+          ) : (
+            <TkxButton variant="solid" colorScheme="primary" glow isFullWidth onClick={handleSubscribe} isLoading={busy} disabled={razorpayConfigured === null}>
+              Get Plus — ₹499/mo
+            </TkxButton>
+          )}
+        </TkxCard>
+      </div>
+
+      <div style={{ marginTop: 20 }}>
+        {!planActive ? (
+          <TkxCard variant="glass" padding="lg">
+            <h3 style={{ marginTop: 0 }}>Prefer to use your own AI key? It’s free.</h3>
+            <p style={{ color: 'var(--muted)', maxWidth: 680, lineHeight: 1.6 }}>
+              Add your own AI key (Groq, OpenAI or Anthropic) in Settings and every AI feature runs on
+              your key at no charge from us. Your key is stored only on your device and is sent only to
+              make the single call you requested. You still pay just ₹49 per resume download.
+            </p>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 12 }}>
+              <Link href="/settings"><TkxButton variant="outline" colorScheme="primary">Add your AI key</TkxButton></Link>
+              <TkxButton variant="ghost" colorScheme="secondary" onClick={() => router.push('/dashboard')}>Back to Dashboard</TkxButton>
+            </div>
+          </TkxCard>
         ) : (
-          <button className="btn" style={{ marginTop: 10 }} onClick={handleSubscribe} disabled={busy}>
-            {busy ? 'Starting…' : 'Get Plus — ₹499/mo'}
-          </button>
+          <TkxCard variant="glass" padding="lg">
+            <p style={{ margin: 0, color: 'var(--ink)', lineHeight: 1.6 }}>
+              You’re on Pocket Resume Plus — our AI is unlocked across every feature, with no
+              per-download AI fee, and downloads are free on your plan.
+            </p>
+            <div style={{ marginTop: 12 }}>
+              <TkxButton variant="ghost" colorScheme="secondary" onClick={() => router.push('/dashboard')}>Back to Dashboard</TkxButton>
+            </div>
+          </TkxCard>
         )}
-      </section>
-
-      <section className="card col-12">
-        <h3 style={{ marginTop: 0, color: '#1a3a5c' }}>Prefer to use your own AI key? It&rsquo;s free.</h3>
-        <p className="small" style={{ maxWidth: 680 }}>
-          Add your own AI key (Groq, OpenAI or Anthropic) in Settings and every AI feature runs on
-          your key at no charge from us. Your key is stored only on your device and is sent only to
-          make the single call you requested. You still pay just ₹49 per resume download.
-        </p>
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 8 }}>
-          <Link className="btn ghost" href="/settings">Add your AI key</Link>
-          <button className="btn ghost" onClick={() => router.push('/dashboard')}>Back to Dashboard</button>
-        </div>
-      </section>
+      </div>
     </main>
   );
 }

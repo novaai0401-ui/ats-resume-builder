@@ -27,7 +27,7 @@ export default function HubCardGrid({
     <main className="grid">
       <section className="card col-12">
         <h1 style={{ marginBottom: 4 }}>{title}</h1>
-        <p className="small" style={{ margin: 0, color: '#5a6778' }}>{intro}</p>
+        <p className="small" style={{ margin: 0, color: 'var(--muted)' }}>{intro}</p>
       </section>
 
       <section className="col-12" aria-label={`${title} tools`}>
@@ -47,12 +47,12 @@ export default function HubCardGrid({
               aria-label={`${tool.label} — ${tool.blurb}`}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
-                <h2 style={{ margin: 0, fontSize: 17, color: '#1a3a5c' }}>{tool.label}</h2>
+                <h2 style={{ margin: 0, fontSize: 17, color: 'var(--primary)' }}>{tool.label}</h2>
                 {tool.planBadge ? (
                   <span style={badgeStyle(tool.planBadge)}>{tool.planBadge}</span>
                 ) : null}
               </div>
-              <p className="small" style={{ margin: '6px 0 0', color: '#3a4655', lineHeight: 1.5 }}>
+              <p className="small" style={{ margin: '6px 0 0', color: 'var(--ink)', lineHeight: 1.5 }}>
                 {tool.blurb}
               </p>
               <span style={arrowStyle} aria-hidden="true">→</span>
@@ -71,9 +71,9 @@ const cardStyle: React.CSSProperties = {
   color: 'inherit',
   position: 'relative',
   padding: '16px 18px',
-  border: '1px solid #e2e8f0',
-  borderRadius: 12,
-  background: '#ffffff',
+  border: '1px solid var(--border)',
+  borderRadius: 'var(--radius-lg)',
+  background: 'var(--card)',
   transition: 'border-color 120ms ease, transform 120ms ease',
 };
 
@@ -81,12 +81,12 @@ const arrowStyle: React.CSSProperties = {
   position: 'absolute',
   right: 14,
   bottom: 12,
-  color: '#1a3a5c',
+  color: 'var(--primary)',
   fontSize: 18,
 };
 
 function badgeStyle(tier: 'PRO' | 'STUDENT+' | 'Plus' | 'AI'): React.CSSProperties {
-  const bg = tier === 'PRO' || tier === 'Plus' ? '#1a3a5c' : '#1e7a3a';
+  const bg = tier === 'PRO' || tier === 'Plus' ? 'var(--primary)' : '#1e7a3a';
   return {
     display: 'inline-block',
     background: bg,

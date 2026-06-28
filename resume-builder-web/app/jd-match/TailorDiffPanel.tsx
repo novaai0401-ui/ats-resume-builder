@@ -65,11 +65,11 @@ export default function TailorDiffPanel({
     return (
       <section
         className="card col-12"
-        style={{ background: '#fafafa', borderLeft: '4px solid #cbd5e1' }}
+        style={{ background: 'var(--surface-alt)', borderLeft: '4px solid var(--border)' }}
       >
-        <p className="small" style={{ margin: 0, color: '#5a6778' }}>
+        <p className="small" style={{ margin: 0, color: 'var(--muted)' }}>
           Save a resume first to use one-click tailoring.{' '}
-          <Link href="/resume/start" style={{ color: '#1a3a5c' }}>Start a resume →</Link>
+          <Link href="/resume/start" style={{ color: 'var(--primary)' }}>Start a resume →</Link>
         </p>
       </section>
     );
@@ -158,11 +158,11 @@ export default function TailorDiffPanel({
     return (
       <section
         className="card col-12"
-        style={{ background: 'linear-gradient(180deg, #f0fdf4 0%, #ffffff 100%)', borderLeft: '4px solid #1e7a3a' }}
+        style={{ background: 'linear-gradient(180deg, #f0fdf4 0%, #ffffff 100%)', borderLeft: '4px solid var(--success)' }}
         role="status"
       >
-        <h2 style={{ marginTop: 0, color: '#1a3a5c' }}>Tailored version saved</h2>
-        <p className="small" style={{ color: '#3a4655', lineHeight: 1.55, marginBottom: 6 }}>
+        <h2 style={{ marginTop: 0, color: 'var(--primary)' }}>Tailored version saved</h2>
+        <p className="small" style={{ color: 'var(--muted)', lineHeight: 1.55, marginBottom: 6 }}>
           Created <strong>{applied.versionLabel || 'a tailored version'}</strong>.{' '}
           {applied.appliedBullets} bullet{applied.appliedBullets === 1 ? '' : 's'} applied
           {applied.rejectedAsStale > 0
@@ -170,7 +170,7 @@ export default function TailorDiffPanel({
             : ''}
           {applied.appliedToLive ? ' · also written to your live resume.' : '.'}
         </p>
-        <p className="small" style={{ color: '#5a6778', marginBottom: 12 }}>
+        <p className="small" style={{ color: 'var(--muted)', marginBottom: 12 }}>
           When you apply to this job, attach this version in the Jobs tracker — that's
           how Pocket Resume measures which tailoring actually got you replies.
         </p>
@@ -205,12 +205,12 @@ export default function TailorDiffPanel({
       <section
         className="card col-12"
         aria-labelledby="tailor-diff-title"
-        style={{ borderLeft: '4px solid #1a3a5c' }}
+        style={{ borderLeft: '4px solid var(--primary)' }}
       >
         <h2 id="tailor-diff-title" style={{ marginTop: 0 }}>
           Tailored rewrites — {selected} of {total} selected
         </h2>
-        <p className="small" style={{ color: '#5a6778', marginTop: -4 }}>
+        <p className="small" style={{ color: 'var(--muted)', marginTop: -4 }}>
           Pick the changes you want. We'll save them as a NEW version of your resume —
           your live resume stays as it is unless you opt in below.
         </p>
@@ -242,7 +242,7 @@ export default function TailorDiffPanel({
                     checked={acceptedBullets.has(i)}
                     onChange={() => toggleBullet(i)}
                   />
-                  <span className="small" style={{ color: '#5a6778' }}>
+                  <span className="small" style={{ color: 'var(--muted)' }}>
                     Experience #{b.experienceIndex + 1}, bullet #{b.bulletIndex + 1}
                   </span>
                 </label>
@@ -257,7 +257,7 @@ export default function TailorDiffPanel({
             <h3 style={sectionHeadStyle}>
               New skills to add ({acceptedSkills.size}/{proposal.skillsToAdd.length})
             </h3>
-            <p className="small" style={{ color: '#5a6778', marginTop: -4 }}>
+            <p className="small" style={{ color: 'var(--muted)', marginTop: -4 }}>
               Each one is supported by content already in your resume.
             </p>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -270,8 +270,8 @@ export default function TailorDiffPanel({
                     gap: 6,
                     padding: '6px 10px',
                     borderRadius: 6,
-                    border: '1px solid #c4d5e0',
-                    background: acceptedSkills.has(s) ? '#eef5ff' : '#ffffff',
+                    border: '1px solid var(--border)',
+                    background: acceptedSkills.has(s) ? 'var(--surface-alt)' : 'var(--card)',
                     fontSize: 13,
                   }}
                 >
@@ -287,7 +287,7 @@ export default function TailorDiffPanel({
           </div>
         ) : null}
 
-        <div style={{ ...blockStyle, background: '#fafafa' }}>
+        <div style={{ ...blockStyle, background: 'var(--surface-alt)' }}>
           <h3 style={sectionHeadStyle}>Label this version</h3>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <input
@@ -317,7 +317,7 @@ export default function TailorDiffPanel({
               onChange={(e) => setApplyToLive(e.target.checked)}
             />
             Also update my live resume with the accepted changes
-            <span style={{ color: '#5a6778' }}>(default: keep live as-is)</span>
+            <span style={{ color: 'var(--muted)' }}>(default: keep live as-is)</span>
           </label>
         </div>
 
@@ -355,10 +355,10 @@ export default function TailorDiffPanel({
     <OutcomeInsightCallout resumeId={resumeId} context="tailor" />
     <section
       className="card col-12"
-      style={{ background: 'linear-gradient(180deg, #eef5ff 0%, #ffffff 100%)', borderLeft: '4px solid #1a3a5c' }}
+      style={{ background: 'linear-gradient(180deg, var(--surface-alt) 0%, var(--card) 100%)', borderLeft: '4px solid var(--primary)' }}
     >
       <h2 style={{ marginTop: 0 }}>Want this resume tailored for the JD?</h2>
-      <p className="small" style={{ color: '#3a4655', lineHeight: 1.55 }}>
+      <p className="small" style={{ color: 'var(--muted)', lineHeight: 1.55 }}>
         One click. AI proposes per-bullet rewrites you can accept or reject. Saved as a
         new resume version — your live resume stays as it is. (~2,500 AI tokens.)
       </p>
@@ -372,7 +372,7 @@ export default function TailorDiffPanel({
           {loading ? 'Tailoring…' : 'Tailor my resume for this JD'}
         </button>
         {jdText.trim().length < 80 ? (
-          <span className="small" style={{ alignSelf: 'center', color: '#7a8a99' }}>
+          <span className="small" style={{ alignSelf: 'center', color: 'var(--muted)' }}>
             Paste the full JD above to enable tailoring.
           </span>
         ) : null}
@@ -399,14 +399,14 @@ function DiffRow({ before, after }: { before: string; after: string }) {
 const blockStyle: React.CSSProperties = {
   marginTop: 14,
   padding: '12px 14px',
-  background: '#f8fafc',
-  border: '1px solid #e2e8f0',
+  background: 'var(--surface-alt)',
+  border: '1px solid var(--border)',
   borderRadius: 10,
 };
 const sectionHeadStyle: React.CSSProperties = {
   margin: '0 0 6px',
   fontSize: 14,
-  color: '#1a3a5c',
+  color: 'var(--primary)',
 };
 const changeHeaderStyle: React.CSSProperties = {
   display: 'flex',

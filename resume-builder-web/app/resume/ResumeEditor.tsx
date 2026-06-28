@@ -364,12 +364,21 @@ export default function ResumeEditor() {
   const [premiumOptimizing, setPremiumOptimizing] = useState(false);
   const [postDownloadPopup, setPostDownloadPopup] = useState<{ score: number | null } | null>(null);
   const [downloadChargeOpen, setDownloadChargeOpen] = useState(false);
-  // Per the project owner's call (see PLAN.md / monetization docs):
-  // every download is paid. The flag below now defaults to ON so the
-  // Razorpay/Stripe charge modal is always shown before a PDF/DOCX
-  // download. Set NEXT_PUBLIC_ENABLE_DOWNLOAD_CHARGE=false explicitly
-  // to bypass it in dev or for free-trial promos.
-  const downloadChargeEnabled = (process.env.NEXT_PUBLIC_ENABLE_DOWNLOAD_CHARGE || 'true').toLowerCase() !== 'false';
+  // Whether downloads are charged is decided by the SERVER (the API's
+  // ENABLE_DOWNLOAD_CHARGE flag), fetched via /billing/download-charge/config.
+  // We must NOT guess from a NEXT_PUBLIC_* env: if the web thought charging
+  // was on while the API had it off, the charge modal would open and the
+  // API would reject the order init ("Per-download charging is disabled."),
+  // breaking downloads entirely. Default to false until the config resolves
+  // so a mid-load Export never opens a modal the server would reject.
+  const [downloadChargeEnabled, setDownloadChargeEnabled] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    api.getDownloadChargeConfig()
+      .then((cfg) => { if (!cancelled) setDownloadChargeEnabled(Boolean(cfg?.enabled)); })
+      .catch(() => { if (!cancelled) setDownloadChargeEnabled(false); });
+    return () => { cancelled = true; };
+  }, []);
   // The export modal lets the user pick PDF or Word. The same payment
   // (downloadToken) covers either format — they don't pay twice — so
   // we capture the format choice here before opening the charge modal.

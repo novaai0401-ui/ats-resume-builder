@@ -201,7 +201,7 @@ export default function ShareLinksCard() {
       <h2 id="share-links-title" style={{ marginTop: 0 }}>
         Public share links
       </h2>
-      <p className="small" style={{ color: '#5a6778', marginTop: 4 }}>
+      <p className="small" style={{ color: 'var(--muted)', marginTop: 4 }}>
         Turn a saved resume into a public URL you can paste in an outreach email,
         a LinkedIn message, or your bio. Recruiters can view the portfolio and
         download the PDF — no login required. <strong>Strictly opt-in:</strong>{' '}
@@ -245,32 +245,32 @@ export default function ShareLinksCard() {
           </button>
         </div>
         {error ? (
-          <p className="small" role="alert" style={{ color: '#b91c1c', margin: 0 }}>{error}</p>
+          <p className="small" role="alert" style={{ color: 'var(--danger)', margin: 0 }}>{error}</p>
         ) : null}
       </div>
 
       <div style={{ marginTop: 18 }}>
         {links === null ? (
-          <p className="small" style={{ color: '#5a6778' }}>Loading…</p>
+          <p className="small" style={{ color: 'var(--muted)' }}>Loading…</p>
         ) : links.length === 0 ? (
-          <p className="small" style={{ color: '#5a6778' }}>You don't have any share links yet.</p>
+          <p className="small" style={{ color: 'var(--muted)' }}>You don't have any share links yet.</p>
         ) : (
           <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 12 }}>
             {links.map((link) => (
               <li
                 key={link.id}
                 style={{
-                  border: '1px solid #e2e8f0',
+                  border: '1px solid var(--border)',
                   borderRadius: 10,
                   padding: '12px 14px',
-                  background: link.enabled ? '#ffffff' : '#fafafa',
+                  background: link.enabled ? 'var(--card)' : 'var(--surface-alt)',
                   opacity: link.enabled ? 1 : 0.7,
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
                   <code
                     style={{
-                      background: '#f1f5f9',
+                      background: 'var(--surface-alt)',
                       padding: '4px 8px',
                       borderRadius: 6,
                       fontSize: 13,
@@ -296,18 +296,18 @@ export default function ShareLinksCard() {
                       Open
                     </a>
                     {link.enabled ? (
-                      <button className="btn ghost" onClick={() => revoke(link.id)} style={{ ...btnSm, color: '#b91c1c' }}>
+                      <button className="btn ghost" onClick={() => revoke(link.id)} style={{ ...btnSm, color: 'var(--danger)' }}>
                         Revoke
                       </button>
                     ) : (
-                      <span className="small" style={{ alignSelf: 'center', color: '#94a3b8' }}>Revoked</span>
+                      <span className="small" style={{ alignSelf: 'center', color: 'var(--muted)' }}>Revoked</span>
                     )}
                   </div>
                 </div>
                 {link.headline ? (
-                  <p className="small" style={{ margin: '6px 0 0', color: '#475569' }}>{link.headline}</p>
+                  <p className="small" style={{ margin: '6px 0 0', color: 'var(--ink)' }}>{link.headline}</p>
                 ) : null}
-                <p className="small" style={{ margin: '6px 0 0', color: '#5a6778' }}>
+                <p className="small" style={{ margin: '6px 0 0', color: 'var(--muted)' }}>
                   {link.viewCount} view{link.viewCount === 1 ? '' : 's'} ·{' '}
                   {link.downloadCount} download{link.downloadCount === 1 ? '' : 's'}
                   {link.lastVisitedAt
@@ -366,7 +366,7 @@ const toggleStyle: React.CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   gap: 6,
-  color: '#1f2937',
+  color: 'var(--ink)',
 };
 
 /**
@@ -395,9 +395,9 @@ function LinkDetails({
       style={{
         marginTop: 10,
         padding: '10px 12px',
-        background: '#f8fafc',
+        background: 'var(--surface-alt)',
         borderRadius: 8,
-        border: '1px solid #e2e8f0',
+        border: '1px solid var(--border)',
       }}
     >
       <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
@@ -436,7 +436,7 @@ function LinkDetails({
           />
         </label>
       </div>
-      <p className="small" style={{ marginTop: 10, color: '#5a6778' }}>
+      <p className="small" style={{ marginTop: 10, color: 'var(--muted)' }}>
         {link.resumeVersionId
           ? 'This link is pinned to a saved snapshot. Future edits to the resume will NOT change what recruiters see here.'
           : 'This link follows the latest version of your resume. Edits show up immediately.'}
@@ -445,11 +445,11 @@ function LinkDetails({
           : ''}
       </p>
 
-      <h3 style={{ margin: '14px 0 6px', fontSize: 13, color: '#1a3a5c' }}>Visits</h3>
+      <h3 style={{ margin: '14px 0 6px', fontSize: 13, color: 'var(--primary)' }}>Visits</h3>
       {events === null ? (
-        <p className="small" style={{ color: '#5a6778' }}>Loading…</p>
+        <p className="small" style={{ color: 'var(--muted)' }}>Loading…</p>
       ) : events.length === 0 ? (
-        <p className="small" style={{ color: '#5a6778' }}>No visits yet.</p>
+        <p className="small" style={{ color: 'var(--muted)' }}>No visits yet.</p>
       ) : (
         <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 6 }}>
           {events.map((e) => (
@@ -460,17 +460,17 @@ function LinkDetails({
                 gap: 10,
                 alignItems: 'baseline',
                 fontSize: 12,
-                color: '#1f2937',
-                background: '#ffffff',
+                color: 'var(--ink)',
+                background: 'var(--card)',
                 padding: '6px 10px',
                 borderRadius: 6,
-                border: '1px solid #eef2f7',
+                border: '1px solid var(--border)',
               }}
             >
               <span
                 style={{
                   fontWeight: 600,
-                  color: e.kind === 'download' ? '#1e7a3a' : '#1a3a5c',
+                  color: e.kind === 'download' ? 'var(--success)' : 'var(--primary)',
                   minWidth: 70,
                 }}
               >
@@ -479,17 +479,17 @@ function LinkDetails({
               <span style={{ flex: 1 }}>
                 {new Date(e.createdAt).toLocaleString()}
                 {e.country || e.city ? (
-                  <span style={{ color: '#5a6778' }}> · {[e.city, e.country].filter(Boolean).join(', ')}</span>
+                  <span style={{ color: 'var(--muted)' }}> · {[e.city, e.country].filter(Boolean).join(', ')}</span>
                 ) : null}
                 {e.referrer ? (
-                  <span style={{ color: '#5a6778' }}> · from {hostnameOf(e.referrer)}</span>
+                  <span style={{ color: 'var(--muted)' }}> · from {hostnameOf(e.referrer)}</span>
                 ) : null}
               </span>
             </li>
           ))}
         </ul>
       )}
-      <p className="small" style={{ marginTop: 8, color: '#94a3b8', fontSize: 11 }}>
+      <p className="small" style={{ marginTop: 8, color: 'var(--muted)', fontSize: 11 }}>
         We never store the visitor's IP address. Each row above is the most we know.
       </p>
     </div>

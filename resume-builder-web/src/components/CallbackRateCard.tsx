@@ -43,13 +43,13 @@ export function CallbackRateCard({ resumeId }: { resumeId?: string }) {
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
         <div>
-          <div className="small" style={{ textTransform: 'uppercase', letterSpacing: 0.4, color: '#5a6778' }}>
+          <div className="small" style={{ textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--muted)' }}>
             Your callback rate
           </div>
-          <div style={{ fontSize: 40, fontWeight: 800, lineHeight: 1.05, color: '#10243a' }}>
+          <div style={{ fontSize: 40, fontWeight: 800, lineHeight: 1.05, color: 'var(--ink)' }}>
             {loaded ? rate : '…'}
           </div>
-          <div className="small" style={{ color: '#5a6778' }}>
+          <div className="small" style={{ color: 'var(--muted)' }}>
             {hasData
               ? `${overall!.applied} application${overall!.applied === 1 ? '' : 's'} · ${overall!.interviews} interview${overall!.interviews === 1 ? '' : 's'}`
               : 'Track applications against your resume versions to measure what actually works.'}

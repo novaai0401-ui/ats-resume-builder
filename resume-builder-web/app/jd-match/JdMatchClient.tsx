@@ -138,15 +138,15 @@ export default function JdMatchClient() {
     <main className="grid">
       <section className="card col-12">
         <h1 style={{ marginBottom: 4 }}>JD Match Score</h1>
-        <p className="small" style={{ margin: '0 0 6px', color: '#1b2b3c', fontWeight: 600 }}>
+        <p className="small" style={{ margin: '0 0 6px', color: 'var(--ink)', fontWeight: 600 }}>
           Does your resume match <em>this specific job</em>?
         </p>
-        <p className="small" style={{ margin: 0, color: '#5a6778' }}>
+        <p className="small" style={{ margin: 0, color: 'var(--muted)' }}>
           Paste a job description below. We&rsquo;ll compare it against your saved resume and show
           you the keywords you cover, the ones you don&rsquo;t, and three bullets you could add
           to close the gap.{' '}
-          <span style={{ color: '#8a98ac' }}>
-            Different from <a href="/resume/ats" style={{ color: '#1a3a5c' }}>ATS Score</a>, which checks whether your resume <em>format</em> parses cleanly — no JD needed for that.
+          <span style={{ color: 'var(--muted)' }}>
+            Different from <a href="/resume/ats" style={{ color: 'var(--primary)' }}>ATS Score</a>, which checks whether your resume <em>format</em> parses cleanly — no JD needed for that.
           </span>
         </p>
       </section>
@@ -179,12 +179,12 @@ export default function JdMatchClient() {
         <section
           className="card col-12"
           style={{
-            background: 'linear-gradient(180deg, #eef5ff 0%, #ffffff 100%)',
-            borderLeft: '4px solid #1a3a5c',
+            background: 'linear-gradient(180deg, var(--surface-alt) 0%, var(--card) 100%)',
+            borderLeft: '4px solid var(--primary)',
           }}
         >
           <h2 style={{ marginTop: 0 }}>AI JD matching needs AI access</h2>
-          <p className="small" style={{ color: '#3a4655', lineHeight: 1.6 }}>
+          <p className="small" style={{ color: 'var(--muted)', lineHeight: 1.6 }}>
             Add your own AI key in Settings (free), or get the ₹499/mo plan, for AI-tailored
             matching. Without either, a rule-based match score is shown.
           </p>
@@ -208,12 +208,12 @@ export default function JdMatchClient() {
                 <h2 style={{ marginTop: 0, marginBottom: 6 }}>
                   {result.matchPercent >= 70 ? 'Strong match' : result.matchPercent >= 40 ? 'Decent fit, room to grow' : 'Needs targeted edits'}
                 </h2>
-                <p className="small" style={{ margin: 0, color: '#5a6778', lineHeight: 1.55 }}>
+                <p className="small" style={{ margin: 0, color: 'var(--muted)', lineHeight: 1.55 }}>
                   Based on the keywords in this JD, your resume covers{' '}
                   <strong>{result.matchedKeywords.length}</strong> of{' '}
                   <strong>{result.matchedKeywords.length + result.missingKeywords.length}</strong> expected skills.
                   {' '}
-                  <span style={{ color: '#7a8a99' }}>
+                  <span style={{ color: 'var(--muted)' }}>
                     {result.provider === 'groq' ? 'Powered by AI.' : 'Rule-based scoring.'}
                   </span>
                 </p>
@@ -246,7 +246,7 @@ export default function JdMatchClient() {
           {result.bulletSuggestions.length > 0 ? (
             <section className="card col-12">
               <h3 style={{ marginTop: 0 }}>Suggested bullets to add</h3>
-              <p className="small" style={{ color: '#5a6778', marginTop: 0 }}>
+              <p className="small" style={{ color: 'var(--muted)', marginTop: 0 }}>
                 Tap to copy. Paste into the most relevant experience entry on your resume —
                 pick the bullet only if it&rsquo;s factually true for you.
               </p>

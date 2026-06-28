@@ -2,6 +2,7 @@
 import type { Request } from 'express';
 import { CreateCheckoutSessionSchema, type CreateCheckoutSessionDto } from 'resume-builder-shared';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { AdminAuthGuard } from '../auth/admin-auth.guard';
 import { BillingService } from './billing.service';
 import { RazorpayService } from './razorpay.service';
 import { DownloadChargeService } from './download-charge.service';
@@ -21,9 +22,13 @@ export class BillingController {
     return this.billingService.getPlanStatus(req.user.userId, this.razorpayService.isConfigured());
   }
 
-  /** Directly upgrade plan (no Stripe required). For personal/dev use. */
+  /**
+   * Directly set a user's plan with NO payment. ADMIN ONLY — this is an
+   * ops/seed tool, never reachable by ordinary users. Real upgrades must
+   * go through the signature-verified Razorpay flow (verify-payment).
+   */
   @Post('upgrade')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, AdminAuthGuard)
   upgrade(@Req() req: { user: { userId: string } }, @Body() body: CreateCheckoutSessionDto) {
     const parsed = CreateCheckoutSessionSchema.safeParse(body);
     if (!parsed.success) {
@@ -46,9 +51,9 @@ export class BillingController {
     return this.billingService.consumePremiumCredit(req.user.userId, String(body?.feature || 'unknown'));
   }
 
-  /** Add premium credits (admin or purchase callback). */
+  /** Add premium credits with NO payment. ADMIN ONLY (ops/purchase callback). */
   @Post('add-credits')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, AdminAuthGuard)
   addCredits(@Req() req: { user: { userId: string } }, @Body() body: { count: number }) {
     const count = Number(body?.count) || 0;
     if (count <= 0 || count > 100) throw new BadRequestException('Invalid credit count (1-100).');

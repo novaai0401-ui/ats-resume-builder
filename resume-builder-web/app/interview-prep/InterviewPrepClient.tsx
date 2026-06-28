@@ -126,7 +126,7 @@ export default function InterviewPrepClient() {
           Interview Prep Cards{' '}
           <span className="plan-badge plan-badge--pro" style={{ fontSize: 11 }}>AI</span>
         </h1>
-        <p className="small" style={{ margin: 0, color: '#5a6778' }}>
+        <p className="small" style={{ margin: 0, color: 'var(--muted)' }}>
           We&rsquo;ll generate 8 likely interview questions from your saved resume — three
           behavioral, three technical, two role-specific. Each card includes a 3-bullet answer
           outline drawn from your actual experience.
@@ -137,12 +137,12 @@ export default function InterviewPrepClient() {
         <section
           className="card col-12"
           style={{
-            background: 'linear-gradient(180deg, #eef5ff 0%, #ffffff 100%)',
-            borderLeft: '4px solid #1a3a5c',
+            background: 'linear-gradient(180deg, var(--surface) 0%, var(--card) 100%)',
+            borderLeft: '4px solid var(--primary)',
           }}
         >
           <h2 style={{ marginTop: 0 }}>Use AI for Interview Prep</h2>
-          <p className="small" style={{ color: '#3a4655', lineHeight: 1.6, marginBottom: 12 }}>
+          <p className="small" style={{ color: 'var(--ink)', lineHeight: 1.6, marginBottom: 12 }}>
             Add your own AI key in Settings (free) to use this now — or get Pocket Resume Plus
             (₹499/mo) for our AI across every feature, with no per-download AI fee. Cancel anytime.
           </p>
@@ -186,7 +186,7 @@ export default function InterviewPrepClient() {
         </div>
         {error ? <p className="hint error" style={{ marginTop: 10 }}>{error}</p> : null}
         {paywall ? (
-          <p className="small" style={{ marginTop: 10, color: '#5a6778' }}>
+          <p className="small" style={{ marginTop: 10, color: 'var(--muted)' }}>
             <Link href="/settings">Add your AI key</Link> (free) or{' '}
             <Link href="/billing">get Pocket Resume Plus</Link> to use Interview Prep.
           </p>
@@ -197,7 +197,7 @@ export default function InterviewPrepClient() {
         <section className="card col-12">
           <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
             <h2 style={{ margin: 0 }}>{cards.length} prep cards</h2>
-            <span className="small" style={{ color: '#7a8a99' }}>
+            <span className="small" style={{ color: 'var(--muted)' }}>
               {provider === 'groq' ? 'Powered by AI' : 'Rule-based — add an AI key or get Plus for tailored AI cards'}
             </span>
           </header>

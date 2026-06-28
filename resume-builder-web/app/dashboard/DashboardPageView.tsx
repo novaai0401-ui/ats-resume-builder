@@ -310,7 +310,8 @@ export default function DashboardPageView({
 
       <section
         data-testid="dashboard-preview-profile"
-        style={{ border: '1px solid #e5e7eb', borderRadius: 10, padding: 16, background: '#fff', marginBottom: 14 }}
+        className="card"
+        style={{ marginBottom: 14, background: 'linear-gradient(180deg, var(--surface-alt) 0%, var(--card) 70%)' }}
       >
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
           <div>
@@ -520,7 +521,7 @@ export default function DashboardPageView({
       )}
 
       {error && (
-        <p className="small" style={{ marginTop: 12, color: '#b91c1c' }}>
+        <p className="small" style={{ marginTop: 12, color: 'var(--danger)' }}>
           {error}
         </p>
       )}
@@ -532,10 +533,10 @@ export default function DashboardPageView({
           data-testid="drive-consent-modal"
           style={{
             marginTop: 20,
-            border: '1px solid #d1d5db',
+            border: '1px solid var(--border)',
             borderRadius: 12,
             padding: 16,
-            background: '#fafafa',
+            background: 'var(--surface-alt)',
           }}
         >
           <h3 style={{ marginTop: 0 }}>Connect Google Drive?</h3>

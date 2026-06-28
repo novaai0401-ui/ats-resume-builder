@@ -279,7 +279,7 @@ export default function CareerNavigatorClient() {
         </label>
 
         {resumes.length > 0 ? (
-          <div style={{ marginTop: 12, border: '1px solid #e5e7eb', borderRadius: 8, padding: 12 }}>
+          <div style={{ marginTop: 12, border: '1px solid var(--border)', borderRadius: 8, padding: 12 }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
               <input
                 type="checkbox"
@@ -587,7 +587,7 @@ function ReadinessTile({ label, value, accent }: { label: string; value: number;
         >
           {pct}%
         </span>
-        <div style={{ height: 6, background: '#e5e7eb', borderRadius: 4, flex: 1, overflow: 'hidden' }}>
+        <div style={{ height: 6, background: 'var(--border)', borderRadius: 4, flex: 1, overflow: 'hidden' }}>
           <div
             style={{
               width: `${pct}%`,

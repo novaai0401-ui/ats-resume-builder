@@ -197,15 +197,15 @@ export default function MentorClient() {
     <main className="grid">
       <section className="card col-12">
         <h1 style={{ marginBottom: 4 }}>Mentor Mode</h1>
-        <p className="small" style={{ margin: '0 0 6px', color: '#1b2b3c', fontWeight: 600 }}>
+        <p className="small" style={{ margin: '0 0 6px', color: 'var(--ink)', fontWeight: 600 }}>
           Career strategy — what to learn next, what recruiters want, what to put on your resume.
         </p>
-        <p className="small" style={{ margin: 0, color: '#5a6778' }}>
+        <p className="small" style={{ margin: 0, color: 'var(--muted)' }}>
           Pick a role and experience level. We&rsquo;ll surface the technologies recruiters
           look for, the keywords that beat ATS scans, and free learning resources to start
           tomorrow.{' '}
-          <span style={{ color: '#8a98ac' }}>
-            Looking for emotional support instead? Try <a href="/sahaayak" style={{ color: '#1a3a5c' }}>Sahaayak</a>.
+          <span style={{ color: 'var(--muted)' }}>
+            Looking for emotional support instead? Try <a href="/sahaayak" style={{ color: 'var(--primary)' }}>Sahaayak</a>.
           </span>
         </p>
       </section>
@@ -265,7 +265,7 @@ export default function MentorClient() {
             <h3 style={{ marginTop: 18 }}>Technologies to learn</h3>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {seed.technologies.map((t) => (
-                <span key={t} className="ai-keyword-chip" style={{ background: '#eef5ff', color: '#1a3a5c' }}>{t}</span>
+                <span key={t} className="ai-keyword-chip" style={{ background: 'var(--surface)', color: 'var(--primary)' }}>{t}</span>
               ))}
             </div>
 
@@ -275,7 +275,7 @@ export default function MentorClient() {
                 <span key={k} className="ai-keyword-chip" style={{ background: '#fef3cd', color: '#856404' }}>{k}</span>
               ))}
             </div>
-            <p className="small" style={{ marginTop: 8, color: '#5a6778' }}>
+            <p className="small" style={{ marginTop: 8, color: 'var(--muted)' }}>
               Tap a keyword in the resume editor to add it to your skills section.
             </p>
 
@@ -308,13 +308,13 @@ export default function MentorClient() {
                   <span className="salary-band__label">75th percentile</span>
                   <span className="salary-band__value">{formatInr(salaryBand.p75)}</span>
                 </div>
-                <p className="small" style={{ marginTop: 10, color: '#5a6778', lineHeight: 1.5 }}>
+                <p className="small" style={{ marginTop: 10, color: 'var(--muted)', lineHeight: 1.5 }}>
                   Total annual gross compensation for {seed.role} ({seed.level}) in {city}.
                   {salaryBand.disclaimer ? ` ${salaryBand.disclaimer}` : null}
                 </p>
               </div>
             ) : isPro && !salaryBand ? (
-              <p className="small" style={{ color: '#5a6778' }}>
+              <p className="small" style={{ color: 'var(--muted)' }}>
                 We don&rsquo;t have salary data for this role yet. We&rsquo;re adding more roles
                 each month — pick a closer adjacent role for now.
               </p>
@@ -322,14 +322,14 @@ export default function MentorClient() {
               <div
                 className="salary-band"
                 style={{
-                  background: 'linear-gradient(180deg, #f7f9fc 0%, #ffffff 100%)',
-                  border: '1px dashed #c4d5e0',
+                  background: 'linear-gradient(180deg, var(--surface-alt) 0%, var(--card) 100%)',
+                  border: '1px dashed var(--border)',
                 }}
               >
-                <p style={{ margin: 0, fontWeight: 600, color: '#1a3a5c' }}>
+                <p style={{ margin: 0, fontWeight: 600, color: 'var(--primary)' }}>
                   Salary bands are a Pocket Resume Plus perk
                 </p>
-                <p className="small" style={{ marginTop: 6, color: '#5a6778', lineHeight: 1.5 }}>
+                <p className="small" style={{ marginTop: 6, color: 'var(--muted)', lineHeight: 1.5 }}>
                   Plus shows the 25th / 50th / 75th percentile annual compensation for your role,
                   level, and city — sourced from public 2024–2025 surveys.
                 </p>
@@ -339,7 +339,7 @@ export default function MentorClient() {
               </div>
             )}
 
-            <p className="small" style={{ marginTop: 18, color: '#5a6778' }}>
+            <p className="small" style={{ marginTop: 18, color: 'var(--muted)' }}>
               {isPro
                 ? 'Tip: head over to the Cover Letter Studio to draft a tailored letter for any of these roles.'
                 : 'Add your own AI key (free) or get Pocket Resume Plus (₹499/mo) to unlock our AI across every feature, including salary bands.'}
@@ -349,13 +349,13 @@ export default function MentorClient() {
           <section
             className="card col-12"
             style={{
-              background: 'linear-gradient(180deg, #eef5ff 0%, #ffffff 100%)',
-              borderLeft: '4px solid #1a3a5c',
+              background: 'linear-gradient(180deg, var(--surface) 0%, var(--card) 100%)',
+              borderLeft: '4px solid var(--primary)',
             }}
             aria-label="Premium feature paywall"
           >
             <h2 style={{ marginTop: 0 }}>Use AI for Mentor Mode</h2>
-            <p className="small" style={{ color: '#3a4655', lineHeight: 1.6 }}>
+            <p className="small" style={{ color: 'var(--ink)', lineHeight: 1.6 }}>
               You picked <strong>{seed.role} — {seed.level}</strong>. To see the full path
               (technologies recruiters expect, ATS keywords for this role, curated free
               learning resources), add your own AI key in Settings (free) — or get Pocket
@@ -376,7 +376,7 @@ export default function MentorClient() {
       ) : null}
 
       {!authed ? (
-        <section className="card col-12" style={{ background: '#f7f9fc' }}>
+        <section className="card col-12" style={{ background: 'var(--surface-alt)' }}>
           <h3 style={{ marginTop: 0 }}>Sign in to use Mentor Mode</h3>
           <p className="small" style={{ marginBottom: 12 }}>
             Mentor Mode is free to preview but requires a Pocket Resume account.
