@@ -3013,25 +3013,31 @@ const NON_EXP_SECTION_RE = /^(?:education|academics?|skills?|technical\s+skills?
 const TABULAR_DATE_SEG_RE = /(?:\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s*'?\d{2,4}|\b(?:19|20)\d{2}\b|'\d{2}\b|present|till\s*date|current|ongoing|to\s*date)/i;
 
 function normalizeTabularDateSegment(seg: string): string {
-  let s = seg.trim();
+  let s = seg.trim()
+    .replace(/[‘’ʼ]/g, "'")   // curly apostrophes → straight
+    .replace(/[–—]/g, '-');         // en/em dash → hyphen
+  // "Sep'2009" → "Sep 2009" (apostrophe directly before a 4-digit year).
+  s = s.replace(/\.?\s*'\s*(\d{4})\b/g, ' $1');
   // "Jan'21" / "Dec' 22" → "Jan 2021"; '99 → 1999, '05 → 2005.
   s = s.replace(/'\s*(\d{2})\b/g, (_m, yy) => {
     const n = parseInt(yy, 10);
     return ` ${n <= 40 ? 2000 + n : 1900 + n}`;
   });
   s = s.replace(/\b(till\s*date|to\s*date|present|current|ongoing)\b/gi, 'Present');
+  s = s.replace(/\s*-\s*/g, ' - '); // consistent spacing around the range dash
   return s.replace(/\s{2,}/g, ' ').trim();
 }
 
-function looksLikeTabularRole(seg: string): boolean {
-  const s = seg.trim();
-  if (!s || s.length > 60) return false;
-  if (/[.;]$/.test(s)) return false; // sentences/bullets end with punctuation
-  const words = s.split(/\s+/);
-  if (words.length > 8) return false;
-  return /\b(manager|lead|director|engineer|developer|analyst|consultant|architect|designer|specialist|officer|head|associate|intern|administrator|executive|president|vp|avp|scientist|coordinator|strategist|owner|principal|trainee)\b/i.test(s)
-    || /^[A-Z][A-Za-z.&/ -]+$/.test(s); // or a short Title-case phrase
-}
+// Trailing role phrase: up to 3 Title-case words before a role keyword,
+// captured at the END of a (date-stripped) header line. Matches
+// "Manager", "Associate Director", "Assistant Vice President",
+// "Data Analyst", "MIS Executive", "MIS Trainee".
+const TRAILING_ROLE_RE = /\s((?:[A-Z][A-Za-z.&/-]*\s+){0,3}(?:manager|lead|director|engineer|developer|analyst|consultant|architect|designer|specialist|officer|head|associate|intern|administrator|executive|vice\s+president|president|scientist|coordinator|strategist|principal|trainee|expert|evangelist))\s*$/i;
+// A company signal: a legal suffix or a trailing ", City".
+const COMPANY_SIGNAL_RE = /(,\s*[A-Z][A-Za-z]+\.?\s*$)|\b(ltd|ltd\.|llp|inc|inc\.|corp|corp\.|pvt|private\s+limited|limited|services|solutions|technologies|consulting|systems|group|bank|enterprises|infotech|software|labs|industries|finance|capital|company|co\.)\b/i;
+// Trailing bare date / date-range (no parentheses). Tolerates curly
+// apostrophes + en-dashes (normalised separately for emit).
+const TRAILING_DATE_RANGE_RE = /\s((?:[A-Za-z]{3,9}\.?\s*['’]?\s*\d{2,4}|\b(?:19|20)\d{2}\b)\s*[-–—]\s*(?:[A-Za-z]{3,9}\.?\s*['’]?\s*\d{2,4}|present|till\s*date|to\s*date|current|ongoing|\b(?:19|20)\d{2}\b|['’]\d{2}))\s*$/i;
 
 function formatTabularCompany(seg: string): string {
   const s = seg.trim().replace(/\s{2,}/g, ' ');
@@ -3044,8 +3050,58 @@ function formatTabularCompany(seg: string): string {
   return s;
 }
 
+/**
+ * Split a SPACE-separated single-line job header into the canonical 3-line
+ * shape. Targets Word/DOCX exports where columns collapse to single spaces:
+ *   "Ernst and Young LLP, Pune Manager Jan'21 - Till Date"
+ *   "Eclerx Services Ltd., Pune Data Analyst Sep'2009-Dec'2010"
+ * Returns null unless ALL of: a trailing date range, a trailing role
+ * phrase before it, and a remaining company part carrying a company signal.
+ * Lines containing "(" or "|" are left for the existing parsers.
+ */
+const ROLE_KEYWORD_RE = /\b(manager|lead|director|engineer|developer|analyst|consultant|architect|designer|specialist|officer|head|associate|intern|administrator|executive|president|scientist|coordinator|strategist|principal|trainee|expert|evangelist)\b/i;
+
+function splitSpaceSeparatedHeader(line: string): string[] | null {
+  const t = line.trim();
+  if (!t || t.includes('(') || t.includes('|')) return null;
+  const dateM = t.match(TRAILING_DATE_RANGE_RE);
+  if (!dateM) return null;
+  const pre = t.slice(0, t.length - dateM[0].length).trim();
+
+  let role: string | null = null;
+  let company: string | null = null;
+
+  // Preferred form: "Company, City Role" — split on the comma + 1-word
+  // city so the location stays with the company, not the role.
+  const commaM = pre.match(/^(.+?,\s*[A-Z][A-Za-z.]+)\s+(.+)$/);
+  if (commaM && ROLE_KEYWORD_RE.test(commaM[2]) && commaM[2].split(/\s+/).length <= 5) {
+    company = commaM[1].trim();
+    role = commaM[2].trim();
+  } else {
+    // Fallback: no city — take a trailing role phrase off the end.
+    const roleM = pre.match(TRAILING_ROLE_RE);
+    if (!roleM) return null;
+    role = roleM[1].trim();
+    company = pre.slice(0, pre.length - roleM[0].length).trim();
+  }
+
+  if (!company || company.length < 3 || !COMPANY_SIGNAL_RE.test(company)) return null;
+  if (!role || !/[A-Za-z]/.test(role)) return null;
+  return [role, formatTabularCompany(company), `(${normalizeTabularDateSegment(dateM[1])})`];
+}
+
+function looksLikeTabularRole(seg: string): boolean {
+  const s = seg.trim();
+  if (!s || s.length > 60) return false;
+  if (/[.;]$/.test(s)) return false; // sentences/bullets end with punctuation
+  const words = s.split(/\s+/);
+  if (words.length > 8) return false;
+  return /\b(manager|lead|director|engineer|developer|analyst|consultant|architect|designer|specialist|officer|head|associate|intern|administrator|executive|president|vp|avp|scientist|coordinator|strategist|owner|principal|trainee)\b/i.test(s)
+    || /^[A-Z][A-Za-z.&/ -]+$/.test(s); // or a short Title-case phrase
+}
+
 export function splitTabularExperienceHeaders(rawText: string): string {
-  if (!rawText || (!rawText.includes('\t') && !/ {2,}/.test(rawText))) return rawText;
+  if (!rawText) return rawText;
   const lines = rawText.split('\n');
   const out: string[] = [];
   let inExp = false;
@@ -3055,6 +3111,21 @@ export function splitTabularExperienceHeaders(rawText: string): string {
     if (inExp && NON_EXP_SECTION_RE.test(trimmed)) { inExp = false; out.push(line); continue; }
 
     if (inExp && !/^\s*[-*•·]/.test(line)) {
+      // (s) Sub-role headings inside a job ("Data Business Analyst :",
+      //     "Investment Banking Division Works Stream Lead :") — often
+      //     emitted as bold/uppercase lines by the DOCX converter. Left as
+      //     standalone lines they split one job into several or drop
+      //     entries. Demote them to a bullet so they stay as content under
+      //     the current company without disrupting role/company grouping.
+      //     Guarded: short, ends with a colon, single colon, not a known
+      //     section heading, not itself a date/role header line.
+      if (/^[A-Za-z][^:]{1,68}:\s*$/.test(trimmed)
+        && !NON_EXP_SECTION_RE.test(trimmed) && !EXP_SECTION_START_RE.test(trimmed)
+        && !TRAILING_DATE_RANGE_RE.test(trimmed)) {
+        out.push(`- ${trimmed}`);
+        continue;
+      }
+      // (a) Tab / 2+space columnar header.
       const segs = line.split(/\t+| {2,}/).map((s) => s.trim()).filter(Boolean);
       if (segs.length === 3 && TABULAR_DATE_SEG_RE.test(segs[2]) && !TABULAR_DATE_SEG_RE.test(segs[0])
         && looksLikeTabularRole(segs[1]) && /[A-Za-z]/.test(segs[0]) && segs[0].length >= 2) {
@@ -3063,6 +3134,10 @@ export function splitTabularExperienceHeaders(rawText: string): string {
         out.push(`(${normalizeTabularDateSegment(segs[2])})`); // (Date range)
         continue;
       }
+      // (b) Space-separated header (tabs already collapsed by the DOCX→text
+      //     converter): "Company, City Role DateRange".
+      const spaced = splitSpaceSeparatedHeader(line);
+      if (spaced) { out.push(...spaced); continue; }
     }
     out.push(line);
   }

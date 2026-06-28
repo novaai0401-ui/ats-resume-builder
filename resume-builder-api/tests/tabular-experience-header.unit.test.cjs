@@ -54,6 +54,47 @@ test('ignores a 3-segment line whose last segment is not a date', () => {
   assert.equal(splitTabularExperienceHeaders(input), input);
 });
 
+// ── Space-separated headers (real DOCX path collapses tabs to spaces) ──
+
+test('splits "Company, City Role DateRange" (curly quotes + en-dash)', () => {
+  const input = 'WORK EXPERIENCE\nErnst and Young LLP, Pune Manager Jan’21 – Till Date';
+  const out = splitTabularExperienceHeaders(input).split('\n');
+  assert.deepEqual(out, [
+    'WORK EXPERIENCE',
+    'Manager',
+    'Ernst and Young LLP (Pune)',
+    '(Jan 2021 - Present)',
+  ]);
+});
+
+test('keeps the city with the company, not the role; full-year range', () => {
+  const input = 'EXPERIENCE\nUBS Business Solutions Ltd, Pune Associate Director Jul’19-Dec’20';
+  const out = splitTabularExperienceHeaders(input).split('\n');
+  assert.deepEqual(out, [
+    'EXPERIENCE',
+    'Associate Director',
+    'UBS Business Solutions Ltd (Pune)',
+    '(Jul 2019 - Dec 2020)',
+  ]);
+});
+
+test('demotes a bold sub-role heading to a bullet (keeps grouping intact)', () => {
+  const input = 'EXPERIENCE\nManager\nAcme Ltd (Pune)\n(2020 - Present)\nDATA BUSINESS ANALYST :\n- did things';
+  const out = splitTabularExperienceHeaders(input).split('\n');
+  assert.ok(out.includes('- DATA BUSINESS ANALYST :'), 'sub-heading demoted to bullet');
+});
+
+test('space-separated split does NOT fire without a company signal', () => {
+  // "Klearnow.ai" has no Ltd/comma-city → leave Muskan-style lines alone.
+  const input = 'EXPERIENCE\nSoftware Engineer I - Klearnow.ai February 2024 - Present';
+  assert.equal(splitTabularExperienceHeaders(input), input);
+});
+
+test('space-separated split skips lines with parentheses (existing parser owns them)', () => {
+  const input = 'EXPERIENCE\nCiti Corp (Pune) Manager (Dec 2022 - Present)';
+  assert.equal(splitTabularExperienceHeaders(input), input);
+});
+
 test('stops transforming once a new section begins', () => {
   const input = [
     'EXPERIENCE',
