@@ -6,14 +6,53 @@ export type ParsedResumeText = {
   sections: Record<string, string[]>;
 };
 
+// Canonical section headings + a few words that legitimately repeat as
+// standalone short tokens — never treat these as watermark noise even if
+// they recur.
+const WATERMARK_SAFE_TOKENS = new Set([
+  'experience', 'education', 'skills', 'languages', 'projects', 'summary',
+  'profile', 'objective', 'achievements', 'certifications', 'awards',
+  'contact', 'references', 'interests', 'hobbies', 'present', 'current',
+]);
+
+/**
+ * Strip diagonal-watermark fragments (e.g. a "CONFIDENTIAL" stamp) that
+ * pdf-parse extracts as repeated short ALL-CAPS lines and interleaves into
+ * the resume body. Symptom: "CONFIDENTIAL"/"IDENTIAL"/"ENTIAL" fragments
+ * landing in the Languages section and as stray Experience bullets.
+ *
+ * A line is treated as watermark noise when it is a single alphabetic
+ * token (no spaces/digits/punctuation), 2–20 chars, predominantly
+ * uppercase, AND it appears 3+ times across the document — a page-repeated
+ * stamp, not real content. Section headings and a small allow-list are
+ * never removed.
+ */
+export function stripWatermarkFragments(lines: string[]): string[] {
+  const freq = new Map<string, number>();
+  for (const line of lines) {
+    if (!/^[A-Za-z]{2,20}$/.test(line)) continue;
+    const letters = line.replace(/[^A-Za-z]/g, '');
+    const upper = line.replace(/[^A-Z]/g, '').length;
+    if (letters.length === 0) continue;
+    if (upper / letters.length < 0.8) continue; // mostly-uppercase only
+    const key = line.toLowerCase();
+    if (WATERMARK_SAFE_TOKENS.has(key)) continue;
+    freq.set(key, (freq.get(key) || 0) + 1);
+  }
+  const noise = new Set([...freq.entries()].filter(([, n]) => n >= 3).map(([k]) => k));
+  if (noise.size === 0) return lines;
+  return lines.filter((line) => !noise.has(line.toLowerCase()));
+}
+
 export function parseResumeText(rawText: string): ParsedResumeText {
   const text = normalizeText(rawText);
-  const lines = text.split('\n').map((line) => line.trim()).filter((line) => {
+  const prelim = text.split('\n').map((line) => line.trim()).filter((line) => {
     if (!line) return false;
     // Filter page footers like "-- 1 of 1 --", "Page 2 of 3"
     if (/^-*\s*(?:page\s+)?\d+\s+of\s+\d+\s*-*$/i.test(line)) return false;
     return true;
   });
+  const lines = stripWatermarkFragments(prelim);
   const sections: Record<string, string[]> = {};
   let current: CanonicalSection | string = 'unmapped';
 

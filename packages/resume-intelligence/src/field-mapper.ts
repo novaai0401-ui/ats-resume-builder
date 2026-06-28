@@ -329,6 +329,10 @@ const HUMAN_LANGUAGES = new Set([
   'zulu', 'afrikaans', 'romanian', 'hungarian', 'czech', 'slovak', 'croatian',
   'serbian', 'bulgarian', 'ukrainian', 'catalan', 'galician', 'basque',
   'esperanto', 'latin', 'sanskrit',
+  // Additional Indian + regional languages commonly listed on resumes.
+  'konkani', 'bhojpuri', 'assamese', 'odia', 'oriya', 'maithili', 'sindhi',
+  'kashmiri', 'dogri', 'manipuri', 'santali', 'tulu', 'rajasthani',
+  'haryanvi', 'magahi', 'chhattisgarhi', 'mizo', 'khasi', 'pashto', 'dari',
 ]);
 
 function mapSkills(sections: Record<string, string[]>) {
@@ -418,7 +422,17 @@ function mapLanguages(sections: Record<string, string[]>): string[] {
       && !/[#@\/\\*<>{}\[\]]/.test(t)
       && !/^-{2,}/.test(t)
       && !/^[A-Z][a-z]+[A-Z][a-z]+[A-Z]/.test(t),
-    );
+    )
+    // Backstop: a dedicated Languages section must contain real language
+    // names. Keep a token only if its first word is a recognised human
+    // language (allows "English (Professional)", "Hindi - Native"). This
+    // rejects watermark fragments (CONFIDENTIAL/ENTIAL) or stray header
+    // words that leak into the section. Custom languages can still be
+    // added manually in the editor.
+    .filter((t) => {
+      const firstWord = (t.match(/[A-Za-z]+/)?.[0] || '').toLowerCase();
+      return HUMAN_LANGUAGES.has(firstWord);
+    });
   return Array.from(new Set(tokens)).slice(0, 10);
 }
 
