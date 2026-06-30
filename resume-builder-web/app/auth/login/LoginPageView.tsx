@@ -12,7 +12,7 @@ import {
   EMAIL_INVALID_MESSAGE,
   normalizeE164FromPayload,
 } from 'resume-builder-shared';
-import { TkxPhoneInput, TkxButton } from 'tekivex-ui';
+import { TkxPhoneInput } from 'tekivex-ui';
 import { PrivacyBadge } from '@/src/components/PrivacyBadge';
 import { LinkedInSignInButton } from '@/src/components/LinkedInSignInButton';
 import { readPendingReferralCode, storePendingReferralCode } from '@/src/lib/referral';
@@ -166,7 +166,7 @@ export function LoginPageView({ apiClient = api, routerOverride, defaultMode = '
                 required
                 minLength={8}
               />
-              <TkxButton variant="solid" colorScheme="primary" type="submit" isFullWidth isLoading={loading} disabled={loading}>{loading ? 'Signing in…' : 'Sign In'}</TkxButton>
+              <button className="btn" type="submit" disabled={loading} style={{ width: '100%' }}>{loading ? 'Signing in…' : 'Sign In'}</button>
               <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: '0.85rem' }}>
                 <Link href="/auth/forgot-password" className="auth-forgot-link">Forgot password?</Link>
               </div>
@@ -229,7 +229,7 @@ export function LoginPageView({ apiClient = api, routerOverride, defaultMode = '
                 required
                 minLength={MIN_PASSWORD_LENGTH}
               />
-              <TkxButton variant="solid" colorScheme="primary" type="submit" isFullWidth isLoading={loading} disabled={loading}>{loading ? 'Creating account...' : 'Create Account'}</TkxButton>
+              <button className="btn" type="submit" disabled={loading} style={{ width: '100%' }}>{loading ? 'Creating account...' : 'Create Account'}</button>
               <LinkedInSignInButton />
             </form>
           )}

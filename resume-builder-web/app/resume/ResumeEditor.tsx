@@ -1440,7 +1440,7 @@ export default function ResumeEditor() {
     }
     try {
       const result = await api.parseJd(jdText);
-      setMessage(`JD skills: ${result.skills.slice(0, 8).join(', ')}.`);
+      setMessage(`Key skills this job wants: ${result.skills.slice(0, 8).join(', ')}.`);
     } catch (err: unknown) {
       setMessage(err instanceof Error ? err.message : 'JD parsing failed');
     }
@@ -3874,7 +3874,7 @@ export default function ResumeEditor() {
             {loadingAtsNavigation ? 'Preparing ATS...' : 'Continue to ATS'}
           </button>
           <button className="btn secondary" onClick={exportPdf} disabled={!requiredSectionsValid}>Export</button>
-          <button className="btn secondary" onClick={parseJd} disabled={!requiredSectionsValid}>Parse JD</button>
+          <button className="btn secondary" onClick={parseJd} disabled={!requiredSectionsValid} title="See the key skills this job is asking for">Scan Job Skills</button>
           <button className="btn secondary" onClick={critique} disabled={!requiredSectionsValid || aiCritiqueLoading}>{aiCritiqueLoading ? 'Analyzing...' : 'AI Critique'}</button>
           <button className="btn secondary" onClick={analyzeTechGap} disabled={!requiredSectionsValid || techGapLoading}>{techGapLoading ? 'Analyzing gaps...' : 'Tech Gap'}</button>
         </div>
