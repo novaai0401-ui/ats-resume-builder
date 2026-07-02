@@ -19,6 +19,7 @@ import { InterviewPrepService, type InterviewPrepInput } from './interview-prep.
 import { MentorChatService, type MentorChatInput } from './mentor-chat.service';
 import { RecruiterSimService, type RecruiterSimInput } from './recruiter-sim.service';
 import { SkillDemandService, type SkillDemandInput } from './skill-demand.service';
+import { MockInterviewService, type MockInterviewInput } from './mock-interview.service';
 
 /** Request shape with optional BYOK headers (X-User-AI-Provider / X-User-AI-Key). */
 type AuthedAiReq = { user: { userId: string }; headers?: Record<string, string | string[] | undefined> };
@@ -47,7 +48,24 @@ export class AiController {
     private readonly mentorChatService: MentorChatService,
     private readonly recruiterSimService: RecruiterSimService,
     private readonly skillDemandService: SkillDemandService,
+    private readonly mockInterviewService: MockInterviewService,
   ) {}
+
+  /**
+   * Mock Interview — the AI plays the interviewer for a target role,
+   * grounded in the candidate's resume (+ optional JD). Stateless; the
+   * client sends the full history each turn. BYOK or the ₹499 plan.
+   */
+  @Post('mock-interview')
+  mockInterview(
+    @Req() req: AuthedAiReq,
+    @Body() body: MockInterviewInput,
+  ) {
+    if (!body || typeof body !== 'object' || !Array.isArray(body.messages)) {
+      throw new BadRequestException('messages[] is required');
+    }
+    return this.mockInterviewService.chat(req.user.userId, body, byokFromReq(req));
+  }
 
   @Post('parse-jd')
   parseJd(@Req() req: { user: { userId: string } }, @Body() body: AiParseJdDto) {

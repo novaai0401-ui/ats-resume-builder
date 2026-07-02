@@ -1043,6 +1043,18 @@ export const api = {
       provider: 'groq' | 'rule-based';
     }>(`/ai/interview-prep`, { method: 'POST', headers: { ...(getByokHeader() || {}) }, body: JSON.stringify(input) }),
 
+  /** Mock Interview — AI interviewer grounded in the resume. BYOK or ₹499 plan. */
+  mockInterview: (input: {
+    messages: Array<{ role: 'user' | 'assistant'; content: string }>;
+    resumeText?: string;
+    targetRole?: string;
+    jdText?: string;
+  }) =>
+    request<{ reply: string; provider: 'groq' | 'unavailable' }>(
+      `/ai/mock-interview`,
+      { method: 'POST', headers: { ...(getByokHeader() || {}) }, body: JSON.stringify(input) },
+    ),
+
   /** Mentor Chat — BYOK (free) or the ₹499/mo plan. Stateless; pass full history each turn. */
   mentorChat: (input: {
     messages: Array<{ role: 'user' | 'assistant'; content: string }>;

@@ -11,6 +11,7 @@ import { InterviewPrepService } from './interview-prep.service';
 import { MentorChatService } from './mentor-chat.service';
 import { RecruiterSimService } from './recruiter-sim.service';
 import { SkillDemandService } from './skill-demand.service';
+import { MockInterviewService } from './mock-interview.service';
 import { SettingsModule } from '../settings/settings.module';
 import { LiveJobsModule } from '../live-jobs/live-jobs.module';
 
@@ -18,6 +19,7 @@ import { LiveJobsModule } from '../live-jobs/live-jobs.module';
   imports: [ConfigModule, SettingsModule, LiveJobsModule],
   controllers: [AiController],
   providers: [
+    MockInterviewService,
     AiService,
     TechGapService,
     CoverLetterService,
