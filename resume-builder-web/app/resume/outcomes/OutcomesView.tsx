@@ -13,6 +13,7 @@ import {
   CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
 import { TkxAlert, TkxButton, TkxCard, TkxCardBody, TkxCardHeader } from 'tekivex-ui';
+import { computeAbInsight, buildAbBars } from '@/src/lib/outcome-ab';
 import DataLoader from '@/src/components/DataLoader';
 import {
   api,
@@ -190,6 +191,8 @@ export default function OutcomesView() {
             </TkxCardBody>
           </TkxCard>
 
+          <AbComparisonCard versions={report.versions} />
+
           <TkxCard>
             <TkxCardHeader><strong>By version</strong></TkxCardHeader>
             <TkxCardBody>
@@ -221,6 +224,76 @@ export default function OutcomesView() {
         </>
       )}
     </main>
+  );
+}
+
+/**
+ * A/B comparison — the premium analytics headline. A stat tile
+ * ("v1 gets 2.4× more replies than v2") plus a single-hue response-rate
+ * bar per version (magnitude encoding: one measure, one color; identity
+ * is carried by the row label, never by hue). All numbers come from
+ * computeAbInsight/buildAbBars, which refuse low-sample claims.
+ */
+function AbComparisonCard({ versions }: { versions: OutcomeVersionStats[] }) {
+  const insight = computeAbInsight(versions);
+  const bars = buildAbBars(versions);
+  if (!bars.length) return null;
+
+  return (
+    <TkxCard data-testid="ab-comparison-card">
+      <TkxCardHeader><strong>Which version wins replies?</strong></TkxCardHeader>
+      <TkxCardBody>
+        {insight ? (
+          insight.aboutTheSame ? (
+            <p style={{ margin: '0 0 14px', fontSize: 15, lineHeight: 1.5 }}>
+              <strong>{insight.best.label}</strong> and <strong>{insight.baseline.label}</strong>{' '}
+              are performing about the same so far — keep logging applications to separate them.
+            </p>
+          ) : (
+            <p style={{ margin: '0 0 14px', fontSize: 15, lineHeight: 1.5 }}>
+              <span style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.02em' }}>
+                {insight.multiplier}×
+              </span>{' '}
+              more replies — <strong>{insight.best.label}</strong> out-performs{' '}
+              <strong>{insight.baseline.label}</strong>{' '}
+              ({Math.round(insight.best.responseRate * 100)}% vs {Math.round(insight.baseline.responseRate * 100)}% response rate).
+            </p>
+          )
+        ) : (
+          <p style={{ margin: '0 0 14px', color: 'var(--muted, #888)', fontSize: 14 }}>
+            Once two versions each have 5+ logged applications, this card shows which one actually
+            wins more replies.
+          </p>
+        )}
+
+        <div role="img" aria-label="Response rate by resume version" style={{ display: 'grid', gap: 8 }}>
+          {bars.map((b) => (
+            <div key={b.versionId} style={{ display: 'grid', gridTemplateColumns: 'minmax(90px, 180px) 1fr', gap: 10, alignItems: 'center' }}>
+              <span
+                style={{ fontSize: 13, color: 'var(--ink, #222)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                title={b.label}
+              >
+                {b.label}
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div
+                  style={{
+                    width: `${b.widthPct}%`,
+                    height: 14,
+                    borderRadius: 4,
+                    background: b.significant ? 'var(--primary, #4f46e5)' : 'var(--border, #cbd5e1)',
+                    minWidth: 6,
+                  }}
+                />
+                <span style={{ fontSize: 12, color: 'var(--muted, #666)', whiteSpace: 'nowrap' }}>
+                  {Math.round(b.responseRate * 100)}% · {b.applied} applied{b.significant ? '' : ' · low sample'}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </TkxCardBody>
+    </TkxCard>
   );
 }
 
