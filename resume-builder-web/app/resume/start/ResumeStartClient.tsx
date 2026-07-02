@@ -42,6 +42,8 @@ export default function ResumeStartClient() {
   const [loadingUpload, setLoadingUpload] = useState(false);
   const [error, setError] = useState('');
   const [pendingFileName, setPendingFileName] = useState('');
+  const [linkedinOpen, setLinkedinOpen] = useState(false);
+  const [linkedinText, setLinkedinText] = useState('');
 
   const template = (searchParams.get('template') || '').trim();
   const uploadEditorHref = buildEditorRoute('review', template);
@@ -166,6 +168,52 @@ export default function ResumeStartClient() {
             >
               Start from scratch
             </button>
+          </div>
+
+          <div className="start-choice" data-testid="linkedin-import-choice">
+            <h3>Import from LinkedIn</h3>
+            <p className="small">
+              Open your LinkedIn profile, select all (Ctrl/Cmd+A), copy, and paste it here — we
+              turn it into a resume automatically.
+            </p>
+            {linkedinOpen ? (
+              <div style={{ display: 'grid', gap: 8 }}>
+                <textarea
+                  className="input"
+                  rows={6}
+                  placeholder="Paste your copied LinkedIn profile here…"
+                  value={linkedinText}
+                  onChange={(e) => setLinkedinText(e.target.value)}
+                  data-testid="linkedin-paste-input"
+                  disabled={loadingUpload}
+                />
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <button
+                    className="btn"
+                    disabled={loadingUpload || linkedinText.trim().length < 80}
+                    data-testid="linkedin-import-submit"
+                    onClick={() => {
+                      const file = new File([linkedinText], 'linkedin-profile.txt', { type: 'text/plain' });
+                      void onUpload(file);
+                    }}
+                  >
+                    {loadingUpload ? 'Importing…' : 'Import profile'}
+                  </button>
+                  <button className="btn ghost" onClick={() => setLinkedinOpen(false)} disabled={loadingUpload}>
+                    Cancel
+                  </button>
+                </div>
+                {linkedinText.trim().length > 0 && linkedinText.trim().length < 80 ? (
+                  <p className="small" style={{ margin: 0, color: 'var(--muted)' }}>
+                    Paste the whole profile page — that looks too short.
+                  </p>
+                ) : null}
+              </div>
+            ) : (
+              <button className="btn secondary" onClick={() => setLinkedinOpen(true)} data-testid="linkedin-import-open">
+                Paste LinkedIn profile
+              </button>
+            )}
           </div>
         </div>
 

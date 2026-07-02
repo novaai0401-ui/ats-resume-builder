@@ -22,6 +22,8 @@ export default function LiveOpeningsPanel({ onTracked }: { onTracked: () => void
   const [paywall, setPaywall] = useState(false);
   const [tracking, setTracking] = useState<string | null>(null);
   const [tracked, setTracked] = useState<Set<string>>(new Set());
+  const [savingAlert, setSavingAlert] = useState(false);
+  const [alertMsg, setAlertMsg] = useState('');
 
   async function search() {
     setError('');
@@ -63,7 +65,28 @@ export default function LiveOpeningsPanel({ onTracked }: { onTracked: () => void
         <input className="input" placeholder="Role or skill, e.g. React Engineer" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && search()} style={{ flex: '1 1 220px' }} />
         <input className="input" placeholder="Location (optional)" value={location} onChange={(e) => setLocation(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && search()} style={{ flex: '1 1 160px' }} />
         <TkxButton variant="solid" colorScheme="primary" onClick={search} disabled={loading}>{loading ? 'Searching…' : 'Search'}</TkxButton>
+        <button
+          className="btn secondary"
+          data-testid="save-job-alert"
+          disabled={savingAlert || q.trim().length < 2}
+          title="Email me when new openings match this search"
+          onClick={async () => {
+            setSavingAlert(true);
+            setAlertMsg('');
+            try {
+              await api.createJobAlert({ query: q.trim(), location: location.trim() || undefined });
+              setAlertMsg("Alert saved — we'll email you when new openings match this search.");
+            } catch (err: unknown) {
+              setAlertMsg(err instanceof Error ? err.message : 'Could not save the alert.');
+            } finally {
+              setSavingAlert(false);
+            }
+          }}
+        >
+          {savingAlert ? 'Saving…' : '🔔 Alert me'}
+        </button>
       </div>
+      {alertMsg ? <p className="muted" style={{ fontSize: 13, marginTop: -4 }}>{alertMsg}</p> : null}
 
       {paywall && (
         <div className="alert" style={{ background: 'rgba(176,121,6,0.1)', padding: 12, borderRadius: 8 }}>

@@ -12,11 +12,33 @@ import {
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminAuthGuard } from '../auth/admin-auth.guard';
 import { PatternLearnerService } from './pattern-learner.service';
+import { PatternModelService } from './pattern-model.service';
 
 @Controller('admin/pattern-learner')
 @UseGuards(JwtAuthGuard, AdminAuthGuard)
 export class PatternLearnerController {
-  constructor(private readonly service: PatternLearnerService) {}
+  constructor(
+    private readonly service: PatternLearnerService,
+    private readonly patternModel: PatternModelService,
+  ) {}
+
+  /** Train the self-learning resume-pattern-model over the redacted corpus. */
+  @Post('model/train')
+  trainModel() {
+    return this.patternModel.train();
+  }
+
+  /** Latest pattern-model snapshot stats (no payload). */
+  @Get('model/stats')
+  modelStats() {
+    return this.patternModel.stats();
+  }
+
+  /** Download the latest trained model JSON (embeddable library asset). */
+  @Get('model/latest')
+  latestModel() {
+    return this.patternModel.getLatestSnapshot();
+  }
 
   @Get('failures')
   listFailures(@Query('status') status?: string, @Query('limit') limit?: string) {

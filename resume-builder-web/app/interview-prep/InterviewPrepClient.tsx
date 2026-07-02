@@ -244,6 +244,95 @@ export default function InterviewPrepClient() {
           </ul>
         </section>
       ) : null}
+
+      {/* Mock Interview — live back-and-forth with an AI interviewer that
+          asks questions grounded in the resume, critiques each answer and
+          offers a model answer. Available with BYOK or Pocket Resume Plus. */}
+      {canUseAi ? (
+        <MockInterviewPanel resumeText={resumeText} targetRole={targetRole} jdText={jdText} />
+      ) : null}
     </main>
+  );
+}
+
+function MockInterviewPanel({ resumeText, targetRole, jdText }: { resumeText: string; targetRole: string; jdText: string }) {
+  const [messages, setMessages] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
+  const [draft, setDraft] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const started = messages.length > 0;
+
+  async function send(history: Array<{ role: 'user' | 'assistant'; content: string }>) {
+    setBusy(true);
+    setErr('');
+    try {
+      const res = await api.mockInterview({ messages: history, resumeText, targetRole: targetRole || undefined, jdText: jdText || undefined });
+      setMessages([...history, { role: 'assistant', content: res.reply }]);
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : 'Mock interview failed.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="card col-12" data-testid="mock-interview-panel">
+      <h2 style={{ marginTop: 0 }}>Mock Interview</h2>
+      <p className="small" style={{ color: 'var(--muted)', marginTop: 0 }}>
+        The AI plays the interviewer: it asks questions from <em>your</em> resume, critiques each
+        answer, and shows a stronger model answer. Practice out loud, then type what you said.
+      </p>
+      {!started ? (
+        <button className="btn" disabled={busy} onClick={() => void send([])}>
+          {busy ? 'Setting up the room…' : 'Start mock interview'}
+        </button>
+      ) : (
+        <>
+          <div style={{ display: 'grid', gap: 10, marginBottom: 12 }}>
+            {messages.map((m, i) => (
+              <div
+                key={i}
+                style={{
+                  justifySelf: m.role === 'user' ? 'end' : 'start',
+                  maxWidth: '85%',
+                  padding: '10px 14px',
+                  borderRadius: 12,
+                  background: m.role === 'user' ? 'var(--surface)' : 'var(--surface-alt)',
+                  border: '1px solid var(--border)',
+                  whiteSpace: 'pre-wrap',
+                  fontSize: 14,
+                  lineHeight: 1.55,
+                }}
+              >
+                {m.content}
+              </div>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+            <textarea
+              className="input"
+              rows={3}
+              style={{ flex: 1 }}
+              placeholder="Type your answer… (or ask to stop for a readiness summary)"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              disabled={busy}
+            />
+            <button
+              className="btn"
+              disabled={busy || !draft.trim()}
+              onClick={() => {
+                const next = [...messages, { role: 'user' as const, content: draft.trim() }];
+                setDraft('');
+                void send(next);
+              }}
+            >
+              {busy ? 'Thinking…' : 'Send'}
+            </button>
+          </div>
+        </>
+      )}
+      {err ? <p className="hint error" style={{ marginTop: 8 }}>{err}</p> : null}
+    </section>
   );
 }

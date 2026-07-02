@@ -1,0 +1,19 @@
+{
+  "name": "resume-pattern-model",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "description": "Self-learning resume pattern model. Learns line-classification and header-shape patterns from the resumes it sees (no external ML runtime, no network), then extracts structured fields from new resumes — an embeddable, OCR-post-processing-style library. Serializable to JSON so a trained model can ship as a static asset.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test tests/*.test.cjs"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3"
+  }
+}

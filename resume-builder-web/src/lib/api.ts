@@ -1043,6 +1043,18 @@ export const api = {
       provider: 'groq' | 'rule-based';
     }>(`/ai/interview-prep`, { method: 'POST', headers: { ...(getByokHeader() || {}) }, body: JSON.stringify(input) }),
 
+  /** Mock Interview — AI interviewer grounded in the resume. BYOK or ₹499 plan. */
+  mockInterview: (input: {
+    messages: Array<{ role: 'user' | 'assistant'; content: string }>;
+    resumeText?: string;
+    targetRole?: string;
+    jdText?: string;
+  }) =>
+    request<{ reply: string; provider: 'groq' | 'unavailable' }>(
+      `/ai/mock-interview`,
+      { method: 'POST', headers: { ...(getByokHeader() || {}) }, body: JSON.stringify(input) },
+    ),
+
   /** Mentor Chat — BYOK (free) or the ₹499/mo plan. Stateless; pass full history each turn. */
   mentorChat: (input: {
     messages: Array<{ role: 'user' | 'assistant'; content: string }>;
@@ -1540,6 +1552,17 @@ export const api = {
     request<{ available: boolean; openings: JobOpening[] }>(
       `/ai/live-openings?q=${encodeURIComponent(q)}${location ? `&location=${encodeURIComponent(location)}` : ''}`,
     ),
+
+  // ─── Job alerts (saved searches → email on new openings) ───────────────
+  listJobAlerts: () =>
+    request<Array<{ id: string; query: string; location: string | null; active: boolean; lastRunAt: string | null; lastMatchAt: string | null; createdAt: string }>>(`/job-alerts`),
+  createJobAlert: (input: { query: string; location?: string }) =>
+    request<{ id: string; query: string; location: string | null; active: boolean; createdAt: string }>(
+      `/job-alerts`,
+      { method: 'POST', body: JSON.stringify(input) },
+    ),
+  deleteJobAlert: (id: string) =>
+    request<{ ok: boolean }>(`/job-alerts/${encodeURIComponent(id)}`, { method: 'DELETE' }),
 
   // Which social sign-in providers the server has configured (LinkedIn-only).
   getAuthProviders: () => request<{ linkedin: boolean }>(`/auth/providers`),

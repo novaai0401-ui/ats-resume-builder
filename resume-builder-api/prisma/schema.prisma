@@ -662,3 +662,39 @@ model ApiUsage {
   @@index([apiKeyId, createdAt])
   @@index([apiKeyId, status])
 }
+
+/// Persisted snapshots of the self-learning resume-pattern-model
+/// (packages/resume-pattern-model), trained from the PII-redacted
+/// TrainingSample / ParseFailureSample corpus. The newest snapshot is
+/// what the library ships with; older rows are an audit trail.
+model PatternModelSnapshot {
+  id        String   @id @default(cuid())
+  /// Number of corpus documents the model had seen at snapshot time.
+  docsSeen  Int
+  /// Vocabulary size + header-shape count for quick dashboard stats.
+  vocabSize Int      @default(0)
+  shapes    Int      @default(0)
+  /// The serialized model (ResumePatternModel.toJSON()).
+  model     Json
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+/// Saved job-search alert: we re-run the Adzuna search on a cron and email
+/// the user when NEW openings appear that they haven't been shown before.
+model JobAlert {
+  id           String    @id @default(cuid())
+  userId       String
+  query        String
+  location     String?
+  active       Boolean   @default(true)
+  /// Job keys (URLs) already emailed — dedupe across runs.
+  seenKeys     Json      @default("[]")
+  lastRunAt    DateTime?
+  lastMatchAt  DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([userId])
+  @@index([active])
+}

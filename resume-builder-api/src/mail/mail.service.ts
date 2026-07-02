@@ -116,6 +116,53 @@ export class MailService {
    * one-tap links. Plain-text first (mail clients trust it more),
    * minimal HTML with three real buttons.
    */
+  /** New-openings digest for a saved job alert. */
+  async sendJobAlertEmail(args: {
+    to: string;
+    userName: string;
+    query: string;
+    location?: string | null;
+    openings: Array<{ title: string; company: string; location: string; url: string; salaryText?: string | null }>;
+  }): Promise<boolean> {
+    if (!this.transporter) {
+      this.logger.warn(`Cannot send job alert to ${args.to}: SMTP not configured`);
+      return false;
+    }
+    const firstName = (args.userName || '').trim().split(/\s+/)[0] || 'there';
+    const where = args.location ? ` in ${args.location}` : '';
+    const subject = `${args.openings.length} new ${args.openings.length === 1 ? 'opening' : 'openings'} for "${args.query}"${where}`;
+    const text = [
+      `Hi ${firstName},`,
+      '',
+      `New openings matching your saved search "${args.query}"${where}:`,
+      '',
+      ...args.openings.map((o) => `- ${o.title} @ ${o.company} (${o.location})${o.salaryText ? ` — ${o.salaryText}` : ''}\n  ${o.url}`),
+      '',
+      'Tailor your resume to the JD before applying — JD Match on Pocket Resume shows the gap in seconds.',
+      '',
+      'Manage alerts from the Jobs page in Pocket Resume.',
+    ].join('\n');
+    const rows = args.openings.map((o) => `
+        <tr><td style="padding:10px 0;border-bottom:1px solid #e6e8f2;">
+          <a href="${o.url}" style="color:#4f46e5;font-weight:600;text-decoration:none;">${o.title}</a>
+          <div style="color:#334155;font-size:14px;">${o.company} · ${o.location}${o.salaryText ? ` · ${o.salaryText}` : ''}</div>
+        </td></tr>`).join('');
+    const html = `
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;padding:24px;">
+        <h2 style="margin:0 0 6px;">New openings for "${args.query}"${where}</h2>
+        <p style="color:#64748b;margin:0 0 14px;">Hi ${firstName} — your saved search just matched ${args.openings.length} new ${args.openings.length === 1 ? 'opening' : 'openings'}.</p>
+        <table style="width:100%;border-collapse:collapse;">${rows}</table>
+        <p style="color:#64748b;font-size:13px;margin-top:16px;">Tip: run JD Match before applying so your resume covers the keywords. Manage alerts from the Jobs page.</p>
+      </div>`;
+    try {
+      await this.transporter.sendMail({ from: this.fromAddress, to: args.to, subject, text, html });
+      return true;
+    } catch (err) {
+      this.logger.warn(`Job alert email to ${args.to} failed: ${String(err)}`);
+      return false;
+    }
+  }
+
   async sendOutcomeNudgeEmail(args: {
     to: string;
     userName: string;

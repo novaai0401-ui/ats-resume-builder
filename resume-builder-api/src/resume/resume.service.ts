@@ -18,6 +18,7 @@ import { ACTION_VERB_REQUIRED_RATIO, analyzeActionVerbRule, normalizeBulletText,
 import { SettingsService } from '../settings/settings.service';
 import { MailService } from '../mail/mail.service';
 import { renderResumeDocx, buildResumeFileName } from './docx-export';
+import { looksLikeLinkedInProfile, normalizeLinkedInProfileText } from './linkedin-import';
 import { PatternLearnerService } from '../pattern-learner/pattern-learner.service';
 import { applyLearnedPatterns } from '../pattern-learner/pattern-applier';
 import { TrainingDatasetService } from '../training-dataset/training-dataset.service';
@@ -1059,6 +1060,15 @@ export class ResumeService {
     }
 
     try {
+      // ADDITIVE PRE-PASS (guarded): a pasted LinkedIn profile page has a
+      // well-known parser-hostile shape (doubled lines, "· Full-time"
+      // tails, LinkedIn section names). Rewrite it into canonical resume
+      // text FIRST; anything that doesn't look like a LinkedIn paste is
+      // untouched.
+      const linkedinAware = looksLikeLinkedInProfile(trimmed)
+        ? normalizeLinkedInProfileText(trimmed)
+        : trimmed;
+
       // ADDITIVE PRE-PASS (does nothing unless a tabular header is present):
       // Word/DOCX resumes often put the whole job header on ONE tab/2+space
       // separated line — "Company, City \t Role \t Date". Collapsing
@@ -1067,7 +1077,7 @@ export class ResumeService {
       // Role / Company (Location) / (Date) shape the parser already handles.
       // Non-matching lines pass through byte-for-byte → zero impact on the
       // formats that already extract correctly.
-      const preprocessed = splitTabularExperienceHeaders(trimmed);
+      const preprocessed = splitTabularExperienceHeaders(linkedinAware);
 
       // Primary extraction over the fully normalized text.
       const primary = this.buildStructuredResume(normalizeUploadText(preprocessed), options?.title);
