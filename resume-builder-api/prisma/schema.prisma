@@ -680,3 +680,21 @@ model PatternModelSnapshot {
 
   @@index([createdAt])
 }
+
+/// Saved job-search alert: we re-run the Adzuna search on a cron and email
+/// the user when NEW openings appear that they haven't been shown before.
+model JobAlert {
+  id           String    @id @default(cuid())
+  userId       String
+  query        String
+  location     String?
+  active       Boolean   @default(true)
+  /// Job keys (URLs) already emailed — dedupe across runs.
+  seenKeys     Json      @default("[]")
+  lastRunAt    DateTime?
+  lastMatchAt  DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([userId])
+  @@index([active])
+}

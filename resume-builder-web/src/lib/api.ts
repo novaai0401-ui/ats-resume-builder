@@ -1553,6 +1553,17 @@ export const api = {
       `/ai/live-openings?q=${encodeURIComponent(q)}${location ? `&location=${encodeURIComponent(location)}` : ''}`,
     ),
 
+  // ─── Job alerts (saved searches → email on new openings) ───────────────
+  listJobAlerts: () =>
+    request<Array<{ id: string; query: string; location: string | null; active: boolean; lastRunAt: string | null; lastMatchAt: string | null; createdAt: string }>>(`/job-alerts`),
+  createJobAlert: (input: { query: string; location?: string }) =>
+    request<{ id: string; query: string; location: string | null; active: boolean; createdAt: string }>(
+      `/job-alerts`,
+      { method: 'POST', body: JSON.stringify(input) },
+    ),
+  deleteJobAlert: (id: string) =>
+    request<{ ok: boolean }>(`/job-alerts/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+
   // Which social sign-in providers the server has configured (LinkedIn-only).
   getAuthProviders: () => request<{ linkedin: boolean }>(`/auth/providers`),
   // Returns the LinkedIn authorize URL to redirect the browser to.

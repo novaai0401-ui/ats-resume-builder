@@ -13,6 +13,7 @@ import { MetaModule } from './meta/meta.module';
 import { SettingsModule } from './settings/settings.module';
 import { AdminModule } from './admin/admin.module';
 import { MailModule } from './mail/mail.module';
+import { JobAlertsModule } from './job-alerts/job-alerts.module';
 import { JobsModule } from './jobs/jobs.module';
 import { AppMetaModule } from './app-meta/app-meta.module';
 import { PatternLearnerModule } from './pattern-learner/pattern-learner.module';
@@ -37,6 +38,7 @@ import { PublicApiModule } from './public-api/public-api.module';
     }),
     PrismaModule,
     MailModule,
+    JobAlertsModule,
     AuthModule,
     SettingsModule,
     ResumeModule,
