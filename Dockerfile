@@ -27,6 +27,10 @@ RUN cd packages/resume-intelligence && npm ci && npm run build
 COPY packages/doc-extract/ ./packages/doc-extract/
 RUN cd packages/doc-extract && npm ci && npm run build
 
+# 3c. Install & build packages/resume-pattern-model (self-learning pattern model)
+COPY packages/resume-pattern-model/ ./packages/resume-pattern-model/
+RUN cd packages/resume-pattern-model && npm ci && npm run build
+
 # 4. Install API dependencies (skip puppeteer browser download)
 WORKDIR /build/resume-builder-api
 COPY resume-builder-api/package.json resume-builder-api/package-lock.json ./

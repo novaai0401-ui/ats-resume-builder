@@ -131,7 +131,10 @@ export function selfLabel(line: string): LineClass | null {
   if (!t) return null;
   const bare = t.replace(/[:\s]+$/g, '').toLowerCase();
   if (SEED_HEADINGS.has(bare)) return 'heading';
-  if (EMAIL_RE.test(t) || (PHONE_RE.test(t) && t.length < 60)) return 'contact';
+  // Phone-shaped digits must not be a date span ("2012 - 2016" also matches
+  // the loose phone regex) — otherwise education/experience year lines
+  // mistrain the contact class.
+  if (EMAIL_RE.test(t) || (PHONE_RE.test(t) && t.length < 60 && !DATE_RANGE.test(t))) return 'contact';
   if (BULLET_RE.test(t)) return 'bullet';
   if (DATE_RANGE.test(t) && ROLE_WORDS.test(t) && t.length < 110) return 'job_header';
   if (t.length > 60 && !DATE_RANGE.test(t)) return 'body';
@@ -235,12 +238,11 @@ export class ResumePatternModel {
     // Prefer comma-split ("Company, City Role") when the learned shapes for
     // comma-carrying headers dominate; otherwise trailing role phrase.
     const roleM = pre.match(new RegExp(`\\s((?:[A-Z][A-Za-z.&/-]*\\s+){0,3}${ROLE_WORDS.source.slice(2, -2)})\\s*$`, 'i'));
-    let role = '';
-    let company = pre;
-    if (roleM) {
-      role = roleM[1].trim();
-      company = pre.slice(0, pre.length - roleM[0].length).trim().replace(/[,;]\s*$/, '');
-    }
+    // A job header must carry a role phrase — a bare "Institution 2012 -
+    // 2016" education line has a date range but no role, and is not one.
+    if (!roleM) return null;
+    const role = roleM[1].trim();
+    const company = pre.slice(0, pre.length - roleM[0].length).trim().replace(/[,;]\s*$/, '');
     return { role, company, dates, shape: shapeOf(t) };
   }
 
