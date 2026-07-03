@@ -8,13 +8,19 @@ test('home page loads and shows the brand', async ({ page }) => {
   await expect(page.getByText(/Pocket Resume/i).first()).toBeVisible();
 });
 
-test('pricing page reflects the no-subscription, ₹49-per-download model', async ({ page }) => {
+test('pricing page reflects the ₹49-per-download + single ₹499/mo plan model', async ({ page }) => {
   await page.goto('/billing');
   // Either the pricing page renders, or an unauthenticated app bounces to login.
-  // Both are acceptable; if it renders, it must NOT advertise monthly plans.
+  // Both are acceptable; if it renders, it must show the CURRENT model:
+  //   • ₹49 per download for everyone
+  //   • exactly ONE subscription — Pocket Resume Plus at ₹499/mo
+  //   • no legacy Student/Pro tiers or their prices
   const onLogin = page.url().includes('/auth/login');
   if (onLogin) return;
   await expect(page.getByText(/₹49/).first()).toBeVisible();
-  await expect(page.getByText(/No subscriptions|per download/i).first()).toBeVisible();
-  await expect(page.getByText(/₹199|₹499|\/mo/i)).toHaveCount(0);
+  await expect(page.getByText(/₹499/).first()).toBeVisible();
+  await expect(page.getByText(/Pocket Resume Plus/i).first()).toBeVisible();
+  // Legacy tiers must stay gone.
+  await expect(page.getByText(/₹199|₹399|₹799/)).toHaveCount(0);
+  await expect(page.getByText(/Student plan|Pro plan/i)).toHaveCount(0);
 });
