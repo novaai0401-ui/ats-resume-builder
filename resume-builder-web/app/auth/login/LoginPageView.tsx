@@ -10,9 +10,7 @@ import {
   PASSWORD_TOO_SHORT_MESSAGE,
   isValidEmail,
   EMAIL_INVALID_MESSAGE,
-  normalizeE164FromPayload,
 } from 'resume-builder-shared';
-import { TkxPhoneInput } from 'tekivex-ui';
 import { PrivacyBadge } from '@/src/components/PrivacyBadge';
 import { LinkedInSignInButton } from '@/src/components/LinkedInSignInButton';
 import { readPendingReferralCode, storePendingReferralCode } from '@/src/lib/referral';
@@ -43,7 +41,6 @@ export function LoginPageView({ apiClient = api, routerOverride, defaultMode = '
   // Register state
   const [regName, setRegName] = useState('');
   const [regEmail, setRegEmail] = useState('');
-  const [regMobile, setRegMobile] = useState('');
   const [regPassword, setRegPassword] = useState('');
 
   const [error, setError] = useState('');
@@ -104,7 +101,6 @@ export function LoginPageView({ apiClient = api, routerOverride, defaultMode = '
       await apiClient.register({
         fullName: regName.trim(),
         email: regEmail.trim(),
-        mobile: regMobile.trim(),
         password: regPassword || undefined,
         ...(referralCode ? { referralCode } : {}),
       });
@@ -202,18 +198,6 @@ export function LoginPageView({ apiClient = api, routerOverride, defaultMode = '
                 placeholder="you@example.com"
                 value={regEmail}
                 onChange={(e) => setRegEmail(e.target.value)}
-                required
-              />
-              {/* TkxPhoneInput ships with a country picker + E.164 normalisation,
-                  so a user from anywhere can register. Default to India for the
-                  primary market; the payload's `e164` is the canonical value we
-                  POST to /auth/register. */}
-              <TkxPhoneInput
-                id="reg-mobile"
-                label="Mobile"
-                defaultCountry="IN"
-                value={regMobile}
-                onChange={(p) => setRegMobile(normalizeE164FromPayload(p))}
                 required
               />
               <label className="label" htmlFor="reg-password">Password</label>

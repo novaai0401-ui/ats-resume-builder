@@ -53,7 +53,9 @@ const CertificationSchema = z.object({
 export const RegisterSchema = z.object({
   fullName: z.string().min(2),
   email: z.string().email(),
-  mobile: z.string().min(10).max(15),
+  /// Email-only onboarding: mobile is OPTIONAL (no SMS costs at this
+  /// stage). When provided it must still look like a phone number.
+  mobile: z.string().min(10).max(15).optional().or(z.literal('')),
   password: z.string().min(8).optional(),
   /// R-037: referral code carried from a `?ref=` link. Optional and
   /// best-effort — an invalid code never blocks the signup.

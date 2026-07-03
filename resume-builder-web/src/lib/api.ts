@@ -820,7 +820,7 @@ export async function refresh(payload: RefreshPayload, options: { silent?: boole
 }
 
 export const api = {
-  register: async (payload: { fullName: string; email: string; mobile: string; password?: string; referralCode?: string }) => {
+  register: async (payload: { fullName: string; email: string; mobile?: string; password?: string; referralCode?: string }) => {
     const auth = await request<AuthResponse>('/auth/register', {
       method: 'POST',
       body: JSON.stringify(payload),
