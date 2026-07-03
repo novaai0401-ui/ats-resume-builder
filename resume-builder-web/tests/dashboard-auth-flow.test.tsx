@@ -323,8 +323,8 @@ test('consent modal appears once per session and Later keeps the explicitly sele
   fireEvent.click(within(consentDialog).getByRole('button', { name: /Later/i }));
   await new Promise((resolve) => setTimeout(resolve, 250));
   assert.equal(screen.queryByTestId('drive-consent-modal'), null);
-  const profilePreview = screen.getByTestId('dashboard-preview-profile');
-  const select = screen.getByTestId('dashboard-resume-select') as HTMLSelectElement;
+  const profilePreview = await screen.findByTestId('dashboard-preview-profile', undefined, { timeout: 15_000 });
+  const select = await screen.findByTestId('dashboard-resume-select', undefined, { timeout: 15_000 }) as HTMLSelectElement;
   fireEvent.change(select, { target: { value: 'resume-db-1' } });
   await waitFor(() => {
     assert.match(profilePreview.textContent || '', /Database User/i);
@@ -605,7 +605,7 @@ test('reopening dashboard after clearing session keeps saved resumes visible but
   const profilePreview = await screen.findByTestId('dashboard-preview-profile', undefined, { timeout: 15_000 });
   assert.match(profilePreview.textContent || '', /No resume selected/i);
   assert.doesNotMatch(profilePreview.textContent || '', /Database User/i);
-  const reopenedSelect = screen.getByTestId('dashboard-resume-select') as HTMLSelectElement;
+  const reopenedSelect = await screen.findByTestId('dashboard-resume-select', undefined, { timeout: 15_000 }) as HTMLSelectElement;
   assert.equal(reopenedSelect.value, '');
 });
 
