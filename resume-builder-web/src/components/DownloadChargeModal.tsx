@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { api, getCurrentUserEmail } from '@/src/lib/api';
+import { SUPPORT_EMAIL, supportMailto } from '@/src/lib/support';
 import { useFocusTrap } from '@/src/lib/use-focus-trap';
 
 type RazorpayInitResult = {
@@ -202,7 +203,16 @@ export default function DownloadChargeModal({
             Waived with your own AI key or the ₹499/mo plan.
           </p>
         ) : null}
-        {error && <p className="small" style={{ color: '#b91c1c' }}>{error}</p>}
+        {error && (
+          <p className="small" style={{ color: 'var(--danger, #b91c1c)' }}>
+            {error}{' '}
+            <span style={{ color: 'var(--muted, #666)' }}>
+              Money deducted but stuck? Email{' '}
+              <a href={supportMailto('Download payment issue')} style={{ color: 'var(--primary, #4f46e5)' }}>{SUPPORT_EMAIL}</a>{' '}
+              with your payment ID — we resolve or refund.
+            </span>
+          </p>
+        )}
         <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
           <button className="btn secondary" onClick={onCancel} disabled={busy}>Cancel</button>
           <button className="btn" onClick={handlePay} disabled={busy || !init}>

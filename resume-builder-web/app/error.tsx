@@ -13,6 +13,7 @@
 
 import { useEffect } from 'react';
 import { TkxAlert, TkxButton, TkxCard, TkxCardBody, TkxCardHeader } from 'tekivex-ui';
+import { SUPPORT_EMAIL, supportMailto } from '@/src/lib/support';
 
 export default function RootError({
   error,
@@ -49,6 +50,11 @@ export default function RootError({
               Go to homepage
             </TkxButton>
           </div>
+          <p className="small" style={{ color: 'var(--muted)', marginTop: 14, marginBottom: 0 }}>
+            Still stuck? Email{' '}
+            <a href={supportMailto('Pocket Resume — problem report')}>{SUPPORT_EMAIL}</a>
+            {error.digest ? <> and mention reference <code>{error.digest}</code></> : null} — we reply fast.
+          </p>
         </TkxCardBody>
       </TkxCard>
     </main>
