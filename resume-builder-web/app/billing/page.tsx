@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { TkxCard, TkxButton, TkxBadge, TkxAlert } from 'tekivex-ui';
 import { api, getAccessToken, getCurrentUserEmail } from '@/src/lib/api';
+import { SUPPORT_EMAIL, supportMailto } from '@/src/lib/support';
 
 /**
  * Pricing page — the post-pivot model (REQUIREMENTS R-071):
@@ -135,6 +136,12 @@ export default function BillingPage() {
           <strong>₹499/mo</strong>, for our AI everywhere.
         </p>
       </header>
+
+      <p style={{ textAlign: 'center', color: 'var(--muted)', fontSize: 13, margin: '-8px 0 18px' }}>
+        Payment problem, wrong file downloaded, or paid but no download? Email{' '}
+        <a href={supportMailto('Billing / download issue')} style={{ color: 'var(--primary)' }}>{SUPPORT_EMAIL}</a>{' '}
+        — we resolve or refund.
+      </p>
 
       {notice ? <div style={{ marginBottom: 16 }}><TkxAlert variant="success">{notice}</TkxAlert></div> : null}
       {error ? <div style={{ marginBottom: 16 }}><TkxAlert variant="danger">{error}</TkxAlert></div> : null}

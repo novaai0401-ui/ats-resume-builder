@@ -1215,7 +1215,7 @@ function mapCertifications(sections: Record<string, string[]>) {
     // Real degree lines (BE, B.Tech, Bachelor, Master, MBA, PhD…) — but NOT a
     // certificate that merely contains "associate"/"diploma" (e.g.
     // "Azure Developer Associate" must stay a certificate).
-    if (/\b(b\.?e\.?|b\.?tech|b\.?sc|b\.?a\.?|b\.?com|bba|bca|bachelor|m\.?e\.?|m\.?tech|m\.?sc|m\.?a\.?|m\.?com|mba|mca|master|ph\.?d|doctorate)\b/i.test(line)
+    if (/\b(b\.?e\.?|b\.?tech|b\.?sc|b\.?a\.?|b\.?com|bba|bca|bachelor|m\.?e\.?|m\.?tech|m\.?sc|m\.?a\.?|m\.?com|mba|mca|master|ph\.?d|doctorate|b\.?des|m\.?des|b\.?arch|b\.?pharm|b\.?ed|b\.?f\.?a|b\.?voc)\b/i.test(line)
       && !/\b(certified|certificate|certification|course|training)\b/i.test(line)) continue;
     if (/\b(university|college|institute|cgpa|gpa)\b/i.test(line)
       && !/\b(certified|certificate|certification|course|training)\b/i.test(line)) continue;
@@ -2181,7 +2181,7 @@ function looksLikeEducationRoleLine(line: string) {
 }
 
 function looksLikeEducationDegreeLine(line: string) {
-  return /\b(b\.?e\.?|b\.?a\.?|b\.?s\.?|b\.?sc|bb\.?a|b\.?com|b\.?tech|m\.?e\.?|m\.?a\.?|m\.?s\.?|m\.?sc|m\.?tech|m\.?b\.?a|m\.?com|m\.?phil|bachelor|master|associate|diploma|ph\.?d\.?|phd|doctorate|d\.?b\.?a|b\.?c\.?a|m\.?c\.?a|b\.?b\.?a?|ll\.?b|ll\.?m|j\.?d\.?|d\.?o\.?|m\.?d\.?|ed\.?d|psych\.?d)\b/i.test(line);
+  return /\b(b\.?e\.?|b\.?a\.?|b\.?s\.?|b\.?sc|bb\.?a|b\.?com|b\.?tech|m\.?e\.?|m\.?a\.?|m\.?s\.?|m\.?sc|m\.?tech|m\.?b\.?a|m\.?com|m\.?phil|bachelor|master|associate|diploma|ph\.?d\.?|phd|doctorate|d\.?b\.?a|b\.?c\.?a|m\.?c\.?a|b\.?b\.?a?|ll\.?b|ll\.?m|j\.?d\.?|d\.?o\.?|m\.?d\.?|ed\.?d|psych\.?d|b\.?des|m\.?des|b\.?arch|m\.?arch|b\.?pharm|m\.?pharm|b\.?ed|m\.?ed|b\.?f\.?a|m\.?f\.?a|b\.?voc|b\.?p\.?t|m\.?p\.?t)\b/i.test(line);
 }
 
 function looksLikeEducationInstitutionLine(line: string) {

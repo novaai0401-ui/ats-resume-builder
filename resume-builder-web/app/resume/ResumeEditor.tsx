@@ -9,6 +9,7 @@ import useFeatureFlags from '@/src/hooks/use-feature-flags';
 import { FONT_OPTIONS, DENSITY_OPTIONS, ACCENT_PRESETS, REORDERABLE_SECTIONS, resolveSectionOrder, getAtsSectionTitle, templateSupportsPhoto, normalizePhotoUrl, isValidEmail, isValidPhone, EMAIL_INVALID_MESSAGE, PHONE_INVALID_MESSAGE } from 'resume-builder-shared';
 import { RESUME_CREATE_RATE_LIMIT_CODE, api, Resume, ResumeImportResult, UploadResumeResponse, getAccessToken, isApiRequestError } from '@/src/lib/api';
 import { loadByokKey, isPaidPlan } from '@/src/lib/byok-storage';
+import { SUPPORT_EMAIL } from '@/src/lib/support';
 import { PrivacyBadge } from '@/src/components/PrivacyBadge';
 import { useResumeStore } from '@/src/lib/resume-store';
 import {
@@ -4313,7 +4314,10 @@ export default function ResumeEditor() {
                 const scoreNow = atsReview.result?.roleAdjustedScore ?? null;
                 setPostDownloadPopup({ score: typeof scoreNow === 'number' ? scoreNow : null });
               } catch (err: unknown) {
-                const errorMessage = friendlyPdfErrorMessage(err, 'Download PDF failed');
+                // CRITICAL PATH: the user has ALREADY PAID (we hold a
+                // download token) and the export failed. Never leave them
+                // stranded — give the support address with their context.
+                const errorMessage = `${friendlyPdfErrorMessage(err, 'Download PDF failed')} You've already paid — email ${SUPPORT_EMAIL} with your payment ID and we'll send your resume or refund you.`;
                 setMessage(errorMessage);
                 showSnackbar('error', errorMessage);
               }
