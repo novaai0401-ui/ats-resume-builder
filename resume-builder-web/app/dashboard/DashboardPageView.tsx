@@ -335,14 +335,14 @@ export default function DashboardPageView({
             <div style={{ display: 'grid', gap: 8, minWidth: 260, flex: '1 1 260px' }}>
               {shouldShowSearch ? (
                 <label style={{ display: 'grid', gap: 6 }}>
-                  <span className="small">Search resumes</span>
+                  <span className="small">Search resumes <span style={{ color: 'var(--muted)', fontWeight: 400 }}>— filters the list below</span></span>
                   <input
                     className="input"
                     type="search"
                     inputMode="search"
                     enterKeyHint="search"
                     autoComplete="off"
-                    placeholder="Search by title, name, or role"
+                    placeholder="Type to filter the ‘Selected resume’ dropdown below"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     data-testid="dashboard-resume-search"
