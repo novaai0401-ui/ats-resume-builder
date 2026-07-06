@@ -1,7 +1,8 @@
 export type RegisterDto = {
   fullName: string;
   email: string;
-  mobile: string;
+  /** Optional — email-only onboarding (no paid SMS verification yet). */
+  mobile?: string;
   password?: string;
   /** R-037: referral code carried from a `?ref=` link. Best-effort. */
   referralCode?: string;
