@@ -104,18 +104,21 @@ export class AuthService {
       throw new BadRequestException('An account with this email already exists. Please log in instead.');
     }
 
-    // Normalize and validate mobile
-    const mobile = normalizeMobile(dto.mobile);
-    if (!mobile) {
-      throw new BadRequestException('A valid mobile number is required.');
-    }
-
-    // Check unique mobile
-    const existingMobile = await this.prisma.user.findUnique({
-      where: { mobile },
-    });
-    if (existingMobile) {
-      throw new BadRequestException('This mobile number is already linked to another account. Please use another mobile number.');
+    // Email-only onboarding: mobile is OPTIONAL (we do not run paid SMS
+    // verification at this stage). When the user DOES provide one it must
+    // normalize to a valid number and stay unique across accounts.
+    let mobile: string | null = null;
+    if (dto.mobile && String(dto.mobile).trim()) {
+      mobile = normalizeMobile(dto.mobile);
+      if (!mobile) {
+        throw new BadRequestException('That mobile number does not look valid. Leave it blank or fix it.');
+      }
+      const existingMobile = await this.prisma.user.findUnique({
+        where: { mobile },
+      });
+      if (existingMobile) {
+        throw new BadRequestException('This mobile number is already linked to another account. Please use another mobile number.');
+      }
     }
 
     // Generate a random password hash if no password provided (email OTP flow).

@@ -10,6 +10,7 @@ import { FONT_OPTIONS, DENSITY_OPTIONS, ACCENT_PRESETS, REORDERABLE_SECTIONS, re
 import { RESUME_CREATE_RATE_LIMIT_CODE, api, Resume, ResumeImportResult, UploadResumeResponse, getAccessToken, isApiRequestError } from '@/src/lib/api';
 import { loadByokKey, isPaidPlan } from '@/src/lib/byok-storage';
 import { SUPPORT_EMAIL } from '@/src/lib/support';
+import { splitBulletIntoBullets, canSplitBullet } from '@/src/lib/bullet-utils';
 import { PrivacyBadge } from '@/src/components/PrivacyBadge';
 import { useResumeStore } from '@/src/lib/resume-store';
 import {
@@ -1064,6 +1065,34 @@ export default function ResumeEditor() {
       return next;
     });
   }, []);
+
+  // Split one over-long bullet into several concise bullets in place.
+  // This is the "if the content is large, ask the user to split it" path —
+  // a rewrite can't shrink a 50-word bullet to 28 without losing content,
+  // so we break it into multiple single-idea bullets instead.
+  const splitBulletInPlace = useCallback(
+    (expIdx: number, highlightIdx: number) => {
+      const exp = resume.experience[expIdx];
+      const bullet = (exp?.highlights ?? [])[highlightIdx] ?? '';
+      const pieces = splitBulletIntoBullets(bullet);
+      if (pieces.length < 2) return;
+      setResume((prev) => {
+        const copy = [...prev.experience];
+        const nextHighlights = [...(copy[expIdx]?.highlights ?? [])];
+        nextHighlights.splice(highlightIdx, 1, ...pieces);
+        copy[expIdx] = { ...copy[expIdx], highlights: nextHighlights };
+        return { ...prev, experience: copy };
+      });
+      markDirty();
+      setBulletRewrites((prev) => {
+        const next = { ...prev };
+        delete next[`${expIdx}-${highlightIdx}`];
+        return next;
+      });
+      showSnackbar('success', `Split into ${pieces.length} bullets — tap "Save changes" to keep them.`);
+    },
+    [resume.experience, showSnackbar],
+  );
 
   const persistTemplateId = useCallback(
     async (nextTemplateId: string, options?: { silent?: boolean }) => {
@@ -3275,7 +3304,10 @@ export default function ResumeEditor() {
                                         </div>
                                       );
                                     }
-                                    return (
+                                    {
+                                      const currentBullet = (resume.experience[expIdx]?.highlights ?? [])[highlightIdx] ?? '';
+                                      const splittable = canSplitBullet(currentBullet);
+                                      return (
                                       <div className="bullet-rewrite-panel" aria-live="polite">
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                                           <strong style={{ fontSize: 13 }}>Pick an alternative</strong>
@@ -3283,6 +3315,12 @@ export default function ResumeEditor() {
                                             {entry.provider === 'groq' ? 'Powered by AI' : 'Rule-based fallback'}
                                           </span>
                                         </div>
+                                        {splittable && (
+                                          <p className="small" style={{ margin: '0 0 6px', color: 'var(--muted)' }}>
+                                            This bullet is long. Pick a shorter phrasing below, or split it into
+                                            separate single-idea bullets.
+                                          </p>
+                                        )}
                                         <ul style={{ margin: 0, paddingLeft: 0, listStyle: 'none', display: 'grid', gap: 6 }}>
                                           {entry.alternatives.map((alt, i) => (
                                             <li key={i} className="bullet-rewrite-option">
@@ -3296,14 +3334,25 @@ export default function ResumeEditor() {
                                             </li>
                                           ))}
                                         </ul>
-                                        <button
-                                          type="button"
-                                          className="btn ghost"
-                                          style={{ fontSize: 12, marginTop: 6 }}
-                                          onClick={() => dismissBulletRewrite(expIdx, highlightIdx)}
-                                        >Keep current</button>
+                                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
+                                          {splittable && (
+                                            <button
+                                              type="button"
+                                              className="btn secondary"
+                                              style={{ fontSize: 12 }}
+                                              onClick={() => splitBulletInPlace(expIdx, highlightIdx)}
+                                            >Split into {splitBulletIntoBullets(currentBullet).length} bullets</button>
+                                          )}
+                                          <button
+                                            type="button"
+                                            className="btn ghost"
+                                            style={{ fontSize: 12 }}
+                                            onClick={() => dismissBulletRewrite(expIdx, highlightIdx)}
+                                          >Keep current</button>
+                                        </div>
                                       </div>
-                                    );
+                                      );
+                                    }
                                   })()}
                                   {highlightError && <p className="hint error">{highlightError}</p>}
                                   {showLengthError && (

@@ -211,9 +211,95 @@ export function parseAlternatives(raw: string): string[] {
  * than telling the user the feature is broken — and gives free-tier
  * users (when the gate is off) a baseline experience.
  */
-export function ruleBasedRewrites(bullet: string): string[] {
+/** ATS single-bullet word ceiling — kept in sync with the web editor. */
+export const BULLET_MAX_WORDS = 28;
+
+function wordCount(s: string): number {
+  return String(s || '').trim().split(/\s+/).filter(Boolean).length;
+}
+
+/** Filler phrases a rule-based tightener can safely drop to save words. */
+const FILLER_RE = /\b(responsible for|taking responsibility for|in order to|as well as|with a focus on|which included|including but not limited to|that helped to|in an effort to|so as to|with the goal of|for the purpose of|a variety of|a number of|various|successfully|effectively|efficiently)\b/gi;
+
+/** Split one over-long bullet into several concise, single-idea bullets. */
+export function splitLongBullet(bullet: string, maxWords = BULLET_MAX_WORDS): string[] {
+  const text = String(bullet || '').trim();
+  if (!text) return [];
+  // First split on real sentence boundaries (". Capital"), keeping the stop.
+  let parts = text.split(/(?<=[.!?])\s+(?=[A-Z])/).map((p) => p.trim()).filter(Boolean);
+  // Any sentence still over the limit is split again on clause connectors.
+  parts = parts.flatMap((p) =>
+    wordCount(p) <= maxWords
+      ? [p]
+      : p.split(/\s*(?:;|,\s+(?:and|while|which|including|and ensuring|and driving|and delivering))\s+/i)
+          .map((c) => c.trim())
+          .filter(Boolean),
+  );
+  return parts
+    .map((p) => {
+      let s = p.replace(/^[,;\s]+/, '').replace(/[,;\s]+$/, '');
+      s = s.charAt(0).toUpperCase() + s.slice(1);
+      if (!/[.!?]$/.test(s)) s += '.';
+      return s;
+    })
+    .filter((s) => wordCount(s) >= 2);
+}
+
+/** Tighten one bullet toward the word limit without losing its meaning. */
+export function shortenBullet(bullet: string, maxWords = BULLET_MAX_WORDS): string {
+  const text = String(bullet || '').trim();
+  if (!text) return '';
+  if (wordCount(text) <= maxWords) return text;
+  // Prefer the first complete sentence if it fits.
+  const firstSentence = text.split(/(?<=[.!?])\s+(?=[A-Z])/)[0].trim();
+  let candidate = wordCount(firstSentence) <= maxWords ? firstSentence : text;
+  // Drop filler phrases.
+  candidate = candidate.replace(FILLER_RE, ' ').replace(/\s{2,}/g, ' ').trim();
+  if (wordCount(candidate) > maxWords) {
+    // Truncate at the last word boundary within the limit, on a clause end.
+    const words = candidate.replace(/[.!?]+$/, '').split(/\s+/).slice(0, maxWords);
+    candidate = words.join(' ');
+  }
+  candidate = candidate.replace(/[,;\s]+$/, '');
+  candidate = candidate.charAt(0).toUpperCase() + candidate.slice(1);
+  if (!/[.!?]$/.test(candidate)) candidate += '.';
+  return candidate;
+}
+
+/**
+ * Rule-based fallback. LENGTH-AWARE:
+ *   • Over-length bullets → genuinely shorter variants (first sentence,
+ *     tightened, first clause) so accepting one actually clears the
+ *     "too long" warning — the old verb-swap left it just as long.
+ *   • In-range bullets → three verb-swapped phrasings as before.
+ */
+export function ruleBasedRewrites(bullet: string, maxWords = BULLET_MAX_WORDS): string[] {
   const trimmed = String(bullet || '').trim();
   if (!trimmed) return [];
+
+  if (wordCount(trimmed) > maxWords) {
+    const out: string[] = [];
+    const seen = new Set<string>();
+    const push = (s: string) => {
+      const clean = String(s || '').trim();
+      const key = clean.toLowerCase();
+      if (clean && wordCount(clean) <= maxWords && wordCount(clean) >= 3 && !seen.has(key)) {
+        seen.add(key);
+        out.push(clean);
+      }
+    };
+    // 1. Tightened whole bullet.
+    push(shortenBullet(trimmed, maxWords));
+    // 2. Each concise piece from a split (the strongest first).
+    for (const piece of splitLongBullet(trimmed, maxWords)) push(piece);
+    // 3. Guarantee at least one option: a hard-truncated version.
+    if (!out.length) {
+      const words = trimmed.replace(/[.!?]+$/, '').split(/\s+/).slice(0, maxWords).join(' ');
+      push(words.endsWith('.') ? words : `${words}.`);
+    }
+    return out.slice(0, 3);
+  }
+
   const swaps = ['Led', 'Drove', 'Built'];
   const seen = new Set<string>();
   const out: string[] = [];
@@ -225,8 +311,6 @@ export function ruleBasedRewrites(bullet: string): string[] {
       out.push(variant);
     }
   }
-  // Always return three; pad with a generic-but-distinct rewrite that
-  // tightens phrasing without changing meaning if we still have slots.
   while (out.length < 3) {
     out.push(`Delivered ${trimmed.replace(/^[A-Z][a-z]+\s+/, '').replace(/\.$/, '')}.`);
     if (out.length === 3) break;

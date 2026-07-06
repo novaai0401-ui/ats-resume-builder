@@ -41,11 +41,22 @@ test('POST /auth/register requires email', async () => {
   await app.close();
 });
 
-test('POST /auth/register requires mobile', async () => {
+// Email-only onboarding: mobile is OPTIONAL at registration (no paid SMS
+// verification at this stage). Registration must succeed without it.
+test('POST /auth/register succeeds WITHOUT a mobile number (email-only signup)', async () => {
   const app = await createApp();
   await request(app.getHttpServer())
     .post('/auth/register')
-    .send({ fullName: 'User No Mobile', email: 'test@example.com' })
-    .expect(400);
+    .send({ fullName: 'Email Only User', email: 'test@example.com', password: 'longenough123' })
+    .expect(201);
+  await app.close();
+});
+
+test('POST /auth/register still accepts a mobile when the user provides one', async () => {
+  const app = await createApp();
+  await request(app.getHttpServer())
+    .post('/auth/register')
+    .send({ fullName: 'With Mobile', email: 'test2@example.com', mobile: '+919999999999', password: 'longenough123' })
+    .expect(201);
   await app.close();
 });
