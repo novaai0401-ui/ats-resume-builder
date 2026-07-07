@@ -10,7 +10,7 @@ import { FONT_OPTIONS, DENSITY_OPTIONS, ACCENT_PRESETS, REORDERABLE_SECTIONS, re
 import { RESUME_CREATE_RATE_LIMIT_CODE, api, Resume, ResumeImportResult, UploadResumeResponse, getAccessToken, isApiRequestError } from '@/src/lib/api';
 import { loadByokKey, isPaidPlan } from '@/src/lib/byok-storage';
 import { SUPPORT_EMAIL } from '@/src/lib/support';
-import { splitBulletIntoBullets, canSplitBullet } from '@/src/lib/bullet-utils';
+import { splitBulletIntoBullets, canSplitBullet, shortenBulletText, wordCount as bulletWordCount, BULLET_MAX_WORDS as BULLET_LIMIT } from '@/src/lib/bullet-utils';
 import { PrivacyBadge } from '@/src/components/PrivacyBadge';
 import { useResumeStore } from '@/src/lib/resume-store';
 import {
@@ -1090,6 +1090,32 @@ export default function ResumeEditor() {
         return next;
       });
       showSnackbar('success', `Split into ${pieces.length} bullets — tap "Save changes" to keep them.`);
+    },
+    [resume.experience, showSnackbar],
+  );
+
+  // One-tap offline tightening: for a long SINGLE-idea bullet that does not
+  // meaningfully split, replace it in place with a clean ≤28-word rewrite.
+  const shortenBulletInPlace = useCallback(
+    (expIdx: number, highlightIdx: number) => {
+      const exp = resume.experience[expIdx];
+      const bullet = (exp?.highlights ?? [])[highlightIdx] ?? '';
+      const shortened = shortenBulletText(bullet);
+      if (!shortened || shortened === bullet) return;
+      setResume((prev) => {
+        const copy = [...prev.experience];
+        const nextHighlights = [...(copy[expIdx]?.highlights ?? [])];
+        nextHighlights.splice(highlightIdx, 1, shortened);
+        copy[expIdx] = { ...copy[expIdx], highlights: nextHighlights };
+        return { ...prev, experience: copy };
+      });
+      markDirty();
+      setBulletRewrites((prev) => {
+        const next = { ...prev };
+        delete next[`${expIdx}-${highlightIdx}`];
+        return next;
+      });
+      showSnackbar('success', 'Shortened to a concise bullet — tap "Save changes" to keep it.');
     },
     [resume.experience, showSnackbar],
   );
@@ -3307,6 +3333,9 @@ export default function ResumeEditor() {
                                     {
                                       const currentBullet = (resume.experience[expIdx]?.highlights ?? [])[highlightIdx] ?? '';
                                       const splittable = canSplitBullet(currentBullet);
+                                      const overLimit = bulletWordCount(currentBullet) > BULLET_LIMIT;
+                                      const shortenedCandidate = overLimit ? shortenBulletText(currentBullet) : '';
+                                      const canShorten = !!shortenedCandidate && shortenedCandidate !== currentBullet;
                                       return (
                                       <div className="bullet-rewrite-panel" aria-live="polite">
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
@@ -3335,6 +3364,15 @@ export default function ResumeEditor() {
                                           ))}
                                         </ul>
                                         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
+                                          {canShorten && (
+                                            <button
+                                              type="button"
+                                              className="btn secondary"
+                                              style={{ fontSize: 12 }}
+                                              title={shortenedCandidate}
+                                              onClick={() => shortenBulletInPlace(expIdx, highlightIdx)}
+                                            >Shorten to one bullet</button>
+                                          )}
                                           {splittable && (
                                             <button
                                               type="button"

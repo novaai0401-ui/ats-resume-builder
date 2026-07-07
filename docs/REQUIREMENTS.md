@@ -938,6 +938,46 @@ and every external call still feeds the Outcome Graph.
 
 ---
 
+### R-072 · Editor bullet-length remediation (rewrite / shorten / split)
+
+- Status: **DONE** (this commit)
+- Depends-on: R-006 (editor), R-071 (bullet-rewrite gating)
+- Context: the editor flags any experience bullet over
+  `BULLET_MAX_WORDS = 28` with "This bullet exceeds 28 words. Shorten
+  it for better ATS readability." A free / key-less / plan-less user
+  gets the rule-based rewriter, which must produce genuinely shorter
+  AND readable alternatives — not verb-swaps that stay the same length,
+  and not garbage that echoes extraction artifacts. Earlier passes
+  (901beaa) made it length-aware but still leaked a role-title clause
+  ("Led an Assistant Vice President, …"), kept dangling truncated
+  fragments ("…the solution was recognized by"), and failed to tighten
+  a long SINGLE-sentence bullet at all (no comma to split on).
+- Acceptance
+  - [x] `ruleBasedRewrites` / `shortenBullet` / `splitLongBullet` share
+    one clause engine (`buildBulletCandidates`) that: splits on
+    commas/semicolons AND subordinate/participial connectors
+    (while/which/including/…) so a long single-sentence bullet still
+    tightens; drops leaked job-title clauses (`isRoleLeakClause`);
+    drops dangling truncated fragments ending on a preposition/article
+    (`isDanglingFragment`); drops filler (`FILLER_RE`); greedily packs
+    surviving clauses into tidy ≤28-word bullets; ranks impact-first
+    (action-verb + metric).
+  - [x] Every rewrite of an over-limit bullet is ≤28 words and ≥3
+    words; accepting one clears the "too long" flag.
+  - [x] An in-range bullet carrying droppable junk (dangling fragment /
+    role leak / near-limit filler) is still cleaned; a genuinely clean
+    in-range bullet keeps the legacy verb-swap behavior (no mangling).
+  - [x] Web mirror `src/lib/bullet-utils.ts`
+    (`splitBulletIntoBullets` / `shortenBulletText` / `canSplitBullet`)
+    matches the API engine so free users get offline "Split into N
+    bullets" and "Shorten to one bullet" actions in the rewrite panel.
+  - [x] Pinning tests: `tests/bullet-rewriter-shorten.unit.test.cjs`
+    (API, incl. the two real screenshot bullets + no-role-leak +
+    no-dangling + metric-first + no-false-positive) and
+    `tests/bullet-utils.test.ts` (web).
+
+---
+
 ## §6. Cross-cutting constants
 
 These are constraints that every requirement must respect. Violations
@@ -1004,6 +1044,7 @@ do not break it.
 
 | Date | Decision | Reason | Affected IDs |
 |---|---|---|---|
+| 2026-07-07 | Rebuilt the rule-based bullet remediation on one clause engine (`buildBulletCandidates`): splits on subordinate/participial connectors (not just commas) so a long single-sentence bullet tightens; drops leaked job-title clauses, dangling truncated fragments ("…recognized by"), and filler; ranks impact-first; pads single-idea rewrites with verb variants. An in-range bullet with droppable junk is now cleaned too (not just verb-swapped). Web mirror gains `shortenBulletText` + a "Shorten to one bullet" editor action. | Founder screenshots: over-limit bullets still got useless verb-swap-only rewrites and echoed extraction garbage; accepting a suggestion never cleared "exceeds 28 words". | R-072, R-006, R-071 |
 | 2026-06-11 | Defer vault flow decision to post-launch | Time pressure + need real user signal | R-001, R-052 |
 | 2026-06-11 | Keep PRODUCT_FLOW_RESTRICTIONS_ENABLED guard for FREE-block only; quota is unconditional | Founder reported a free user pulled 6 PDFs; flag-gated quota = decorative | R-003 |
 | 2026-06-11 | Two upload buttons instead of one merged | Merged button forced ATS-mode race which wiped fields | R-007 |

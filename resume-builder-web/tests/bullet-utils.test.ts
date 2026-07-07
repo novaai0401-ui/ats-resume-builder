@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { splitBulletIntoBullets, canSplitBullet, wordCount, BULLET_MAX_WORDS } from '@/src/lib/bullet-utils';
+import { splitBulletIntoBullets, canSplitBullet, shortenBulletText, wordCount, BULLET_MAX_WORDS } from '@/src/lib/bullet-utils';
 
 const LONG = 'Led an Assistant Vice President, owned technical leadership for the UI platform, taking responsibility for frontend architecture, system modernization, and delivery quality. Led architectural initiatives including framework upgrades, performance optimization, backend driven UI design, and microfrontend adoption, while mentoring engineers and ensuring alignment between business requirements, non functional requirements, and long-term platform stability.';
 
@@ -33,4 +33,27 @@ test('splitting reduces the max piece length versus the original', () => {
   const pieces = splitBulletIntoBullets(LONG);
   const maxPiece = Math.max(...pieces.map(wordCount));
   assert.ok(maxPiece < wordCount(LONG), 'each piece is shorter than the original');
+});
+
+test('split pieces never echo the leaked job title or a dangling fragment', () => {
+  for (const p of splitBulletIntoBullets(LONG)) {
+    assert.doesNotMatch(p, /assistant vice president/i, `leaked title: "${p}"`);
+    assert.doesNotMatch(p, /\b(by|with|for|to|of|and|as|via)\.?$/i, `dangling: "${p}"`);
+  }
+});
+
+test('shortenBulletText tightens a long single-sentence bullet below the limit', () => {
+  const single =
+    'Led and delivered a React-Redux modernization program for a legacy enterprise application, significantly improving runtime performance and application stability while achieving zero production defects and faster release cycles across engineering teams';
+  assert.ok(wordCount(single) > BULLET_MAX_WORDS);
+  const s = shortenBulletText(single);
+  assert.ok(wordCount(s) <= BULLET_MAX_WORDS, `still too long (${wordCount(s)}): "${s}"`);
+  assert.ok(wordCount(s) < wordCount(single));
+  assert.match(s, /^[A-Z]/);
+  assert.match(s, /[.!?]$/);
+});
+
+test('shortenBulletText leaves an in-range bullet unchanged', () => {
+  const one = 'Reduced infra cost by 30% through autoscaling.';
+  assert.equal(shortenBulletText(one), one);
 });
