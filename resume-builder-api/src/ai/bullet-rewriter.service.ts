@@ -218,86 +218,256 @@ function wordCount(s: string): number {
   return String(s || '').trim().split(/\s+/).filter(Boolean).length;
 }
 
-/** Filler phrases a rule-based tightener can safely drop to save words. */
-const FILLER_RE = /\b(responsible for|taking responsibility for|in order to|as well as|with a focus on|which included|including but not limited to|that helped to|in an effort to|so as to|with the goal of|for the purpose of|a variety of|a number of|various|successfully|effectively|efficiently)\b/gi;
+/**
+ * Filler phrases a rule-based tightener can safely drop to save words
+ * WITHOUT changing meaning — padding verbs/adverbs and throat-clearing.
+ */
+const FILLER_RE = /\b(responsible for|taking responsibility for|in order to|as well as|with a focus on|which included|including but not limited to|that helped to|in an effort to|so as to|with the goal of|for the purpose of|a variety of|a number of|various|successfully|effectively|efficiently|actively|closely|proactively|as needed|on a regular basis|from time to time|end to end|end-to-end)\b/gi;
 
-/** Split one over-long bullet into several concise, single-idea bullets. */
-export function splitLongBullet(bullet: string, maxWords = BULLET_MAX_WORDS): string[] {
-  const text = String(bullet || '').trim();
-  if (!text) return [];
-  // First split on real sentence boundaries (". Capital"), keeping the stop.
-  let parts = text.split(/(?<=[.!?])\s+(?=[A-Z])/).map((p) => p.trim()).filter(Boolean);
-  // Any sentence still over the limit is split again on clause connectors.
-  parts = parts.flatMap((p) =>
-    wordCount(p) <= maxWords
-      ? [p]
-      : p.split(/\s*(?:;|,\s+(?:and|while|which|including|and ensuring|and driving|and delivering))\s+/i)
-          .map((c) => c.trim())
-          .filter(Boolean),
-  );
-  return parts
-    .map((p) => {
-      let s = p.replace(/^[,;\s]+/, '').replace(/[,;\s]+$/, '');
-      s = s.charAt(0).toUpperCase() + s.slice(1);
-      if (!/[.!?]$/.test(s)) s += '.';
-      return s;
-    })
-    .filter((s) => wordCount(s) >= 2);
-}
+/** Strong resume action verbs — for ranking and role-leak detection. */
+const ACTION_VERBS = new Set(
+  (
+    'led managed built designed drove developed delivered launched created improved ' +
+    'reduced increased grew owned architected implemented migrated optimized automated ' +
+    'mentored coordinated established streamlined engineered spearheaded oversaw directed ' +
+    'scaled shipped introduced integrated deployed refactored analyzed championed cut ' +
+    'boosted accelerated enabled ensured maintained supported defined'
+  ).split(' '),
+);
 
-/** Tighten one bullet toward the word limit without losing its meaning. */
-export function shortenBullet(bullet: string, maxWords = BULLET_MAX_WORDS): string {
-  const text = String(bullet || '').trim();
-  if (!text) return '';
-  if (wordCount(text) <= maxWords) return text;
-  // Prefer the first complete sentence if it fits.
-  const firstSentence = text.split(/(?<=[.!?])\s+(?=[A-Z])/)[0].trim();
-  let candidate = wordCount(firstSentence) <= maxWords ? firstSentence : text;
-  // Drop filler phrases.
-  candidate = candidate.replace(FILLER_RE, ' ').replace(/\s{2,}/g, ' ').trim();
-  if (wordCount(candidate) > maxWords) {
-    // Truncate at the last word boundary within the limit, on a clause end.
-    const words = candidate.replace(/[.!?]+$/, '').split(/\s+/).slice(0, maxWords);
-    candidate = words.join(' ');
-  }
-  candidate = candidate.replace(/[,;\s]+$/, '');
-  candidate = candidate.charAt(0).toUpperCase() + candidate.slice(1);
-  if (!/[.!?]$/.test(candidate)) candidate += '.';
-  return candidate;
+/** Seniority/title tokens that mark a clause as a leaked role fragment. */
+const TITLE_TOKENS = /\b(vice president|president|director|manager|engineer|analyst|architect|officer|consultant|specialist|associate|intern|head|lead|principal|founder|owner|coordinator|administrator)\b/i;
+
+/** Words a clause must NOT end on — a truncated/dangling fragment. */
+const DANGLING_END = /\b(by|with|for|to|of|and|or|in|on|at|from|the|a|an|as|via|into|through|that|which|while)$/i;
+
+/** Strip any leading list marker / numbering the editor may have kept. */
+function stripMarker(s: string): string {
+  return String(s || '').replace(/^\s*(?:[•◦▪●*+\-]+|\d{1,3}[.)]|[a-z][.)])\s*/i, '').trim();
 }
 
 /**
- * Rule-based fallback. LENGTH-AWARE:
- *   • Over-length bullets → genuinely shorter variants (first sentence,
- *     tightened, first clause) so accepting one actually clears the
- *     "too long" warning — the old verb-swap left it just as long.
+ * A leaked role/title clause such as "Led an Assistant Vice President" —
+ * a verb followed only by a job title. Extraction artifact, not an
+ * achievement, so we drop it.
+ */
+function isRoleLeakClause(clause: string): boolean {
+  const m = clause
+    .trim()
+    .match(/^(led|managed|was|served|worked|acted|promoted|reporting|reported|joined|hired)\s+(as\s+|to\s+)?(an?\s+|the\s+)?(.+)$/i);
+  if (!m) return false;
+  const rest = m[4].trim();
+  return TITLE_TOKENS.test(rest) && wordCount(rest) <= 5;
+}
+
+/**
+ * A dangling/truncated fragment we should not surface as a rewrite:
+ * ends on a preposition/article ("…recognized by", "…as part of the"),
+ * or is a stub with no real content.
+ */
+function isDanglingFragment(clause: string): boolean {
+  const w = clause.trim().replace(/[.,;:]+$/, '');
+  if (wordCount(w) < 2) return true;
+  return DANGLING_END.test(w);
+}
+
+/**
+ * Whether a bullet contains content a tightener would drop even if it is
+ * within the word limit: a leaked job title, a dangling truncated
+ * fragment ("…recognized by"), or filler. Used to decide whether an
+ * in-range bullet still deserves a clean rewrite vs. a plain verb-swap.
+ */
+function hasDroppableJunk(bullet: string, maxWords = BULLET_MAX_WORDS): boolean {
+  const text = stripMarker(bullet);
+  if (!text) return false;
+  const sentences = text.split(/(?<=[.!?])\s+(?=[A-Z])/);
+  for (const sent of sentences) {
+    for (const c of splitClauses(sent)) {
+      if (isRoleLeakClause(c) || isDanglingFragment(c)) return true;
+    }
+  }
+  FILLER_RE.lastIndex = 0;
+  const hasFiller = FILLER_RE.test(text);
+  FILLER_RE.lastIndex = 0;
+  // Only treat filler as "junk worth rewriting" when dropping it would
+  // matter — i.e. the bullet is already near the limit.
+  return hasFiller && wordCount(text) > maxWords - 6;
+}
+
+/**
+ * Break a sentence into clauses. We split on commas/semicolons AND on
+ * subordinate/participial connectors ("while", "which", "including",
+ * "resulting in", …) so a long SINGLE-sentence bullet still yields
+ * tightenable pieces rather than staying one un-shortenable blob.
+ */
+function splitClauses(sentence: string): string[] {
+  const SENTINEL = '|||CLAUSE_BREAK|||';
+  return sentence
+    .replace(
+      /\s+(while|whereby|thereby|which|including|so that|in order to|resulting in|leading to|such that)\s+/gi,
+      `${SENTINEL}$1 `,
+    )
+    .replace(/\s*[;,]\s*/g, SENTINEL)
+    .split(SENTINEL)
+    .map((c) => c.trim())
+    .filter(Boolean);
+}
+
+/** Drop filler phrases and a dangling leading connector; squeeze spaces. */
+function dropFiller(s: string): string {
+  return s
+    .replace(FILLER_RE, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/^\s*(?:and|while|which|that|including|also|then|plus|so that|in order to)\s+/i, '')
+    .replace(/\s+,/g, ',')
+    .trim();
+}
+
+/** Trim edge punctuation, capitalize the first letter, terminate cleanly. */
+function tidy(s: string): string {
+  let t = s.replace(/^[,;\s]+/, '').replace(/[,;\s]+$/, '');
+  if (!t) return t;
+  t = t.charAt(0).toUpperCase() + t.slice(1);
+  if (!/[.!?]$/.test(t)) t += '.';
+  return t;
+}
+
+function hasMetric(s: string): boolean {
+  return /(\d|%|₹|\$)/.test(s);
+}
+
+function startsWithActionVerb(s: string): boolean {
+  const w = s.trim().split(/\s+/)[0]?.toLowerCase().replace(/[^a-z]/g, '') ?? '';
+  return ACTION_VERBS.has(w);
+}
+
+/** Rank: impact-first — verb-led and metric-bearing clauses win. */
+function candidateScore(s: string): number {
+  let n = 0;
+  if (startsWithActionVerb(s)) n += 2;
+  if (hasMetric(s)) n += 3;
+  if (wordCount(s) >= 6) n += 1;
+  return n;
+}
+
+/**
+ * Core clause engine shared by shorten/split/rewrite. Breaks the bullet
+ * into sentences → clauses, discards leaked-title, dangling, and
+ * filler-only clauses, then greedily packs surviving clauses into tidy
+ * single-idea bullets each within `maxWords`. `rank` sorts impact-first
+ * (for suggestions); leave it off to preserve document order (splitting).
+ */
+function buildBulletCandidates(bullet: string, maxWords: number, rank: boolean): string[] {
+  const text = stripMarker(bullet);
+  if (!text) return [];
+  const sentences = text
+    .split(/(?<=[.!?])\s+(?=[A-Z])/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const candidates: string[] = [];
+  for (const sent of sentences) {
+    const clauses = splitClauses(sent)
+      .filter((c) => !isRoleLeakClause(c))
+      .filter((c) => !isDanglingFragment(c))
+      .map(dropFiller)
+      .filter((c) => wordCount(c) >= 1);
+    if (!clauses.length) continue;
+
+    let group: string[] = [];
+    let count = 0;
+    const flush = () => {
+      if (group.length) {
+        candidates.push(tidy(group.join(', ')));
+        group = [];
+        count = 0;
+      }
+    };
+    for (const c of clauses) {
+      const wc = wordCount(c);
+      if (wc > maxWords) {
+        flush();
+        candidates.push(tidy(c.split(/\s+/).slice(0, maxWords).join(' ')));
+        continue;
+      }
+      if (count + wc > maxWords) flush();
+      group.push(c);
+      count += wc;
+    }
+    flush();
+  }
+
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const c of candidates) {
+    const key = c.toLowerCase();
+    if (wordCount(c) >= 2 && wordCount(c) <= maxWords && !seen.has(key)) {
+      seen.add(key);
+      out.push(c);
+    }
+  }
+  if (rank) out.sort((a, b) => candidateScore(b) - candidateScore(a));
+  return out;
+}
+
+/**
+ * Split one over-long bullet into several concise, single-idea bullets,
+ * in document order. Returns the original (tidied) as a single element
+ * when nothing meaningfully splits.
+ */
+export function splitLongBullet(bullet: string, maxWords = BULLET_MAX_WORDS): string[] {
+  const out = buildBulletCandidates(bullet, maxWords, false);
+  return out.length ? out : [tidy(stripMarker(bullet))].filter(Boolean);
+}
+
+/** Tighten one bullet to a single clean ≤maxWords bullet (impact-first). */
+export function shortenBullet(bullet: string, maxWords = BULLET_MAX_WORDS): string {
+  const text = stripMarker(bullet);
+  if (!text) return '';
+  if (wordCount(text) <= maxWords) return text;
+  const ranked = buildBulletCandidates(text, maxWords, true);
+  if (ranked.length) return ranked[0];
+  return tidy(text.replace(/[.!?]+$/, '').split(/\s+/).slice(0, maxWords).join(' '));
+}
+
+/**
+ * Rule-based fallback. LENGTH-AWARE and content-aware:
+ *   • Over-length bullets → clean, impact-first ≤maxWords rewrites built
+ *     from the strongest surviving clauses (leaked job titles, dangling
+ *     fragments, and filler dropped; no mid-word truncation) so accepting
+ *     one actually clears the "too long" warning AND reads well. When the
+ *     bullet is a single idea that only yields one clean rewrite, we pad
+ *     with verb-swapped variants of it so the user still gets choices.
  *   • In-range bullets → three verb-swapped phrasings as before.
  */
 export function ruleBasedRewrites(bullet: string, maxWords = BULLET_MAX_WORDS): string[] {
-  const trimmed = String(bullet || '').trim();
+  const trimmed = stripMarker(bullet);
   if (!trimmed) return [];
 
-  if (wordCount(trimmed) > maxWords) {
-    const out: string[] = [];
-    const seen = new Set<string>();
-    const push = (s: string) => {
-      const clean = String(s || '').trim();
-      const key = clean.toLowerCase();
-      if (clean && wordCount(clean) <= maxWords && wordCount(clean) >= 3 && !seen.has(key)) {
-        seen.add(key);
-        out.push(clean);
+  // Tighten whenever the bullet is over the limit OR carries droppable
+  // junk (a leaked job title, a dangling truncated fragment, or filler) —
+  // an in-range bullet ending "…the solution was recognized by" must
+  // still be cleaned, not just verb-swapped.
+  if (wordCount(trimmed) > maxWords || hasDroppableJunk(trimmed)) {
+    const ranked = buildBulletCandidates(trimmed, maxWords, true);
+    const seen = new Set(ranked.map((r) => r.toLowerCase()));
+    const out = [...ranked];
+    // Give the user 2–3 choices even for a single-idea bullet: offer
+    // verb-swapped variants of the strongest rewrite.
+    if (out.length && out.length < 3) {
+      for (const verb of ['Led', 'Drove', 'Delivered', 'Built']) {
+        const variant = swapLeadingVerb(out[0], verb);
+        const key = variant.toLowerCase();
+        if (variant && wordCount(variant) <= maxWords && !seen.has(key)) {
+          seen.add(key);
+          out.push(variant);
+        }
+        if (out.length >= 3) break;
       }
-    };
-    // 1. Tightened whole bullet.
-    push(shortenBullet(trimmed, maxWords));
-    // 2. Each concise piece from a split (the strongest first).
-    for (const piece of splitLongBullet(trimmed, maxWords)) push(piece);
-    // 3. Guarantee at least one option: a hard-truncated version.
-    if (!out.length) {
-      const words = trimmed.replace(/[.!?]+$/, '').split(/\s+/).slice(0, maxWords).join(' ');
-      push(words.endsWith('.') ? words : `${words}.`);
     }
-    return out.slice(0, 3);
+    if (out.length) return out.slice(0, 3);
+    // Guarantee at least one option: a hard-truncated version.
+    return [tidy(trimmed.replace(/[.!?]+$/, '').split(/\s+/).slice(0, maxWords).join(' '))];
   }
 
   const swaps = ['Led', 'Drove', 'Built'];
