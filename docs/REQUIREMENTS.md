@@ -1011,8 +1011,17 @@ and every external call still feeds the Outcome Graph.
     and `POST admin/support/resend` re-renders the resume (no quota charge,
     `generatePdfBypassingQuota` / `generateDocxBypassingQuota`) and emails
     it to the buyer, logging the `admin_resend`.
+  - [x] Self-serve recovery: signed-in user identifies the resume by name
+    and/or payment id; server confirms the resume is theirs AND paid for
+    (entitlement), then emails it to their account address —
+    `POST /download-recovery/email-copy` (`selfServeResend`). Blocks a
+    resume the user never paid for and a payment that isn't theirs. The
+    editor auto-fires this on a post-payment download failure, and a
+    `PaidResumeRecoveryForm` on the billing page covers the "came back
+    later" case.
   - [x] Pinning tests `tests/download-recovery.unit.test.cjs` (idempotency,
-    entitlement gate, reissue guard, support lookup + resend PDF/DOCF,
+    entitlement gate, reissue guard, support lookup + resend PDF/DOCX,
+    self-serve resolve-by-name/payment-id, unpaid + wrong-owner blocks,
     SMTP-missing failure).
 - Not in this batch (tracked, deliberately deferred): per-download
   webhook reconciliation for a payment captured at the gateway but never

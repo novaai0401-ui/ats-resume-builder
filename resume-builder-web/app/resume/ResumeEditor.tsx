@@ -4402,11 +4402,25 @@ export default function ResumeEditor() {
                 setPostDownloadPopup({ score: typeof scoreNow === 'number' ? scoreNow : null });
               } catch (err: unknown) {
                 // CRITICAL PATH: the user has ALREADY PAID (we hold a
-                // download token) and the export failed. Never leave them
-                // stranded — give the support address with their context.
-                const errorMessage = `${friendlyPdfErrorMessage(err, 'Download PDF failed')} You've already paid — email ${SUPPORT_EMAIL} with your payment ID and we'll send your resume or refund you.`;
+                // download token) and the browser download failed. Don't
+                // leave them stranded — automatically email them the resume
+                // straight from the database (R-073 self-serve recovery).
+                const base = friendlyPdfErrorMessage(err, 'Download failed');
+                let recoveredTo = '';
+                try {
+                  const r = await api.emailPaidResumeCopy({
+                    resumeId,
+                    format: exportFormat === 'docx' ? 'docx' : 'pdf',
+                  });
+                  if (r.sent) recoveredTo = r.to;
+                } catch {
+                  // fall through to the support path below
+                }
+                const errorMessage = recoveredTo
+                  ? `${base} Don't worry — you've already paid, so we've emailed your resume to ${recoveredTo}. Check your inbox (and spam). Still stuck? Email ${SUPPORT_EMAIL}.`
+                  : `${base} You've already paid — email ${SUPPORT_EMAIL} with your payment ID and we'll send your resume or refund you.`;
                 setMessage(errorMessage);
-                showSnackbar('error', errorMessage);
+                showSnackbar(recoveredTo ? 'success' : 'error', errorMessage);
               }
             }}
           />

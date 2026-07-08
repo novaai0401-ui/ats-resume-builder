@@ -1356,6 +1356,29 @@ export const api = {
       body: JSON.stringify(body),
     }),
 
+  /** R-073: re-issue a download token for a resume the user already paid for. */
+  reissueDownloadToken: (resumeId: string) =>
+    request<{ downloadToken: string }>('/billing/download-charge/reissue', {
+      method: 'POST',
+      body: JSON.stringify({ resumeId }),
+    }),
+
+  /**
+   * R-073 self-serve recovery: "I paid but didn't get my download — email
+   * it to me." Identify the resume by id / payment id / name; the server
+   * verifies a real paid entitlement before sending to the account email.
+   */
+  emailPaidResumeCopy: (body: {
+    resumeId?: string;
+    paymentId?: string;
+    resumeName?: string;
+    format?: 'pdf' | 'docx';
+  }) =>
+    request<{ sent: boolean; to: string; resumeId: string; format: 'pdf' | 'docx' }>(
+      '/download-recovery/email-copy',
+      { method: 'POST', body: JSON.stringify(body) },
+    ),
+
   listJobs: (status?: JobStatus) =>
     request<JobApplication[]>(
       `/jobs${status ? `?status=${encodeURIComponent(status)}` : ''}`,

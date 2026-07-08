@@ -90,13 +90,20 @@ test('reissuePaidToken throws when there is no paid entitlement', async () => {
 
 // ── Support resend (SupportRecoveryService) ───────────────────────────
 
-function makeRecovery({ payment, mailConfigured = true } = {}) {
+function makeRecovery({ payment, mailConfigured = true, entitled = true, resumeByName = null } = {}) {
   const emailLogs = [];
   const fulfilled = [];
   const sends = [];
   const prisma = {
     user: { findFirst: async () => ({ id: 'u1' }), findUnique: async () => ({ email: 'buyer@x.com' }) },
-    resume: { findUnique: async () => ({ title: 'My CV', userId: 'u1' }), findFirst: async () => ({ title: 'My CV' }) },
+    resume: {
+      findUnique: async () => ({ title: 'My CV', userId: 'u1' }),
+      findFirst: async (args) => {
+        // resolve-by-name lookups only match when a name row is configured
+        if (args && args.where && args.where.title) return resumeByName;
+        return { title: 'My CV' };
+      },
+    },
     paymentHistory: {
       findUnique: async () => payment,
       findMany: async () => (payment ? [payment] : []),
@@ -116,7 +123,8 @@ function makeRecovery({ payment, mailConfigured = true } = {}) {
     generatePdfBypassingQuota: async () => Buffer.from('%PDF-1.4 fake'),
     generateDocxBypassingQuota: async () => Buffer.from('PK docx fake'),
   };
-  const svc = new SupportRecoveryService(prisma, mail, resumeService);
+  const downloadCharge = { hasPaidEntitlement: async () => entitled };
+  const svc = new SupportRecoveryService(prisma, mail, resumeService, downloadCharge);
   return { svc, emailLogs, fulfilled, sends };
 }
 
@@ -166,4 +174,44 @@ test('support lookup surfaces needsResend for a captured-but-unfulfilled payment
 test('support lookup requires at least one query field', async () => {
   const { svc } = makeRecovery({ payment: null });
   await assert.rejects(() => svc.lookupPayments({}), /at least one/i);
+});
+
+// ── Self-serve recovery (user-facing) ─────────────────────────────────
+
+test('self-serve: paid user gets their resume emailed by payment id', async () => {
+  const payment = { id: 'pay1', userId: 'u1', resumeId: 'r1', email: 'buyer@x.com', status: 'captured' };
+  const { svc, sends, emailLogs, fulfilled } = makeRecovery({ payment, entitled: true });
+  const res = await svc.selfServeResend({ userId: 'u1', paymentId: 'pay1' });
+  assert.equal(res.sent, true);
+  assert.equal(res.to, 'buyer@x.com');
+  assert.equal(sends.length, 1);
+  assert.equal(emailLogs[0].kind, 'self_serve');
+  assert.equal(fulfilled.length, 1);
+});
+
+test('self-serve: resolves the resume by name', async () => {
+  const { svc, sends } = makeRecovery({ payment: null, entitled: true, resumeByName: { id: 'r9' } });
+  const res = await svc.selfServeResend({ userId: 'u1', resumeName: 'My CV' });
+  assert.equal(res.sent, true);
+  assert.equal(res.resumeId, 'r9');
+  assert.match(sends[0].fileName, /r9\.pdf$/);
+});
+
+test('self-serve: BLOCKS a resume the user never paid for', async () => {
+  const { svc } = makeRecovery({ payment: null, entitled: false, resumeByName: { id: 'r9' } });
+  await assert.rejects(
+    () => svc.selfServeResend({ userId: 'u1', resumeName: 'My CV' }),
+    /could not find a completed payment/i,
+  );
+});
+
+test("self-serve: rejects a payment that isn't the caller's", async () => {
+  const payment = { id: 'pay1', userId: 'someone_else', resumeId: 'r1', status: 'captured' };
+  const { svc } = makeRecovery({ payment, entitled: true });
+  await assert.rejects(() => svc.selfServeResend({ userId: 'u1', paymentId: 'pay1' }), /could not find that payment/i);
+});
+
+test('self-serve: clear error when nothing identifies the resume', async () => {
+  const { svc } = makeRecovery({ payment: null, entitled: true, resumeByName: null });
+  await assert.rejects(() => svc.selfServeResend({ userId: 'u1', resumeName: 'Nope' }), /double-check/i);
 });

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { TkxCard, TkxButton, TkxBadge, TkxAlert } from 'tekivex-ui';
 import { api, getAccessToken, getCurrentUserEmail } from '@/src/lib/api';
 import { SUPPORT_EMAIL, supportMailto } from '@/src/lib/support';
+import { PaidResumeRecoveryForm } from '@/src/components/PaidResumeRecoveryForm';
 
 /**
  * Pricing page — the post-pivot model (REQUIREMENTS R-071):
@@ -142,6 +143,10 @@ export default function BillingPage() {
         <a href={supportMailto('Billing / download issue')} style={{ color: 'var(--primary)' }}>{SUPPORT_EMAIL}</a>{' '}
         — we resolve or refund.
       </p>
+
+      <div style={{ maxWidth: 460, margin: '0 auto 22px' }}>
+        <PaidResumeRecoveryForm />
+      </div>
 
       {notice ? <div style={{ marginBottom: 16 }}><TkxAlert variant="success">{notice}</TkxAlert></div> : null}
       {error ? <div style={{ marginBottom: 16 }}><TkxAlert variant="danger">{error}</TkxAlert></div> : null}
