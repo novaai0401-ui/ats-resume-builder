@@ -1096,6 +1096,36 @@ and every external call still feeds the Outcome Graph.
 
 ---
 
+### R-076 · Error tracking / alerting (Sentry, opt-in)
+
+- Status: **DONE** (this commit)
+- Depends-on: R-075 (hardening batch)
+- Context: audit flagged that prod errors went only to stdout — nobody is
+  alerted when payments/exports/DB throw. Wires Sentry as a single capture
+  path that is a full no-op unless `SENTRY_DSN` is set (no account friction
+  for local/dev or a founder who hasn't set up a project).
+- Acceptance
+  - [x] `src/observability/sentry.ts`: `initSentry()` (no-op without DSN,
+    never throws on init failure), `captureException(err, ctx)`,
+    `flushSentry()`, `isSentryEnabled()`. Perf tracing off by default; PII
+    off by default.
+  - [x] `main.ts` calls `initSentry()` first (so boot failures + unhandled
+    rejections are captured), registers a global `SentryInterceptor` that
+    reports 5xx / non-HTTP failures and re-throws (4xx client errors are
+    NOT reported — expected outcomes, not incidents), and flushes on exit.
+  - [x] The swallowed recovery-email failure (`deliverResumeCopy`) — a paid
+    user whose resume email failed — is explicitly captured, since it's the
+    exact incident support needs and the interceptor can't see it.
+  - [x] `SENTRY_DSN` (+ optional `SENTRY_TRACES_SAMPLE_RATE`, `SENTRY_RELEASE`,
+    `SENTRY_SEND_PII`) documented in `.env.example` and declared in
+    `render.yaml`. Verified the app boots both with and without a DSN.
+  - [x] Tests `tests/observability-sentry.unit.test.cjs` (no-op when
+    disabled; interceptor re-throws originals and passes successes through).
+- Remaining audit item after this: move rate-limit state to Redis for
+  multi-instance correctness (fine at the current single instance).
+
+---
+
 ## §6. Cross-cutting constants
 
 These are constraints that every requirement must respect. Violations
@@ -1162,6 +1192,7 @@ do not break it.
 
 | Date | Decision | Reason | Affected IDs |
 |---|---|---|---|
+| 2026-07-08 | Error tracking (R-076): wired Sentry as an opt-in, no-op-without-DSN capture path — global interceptor reports 5xx/non-HTTP failures (4xx skipped), boot failures + unhandled rejections captured, and the swallowed paid-user resume-email failure is explicitly reported. Closes the "flying blind in prod" gap. | Pre-launch audit: prod errors went only to stdout; nobody alerted when payments/exports/DB throw. | R-076 |
 | 2026-07-08 | Security hardening (R-075): wired the dead `validateProductionEnv()` into boot (hard-fail on missing/weak JWT/DB/CORS secrets in prod; REDIS/TOKEN_ENC_KEY warn-only so the net can't brick a deploy); registered the never-imported `ThrottleModule` (60/min global + tight auth-route caps, prod-only, webhooks/health exempt); `trust proxy=1` for real client IPs; Render health check moved to DB-aware `/health/db`. | Pre-launch audit blockers: forgeable tokens via `dev_secret` fallback, zero rate limiting, and a DB-down instance reported healthy. | R-075 |
 | 2026-07-08 | Export reliability (R-074): `generatePdf` now renders before charging (a failed/timed-out/too-busy render no longer burns a paid export — mirrors `generateDocx`); all export paths share one resilient, concurrency-capped, timed-out Chromium via `pdf-renderer.ts` (shared browser, semaphore, setContent/pdf timeouts, 503-on-busy) instead of a per-request cold launch that could OOM Render or hang a worker. | Pre-launch audit blockers: PDF charge-before-render mischarge (the "paid, no file" case) + unbounded Chromium concurrency/no timeouts. | R-074, R-003, R-073 |
 | 2026-07-08 | Added paid-but-couldn't-download recovery (R-073): PaymentHistory now links resumeId+email+fulfilledAt; createOrder is idempotent (no double-charge, free re-download of an already-paid resume); downloads gate on token OR paid entitlement so a lost/expired token still works; every export emails+logs a copy (PDF and DOCX) via ResumeEmailLog; new admin/support console looks up a payment by email and resends the resume by email (no re-charge, no quota hit). Email-only support, no phone. | Founder: a user who pays and then can't download had no recovery — no payment→resume→email link, no re-download, no support tool, and a possible double-charge. Deep audit also surfaced launch-blockers (env-validation dead code, throttling unregistered, PDF charge-before-render) deferred to a later batch per founder scope. | R-073, R-003, R-071 |

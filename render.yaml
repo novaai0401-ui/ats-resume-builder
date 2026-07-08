@@ -106,6 +106,10 @@ services:
       - key: AI_FREE_MAX_REQUESTS_PER_DAY
         value: "10"
 
+      # ── Error tracking (Sentry) — optional, no-op when unset ─────────
+      - key: SENTRY_DSN
+        sync: false
+
       # ── Email / SMTP (Gmail, SendGrid, etc.) ────────────────────────
       - key: SMTP_HOST
         sync: false

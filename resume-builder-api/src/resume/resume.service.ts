@@ -1,5 +1,6 @@
 import { BadRequestException, ForbiddenException, HttpException, HttpStatus, Injectable, NotFoundException, Optional, UnprocessableEntityException } from '@nestjs/common';
 import { renderHtmlToPdf } from './pdf-renderer';
+import { captureException } from '../observability/sentry';
 import { PDFParse } from 'pdf-parse';
 import mammoth from 'mammoth';
 import type { Prisma } from '@prisma/client';
@@ -861,7 +862,17 @@ export class ResumeService {
       sent ? 'sent' : 'failed',
       sent ? null : error || 'send returned false',
     );
-    if (sent) await this.markDownloadFulfilled(userId, resumeId);
+    if (sent) {
+      await this.markDownloadFulfilled(userId, resumeId);
+    } else {
+      // A paid user whose resume email failed is exactly the incident support
+      // needs to know about — surface it, don't just log-and-swallow.
+      captureException(new Error(`Resume ${ext} email delivery failed: ${error || 'send returned false'}`), {
+        route: 'deliverResumeCopy',
+        userId,
+        extra: { resumeId, email },
+      });
+    }
   }
 
   /** Write a ResumeEmailLog row. Swallows errors — this is audit only. */

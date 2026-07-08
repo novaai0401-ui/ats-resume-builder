@@ -25,6 +25,7 @@
     "@nestjs/platform-express": "latest",
     "@nestjs/throttler": "^6.5.0",
     "@prisma/client": "5.22.0",
+    "@sentry/node": "^8.55.2",
     "@sparticuz/chromium": "^133.0.0",
     "@upstash/redis": "^1.36.3",
     "bcryptjs": "latest",
