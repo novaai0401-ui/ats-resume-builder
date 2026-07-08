@@ -1061,6 +1061,41 @@ and every external call still feeds the Outcome Graph.
 
 ---
 
+### R-075 · Security hardening: env validation, rate limiting, DB-aware health
+
+- Status: **DONE** (this commit)
+- Depends-on: none (pre-launch blockers from the audit)
+- Context: three audit blockers. (1) `validateProductionEnv()` was fully
+  implemented but NEVER called, so prod could boot with a missing
+  `JWT_SECRET` and sign tokens with the public `'dev_secret'` fallback →
+  forgeable admin tokens. (2) `ThrottleModule` existed but was never
+  imported into `AppModule`, so nothing was rate-limited. (3) Render's
+  health check hit a static `/health` that returns ok even with the DB
+  down, so a DB-less instance kept receiving traffic.
+- Acceptance
+  - [x] `main.ts` calls `validateProductionEnv()` before boot; it hard-fails
+    (process.exit 1) in production on a missing/weak/placeholder
+    `DATABASE_URL`, `JWT_SECRET`, `JWT_REFRESH_SECRET`, `CORS_ORIGIN`, or a
+    half-configured Stripe pair. `TOKEN_ENC_KEY` / `REDIS_*` are warn-only
+    (the app degrades without them today) so the safety net can't itself
+    brick a deploy. Pure `collectEnvIssues` unit-tested.
+  - [x] `ThrottleModule` imported into `AppModule`: global 60/min/IP via
+    `ThrottlerGuard`, tighter per-route caps on `/auth/register` (8/min),
+    `/auth/login` (12/min), `/auth/forgot-password` (6/min). Enforced in
+    production only (`shouldSkipThrottle`, honours `FORCE_DISABLE_RATE_LIMIT`);
+    health checks and payment webhooks are `@SkipThrottle()` so a gateway
+    retry burst can't 429 a payment confirmation.
+  - [x] `main.ts` sets `trust proxy = 1` so limiters key on the real client
+    IP behind Render's proxy (not the proxy, and not a spoofable XFF chain).
+  - [x] Render `healthCheckPath` → `/health/db` (pings Postgres, 503s when
+    down) so Render stops routing to a DB-less instance.
+  - [x] Verified the full DI graph boots in `NODE_ENV=production` with the
+    guard active; tests `tests/security-hardening.unit.test.cjs`.
+- Not in this batch (still open): error tracking / alerting (Sentry) and
+  moving rate-limit state to Redis for multi-instance correctness.
+
+---
+
 ## §6. Cross-cutting constants
 
 These are constraints that every requirement must respect. Violations
@@ -1127,6 +1162,7 @@ do not break it.
 
 | Date | Decision | Reason | Affected IDs |
 |---|---|---|---|
+| 2026-07-08 | Security hardening (R-075): wired the dead `validateProductionEnv()` into boot (hard-fail on missing/weak JWT/DB/CORS secrets in prod; REDIS/TOKEN_ENC_KEY warn-only so the net can't brick a deploy); registered the never-imported `ThrottleModule` (60/min global + tight auth-route caps, prod-only, webhooks/health exempt); `trust proxy=1` for real client IPs; Render health check moved to DB-aware `/health/db`. | Pre-launch audit blockers: forgeable tokens via `dev_secret` fallback, zero rate limiting, and a DB-down instance reported healthy. | R-075 |
 | 2026-07-08 | Export reliability (R-074): `generatePdf` now renders before charging (a failed/timed-out/too-busy render no longer burns a paid export — mirrors `generateDocx`); all export paths share one resilient, concurrency-capped, timed-out Chromium via `pdf-renderer.ts` (shared browser, semaphore, setContent/pdf timeouts, 503-on-busy) instead of a per-request cold launch that could OOM Render or hang a worker. | Pre-launch audit blockers: PDF charge-before-render mischarge (the "paid, no file" case) + unbounded Chromium concurrency/no timeouts. | R-074, R-003, R-073 |
 | 2026-07-08 | Added paid-but-couldn't-download recovery (R-073): PaymentHistory now links resumeId+email+fulfilledAt; createOrder is idempotent (no double-charge, free re-download of an already-paid resume); downloads gate on token OR paid entitlement so a lost/expired token still works; every export emails+logs a copy (PDF and DOCX) via ResumeEmailLog; new admin/support console looks up a payment by email and resends the resume by email (no re-charge, no quota hit). Email-only support, no phone. | Founder: a user who pays and then can't download had no recovery — no payment→resume→email link, no re-download, no support tool, and a possible double-charge. Deep audit also surfaced launch-blockers (env-validation dead code, throttling unregistered, PDF charge-before-render) deferred to a later batch per founder scope. | R-073, R-003, R-071 |
 | 2026-07-07 | Rebuilt the rule-based bullet remediation on one clause engine (`buildBulletCandidates`): splits on subordinate/participial connectors (not just commas) so a long single-sentence bullet tightens; drops leaked job-title clauses, dangling truncated fragments ("…recognized by"), and filler; ranks impact-first; pads single-idea rewrites with verb variants. An in-range bullet with droppable junk is now cleaned too (not just verb-swapped). Web mirror gains `shortenBulletText` + a "Shorten to one bullet" editor action. | Founder screenshots: over-limit bullets still got useless verb-swap-only rewrites and echoed extraction garbage; accepting a suggestion never cleared "exceeds 28 words". | R-072, R-006, R-071 |

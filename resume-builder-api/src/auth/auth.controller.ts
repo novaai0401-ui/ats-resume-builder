@@ -1,4 +1,5 @@
 import { BadRequestException, Body, Controller, Get, HttpCode, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import {
@@ -67,6 +68,9 @@ export class AuthController {
     }
   }
 
+  // Tight throttle on unauthenticated, abuse-prone endpoints (on top of the
+  // 60/min global). Skipped entirely outside production (see ThrottleModule).
+  @Throttle({ default: { limit: 8, ttl: 60_000 } })
   @Post('register')
   async register(@Req() req: Request, @Body() body: RegisterDto) {
     const parsed = RegisterSchema.safeParse(body);
@@ -86,6 +90,7 @@ export class AuthController {
     return result;
   }
 
+  @Throttle({ default: { limit: 12, ttl: 60_000 } })
   @Post('login')
   @HttpCode(200)
   async login(@Req() req: Request, @Body() body: { email: string; password: string }) {
@@ -172,6 +177,7 @@ export class AuthController {
     return this.authService.linkPassword(req.user.userId, newPassword);
   }
 
+  @Throttle({ default: { limit: 6, ttl: 60_000 } })
   @Post('forgot-password')
   @HttpCode(200)
   forgotPassword(@Req() req: Request, @Body() body: { email: string }) {

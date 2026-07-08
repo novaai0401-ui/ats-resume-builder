@@ -4,10 +4,20 @@ import { json } from 'express';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { PrismaExceptionFilter } from './prisma/prisma-exception.filter';
+import { validateProductionEnv } from './env-validation';
 
 async function bootstrap() {
+  // Fail loud BEFORE booting if a critical prod secret is missing/weak/
+  // placeholder — otherwise the app would silently sign JWTs with the
+  // public 'dev_secret' fallback. No-op (warnings only) outside production.
+  validateProductionEnv();
+
   const app = await NestFactory.create(AppModule);
   app.enableShutdownHooks();
+  // Behind Render's proxy the real client IP is in X-Forwarded-For. Trust
+  // exactly one hop so rate limiters key on the actual client, not the
+  // proxy, and can't be trivially spoofed by adding extra XFF entries.
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
   // Keep raw Prisma error messages (column names, SQL, stack hints) out of
   // every HTTP response body. Registered globally so we catch JSON API
   // responses as well as anything the controllers forget to wrap.
