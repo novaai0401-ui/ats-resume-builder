@@ -978,6 +978,49 @@ and every external call still feeds the Outcome Graph.
 
 ---
 
+### R-073 · Paid-but-couldn't-download recovery (email-only)
+
+- Status: **DONE** (this commit)
+- Depends-on: R-003 (download charge), R-071 (per-download AI fee)
+- Context: a user can pay the ₹49/₹0.99 download charge and still not
+  get the file — tab closed, network drop, 15-min token expiry, or a
+  failed PDF render. Before this, the paid entitlement was a one-shot
+  JWT with no server record linking payment→resume→email, so support
+  could not look a payment up or resend the resume, and the user could
+  even be charged twice. Support is **email-only** (no phone).
+- Acceptance
+  - [x] `PaymentHistory` gains `resumeId`, `email`, `fulfilledAt`
+    (schema + migration `20260708120000_...`); DOWNLOAD orders persist
+    the resume + buyer email at creation.
+  - [x] Idempotency + free re-download: `DownloadChargeService.createOrder`
+    returns `{ included, alreadyPaid, downloadToken }` without charging
+    when a captured DOWNLOAD for that resume already exists
+    (`hasPaidEntitlement`). Prevents double-charge.
+  - [x] `assertDownloadAllowed` gates PDF/DOCX on a valid token OR a paid
+    entitlement, so an expired/lost token still lets the buyer
+    re-download; unpaid users are still blocked. Self-serve
+    `POST billing/download-charge/reissue` returns a fresh token for an
+    already-paid resume (`reissuePaidToken`, 403 otherwise).
+  - [x] Every export emails + logs a copy: `deliverResumeCopy` sends the
+    PDF **and** DOCX (previously PDF only), records a `ResumeEmailLog`
+    row (`sent | failed | skipped`) so "a copy has been emailed to you"
+    is verifiable (C-003), and stamps `fulfilledAt`.
+  - [x] Admin/support console (`AdminAuthGuard`): `GET admin/support/payments`
+    looks up a payment by email / resumeId / order id (with resume title,
+    delivery status, and a `needsResend` flag for captured-but-unfulfilled),
+    and `POST admin/support/resend` re-renders the resume (no quota charge,
+    `generatePdfBypassingQuota` / `generateDocxBypassingQuota`) and emails
+    it to the buyer, logging the `admin_resend`.
+  - [x] Pinning tests `tests/download-recovery.unit.test.cjs` (idempotency,
+    entitlement gate, reissue guard, support lookup + resend PDF/DOCF,
+    SMTP-missing failure).
+- Not in this batch (tracked, deliberately deferred): per-download
+  webhook reconciliation for a payment captured at the gateway but never
+  verified by the client (stranded `pending` row) — support resend covers
+  it manually today.
+
+---
+
 ## §6. Cross-cutting constants
 
 These are constraints that every requirement must respect. Violations
@@ -1044,6 +1087,7 @@ do not break it.
 
 | Date | Decision | Reason | Affected IDs |
 |---|---|---|---|
+| 2026-07-08 | Added paid-but-couldn't-download recovery (R-073): PaymentHistory now links resumeId+email+fulfilledAt; createOrder is idempotent (no double-charge, free re-download of an already-paid resume); downloads gate on token OR paid entitlement so a lost/expired token still works; every export emails+logs a copy (PDF and DOCX) via ResumeEmailLog; new admin/support console looks up a payment by email and resends the resume by email (no re-charge, no quota hit). Email-only support, no phone. | Founder: a user who pays and then can't download had no recovery — no payment→resume→email link, no re-download, no support tool, and a possible double-charge. Deep audit also surfaced launch-blockers (env-validation dead code, throttling unregistered, PDF charge-before-render) deferred to a later batch per founder scope. | R-073, R-003, R-071 |
 | 2026-07-07 | Rebuilt the rule-based bullet remediation on one clause engine (`buildBulletCandidates`): splits on subordinate/participial connectors (not just commas) so a long single-sentence bullet tightens; drops leaked job-title clauses, dangling truncated fragments ("…recognized by"), and filler; ranks impact-first; pads single-idea rewrites with verb variants. An in-range bullet with droppable junk is now cleaned too (not just verb-swapped). Web mirror gains `shortenBulletText` + a "Shorten to one bullet" editor action. | Founder screenshots: over-limit bullets still got useless verb-swap-only rewrites and echoed extraction garbage; accepting a suggestion never cleared "exceeds 28 words". | R-072, R-006, R-071 |
 | 2026-06-11 | Defer vault flow decision to post-launch | Time pressure + need real user signal | R-001, R-052 |
 | 2026-06-11 | Keep PRODUCT_FLOW_RESTRICTIONS_ENABLED guard for FREE-block only; quota is unconditional | Founder reported a free user pulled 6 PDFs; flag-gated quota = decorative | R-003 |

@@ -243,7 +243,7 @@ export class ResumeController {
       return;
     }
     if (this.downloadCharge.isFeatureEnabled()) {
-      this.downloadCharge.assertDownloadToken(String(downloadToken || ''), req.user.userId, id);
+      await this.downloadCharge.assertDownloadAllowed(String(downloadToken || ''), req.user.userId, id);
     }
     const pdfBuffer = await this.resumeService.generatePdf(req.user.userId, id, templateId);
     const filename = await this.resumeService.buildExportFileName(req.user.userId, id, 'pdf');
@@ -266,7 +266,7 @@ export class ResumeController {
     @Res() res: Response,
   ) {
     if (this.downloadCharge.isFeatureEnabled()) {
-      this.downloadCharge.assertDownloadToken(String(downloadToken || ''), req.user.userId, id);
+      await this.downloadCharge.assertDownloadAllowed(String(downloadToken || ''), req.user.userId, id);
     }
     const buffer = await this.resumeService.generateDocx(req.user.userId, id);
     const filename = await this.resumeService.buildExportFileName(req.user.userId, id, 'docx');

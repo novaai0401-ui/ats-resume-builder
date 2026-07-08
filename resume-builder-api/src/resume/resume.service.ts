@@ -782,22 +782,12 @@ export class ResumeService {
         printBackground: true,
         margin: { top: '15mm', bottom: '15mm', left: '15mm', right: '15mm' },
       });
-      const userEmail = updatedUser.email;
-      if (userEmail && this.mailService && this.mailService.isConfigured) {
-        const resumeTitle = (resume.title && String(resume.title).trim()) || 'Resume';
-        const pdfBuffer = Buffer.isBuffer(buffer) ? (buffer as Buffer) : Buffer.from(buffer as unknown as ArrayBuffer);
-        void this.mailService
-          .sendResumePdfEmail({
-            to: userEmail,
-            resumeTitle,
-            pdfBuffer,
-            fileName: `resume-${id}.pdf`,
-          })
-          .catch((err: unknown) => {
-            const msg = err instanceof Error ? err.message : String(err);
-            console.warn(`[pdf-export] Failed to email resume copy to ${userEmail}: ${msg}`);
-          });
-      }
+      const pdfBuffer = Buffer.isBuffer(buffer) ? (buffer as Buffer) : Buffer.from(buffer as unknown as ArrayBuffer);
+      const resumeTitle = (resume.title && String(resume.title).trim()) || 'Resume';
+      // R-073: always send + log a copy so a failed browser download is
+      // recoverable from the user's inbox, and mark the paid download
+      // fulfilled. Fire-and-forget: never block or fail the response.
+      void this.deliverResumeCopy(userId, id, updatedUser.email, resumeTitle, pdfBuffer, 'pdf');
       return buffer;
     } finally {
       await browser.close();
@@ -876,6 +866,16 @@ export class ResumeService {
   }
 
   /**
+   * R-073: render a DOCX without touching the export quota. Used by the
+   * support resend path (the buyer already paid; a support-triggered
+   * re-delivery must not consume one of their monthly exports).
+   */
+  async generateDocxBypassingQuota(userId: string, id: string): Promise<Buffer> {
+    const resume = await this.get(userId, id);
+    return renderResumeDocx(resume as Parameters<typeof renderResumeDocx>[0]);
+  }
+
+  /**
    * Build a Word (.docx) document from the resume's structured fields.
    *
    * Same gates as PDF (auth via JWT, payment via downloadToken). We
@@ -927,7 +927,96 @@ export class ResumeService {
         ? { premiumCredits: { decrement: 1 } }
         : { pdfExportsUsed: updatedUser.pdfExportsUsed + 1 },
     });
+    // R-073: email + log a copy of the Word export too (previously only PDF
+    // got an emailed copy), so a failed DOCX download is recoverable.
+    const resumeTitle = (resume.title && String(resume.title).trim()) || 'Resume';
+    void this.deliverResumeCopy(userId, id, updatedUser.email, resumeTitle, docx, 'docx');
     return docx;
+  }
+
+  /**
+   * R-073: email a copy of a freshly exported resume, record the delivery
+   * in ResumeEmailLog (so "a copy has been emailed to you" is verifiable),
+   * and stamp the paid download as fulfilled. Best-effort — every branch is
+   * caught so it can never break or delay the export response.
+   */
+  private async deliverResumeCopy(
+    userId: string,
+    resumeId: string,
+    to: string | null | undefined,
+    resumeTitle: string,
+    buffer: Buffer,
+    ext: 'pdf' | 'docx',
+  ): Promise<void> {
+    const email = String(to || '').trim();
+    if (!email) return;
+    const contentType =
+      ext === 'docx'
+        ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        : 'application/pdf';
+    if (!this.mailService || !this.mailService.isConfigured) {
+      await this.recordResumeEmail(userId, resumeId, email, 'download', 'skipped', 'SMTP not configured');
+      return;
+    }
+    let sent = false;
+    let error: string | null = null;
+    try {
+      sent = await this.mailService.sendResumePdfEmail({
+        to: email,
+        resumeTitle,
+        pdfBuffer: buffer,
+        fileName: `resume-${resumeId}.${ext}`,
+        contentType,
+      });
+    } catch (err: unknown) {
+      error = err instanceof Error ? err.message : String(err);
+    }
+    await this.recordResumeEmail(
+      userId,
+      resumeId,
+      email,
+      'download',
+      sent ? 'sent' : 'failed',
+      sent ? null : error || 'send returned false',
+    );
+    if (sent) await this.markDownloadFulfilled(userId, resumeId);
+  }
+
+  /** Write a ResumeEmailLog row. Swallows errors — this is audit only. */
+  private async recordResumeEmail(
+    userId: string,
+    resumeId: string,
+    email: string,
+    kind: string,
+    status: 'sent' | 'failed' | 'skipped',
+    error: string | null,
+  ): Promise<void> {
+    try {
+      await (this.prisma as any).resumeEmailLog.create({
+        data: { userId, resumeId, email, kind, status, error: error || null },
+      });
+    } catch {
+      // Non-critical.
+    }
+  }
+
+  /** Stamp the latest unfulfilled captured DOWNLOAD payment as delivered. */
+  private async markDownloadFulfilled(userId: string, resumeId: string): Promise<void> {
+    try {
+      const latest = await this.prisma.paymentHistory.findFirst({
+        where: { userId, resumeId, planType: 'DOWNLOAD', status: 'captured', fulfilledAt: null },
+        orderBy: { createdAt: 'desc' },
+        select: { id: true },
+      });
+      if (latest) {
+        await this.prisma.paymentHistory.update({
+          where: { id: latest.id },
+          data: { fulfilledAt: new Date() },
+        });
+      }
+    } catch {
+      // Non-critical — fulfillment stamp is for support visibility only.
+    }
   }
 
   /**

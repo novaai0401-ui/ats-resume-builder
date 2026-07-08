@@ -223,4 +223,22 @@ export class BillingController {
       sessionId: body.sessionId,
     });
   }
+
+  /**
+   * R-073 self-serve recovery: re-issue a download token for a resume the
+   * caller has ALREADY paid for (captured DOWNLOAD or paid plan). Lets a
+   * user who lost their download — expired token, closed tab, failed render
+   * — get it back without paying again. Throws 403 if there's no paid
+   * entitlement, so it can't be used to skip the charge.
+   */
+  @Post('download-charge/reissue')
+  @UseGuards(JwtAuthGuard)
+  reissueDownloadToken(
+    @Req() req: { user: { userId: string } },
+    @Body() body: { resumeId: string },
+  ) {
+    const resumeId = String(body?.resumeId || '').trim();
+    if (!resumeId) throw new BadRequestException('resumeId is required.');
+    return this.downloadCharge.reissuePaidToken(req.user.userId, resumeId);
+  }
 }
