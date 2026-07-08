@@ -24,7 +24,12 @@ function makeService({ plan, aiAssistUsed }) {
       findFirst: async () => ({ aiAssistUsed }),
       updateMany: async (args) => { clears.push(args); return { count: 1 }; },
     },
-    paymentHistory: { create: async () => ({}) },
+    paymentHistory: {
+      create: async () => ({}),
+      // R-073: createOrder now checks for a prior paid entitlement first.
+      // Default: none, so a fresh order is still created as before.
+      findFirst: async () => null,
+    },
   };
   const jwt = { sign: () => 'signed.download.token' };
   const svc = new DownloadChargeService(makeConfig(), prisma, jwt);

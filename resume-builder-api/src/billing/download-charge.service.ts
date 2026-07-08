@@ -106,6 +106,20 @@ export class DownloadChargeService {
       };
     }
 
+    // R-073 idempotency + re-download: if this resume was ALREADY paid for
+    // (a captured DOWNLOAD payment exists), never charge again — just hand
+    // back a fresh download token. This is what lets a user who paid but
+    // lost their download (tab closed, token expired, render failed) get
+    // the file again for free, and prevents an accidental double charge.
+    if (await this.hasPaidEntitlement(params.userId, params.resumeId)) {
+      return {
+        included: true as const,
+        alreadyPaid: true as const,
+        downloadToken: this.issueDownloadToken(params.userId, params.resumeId),
+        resumeId: params.resumeId,
+      };
+    }
+
     // Every download is ₹49 (or ~$0.99). On top of that, if OUR AI assisted
     // this resume, add a flat AI fee (only the two free-user AI features —
     // AI Critique + Tech Gap — set this flag).
@@ -147,6 +161,8 @@ export class DownloadChargeService {
         planType: 'DOWNLOAD',
         paymentProvider: 'razorpay',
         providerOrderId: order.id,
+        resumeId,
+        email: userEmail || null,
       },
     });
     return {
@@ -210,6 +226,8 @@ export class DownloadChargeService {
         planType: 'DOWNLOAD',
         paymentProvider: 'stripe',
         providerOrderId: session.id,
+        resumeId,
+        email: userEmail || null,
       },
     });
     return {
@@ -295,12 +313,84 @@ export class DownloadChargeService {
     return { downloadToken: this.issueDownloadToken(params.userId, params.resumeId) };
   }
 
+  /**
+   * R-073: does the user already OWN a paid download for this resume?
+   * True when a captured DOWNLOAD payment exists, OR the user is on a paid
+   * plan (all downloads included). Used for idempotency, free re-download,
+   * and the support re-issue endpoint.
+   */
+  async hasPaidEntitlement(userId: string, resumeId: string): Promise<boolean> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { plan: true },
+    });
+    if (user?.plan && user.plan !== 'FREE') return true;
+    const paid = await this.prisma.paymentHistory.findFirst({
+      where: { userId, resumeId, planType: 'DOWNLOAD', status: 'captured' },
+      select: { id: true },
+    });
+    return Boolean(paid);
+  }
+
+  /**
+   * R-073: re-issue a download token for a resume the user has ALREADY paid
+   * for. Lets a stranded buyer recover their download without paying again.
+   * Throws if there is no paid entitlement (so it can't be abused to bypass
+   * the charge).
+   */
+  async reissuePaidToken(userId: string, resumeId: string): Promise<{ downloadToken: string }> {
+    if (!(await this.hasPaidEntitlement(userId, resumeId))) {
+      throw new ForbiddenException('No paid download found for this resume.');
+    }
+    return { downloadToken: this.issueDownloadToken(userId, resumeId) };
+  }
+
+  /**
+   * R-073: stamp the latest captured DOWNLOAD payment for this resume as
+   * fulfilled once the resume has actually been delivered (downloaded or
+   * emailed). An unstamped captured payment = a stranded purchase support
+   * should follow up on. Best-effort; never throws into the download path.
+   */
+  async markResumeFulfilled(userId: string, resumeId: string): Promise<void> {
+    try {
+      const latest = await this.prisma.paymentHistory.findFirst({
+        where: { userId, resumeId, planType: 'DOWNLOAD', status: 'captured', fulfilledAt: null },
+        orderBy: { createdAt: 'desc' },
+        select: { id: true },
+      });
+      if (latest) {
+        await this.prisma.paymentHistory.update({
+          where: { id: latest.id },
+          data: { fulfilledAt: new Date() },
+        });
+      }
+    } catch {
+      // Non-critical — fulfillment stamp is for support visibility only.
+    }
+  }
+
   /** Sign a short-lived download token bound to (userId, resumeId). */
   private issueDownloadToken(userId: string, resumeId: string): string {
     return this.jwt.sign(
       { typ: 'resume_download', userId, resumeId },
       { expiresIn: TOKEN_TTL_SECONDS },
     );
+  }
+
+  /**
+   * R-073: gate a download. Accept a valid token OR an existing paid
+   * entitlement (captured DOWNLOAD / paid plan). This is what lets a buyer
+   * whose 15-minute token expired or was lost re-download without paying
+   * again, while still blocking users who never paid.
+   */
+  async assertDownloadAllowed(token: string, userId: string, resumeId: string): Promise<void> {
+    try {
+      this.assertDownloadToken(token, userId, resumeId);
+      return;
+    } catch (err) {
+      if (await this.hasPaidEntitlement(userId, resumeId)) return;
+      throw err;
+    }
   }
 
   /** Verify a download token. Throws if invalid / expired / wrong resume. */

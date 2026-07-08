@@ -374,11 +374,18 @@ export class MailService {
     resumeTitle: string;
     pdfBuffer: Buffer;
     fileName: string;
+    /** Defaults to PDF; pass the DOCX mime so a Word export attaches correctly. */
+    contentType?: string;
+    /** Optional override so a support resend can explain itself. */
+    intro?: string;
   }): Promise<boolean> {
     if (!this.transporter) {
-      this.logger.warn(`Cannot email resume PDF to ${params.to}: SMTP not configured`);
+      this.logger.warn(`Cannot email resume copy to ${params.to}: SMTP not configured`);
       return false;
     }
+    const intro =
+      params.intro ||
+      `Your resume "${params.resumeTitle}" has been successfully downloaded. A copy is attached for your records.`;
     try {
       await this.transporter.sendMail({
         from: this.fromAddress,
@@ -387,20 +394,18 @@ export class MailService {
         text: [
           `Hi,`,
           ``,
-          `Your resume "${params.resumeTitle}" has been successfully downloaded. A copy is attached for your records.`,
+          intro,
           ``,
-          `If you did not download this resume, please sign in and change your password immediately.`,
+          `If you did not request this resume, please sign in and change your password immediately.`,
           ``,
           `— ATS Resume Builder`,
         ].join('\n'),
         html: `
           <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
             <h2 style="color: #1a3a5c; margin-bottom: 8px;">Your resume copy</h2>
-            <p style="color: #555; font-size: 14px;">
-              Your resume <strong>${escapeHtml(params.resumeTitle)}</strong> has been successfully downloaded. A copy is attached to this email for your records.
-            </p>
+            <p style="color: #555; font-size: 14px;">${escapeHtml(intro)}</p>
             <p style="color: #888; font-size: 12px; margin-top: 24px;">
-              If you did not download this resume, please sign in and change your password immediately.
+              If you did not request this resume, please sign in and change your password immediately.
             </p>
           </div>
         `,
@@ -408,15 +413,15 @@ export class MailService {
           {
             filename: params.fileName,
             content: params.pdfBuffer,
-            contentType: 'application/pdf',
+            contentType: params.contentType || 'application/pdf',
           },
         ],
       });
-      this.logger.log(`Resume PDF emailed to ${params.to}`);
+      this.logger.log(`Resume copy emailed to ${params.to}`);
       return true;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      this.logger.error(`Failed to email resume PDF to ${params.to}: ${msg.replace(/pass[^\s]*/gi, '***')}`);
+      this.logger.error(`Failed to email resume copy to ${params.to}: ${msg.replace(/pass[^\s]*/gi, '***')}`);
       return false;
     }
   }

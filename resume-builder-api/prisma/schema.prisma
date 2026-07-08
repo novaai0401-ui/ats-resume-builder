@@ -194,16 +194,44 @@ model PaymentHistory {
   amountPaise       Int                                // Amount in smallest currency unit (paise for INR)
   currency          String   @default("INR")
   status            String   @default("pending")       // pending | captured | failed | refunded
-  planType          String                             // STUDENT | PRO
+  planType          String                             // STUDENT | PRO | DOWNLOAD
   paymentProvider   String   @default("razorpay")      // razorpay | stripe
   providerPaymentId String?                            // Razorpay payment_id or Stripe payment intent
   providerOrderId   String?                            // Razorpay order_id or Stripe session ID
   paymentMethod     String?                            // card | upi | netbanking | wallet
   receiptUrl        String?
+  // R-073 recovery link: which resume this download paid for + the email
+  // on file at purchase time, so support can look a payment up by email and
+  // resend the resume. fulfilledAt is stamped once the resume has actually
+  // been delivered (downloaded or emailed) so we can spot stranded payments.
+  resumeId          String?                            // the resume a DOWNLOAD charge paid for
+  email             String?                            // buyer email snapshot (support lookup key)
+  fulfilledAt       DateTime?                          // set when the paid resume was delivered
   createdAt         DateTime @default(now())
 
   @@index([userId])
   @@index([providerOrderId])
+  @@index([email])
+  @@index([resumeId])
+}
+
+/// R-073: audit trail for every "here is your resume" email we send —
+/// on a successful download and on a support/admin resend. Makes the
+/// "a copy has been emailed to you" claim verifiable and gives support
+/// proof of what was delivered to whom.
+model ResumeEmailLog {
+  id        String   @id @default(uuid())
+  userId    String
+  resumeId  String
+  email     String
+  kind      String   @default("download")   // download | admin_resend
+  status    String                          // sent | failed | skipped
+  error     String?                         // failure reason when status=failed
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([resumeId])
+  @@index([email])
 }
 
 model AiTokenUsage {
