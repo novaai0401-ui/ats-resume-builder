@@ -1030,6 +1030,37 @@ and every external call still feeds the Outcome Graph.
 
 ---
 
+### R-074 · Export reliability: charge-after-render + resilient PDF renderer
+
+- Status: **DONE** (this commit)
+- Depends-on: R-003 (export quota), R-073 (recovery)
+- Context: two launch-blockers from the pre-launch audit. (1) `generatePdf`
+  incremented `pdfExportsUsed` / decremented a referral credit BEFORE
+  launching Chrome, so a launch failure, render timeout, or "too busy"
+  burned one of the user's paid exports and returned nothing — the exact
+  "paid, no file" failure. (2) Every export cold-launched its own Chromium
+  with no concurrency cap and no timeouts, so a handful of simultaneous
+  exports could OOM Render's starter box or hang a worker forever.
+- Acceptance
+  - [x] `generatePdf` renders FIRST and charges only AFTER a successful
+    render (mirrors `generateDocx`). Pinned by
+    `tests/export-quota.unit.test.cjs` ("B1: a failed PDF render does NOT
+    charge the user an export").
+  - [x] All three export paths (paid export, share-link, R-073 resend) go
+    through one `renderHtmlToPdf` in `src/resume/pdf-renderer.ts`:
+    a single shared, self-healing Chromium (lazy launch, auto-relaunch on
+    disconnect); a concurrency semaphore (`PDF_MAX_CONCURRENCY`, default 2);
+    hard timeouts on `setContent` and `page.pdf` (`PDF_*_TIMEOUT_MS`); a
+    queue-wait ceiling that returns 503 "busy" instead of piling up; and
+    guaranteed page cleanup. Renderer is defensive against partial browser
+    objects (test stubs) so it can't crash the export path.
+  - [x] Tuning knobs documented in `.env.example`; `pdfRendererStats()`
+    exposes live active/queued counts for observability.
+- Not in this batch (still open from the audit): env-validation wiring,
+  global rate-limit registration, DB-aware health check, error tracking.
+
+---
+
 ## §6. Cross-cutting constants
 
 These are constraints that every requirement must respect. Violations
@@ -1096,6 +1127,7 @@ do not break it.
 
 | Date | Decision | Reason | Affected IDs |
 |---|---|---|---|
+| 2026-07-08 | Export reliability (R-074): `generatePdf` now renders before charging (a failed/timed-out/too-busy render no longer burns a paid export — mirrors `generateDocx`); all export paths share one resilient, concurrency-capped, timed-out Chromium via `pdf-renderer.ts` (shared browser, semaphore, setContent/pdf timeouts, 503-on-busy) instead of a per-request cold launch that could OOM Render or hang a worker. | Pre-launch audit blockers: PDF charge-before-render mischarge (the "paid, no file" case) + unbounded Chromium concurrency/no timeouts. | R-074, R-003, R-073 |
 | 2026-07-08 | Added paid-but-couldn't-download recovery (R-073): PaymentHistory now links resumeId+email+fulfilledAt; createOrder is idempotent (no double-charge, free re-download of an already-paid resume); downloads gate on token OR paid entitlement so a lost/expired token still works; every export emails+logs a copy (PDF and DOCX) via ResumeEmailLog; new admin/support console looks up a payment by email and resends the resume by email (no re-charge, no quota hit). Email-only support, no phone. | Founder: a user who pays and then can't download had no recovery — no payment→resume→email link, no re-download, no support tool, and a possible double-charge. Deep audit also surfaced launch-blockers (env-validation dead code, throttling unregistered, PDF charge-before-render) deferred to a later batch per founder scope. | R-073, R-003, R-071 |
 | 2026-07-07 | Rebuilt the rule-based bullet remediation on one clause engine (`buildBulletCandidates`): splits on subordinate/participial connectors (not just commas) so a long single-sentence bullet tightens; drops leaked job-title clauses, dangling truncated fragments ("…recognized by"), and filler; ranks impact-first; pads single-idea rewrites with verb variants. An in-range bullet with droppable junk is now cleaned too (not just verb-swapped). Web mirror gains `shortenBulletText` + a "Shorten to one bullet" editor action. | Founder screenshots: over-limit bullets still got useless verb-swap-only rewrites and echoed extraction garbage; accepting a suggestion never cleared "exceeds 28 words". | R-072, R-006, R-071 |
 | 2026-06-11 | Defer vault flow decision to post-launch | Time pressure + need real user signal | R-001, R-052 |

@@ -1,6 +1,5 @@
 import { BadRequestException, ForbiddenException, HttpException, HttpStatus, Injectable, NotFoundException, Optional, UnprocessableEntityException } from '@nestjs/common';
-import puppeteer, { type LaunchOptions } from 'puppeteer-core';
-import { existsSync } from 'fs';
+import { renderHtmlToPdf } from './pdf-renderer';
 import { PDFParse } from 'pdf-parse';
 import mammoth from 'mammoth';
 import type { Prisma } from '@prisma/client';
@@ -42,76 +41,6 @@ function deriveTrainingFileType(originalname: string, mimetype: string): string 
 }
 
 
-
-/**
- * Detect whether we're running in a serverless environment (AWS Lambda).
- */
-const IS_SERVERLESS = Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME);
-
-/**
- * Resolve a Chrome/Chromium executable path for Puppeteer.
- * In serverless: uses @sparticuz/chromium which bundles a minimal Chromium.
- * Locally / Docker (Render): CHROME_EXECUTABLE_PATH env > common system paths > puppeteer default.
- */
-async function resolveChromeLaunchOptions(): Promise<LaunchOptions> {
-  if (IS_SERVERLESS) {
-    try {
-      const chromium = (await import('@sparticuz/chromium')).default;
-      return {
-        args: chromium.args,
-        defaultViewport: chromium.defaultViewport,
-        executablePath: await chromium.executablePath(),
-        headless: true,
-      };
-    } catch {
-      console.warn('[pdf-export] @sparticuz/chromium not available, falling back to local Chrome');
-    }
-  }
-
-  const chromePath = resolveLocalChromePath();
-  return {
-    headless: true,
-    // --disable-dev-shm-usage is required on Alpine / Render where /dev/shm is
-    // ~64MB; without it Chromium crashes mid-render on multi-page resumes.
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu', '--disable-dev-shm-usage'],
-    ...(chromePath ? { executablePath: chromePath } : {}),
-  };
-}
-
-function resolveLocalChromePath(): string | undefined {
-  const envPath = process.env.CHROME_EXECUTABLE_PATH || process.env.PUPPETEER_EXECUTABLE_PATH;
-  if (envPath && existsSync(envPath)) return envPath;
-
-  const isWin = process.platform === 'win32';
-  const isMac = process.platform === 'darwin';
-
-  const candidates: string[] = isWin
-    ? [
-        `${process.env.PROGRAMFILES || 'C:\\Program Files'}\\Google\\Chrome\\Application\\chrome.exe`,
-        `${process.env['PROGRAMFILES(X86)'] || 'C:\\Program Files (x86)'}\\Google\\Chrome\\Application\\chrome.exe`,
-        `${process.env.LOCALAPPDATA || ''}\\Google\\Chrome\\Application\\chrome.exe`,
-        `${process.env.PROGRAMFILES || 'C:\\Program Files'}\\Microsoft\\Edge\\Application\\msedge.exe`,
-        `${process.env['PROGRAMFILES(X86)'] || 'C:\\Program Files (x86)'}\\Microsoft\\Edge\\Application\\msedge.exe`,
-      ]
-    : isMac
-      ? [
-          '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-          '/Applications/Chromium.app/Contents/MacOS/Chromium',
-          '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
-        ]
-      : [
-          '/usr/bin/google-chrome-stable',
-          '/usr/bin/google-chrome',
-          '/usr/bin/chromium-browser',
-          '/usr/bin/chromium',
-          '/snap/bin/chromium',
-        ];
-
-  for (const candidate of candidates) {
-    if (candidate && existsSync(candidate)) return candidate;
-  }
-  return undefined;
-}
 
 const KNOWN_SPOKEN_LANGUAGES = new Map<string, string>([
   ['english', 'English'],
@@ -751,6 +680,12 @@ export class ResumeService {
       renderer: 'renderResumeTemplateHtml',
     });
 
+    // Render FIRST via the shared, concurrency-capped, timed-out renderer.
+    // Charge only AFTER a successful render — a Chrome failure, timeout, or
+    // "too busy" must NOT burn one of the user's paid exports (this mirrors
+    // generateDocx, which was already fixed to charge after success).
+    const pdfBuffer = await renderHtmlToPdf(html);
+
     await this.prisma.user.update({
       where: { id: userId },
       data: consumeCredit
@@ -758,40 +693,12 @@ export class ResumeService {
         : { pdfExportsUsed: updatedUser.pdfExportsUsed + 1 },
     });
 
-    const launchOptions = await resolveChromeLaunchOptions();
-
-    let browser;
-    try {
-      browser = await puppeteer.launch(launchOptions);
-    } catch (launchError) {
-      const hint = launchOptions.executablePath
-        ? `Tried Chrome at: ${launchOptions.executablePath}`
-        : 'No Chrome/Chromium found. Install Chrome or set CHROME_EXECUTABLE_PATH env variable.';
-      console.error(`[pdf-export] Chrome launch failed. ${hint}`, launchError);
-      throw new HttpException(
-        `PDF generation unavailable: Chrome browser not found. ${hint}`,
-        HttpStatus.SERVICE_UNAVAILABLE,
-      );
-    }
-
-    try {
-      const page = await browser.newPage();
-      await page.setContent(html, { waitUntil: 'networkidle0' });
-      const buffer = await page.pdf({
-        format: 'A4',
-        printBackground: true,
-        margin: { top: '15mm', bottom: '15mm', left: '15mm', right: '15mm' },
-      });
-      const pdfBuffer = Buffer.isBuffer(buffer) ? (buffer as Buffer) : Buffer.from(buffer as unknown as ArrayBuffer);
-      const resumeTitle = (resume.title && String(resume.title).trim()) || 'Resume';
-      // R-073: always send + log a copy so a failed browser download is
-      // recoverable from the user's inbox, and mark the paid download
-      // fulfilled. Fire-and-forget: never block or fail the response.
-      void this.deliverResumeCopy(userId, id, updatedUser.email, resumeTitle, pdfBuffer, 'pdf');
-      return buffer;
-    } finally {
-      await browser.close();
-    }
+    const resumeTitle = (resume.title && String(resume.title).trim()) || 'Resume';
+    // R-073: always send + log a copy so a failed browser download is
+    // recoverable from the user's inbox, and mark the paid download
+    // fulfilled. Fire-and-forget: never block or fail the response.
+    void this.deliverResumeCopy(userId, id, updatedUser.email, resumeTitle, pdfBuffer, 'pdf');
+    return pdfBuffer;
   }
 
   /**
@@ -837,32 +744,7 @@ export class ResumeService {
       renderer: 'renderResumeTemplateHtml(share-link)',
     });
 
-    const launchOptions = await resolveChromeLaunchOptions();
-    let browser;
-    try {
-      browser = await puppeteer.launch(launchOptions);
-    } catch (launchError) {
-      const hint = launchOptions.executablePath
-        ? `Tried Chrome at: ${launchOptions.executablePath}`
-        : 'No Chrome/Chromium found. Install Chrome or set CHROME_EXECUTABLE_PATH env variable.';
-      console.error(`[pdf-export][share-link] Chrome launch failed. ${hint}`, launchError);
-      throw new HttpException(
-        `PDF generation unavailable: Chrome browser not found. ${hint}`,
-        HttpStatus.SERVICE_UNAVAILABLE,
-      );
-    }
-    try {
-      const page = await browser.newPage();
-      await page.setContent(rendered.html, { waitUntil: 'networkidle0' });
-      const buffer = await page.pdf({
-        format: 'A4',
-        printBackground: true,
-        margin: { top: '15mm', bottom: '15mm', left: '15mm', right: '15mm' },
-      });
-      return buffer;
-    } finally {
-      await browser.close();
-    }
+    return renderHtmlToPdf(rendered.html);
   }
 
   /**
