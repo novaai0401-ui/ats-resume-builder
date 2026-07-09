@@ -71,6 +71,23 @@ export const EmailOtpVerifySchema = z.object({
   otp: z.string().min(4).max(8),
 });
 
+
+export const LicenseSchema = z.object({
+  name: z.string().min(1),
+  authority: z.string().optional(),
+  licenseNumber: z.string().optional(),
+  region: z.string().optional(),
+  validTill: z.string().optional(),
+});
+
+export const PublicationSchema = z.object({
+  title: z.string().min(1),
+  venue: z.string().optional(),
+  year: z.string().optional(),
+  url: z.string().optional(),
+  type: z.enum(['publication', 'patent']).optional(),
+});
+
 export const CreateResumeSchema = z.object({
   title: z.string().min(2),
   contact: ContactSchema.optional(),
@@ -83,6 +100,8 @@ export const CreateResumeSchema = z.object({
   education: z.array(EducationSchema).optional(),
   projects: z.array(ProjectSchema).optional(),
   certifications: z.array(CertificationSchema).optional(),
+  licenses: z.array(LicenseSchema).optional(),
+  publications: z.array(PublicationSchema).optional(),
   /** Standalone achievement statements (awards, recognitions, key wins).
    *  Modeled as a plain string list like skills / languages. */
   achievements: z.array(z.string()).optional(),
@@ -106,6 +125,8 @@ export const UpdateResumeSchema = z.object({
   education: z.array(EducationSchema).optional(),
   projects: z.array(ProjectSchema).optional(),
   certifications: z.array(CertificationSchema).optional(),
+  licenses: z.array(LicenseSchema).optional(),
+  publications: z.array(PublicationSchema).optional(),
   achievements: z.array(z.string()).optional(),
   templateId: z.string().trim().min(1).optional(),
   fontFamily: z.string().trim().max(40).nullish(),

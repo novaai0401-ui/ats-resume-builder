@@ -12,6 +12,23 @@ export type ContactInfo = {
   links?: string[];
 };
 
+
+export type LicenseItem = {
+  name: string;
+  authority?: string;
+  licenseNumber?: string;
+  region?: string;
+  validTill?: string;
+};
+
+export type PublicationItem = {
+  title: string;
+  venue?: string;
+  year?: string;
+  url?: string;
+  type?: 'publication' | 'patent';
+};
+
 export type Resume = {
   id: string;
   userId: string;
@@ -26,6 +43,8 @@ export type Resume = {
   education: EducationItem[];
   projects?: ProjectItem[];
   certifications?: CertificationItem[];
+  licenses?: LicenseItem[];
+  publications?: PublicationItem[];
   achievements?: string[];
   templateId?: string;
   /** R-045 — design customization (font family id + density + accent). */
@@ -52,6 +71,8 @@ export type ResumeImportResult = {
   education: EducationItem[];
   projects?: ProjectItem[];
   certifications?: CertificationItem[];
+  licenses?: LicenseItem[];
+  publications?: PublicationItem[];
   achievements?: string[];
   /** R-045 Phase 2 — body-section order override carried into templates. */
   sectionOrder?: string[] | null;
@@ -72,6 +93,8 @@ export type ResumeImportResult = {
     education: EducationItem[];
     projects?: ProjectItem[];
     certifications?: CertificationItem[];
+  licenses?: LicenseItem[];
+  publications?: PublicationItem[];
   achievements?: string[];
     roleLevel?: 'FRESHER' | 'MID' | 'SENIOR';
     unmappedText?: string;

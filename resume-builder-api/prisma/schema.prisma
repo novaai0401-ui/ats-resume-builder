@@ -104,6 +104,10 @@ model Resume {
   education  Json
   projects   Json?
   certifications Json?
+  /// R-077 — profession-specific sections (licensure for doctors/nurses/
+  /// lawyers/coders; publications+patents for academics/researchers).
+  licenses     Json?
+  publications Json?
   /// Standalone achievement statements (awards, recognitions, key wins).
   /// Plain string list like skills / languages.
   achievements String[] @default([])

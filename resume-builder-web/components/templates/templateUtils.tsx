@@ -117,6 +117,18 @@ export function certificationItems(resumeData: ResumeImportResult) {
   });
 }
 
+export function licenseItems(resumeData: ResumeImportResult) {
+  return (resumeData.licenses || []).filter((item) => {
+    return Boolean(String(item.name || '').trim());
+  });
+}
+
+export function publicationItems(resumeData: ResumeImportResult) {
+  return (resumeData.publications || []).filter((item) => {
+    return Boolean(String(item.title || '').trim());
+  });
+}
+
 export function achievementItems(resumeData: ResumeImportResult): string[] {
   return cleanList((resumeData as { achievements?: string[] }).achievements || []);
 }
@@ -185,6 +197,8 @@ export function OrderedAtsSections({
   const achievements = achievementItems(resumeData);
   const education = educationItems(resumeData);
   const certifications = certificationItems(resumeData);
+  const licenses = licenseItems(resumeData);
+  const publications = publicationItems(resumeData);
 
   const sectionClass = `ats-section${options.tight ? ' ats-section--tight' : ''}${options.divided ? ' ats-section--divided' : ''}`;
   const heading = (key: BodySectionKey) => {
@@ -267,6 +281,28 @@ export function OrderedAtsSections({
           <div className="ats-item" key={`cert-${idx}`}>
             <h3>{item.name || 'Certification'}</h3>
             <p>{[item.issuer, displayDateRange(item.date || '', '')].filter(Boolean).join(' | ')}</p>
+          </div>
+        ))}
+      </section>
+    ) : null,
+    licenses: licenses.length ? (
+      <section className={sectionClass} key="licenses">
+        <h2>{heading('licenses')}</h2>
+        {licenses.map((item, idx) => (
+          <div className="ats-item" key={`lic-${idx}`}>
+            <h3>{item.name || 'License'}</h3>
+            <p>{[item.authority, item.licenseNumber, item.region, item.validTill ? `Valid till ${item.validTill}` : ''].map((part) => String(part || '').trim()).filter(Boolean).join(' | ')}</p>
+          </div>
+        ))}
+      </section>
+    ) : null,
+    publications: publications.length ? (
+      <section className={sectionClass} key="publications">
+        <h2>{heading('publications')}</h2>
+        {publications.map((item, idx) => (
+          <div className="ats-item" key={`pub-${idx}`}>
+            <h3>{item.title || 'Publication'}{item.type === 'patent' ? ' (Patent)' : ''}</h3>
+            <p>{[item.venue, item.year, item.url].map((part) => String(part || '').trim()).filter(Boolean).join(' | ')}</p>
           </div>
         ))}
       </section>

@@ -7,15 +7,40 @@
  * to add their own AI key (free) or get Pocket Resume Plus.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { TkxButton } from 'tekivex-ui';
+import { PROFESSION_INDUSTRIES } from 'resume-builder-shared';
 import { api, type JobOpening } from '@/src/lib/api';
 import { openingToJobInput } from '@/src/lib/job-utils';
+
+// localStorage keys — the dashboard persists the industry pick; this panel
+// persists the last search so a returning user picks up where they left off.
+const SELECTED_ROLE_KEY = 'rb_selected_role';
+const SELECTED_INDUSTRY_KEY = 'rb_selected_industry';
+const JOBS_QUERY_KEY = 'rb_jobs_q';
+const JOBS_LOCATION_KEY = 'rb_jobs_loc';
 
 export default function LiveOpeningsPanel({ onTracked }: { onTracked: () => void }) {
   const [q, setQ] = useState('');
   const [location, setLocation] = useState('');
+  const [prefilled, setPrefilled] = useState(false);
+
+  // Prefill from the user's profile on mount (only when the fields are
+  // empty): last search > selected role > first role of the selected
+  // industry. Editable — this is a starting point, not a restriction.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const lastQ = window.localStorage.getItem(JOBS_QUERY_KEY) || '';
+    const lastLoc = window.localStorage.getItem(JOBS_LOCATION_KEY) || '';
+    const selectedRole = window.localStorage.getItem(SELECTED_ROLE_KEY) || '';
+    const industryId = window.localStorage.getItem(SELECTED_INDUSTRY_KEY) || '';
+    const industryRole = PROFESSION_INDUSTRIES.find((industry) => industry.id === industryId)?.roles[0]?.label || '';
+    const nextQ = lastQ || selectedRole || industryRole;
+    setQ((prev) => prev || nextQ);
+    setLocation((prev) => prev || lastLoc);
+    if (nextQ || lastLoc) setPrefilled(true);
+  }, []);
   const [openings, setOpenings] = useState<JobOpening[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -30,6 +55,11 @@ export default function LiveOpeningsPanel({ onTracked }: { onTracked: () => void
     setPaywall(false);
     setOpenings(null);
     if (q.trim().length < 2) { setError('Enter a role or skill to search.'); return; }
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(JOBS_QUERY_KEY, q.trim());
+      if (location.trim()) window.localStorage.setItem(JOBS_LOCATION_KEY, location.trim());
+      else window.localStorage.removeItem(JOBS_LOCATION_KEY);
+    }
     setLoading(true);
     try {
       const res = await api.liveOpenings(q.trim(), location.trim() || undefined);
@@ -86,6 +116,11 @@ export default function LiveOpeningsPanel({ onTracked }: { onTracked: () => void
           {savingAlert ? 'Saving…' : '🔔 Alert me'}
         </button>
       </div>
+      {prefilled ? (
+        <p className="muted" style={{ fontSize: 12, marginTop: -4, marginBottom: 8 }}>
+          Pre-filled from your profile — edit to search anything.
+        </p>
+      ) : null}
       {alertMsg ? <p className="muted" style={{ fontSize: 13, marginTop: -4 }}>{alertMsg}</p> : null}
 
       {paywall && (

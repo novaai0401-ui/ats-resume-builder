@@ -162,6 +162,8 @@ export class ResumeService {
       projects: dto.projects ?? [],
       certifications: dto.certifications ?? [],
       achievements: dto.achievements ?? [],
+      licenses: (dto as any).licenses ?? [],
+      publications: (dto as any).publications ?? [],
     });
     const templateId = typeof dto.templateId === 'string'
       ? String(dto.templateId || '').trim() || undefined
@@ -198,6 +200,8 @@ export class ResumeService {
         projects: normalized.projects ?? [],
         certifications: normalized.certifications ?? [],
         achievements: normalized.achievements ?? [],
+        licenses: ((normalized as any).licenses as any[]) ?? [],
+        publications: ((normalized as any).publications as any[]) ?? [],
         templateId,
         fontFamily: typeof dto.fontFamily === 'string' ? dto.fontFamily.trim() || null : undefined,
         density: typeof dto.density === 'string' ? dto.density.trim() || null : undefined,
@@ -314,6 +318,8 @@ export class ResumeService {
       projects: dto.projects ?? (Array.isArray(current.projects) ? current.projects as any[] : []),
       certifications: dto.certifications ?? (Array.isArray(current.certifications) ? current.certifications as any[] : []),
       achievements: dto.achievements ?? (Array.isArray((current as any).achievements) ? ((current as any).achievements as string[]) : []),
+      licenses: (dto as any).licenses ?? (Array.isArray((current as any).licenses) ? ((current as any).licenses as any[]) : []),
+      publications: (dto as any).publications ?? (Array.isArray((current as any).publications) ? ((current as any).publications as any[]) : []),
     });
     const categories = resolveSkillCategories({
       skills: normalized.skills,
@@ -357,6 +363,8 @@ export class ResumeService {
         projects: normalized.projects,
         certifications: normalized.certifications,
         achievements: normalized.achievements ?? [],
+        licenses: ((normalized as any).licenses as any[]) ?? [],
+        publications: ((normalized as any).publications as any[]) ?? [],
         templateId,
         fontFamily: dto.fontFamily !== undefined ? (typeof dto.fontFamily === 'string' ? dto.fontFamily.trim() || null : null) : undefined,
         density: dto.density !== undefined ? (typeof dto.density === 'string' ? dto.density.trim() || null : null) : undefined,
@@ -408,6 +416,8 @@ export class ResumeService {
       projects: Array.isArray(resume.projects) ? resume.projects as any[] : [],
       certifications: Array.isArray(resume.certifications) ? resume.certifications as any[] : [],
       achievements: Array.isArray((resume as any).achievements) ? ((resume as any).achievements as string[]) : [],
+      licenses: Array.isArray((resume as any).licenses) ? ((resume as any).licenses as any[]) : [],
+      publications: Array.isArray((resume as any).publications) ? ((resume as any).publications as any[]) : [],
     });
     const categories = resolveSkillCategories({
       skills: normalized.skills,
@@ -441,6 +451,8 @@ export class ResumeService {
         projects: normalized.projects ?? [],
         certifications: normalized.certifications ?? [],
         achievements: normalized.achievements ?? [],
+        licenses: ((normalized as any).licenses as any[]) ?? [],
+        publications: ((normalized as any).publications as any[]) ?? [],
         templateId: resume.templateId ?? undefined,
       },
     });
@@ -1848,6 +1860,8 @@ function validateResumeSectionsOrThrow(input: {
   projects?: any[];
   certifications?: any[];
   achievements?: string[];
+  licenses?: any[];
+  publications?: any[];
 }) {
   const parsed = ResumeSectionsSchema.safeParse({
     title: input.title,
@@ -1862,6 +1876,8 @@ function validateResumeSectionsOrThrow(input: {
     projects: input.projects ?? [],
     certifications: input.certifications ?? [],
     achievements: (input.achievements ?? []).filter((a) => String(a || '').trim().length > 0),
+    licenses: input.licenses ?? [],
+    publications: input.publications ?? [],
   });
   if (!parsed.success) {
     throw new BadRequestException({
@@ -4810,6 +4826,7 @@ function renderTemplateBody(templateId: string, resume: any) {
   // the one they previewed.
   if (templateId === 'academic') return renderAcademicTemplateArticle(resume);
   if (templateId === 'healthcare') return renderHealthcareTemplateArticle(resume);
+  if (templateId === 'medical-coder') return renderMedicalCoderTemplateArticle(resume);
   if (templateId === 'creative') return renderCreativeTemplateArticle(resume);
   if (templateId === 'sidebar-bold') return renderSidebarBoldTemplateArticle(resume);
   if (templateId === 'accent-header') return renderAccentHeaderTemplateArticle(resume);
@@ -4909,6 +4926,32 @@ function renderHealthcareTemplateArticle(resume: any) {
           experience: 'Clinical Experience',
           skills: 'Clinical Skills & Procedures',
           projects: 'Research & Quality Improvement',
+        },
+      })}
+    </article>
+  `;
+}
+
+/**
+ * R-077 — Medical Coder template. Reuses the healthcare single-column
+ * article with coding/billing-specific labels: certifications (CPC/CCS)
+ * lead the page and skills are framed as code sets (ICD-10, CPT, HCPCS).
+ */
+function renderMedicalCoderTemplateArticle(resume: any) {
+  const normalized = normalizeTemplateResumeData(resume);
+  return `
+    <article class="ats-template ats-template--healthcare ats-template--medical-coder">
+      ${templateHeader(normalized)}
+      ${renderOrderedSections(normalized, {
+        companyJoiner: ', ',
+        uppercaseHeadings: true,
+        certificationsFirst: true,
+        labels: {
+          summary: 'Professional Summary',
+          certifications: 'Coding Certifications & Credentials',
+          experience: 'Coding & Billing Experience',
+          skills: 'Code Sets & Systems',
+          projects: 'Audits & Compliance Projects',
         },
       })}
     </article>
@@ -5351,6 +5394,33 @@ function renderOrderedSections(
         <p>${escapeHtml(languages.join(', '))}</p>
       </section>
     ` : '';
+  // R-077 — profession-specific sections. Render whenever present; ATS-safe
+  // plain single-column markup mirrors the certifications block.
+  const licenses = Array.isArray((resume as { licenses?: unknown[] }).licenses)
+    ? ((resume as { licenses?: Array<Record<string, string>> }).licenses as Array<Record<string, string>>)
+    : [];
+  const licensesSection = licenses.length ? `
+      <section class="${sectionClass}">
+        ${heading('Licenses & Registrations')}
+        ${licenses.map((l) => `
+          <div class="ats-item">
+            <strong>${escapeHtml(l.name || '')}</strong>${l.authority ? ` — ${escapeHtml(l.authority)}` : ''}
+            ${l.licenseNumber ? `<div>License No.: ${escapeHtml(l.licenseNumber)}</div>` : ''}
+            ${l.region || l.validTill ? `<div>${[l.region, l.validTill ? `Valid till ${l.validTill}` : ''].filter(Boolean).map((x) => escapeHtml(String(x))).join(' · ')}</div>` : ''}
+          </div>`).join('')}
+      </section>
+    ` : '';
+  const publications = Array.isArray((resume as { publications?: unknown[] }).publications)
+    ? ((resume as { publications?: Array<Record<string, string>> }).publications as Array<Record<string, string>>)
+    : [];
+  const publicationsSection = publications.length ? `
+      <section class="${sectionClass}">
+        ${heading('Publications & Patents')}
+        <ul class="ats-item">
+          ${publications.map((pb) => `<li>${escapeHtml(pb.title || '')}${pb.venue ? `, ${escapeHtml(pb.venue)}` : ''}${pb.year ? ` (${escapeHtml(pb.year)})` : ''}${pb.type === 'patent' ? ' [Patent]' : ''}</li>`).join('')}
+        </ul>
+      </section>
+    ` : '';
   const achievementsHeading = labels.achievements || 'Achievements';
   const achievementsSection = achievements.length ? `
       <section class="${sectionClass}">
@@ -5367,10 +5437,10 @@ function renderOrderedSections(
   // (resolveSectionOrder). This mirrors the React OrderedAtsSections renderer
   // so preview and export stay in lock-step.
   const defaultBody = options.educationFirst
-    ? ['summary', 'education', 'experience', 'projects', 'achievements', 'certifications', 'skills', 'languages']
+    ? ['summary', 'education', 'experience', 'projects', 'achievements', 'certifications', 'licenses', 'publications', 'skills', 'languages']
     : options.certificationsFirst
-      ? ['summary', 'certifications', 'education', 'experience', 'skills', 'projects', 'achievements', 'languages']
-      : ['summary', 'skills', 'experience', 'projects', 'achievements', 'education', 'certifications', 'languages'];
+      ? ['summary', 'certifications', 'licenses', 'education', 'experience', 'skills', 'projects', 'achievements', 'publications', 'languages']
+      : ['summary', 'skills', 'experience', 'projects', 'achievements', 'education', 'certifications', 'licenses', 'publications', 'languages'];
 
   const blockByKey: Record<string, string> = {
     summary: summarySection,
@@ -5380,6 +5450,8 @@ function renderOrderedSections(
     achievements: achievementsSection,
     education: educationSection,
     certifications: certificationsSection,
+    licenses: licensesSection,
+    publications: publicationsSection,
     languages: languagesSection,
   };
 
@@ -5621,6 +5693,9 @@ function normalizeTemplateId(value: unknown) {
     'healthcare-cv': 'healthcare',
     medical: 'healthcare',
     clinical: 'healthcare',
+    'medical-coding': 'medical-coder',
+    'medical-billing': 'medical-coder',
+    coder: 'medical-coder',
     'creative-portfolio': 'creative',
     designer: 'creative',
     'two-column-bold': 'sidebar-bold',
@@ -5631,7 +5706,7 @@ function normalizeTemplateId(value: unknown) {
   const normalized = aliases[raw] || raw;
   if ([
     'classic', 'modern', 'executive', 'technical', 'minimal', 'consultant', 'graduate',
-    'academic', 'healthcare', 'creative', 'sidebar-bold', 'accent-header',
+    'academic', 'healthcare', 'medical-coder', 'creative', 'sidebar-bold', 'accent-header',
   ].includes(normalized)) {
     return normalized;
   }

@@ -138,6 +138,20 @@ type ResumePayload = {
     date?: string;
     details?: string[];
   }[];
+  licenses?: {
+    name: string;
+    authority?: string;
+    licenseNumber?: string;
+    region?: string;
+    validTill?: string;
+  }[];
+  publications?: {
+    title: string;
+    venue?: string;
+    year?: string;
+    url?: string;
+    type?: 'publication' | 'patent';
+  }[];
   templateId?: string;
   /** R-045 — design customization. */
   fontFamily?: string | null;

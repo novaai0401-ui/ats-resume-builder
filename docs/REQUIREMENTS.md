@@ -1126,6 +1126,51 @@ and every external call still feeds the Outcome Graph.
 
 ---
 
+### R-077 · Profession-specific resume depth (sections, Medical Coder, profile-matched jobs, JD suggestions)
+
+- Status: **DONE** (this commit)
+- Depends-on: R-045 (section order), C-001/C-002
+- Context: founder review as a job-seeker: professions/templates existed
+  for 21 industries, but the data model was generic — no first-class
+  licensure or publications; no Medical Coder profession; job search was
+  a blank keyword box not tied to the user's profile; and pasting a JD
+  gave no instant resume-content suggestions.
+- Acceptance
+  - [x] New sections, schema-first (C-001): `licenses[]` (name, authority,
+    licenseNumber, region, validTill) and `publications[]` (title, venue,
+    year, url, type publication|patent) in `packages/resume-schemas`,
+    shared types/DTOs/zod, Prisma columns + migration
+    `20260709090000_add_profession_sections`, create/update/duplicate
+    persistence, PDF-export HTML blocks, DOCX blocks. Section catalogue
+    (C-002) gains `licenses` ("Licenses & Registrations") and
+    `publications` ("Publications & Patents"), reorderable, presence-
+    gated in `getAtsSectionOrder`.
+  - [x] Editor: collapsible Licenses/Publications cards (always shown when
+    populated; expanded hint for licensure-heavy industries), included in
+    the save payload; ATS-family templates render both sections in
+    preview + export.
+  - [x] Medical Coder: role in the healthcare profession (ICD-10, CPT,
+    HCPCS, CPC, EHR, HIPAA keywords) + `medical-coder` template catalog
+    entry (ATS-safe, certifications-first, code-set labels; reuses the
+    healthcare component on-screen, dedicated export article with coder
+    labels; aliases medical-coding/medical-billing/coder).
+  - [x] Job search matches the user's profile: Live Openings pre-fills the
+    query from the dashboard-selected profession/role (localStorage) and
+    remembers the last search; hint copy tells the user it's editable.
+  - [x] JD paste → instant suggestions: pure client-side rule-based
+    `src/lib/jd-suggest.ts` (free for every user, no AI call): extracts
+    JD keywords across professions, computes matched/missing vs the
+    resume, generates a <=60-word tailored summary ("Use this summary"
+    one tap), missing-keyword chips ("+ Add to skills"), and 3 bullet
+    ideas ("Add as bullet"). AI-powered deep tailor remains the existing
+    plan/BYOK flow (R-034).
+  - [x] Pinning tests: API `tests/profession-sections.unit.test.cjs`
+    (catalogue, presence, export HTML incl. licence number + [Patent],
+    medical-coder resolution + labels, profession role) and web
+    `tests/jd-suggest.test.ts`.
+
+---
+
 ## §6. Cross-cutting constants
 
 These are constraints that every requirement must respect. Violations
@@ -1192,6 +1237,7 @@ do not break it.
 
 | Date | Decision | Reason | Affected IDs |
 |---|---|---|---|
+| 2026-07-09 | Profession depth (R-077): first-class `licenses` + `publications` sections end-to-end (schema→prisma→editor→preview→PDF/DOCX export); Medical Coder profession role + ATS-safe `medical-coder` template; Live Openings pre-filled from the user's selected profession; free client-side JD→suggestions (tailored summary, missing-keyword chips, bullet ideas) on JD paste. | Founder walked the product as a job-seeker across IT/mechanical/medical/teacher/doctor profiles: generic schema shortchanged licensed/academic professions, no coder template, job search ignored the profile, and JD paste gave no instant help. | R-077, R-045, C-001, C-002 |
 | 2026-07-08 | Error tracking (R-076): wired Sentry as an opt-in, no-op-without-DSN capture path — global interceptor reports 5xx/non-HTTP failures (4xx skipped), boot failures + unhandled rejections captured, and the swallowed paid-user resume-email failure is explicitly reported. Closes the "flying blind in prod" gap. | Pre-launch audit: prod errors went only to stdout; nobody alerted when payments/exports/DB throw. | R-076 |
 | 2026-07-08 | Security hardening (R-075): wired the dead `validateProductionEnv()` into boot (hard-fail on missing/weak JWT/DB/CORS secrets in prod; REDIS/TOKEN_ENC_KEY warn-only so the net can't brick a deploy); registered the never-imported `ThrottleModule` (60/min global + tight auth-route caps, prod-only, webhooks/health exempt); `trust proxy=1` for real client IPs; Render health check moved to DB-aware `/health/db`. | Pre-launch audit blockers: forgeable tokens via `dev_secret` fallback, zero rate limiting, and a DB-down instance reported healthy. | R-075 |
 | 2026-07-08 | Export reliability (R-074): `generatePdf` now renders before charging (a failed/timed-out/too-busy render no longer burns a paid export — mirrors `generateDocx`); all export paths share one resilient, concurrency-capped, timed-out Chromium via `pdf-renderer.ts` (shared browser, semaphore, setContent/pdf timeouts, 503-on-busy) instead of a per-request cold launch that could OOM Render or hang a worker. | Pre-launch audit blockers: PDF charge-before-render mischarge (the "paid, no file" case) + unbounded Chromium concurrency/no timeouts. | R-074, R-003, R-073 |

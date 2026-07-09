@@ -239,6 +239,39 @@ export async function renderResumeDocx(resume: ResumeLike): Promise<Buffer> {
     }
   }
 
+  // R-077 — profession-specific sections (licensure, publications/patents).
+  const licenses = Array.isArray((resume as { licenses?: Array<Record<string, string>> }).licenses)
+    ? ((resume as { licenses?: Array<Record<string, string>> }).licenses as Array<Record<string, string>>)
+    : [];
+  if (licenses.length > 0) {
+    children.push(heading('Licenses & Registrations'));
+    for (const lic of licenses) {
+      const line = [
+        (lic.name || '').trim(),
+        (lic.authority || '').trim(),
+        lic.licenseNumber ? `License No.: ${String(lic.licenseNumber).trim()}` : '',
+        (lic.region || '').trim(),
+        lic.validTill ? `Valid till ${String(lic.validTill).trim()}` : '',
+      ].filter(Boolean).join(' · ');
+      children.push(paragraph(line));
+    }
+  }
+  const publications = Array.isArray((resume as { publications?: Array<Record<string, string>> }).publications)
+    ? ((resume as { publications?: Array<Record<string, string>> }).publications as Array<Record<string, string>>)
+    : [];
+  if (publications.length > 0) {
+    children.push(heading('Publications & Patents'));
+    for (const pub of publications) {
+      const line = [
+        (pub.title || '').trim(),
+        (pub.venue || '').trim(),
+        (pub.year || '').trim(),
+        pub.type === 'patent' ? '[Patent]' : '',
+      ].filter(Boolean).join(' · ');
+      children.push(paragraph(line));
+    }
+  }
+
   const doc = new Document({
     creator: 'Pocket Resume',
     title: fullName,

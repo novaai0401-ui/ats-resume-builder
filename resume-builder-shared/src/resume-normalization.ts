@@ -9,6 +9,8 @@ export type AtsSectionKey =
   | 'achievements'
   | 'education'
   | 'certifications'
+  | 'licenses'
+  | 'publications'
   | 'languages';
 
 export const ATS_SECTION_ORDER: AtsSectionKey[] = [
@@ -20,6 +22,8 @@ export const ATS_SECTION_ORDER: AtsSectionKey[] = [
   'achievements',
   'education',
   'certifications',
+  'licenses',
+  'publications',
   'languages',
 ];
 
@@ -31,6 +35,8 @@ const SECTION_TITLE_MAP: Record<Exclude<AtsSectionKey, 'header'>, string> = {
   achievements: 'Achievements',
   education: 'Education',
   certifications: 'Certifications',
+  licenses: 'Licenses & Registrations',
+  publications: 'Publications & Patents',
   languages: 'Languages',
 };
 
@@ -118,6 +124,8 @@ export const REORDERABLE_SECTIONS: Exclude<AtsSectionKey, 'header'>[] = [
   'achievements',
   'education',
   'certifications',
+  'licenses',
+  'publications',
   'languages',
 ];
 
@@ -335,6 +343,8 @@ export function getAtsSectionOrder(resume: ResumeLike): AtsSectionKey[] {
   const hasCertifications = (normalized.certifications || []).length > 0;
   const hasLanguages = (normalized.languages || []).length > 0;
   const hasAchievements = (normalized.achievements || []).length > 0;
+  const hasLicenses = ((resume as { licenses?: unknown[] }).licenses || []).length > 0;
+  const hasPublications = ((resume as { publications?: unknown[] }).publications || []).length > 0;
 
   const isPresent = (section: AtsSectionKey): boolean => {
     if (section === 'header') return true;
@@ -345,6 +355,8 @@ export function getAtsSectionOrder(resume: ResumeLike): AtsSectionKey[] {
     if (section === 'achievements') return hasAchievements;
     if (section === 'education') return hasEducation;
     if (section === 'certifications') return hasCertifications;
+    if (section === 'licenses') return hasLicenses;
+    if (section === 'publications') return hasPublications;
     if (section === 'languages') return hasLanguages;
     return false;
   };

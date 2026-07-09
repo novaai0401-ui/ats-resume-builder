@@ -566,6 +566,29 @@ export function buildResumePayload(resume: ResumeDraft, sections: SectionState[]
     }))
     .filter((c) => c.name.length > 0);
 
+  // Licenses & publications: profession-relevant optional sections. An entry
+  // needs at least a name/title; blank optional sub-fields go out as
+  // undefined so server-side ">=N chars if present" rules never trip.
+  const cleanLicenses = (resume.licenses || [])
+    .map((item) => ({
+      name: item.name.trim(),
+      authority: item.authority?.trim() || undefined,
+      licenseNumber: item.licenseNumber?.trim() || undefined,
+      region: item.region?.trim() || undefined,
+      validTill: item.validTill?.trim() || undefined,
+    }))
+    .filter((item) => item.name.length > 0);
+
+  const cleanPublications = (resume.publications || [])
+    .map((item) => ({
+      title: item.title.trim(),
+      venue: item.venue?.trim() || undefined,
+      year: item.year?.trim() || undefined,
+      url: item.url?.trim() || undefined,
+      type: item.type || undefined,
+    }))
+    .filter((item) => item.title.length > 0);
+
   const payload = {
     title: resume.title.trim() || resume.contact.fullName.trim() || 'Resume',
     contact: enabled.has('contact') ? trimmedContact : undefined,
@@ -596,6 +619,8 @@ export function buildResumePayload(resume: ResumeDraft, sections: SectionState[]
       : [],
     projects: enabled.has('projects') ? cleanProjects : [],
     certifications: enabled.has('certifications') ? cleanCertifications : [],
+    licenses: cleanLicenses,
+    publications: cleanPublications,
     achievements: enabled.has('achievements')
       ? (resume.achievements || []).map((a) => a.trim()).filter(Boolean)
       : [],
@@ -662,6 +687,24 @@ export function buildResumePreview(resume: ResumeDraft): ResumeImportResult {
         details: (item.details || []).map((line) => line.trim()).filter(Boolean),
       }))
       .filter((item) => item.name),
+    licenses: (resume.licenses || [])
+      .map((item) => ({
+        name: item.name.trim(),
+        authority: item.authority?.trim(),
+        licenseNumber: item.licenseNumber?.trim(),
+        region: item.region?.trim(),
+        validTill: item.validTill?.trim(),
+      }))
+      .filter((item) => item.name),
+    publications: (resume.publications || [])
+      .map((item) => ({
+        title: item.title.trim(),
+        venue: item.venue?.trim(),
+        year: item.year?.trim(),
+        url: item.url?.trim(),
+        type: item.type,
+      }))
+      .filter((item) => item.title),
     achievements: (resume.achievements || []).map((a) => a.trim()).filter(Boolean),
   };
   const normalizedPreview = normalizeResumeForAts(preview);
@@ -737,6 +780,20 @@ export function resumeFromApi(resume: Resume): ResumeDraft {
       issuer: item.issuer?.trim(),
       date: item.date?.trim(),
       details: (item.details || []).map((line) => line.trim()).filter(Boolean),
+    })),
+    licenses: (resume.licenses || []).map((item) => ({
+      name: String(item.name || '').trim(),
+      authority: item.authority?.trim(),
+      licenseNumber: item.licenseNumber?.trim(),
+      region: item.region?.trim(),
+      validTill: item.validTill?.trim(),
+    })),
+    publications: (resume.publications || []).map((item) => ({
+      title: String(item.title || '').trim(),
+      venue: item.venue?.trim(),
+      year: item.year?.trim(),
+      url: item.url?.trim(),
+      type: item.type,
     })),
     achievements: ((resume as { achievements?: string[] }).achievements || [])
       .map((a) => String(a || '').trim())
