@@ -3,7 +3,33 @@ import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 
 function isPlaceholderSmtpValue(value: string): boolean {
-  return /your[_-]|example\.com|changeme|change[_-]me|placeholder|test@|demo@|fake/i.test(value);
+  // Anchored/word-ish patterns so a real address like "attest@x.com" or a
+  // random app-password isn't wrongly flagged. Only obvious dummies match.
+  return /(^|[_-])your[_-]|@example\.(com|org)$|changeme|change[_-]me|placeholder|^(test|demo|fake)@/i.test(value);
+}
+
+/** Structured, log/endpoint-friendly view of the mail config. */
+export type MailConfigStatus = {
+  configured: boolean;
+  host: string;
+  port: number;
+  secure: boolean;
+  fromAddress: string;
+  /** Masked SMTP username so support can eyeball it without leaking it. */
+  userMasked: string;
+  /** Human-readable reason when not configured (empty when configured). */
+  reason: string;
+};
+
+function maskEmail(value: string): string {
+  const v = String(value || '').trim();
+  if (!v) return '';
+  const at = v.indexOf('@');
+  if (at <= 0) return `${v.slice(0, 2)}***`;
+  const name = v.slice(0, at);
+  const domain = v.slice(at);
+  const head = name.slice(0, Math.min(2, name.length));
+  return `${head}${'*'.repeat(Math.max(1, name.length - 2))}${domain}`;
 }
 
 @Injectable()
@@ -11,6 +37,7 @@ export class MailService {
   private readonly logger = new Logger(MailService.name);
   private readonly transporter: nodemailer.Transporter | null;
   private readonly fromAddress: string;
+  private readonly status: MailConfigStatus;
 
   constructor(private readonly config: ConfigService) {
     const host = this.readEnv('SMTP_HOST');
@@ -21,7 +48,22 @@ export class MailService {
     this.fromAddress = fromRaw || user || '';
     const secure = this.readEnv('SMTP_SECURE') === 'true';
 
-    if (host && user && pass && !isPlaceholderSmtpValue(user) && !isPlaceholderSmtpValue(pass)) {
+    // Compute a precise reason so ops can see EXACTLY what's wrong instead
+    // of a generic "not configured".
+    const missing: string[] = [];
+    if (!host) missing.push('SMTP_HOST');
+    if (!user) missing.push('SMTP_USER');
+    if (!pass) missing.push('SMTP_PASS');
+    let reason = '';
+    if (missing.length) {
+      reason = `Missing env: ${missing.join(', ')}.`;
+    } else if (isPlaceholderSmtpValue(user)) {
+      reason = 'SMTP_USER looks like a placeholder — set your real SMTP username/email.';
+    } else if (isPlaceholderSmtpValue(pass)) {
+      reason = 'SMTP_PASS looks like a placeholder — set your real SMTP password / app password.';
+    }
+
+    if (!reason) {
       this.transporter = nodemailer.createTransport({
         host,
         port,
@@ -40,20 +82,59 @@ export class MailService {
         });
     } else {
       this.transporter = null;
-      if (host || user || pass) {
-        this.logger.warn(
-          'SMTP credentials appear to be placeholder values. Update SMTP_USER and SMTP_PASS in .env with real credentials.',
-        );
-      } else {
-        this.logger.warn(
-          'SMTP not configured (SMTP_HOST, SMTP_USER, SMTP_PASS required). Email sending disabled. See .env.example for setup.',
-        );
-      }
+      this.logger.warn(`SMTP not configured — ${reason} See .env.example / Gmail SMTP setup.`);
     }
+
+    this.status = {
+      configured: this.transporter !== null,
+      host,
+      port,
+      secure,
+      fromAddress: this.fromAddress,
+      userMasked: maskEmail(user),
+      reason,
+    };
   }
 
   get isConfigured(): boolean {
     return this.transporter !== null;
+  }
+
+  /** Snapshot of the mail config (no secrets) for the admin diagnostic. */
+  getStatus(): MailConfigStatus {
+    return { ...this.status };
+  }
+
+  /**
+   * Live SMTP handshake (AUTH + connection) so ops can see the real error
+   * — wrong app password, blocked port, etc. Returns the raw error message.
+   */
+  async verifyConnection(): Promise<{ ok: boolean; error?: string }> {
+    if (!this.transporter) return { ok: false, error: this.status.reason || 'SMTP not configured' };
+    try {
+      await this.transporter.verify();
+      return { ok: true };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return { ok: false, error: msg.replace(/pass[^\s]*/gi, '***') };
+    }
+  }
+
+  /** Send a plain diagnostic email to prove end-to-end delivery works. */
+  async sendTestEmail(to: string): Promise<{ ok: boolean; error?: string }> {
+    if (!this.transporter) return { ok: false, error: this.status.reason || 'SMTP not configured' };
+    try {
+      await this.transporter.sendMail({
+        from: this.fromAddress,
+        to,
+        subject: 'Pocket Resume — SMTP test email',
+        text: 'This is a test email from Pocket Resume. If you received it, email delivery is working.',
+      });
+      return { ok: true };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return { ok: false, error: msg.replace(/pass[^\s]*/gi, '***') };
+    }
   }
 
   /**

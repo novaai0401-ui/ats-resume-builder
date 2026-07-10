@@ -1215,6 +1215,33 @@ and every external call still feeds the Outcome Graph.
 
 ---
 
+### R-079 · Mail delivery diagnostics (why "Email delivery is not configured")
+
+- Status: **DONE** (this commit)
+- Depends-on: R-031 (mail), R-073/R-075 (admin surfaces)
+- Context: email flows (password-reset OTP, resume copy, support resend)
+  failed with "Email delivery is not configured. Contact support." because
+  the SMTP env vars aren't set on the server — but the failure was opaque,
+  so there was no way to tell WHICH var was missing or whether SMTP auth
+  itself was failing (Gmail login password vs App Password).
+- Acceptance
+  - [x] `MailService` records a precise `reason` at boot (which of
+    SMTP_HOST/USER/PASS is missing, or which looks like a placeholder) and
+    exposes `getStatus()` (no secrets; username masked), `verifyConnection()`
+    (live SMTP handshake → real error), and `sendTestEmail(to)`.
+  - [x] Placeholder detection tightened so real creds (a Gmail address, an
+    app password, or an address containing "test") are never false-flagged.
+  - [x] Admin-only `GET /admin/mail/status` (config + live handshake +
+    actionable hint) and `POST /admin/mail/test {to}` (real test send),
+    `@SkipThrottle`, AdminAuthGuard.
+  - [x] Tests `tests/mail-config.unit.test.cjs` (4): missing-vars reason,
+    Gmail accepted + masked, placeholder rejected, no false positive.
+  - Note: this is DIAGNOSTICS + robustness — actually enabling mail is an
+    ops step (set SMTP_HOST/PORT/USER/PASS/FROM on Render; Gmail needs an
+    App Password). render.yaml already declares the slots (sync:false).
+
+---
+
 ## §6. Cross-cutting constants
 
 These are constraints that every requirement must respect. Violations
@@ -1281,6 +1308,7 @@ do not break it.
 
 | Date | Decision | Reason | Affected IDs |
 |---|---|---|---|
+| 2026-07-09 | Mail diagnostics (R-079): email flows failed opaquely with "Email delivery is not configured" because SMTP env isn't set on the server; added precise boot-time reason, admin GET /admin/mail/status (config + live SMTP handshake + hint) and POST /admin/mail/test, and tightened placeholder detection so real Gmail creds aren't false-flagged. Enabling mail remains an ops step (set SMTP_* on Render; Gmail App Password). | Founder: mail not working, "not configured" with no way to see why. | R-079 |
 | 2026-07-09 | LinkedIn (R-078): removed "Sign in with LinkedIn" login (founder call); hardened the LinkedIn profile paste-import — strips app chrome (nav/messaging overlay/feed/avatar alt-text) and rejects a wrong-page home-feed paste with actionable guidance instead of building 8 phantom companies; clearer import instructions + button. | Founder dropped LinkedIn OAuth for now; a home-feed+messaging paste was mis-parsed into 8 fake jobs and the button was confusing. | R-078 |
 | 2026-07-09 | Profession depth (R-077): first-class `licenses` + `publications` sections end-to-end (schema→prisma→editor→preview→PDF/DOCX export); Medical Coder profession role + ATS-safe `medical-coder` template; Live Openings pre-filled from the user's selected profession; free client-side JD→suggestions (tailored summary, missing-keyword chips, bullet ideas) on JD paste. | Founder walked the product as a job-seeker across IT/mechanical/medical/teacher/doctor profiles: generic schema shortchanged licensed/academic professions, no coder template, job search ignored the profile, and JD paste gave no instant help. | R-077, R-045, C-001, C-002 |
 | 2026-07-08 | Error tracking (R-076): wired Sentry as an opt-in, no-op-without-DSN capture path — global interceptor reports 5xx/non-HTTP failures (4xx skipped), boot failures + unhandled rejections captured, and the swallowed paid-user resume-email failure is explicitly reported. Closes the "flying blind in prod" gap. | Pre-launch audit: prod errors went only to stdout; nobody alerted when payments/exports/DB throw. | R-076 |
