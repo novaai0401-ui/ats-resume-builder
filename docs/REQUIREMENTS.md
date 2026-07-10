@@ -1234,8 +1234,15 @@ and every external call still feeds the Outcome Graph.
   - [x] Admin-only `GET /admin/mail/status` (config + live handshake +
     actionable hint) and `POST /admin/mail/test {to}` (real test send),
     `@SkipThrottle`, AdminAuthGuard.
-  - [x] Tests `tests/mail-config.unit.test.cjs` (4): missing-vars reason,
-    Gmail accepted + masked, placeholder rejected, no false positive.
+  - [x] Send-time hardening: TLS mode is auto-derived from the SMTP port
+    (587/25 → STARTTLS/secure=false, 465 → implicit TLS/secure=true) so a
+    587-with-SSL mix-up (the #1 Gmail "configured but send fails" cause)
+    can't silently break delivery. The real send error is captured
+    (`lastSendError`) and surfaced by `GET /admin/mail/status`, so a 503
+    "Failed to send reset email" is diagnosable without Render logs.
+  - [x] Tests `tests/mail-config.unit.test.cjs` (6): missing-vars reason,
+    Gmail accepted + masked, placeholder rejected, no false positive,
+    port→TLS auto-derivation, lastSendError exposure.
   - Note: this is DIAGNOSTICS + robustness — actually enabling mail is an
     ops step (set SMTP_HOST/PORT/USER/PASS/FROM on Render; Gmail needs an
     App Password). render.yaml already declares the slots (sync:false).
