@@ -243,3 +243,70 @@ test('credits are NOT consumed while the user is under the monthly cap', async (
   assert.equal(user.pdfExportsUsed, 3, 'counter increments normally under the cap');
   assert.equal(user.premiumCredits, 3, 'credits untouched while quota remains');
 });
+
+// ── B1 regression: a FAILED PDF render must not burn a paid export ──────
+//
+// generatePdf previously incremented pdfExportsUsed BEFORE launching Chrome,
+// so a launch/render failure charged the user an export and returned nothing.
+// The renderer now runs first (renderHtmlToPdf), and the charge happens only
+// after it resolves. We force a deterministic render failure by pointing
+// Chrome at a fake, non-browser executable and assert the counter is
+// untouched.
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+
+async function withEnvAsync(env, fn) {
+  const prev = {};
+  for (const k of Object.keys(env)) {
+    prev[k] = process.env[k];
+    if (env[k] === undefined) delete process.env[k];
+    else process.env[k] = env[k];
+  }
+  try {
+    return await fn();
+  } finally {
+    for (const k of Object.keys(prev)) {
+      if (prev[k] === undefined) delete process.env[k];
+      else process.env[k] = prev[k];
+    }
+  }
+}
+
+test('B1: a failed PDF render does NOT charge the user an export', async () => {
+  const fakeChrome = path.join(os.tmpdir(), `fake-chrome-${process.pid}`);
+  fs.writeFileSync(fakeChrome, '#!/bin/sh\nexit 1\n');
+  fs.chmodSync(fakeChrome, 0o755);
+  try {
+    await withEnvAsync(
+      {
+        ENABLE_DOWNLOAD_CHARGE: undefined,
+        ENFORCE_EXPORT_QUOTA: 'true',
+        AWS_LAMBDA_FUNCTION_NAME: undefined,
+        CHROME_EXECUTABLE_PATH: fakeChrome,
+        PUPPETEER_EXECUTABLE_PATH: fakeChrome,
+      },
+      async () => {
+        const prisma = createInMemoryPrisma({ pdfExportsUsed: 2, pdfExportsLimit: 5 });
+        const service = await buildService(prisma);
+        await assert.rejects(() => service.generatePdf('user-1', 'resume-1'));
+        // The whole point: the render failed, so the counter must be UNCHANGED.
+        assert.equal(
+          prisma.__getState().user.pdfExportsUsed,
+          2,
+          'a failed render must not consume a paid export',
+        );
+      },
+    );
+  } finally {
+    fs.rmSync(fakeChrome, { force: true });
+  }
+});
+
+test('pdfRendererStats exposes concurrency config', () => {
+  const { pdfRendererStats } = require('../dist/resume/pdf-renderer.js');
+  const s = pdfRendererStats();
+  assert.equal(typeof s.active, 'number');
+  assert.equal(typeof s.queued, 'number');
+  assert.ok(s.maxConcurrency >= 1);
+});

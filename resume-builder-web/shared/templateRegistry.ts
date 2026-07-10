@@ -30,6 +30,9 @@ const templateComponents: Record<TemplateComponentKey, ComponentType<TemplateCom
   consultant: ConsultantClean,
   academic: AcademicCV,
   healthcare: HealthcareCV,
+  // R-077 — Medical Coder reuses the healthcare component on-screen; the
+  // coder-specific labels live in the export renderer + catalog metadata.
+  'medical-coder': HealthcareCV,
   creative: CreativePortfolio,
   'sidebar-bold': SidebarBold,
   'accent-header': AccentHeader,

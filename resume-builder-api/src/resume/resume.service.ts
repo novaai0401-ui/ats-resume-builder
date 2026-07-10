@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, HttpException, HttpStatus, Injectable, NotFoundException, Optional, UnprocessableEntityException } from '@nestjs/common';
-import puppeteer, { type LaunchOptions } from 'puppeteer-core';
-import { existsSync } from 'fs';
+import { renderHtmlToPdf } from './pdf-renderer';
+import { captureException } from '../observability/sentry';
 import { PDFParse } from 'pdf-parse';
 import mammoth from 'mammoth';
 import type { Prisma } from '@prisma/client';
@@ -11,7 +11,7 @@ import { designCssText, normalizeAccentColor, normalizePhotoUrl, templateSupport
 import { ResumeSectionsSchema } from 'resume-schemas';
 import { ensureUsagePeriod } from '../billing/usage';
 import { rateLimitOrThrow } from '../limits/rate-limit';
-import { mapParsedResume, parseResumeText } from 'resume-intelligence';
+import { mapParsedResume, parseResumeText, mapLicenses, mapPublications } from 'resume-intelligence';
 import type { ParsedResumeText } from 'resume-intelligence';
 import { sanitizeImportedResume } from './import-sanitizer';
 import { ACTION_VERB_REQUIRED_RATIO, analyzeActionVerbRule, normalizeBulletText, type ActionVerbFailure } from './action-verb-rule';
@@ -42,76 +42,6 @@ function deriveTrainingFileType(originalname: string, mimetype: string): string 
 }
 
 
-
-/**
- * Detect whether we're running in a serverless environment (AWS Lambda).
- */
-const IS_SERVERLESS = Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME);
-
-/**
- * Resolve a Chrome/Chromium executable path for Puppeteer.
- * In serverless: uses @sparticuz/chromium which bundles a minimal Chromium.
- * Locally / Docker (Render): CHROME_EXECUTABLE_PATH env > common system paths > puppeteer default.
- */
-async function resolveChromeLaunchOptions(): Promise<LaunchOptions> {
-  if (IS_SERVERLESS) {
-    try {
-      const chromium = (await import('@sparticuz/chromium')).default;
-      return {
-        args: chromium.args,
-        defaultViewport: chromium.defaultViewport,
-        executablePath: await chromium.executablePath(),
-        headless: true,
-      };
-    } catch {
-      console.warn('[pdf-export] @sparticuz/chromium not available, falling back to local Chrome');
-    }
-  }
-
-  const chromePath = resolveLocalChromePath();
-  return {
-    headless: true,
-    // --disable-dev-shm-usage is required on Alpine / Render where /dev/shm is
-    // ~64MB; without it Chromium crashes mid-render on multi-page resumes.
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu', '--disable-dev-shm-usage'],
-    ...(chromePath ? { executablePath: chromePath } : {}),
-  };
-}
-
-function resolveLocalChromePath(): string | undefined {
-  const envPath = process.env.CHROME_EXECUTABLE_PATH || process.env.PUPPETEER_EXECUTABLE_PATH;
-  if (envPath && existsSync(envPath)) return envPath;
-
-  const isWin = process.platform === 'win32';
-  const isMac = process.platform === 'darwin';
-
-  const candidates: string[] = isWin
-    ? [
-        `${process.env.PROGRAMFILES || 'C:\\Program Files'}\\Google\\Chrome\\Application\\chrome.exe`,
-        `${process.env['PROGRAMFILES(X86)'] || 'C:\\Program Files (x86)'}\\Google\\Chrome\\Application\\chrome.exe`,
-        `${process.env.LOCALAPPDATA || ''}\\Google\\Chrome\\Application\\chrome.exe`,
-        `${process.env.PROGRAMFILES || 'C:\\Program Files'}\\Microsoft\\Edge\\Application\\msedge.exe`,
-        `${process.env['PROGRAMFILES(X86)'] || 'C:\\Program Files (x86)'}\\Microsoft\\Edge\\Application\\msedge.exe`,
-      ]
-    : isMac
-      ? [
-          '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-          '/Applications/Chromium.app/Contents/MacOS/Chromium',
-          '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
-        ]
-      : [
-          '/usr/bin/google-chrome-stable',
-          '/usr/bin/google-chrome',
-          '/usr/bin/chromium-browser',
-          '/usr/bin/chromium',
-          '/snap/bin/chromium',
-        ];
-
-  for (const candidate of candidates) {
-    if (candidate && existsSync(candidate)) return candidate;
-  }
-  return undefined;
-}
 
 const KNOWN_SPOKEN_LANGUAGES = new Map<string, string>([
   ['english', 'English'],
@@ -232,6 +162,8 @@ export class ResumeService {
       projects: dto.projects ?? [],
       certifications: dto.certifications ?? [],
       achievements: dto.achievements ?? [],
+      licenses: (dto as any).licenses ?? [],
+      publications: (dto as any).publications ?? [],
     });
     const templateId = typeof dto.templateId === 'string'
       ? String(dto.templateId || '').trim() || undefined
@@ -268,6 +200,8 @@ export class ResumeService {
         projects: normalized.projects ?? [],
         certifications: normalized.certifications ?? [],
         achievements: normalized.achievements ?? [],
+        licenses: ((normalized as any).licenses as any[]) ?? [],
+        publications: ((normalized as any).publications as any[]) ?? [],
         templateId,
         fontFamily: typeof dto.fontFamily === 'string' ? dto.fontFamily.trim() || null : undefined,
         density: typeof dto.density === 'string' ? dto.density.trim() || null : undefined,
@@ -384,6 +318,8 @@ export class ResumeService {
       projects: dto.projects ?? (Array.isArray(current.projects) ? current.projects as any[] : []),
       certifications: dto.certifications ?? (Array.isArray(current.certifications) ? current.certifications as any[] : []),
       achievements: dto.achievements ?? (Array.isArray((current as any).achievements) ? ((current as any).achievements as string[]) : []),
+      licenses: (dto as any).licenses ?? (Array.isArray((current as any).licenses) ? ((current as any).licenses as any[]) : []),
+      publications: (dto as any).publications ?? (Array.isArray((current as any).publications) ? ((current as any).publications as any[]) : []),
     });
     const categories = resolveSkillCategories({
       skills: normalized.skills,
@@ -427,6 +363,8 @@ export class ResumeService {
         projects: normalized.projects,
         certifications: normalized.certifications,
         achievements: normalized.achievements ?? [],
+        licenses: ((normalized as any).licenses as any[]) ?? [],
+        publications: ((normalized as any).publications as any[]) ?? [],
         templateId,
         fontFamily: dto.fontFamily !== undefined ? (typeof dto.fontFamily === 'string' ? dto.fontFamily.trim() || null : null) : undefined,
         density: dto.density !== undefined ? (typeof dto.density === 'string' ? dto.density.trim() || null : null) : undefined,
@@ -478,6 +416,8 @@ export class ResumeService {
       projects: Array.isArray(resume.projects) ? resume.projects as any[] : [],
       certifications: Array.isArray(resume.certifications) ? resume.certifications as any[] : [],
       achievements: Array.isArray((resume as any).achievements) ? ((resume as any).achievements as string[]) : [],
+      licenses: Array.isArray((resume as any).licenses) ? ((resume as any).licenses as any[]) : [],
+      publications: Array.isArray((resume as any).publications) ? ((resume as any).publications as any[]) : [],
     });
     const categories = resolveSkillCategories({
       skills: normalized.skills,
@@ -511,6 +451,8 @@ export class ResumeService {
         projects: normalized.projects ?? [],
         certifications: normalized.certifications ?? [],
         achievements: normalized.achievements ?? [],
+        licenses: ((normalized as any).licenses as any[]) ?? [],
+        publications: ((normalized as any).publications as any[]) ?? [],
         templateId: resume.templateId ?? undefined,
       },
     });
@@ -751,6 +693,12 @@ export class ResumeService {
       renderer: 'renderResumeTemplateHtml',
     });
 
+    // Render FIRST via the shared, concurrency-capped, timed-out renderer.
+    // Charge only AFTER a successful render — a Chrome failure, timeout, or
+    // "too busy" must NOT burn one of the user's paid exports (this mirrors
+    // generateDocx, which was already fixed to charge after success).
+    const pdfBuffer = await renderHtmlToPdf(html);
+
     await this.prisma.user.update({
       where: { id: userId },
       data: consumeCredit
@@ -758,40 +706,12 @@ export class ResumeService {
         : { pdfExportsUsed: updatedUser.pdfExportsUsed + 1 },
     });
 
-    const launchOptions = await resolveChromeLaunchOptions();
-
-    let browser;
-    try {
-      browser = await puppeteer.launch(launchOptions);
-    } catch (launchError) {
-      const hint = launchOptions.executablePath
-        ? `Tried Chrome at: ${launchOptions.executablePath}`
-        : 'No Chrome/Chromium found. Install Chrome or set CHROME_EXECUTABLE_PATH env variable.';
-      console.error(`[pdf-export] Chrome launch failed. ${hint}`, launchError);
-      throw new HttpException(
-        `PDF generation unavailable: Chrome browser not found. ${hint}`,
-        HttpStatus.SERVICE_UNAVAILABLE,
-      );
-    }
-
-    try {
-      const page = await browser.newPage();
-      await page.setContent(html, { waitUntil: 'networkidle0' });
-      const buffer = await page.pdf({
-        format: 'A4',
-        printBackground: true,
-        margin: { top: '15mm', bottom: '15mm', left: '15mm', right: '15mm' },
-      });
-      const pdfBuffer = Buffer.isBuffer(buffer) ? (buffer as Buffer) : Buffer.from(buffer as unknown as ArrayBuffer);
-      const resumeTitle = (resume.title && String(resume.title).trim()) || 'Resume';
-      // R-073: always send + log a copy so a failed browser download is
-      // recoverable from the user's inbox, and mark the paid download
-      // fulfilled. Fire-and-forget: never block or fail the response.
-      void this.deliverResumeCopy(userId, id, updatedUser.email, resumeTitle, pdfBuffer, 'pdf');
-      return buffer;
-    } finally {
-      await browser.close();
-    }
+    const resumeTitle = (resume.title && String(resume.title).trim()) || 'Resume';
+    // R-073: always send + log a copy so a failed browser download is
+    // recoverable from the user's inbox, and mark the paid download
+    // fulfilled. Fire-and-forget: never block or fail the response.
+    void this.deliverResumeCopy(userId, id, updatedUser.email, resumeTitle, pdfBuffer, 'pdf');
+    return pdfBuffer;
   }
 
   /**
@@ -837,32 +757,7 @@ export class ResumeService {
       renderer: 'renderResumeTemplateHtml(share-link)',
     });
 
-    const launchOptions = await resolveChromeLaunchOptions();
-    let browser;
-    try {
-      browser = await puppeteer.launch(launchOptions);
-    } catch (launchError) {
-      const hint = launchOptions.executablePath
-        ? `Tried Chrome at: ${launchOptions.executablePath}`
-        : 'No Chrome/Chromium found. Install Chrome or set CHROME_EXECUTABLE_PATH env variable.';
-      console.error(`[pdf-export][share-link] Chrome launch failed. ${hint}`, launchError);
-      throw new HttpException(
-        `PDF generation unavailable: Chrome browser not found. ${hint}`,
-        HttpStatus.SERVICE_UNAVAILABLE,
-      );
-    }
-    try {
-      const page = await browser.newPage();
-      await page.setContent(rendered.html, { waitUntil: 'networkidle0' });
-      const buffer = await page.pdf({
-        format: 'A4',
-        printBackground: true,
-        margin: { top: '15mm', bottom: '15mm', left: '15mm', right: '15mm' },
-      });
-      return buffer;
-    } finally {
-      await browser.close();
-    }
+    return renderHtmlToPdf(rendered.html);
   }
 
   /**
@@ -979,7 +874,17 @@ export class ResumeService {
       sent ? 'sent' : 'failed',
       sent ? null : error || 'send returned false',
     );
-    if (sent) await this.markDownloadFulfilled(userId, resumeId);
+    if (sent) {
+      await this.markDownloadFulfilled(userId, resumeId);
+    } else {
+      // A paid user whose resume email failed is exactly the incident support
+      // needs to know about — surface it, don't just log-and-swallow.
+      captureException(new Error(`Resume ${ext} email delivery failed: ${error || 'send returned false'}`), {
+        route: 'deliverResumeCopy',
+        userId,
+        extra: { resumeId, email },
+      });
+    }
   }
 
   /** Write a ResumeEmailLog row. Swallows errors — this is audit only. */
@@ -1371,6 +1276,9 @@ export class ResumeService {
       certifications: normalizedParsed.certifications,
       achievements: (normalizedParsed as { achievements?: string[] }).achievements
         ?? sanitized.achievements,
+      // R-077 — first-class profession sections extracted upstream.
+      licenses: (mapped as { licenses?: unknown[] }).licenses ?? [],
+      publications: (mapped as { publications?: unknown[] }).publications ?? [],
       roleLevel: mapped.roleLevel,
       signals: mapped.signals,
       unmappedText: sanitized.unmappedText,
@@ -1955,6 +1863,8 @@ function validateResumeSectionsOrThrow(input: {
   projects?: any[];
   certifications?: any[];
   achievements?: string[];
+  licenses?: any[];
+  publications?: any[];
 }) {
   const parsed = ResumeSectionsSchema.safeParse({
     title: input.title,
@@ -1969,6 +1879,8 @@ function validateResumeSectionsOrThrow(input: {
     projects: input.projects ?? [],
     certifications: input.certifications ?? [],
     achievements: (input.achievements ?? []).filter((a) => String(a || '').trim().length > 0),
+    licenses: input.licenses ?? [],
+    publications: input.publications ?? [],
   });
   if (!parsed.success) {
     throw new BadRequestException({
@@ -3956,8 +3868,9 @@ function mapResumeSections(text: string) {
   ]);
   const certifications = extractCertifications([
     ...(sections.certifications || []),
-    ...(sections.licenses || []),
   ]);
+  const licenses = mapLicenses(sections);
+  const publications = mapPublications(sections);
 
   const mappedKeys = new Set([
     'summary', 'profile', 'objective',
@@ -3965,7 +3878,7 @@ function mapResumeSections(text: string) {
     'experience', 'employment', 'work', 'career',
     'projects', 'research',
     'education', 'academics',
-    'certifications', 'licenses',
+    'certifications', 'licenses', 'publications',
     'languages',
     'ignore',
   ]);
@@ -3996,6 +3909,8 @@ function mapResumeSections(text: string) {
     education,
     projects,
     certifications,
+    licenses,
+    publications,
     roleLevel,
     unmappedText: remainingLines.join('\n').trim() || undefined,
   };
@@ -4016,8 +3931,11 @@ function detectHeading(line: string) {
   if (/^education(al (background|qualifications?))?$|^academic(s|( background)?)?$|^education history$|^qualifications?$/.test(normalized)) return 'education';
   // Projects
   if (/^(notable |key )?projects?$|^(research|portfolio|personal projects?)$/.test(normalized)) return 'projects';
+  // R-077 — licensure and publications are first-class sections now.
+  if (/^licen[cs]es?$|^licensure$|^registrations?$|^(medical |professional )?licen[cs]es?( and registrations?)?$|^licen[cs]es? and registrations?$/.test(normalized)) return 'licenses';
+  if (/^publications?$|^papers$|^(research |journal |academic |selected )?publications?$|^publications? and (research|patents?)$|^patents?( and publications?)?$|^published works?$/.test(normalized)) return 'publications';
   // Certifications — also accept achievements/awards
-  if (/^certifications?$|^licenses?$|^certificates?$|^awards?( and (honors?|recognitions?))?$|^honors? and awards?$|^achievements?$/.test(normalized)) return 'certifications';
+  if (/^certifications?$|^certificates?$|^awards?( and (honors?|recognitions?))?$|^honors? and awards?$|^achievements?$/.test(normalized)) return 'certifications';
   // Languages
   if (/^languages?( known| skills?)?$/.test(normalized)) return 'languages';
   // Sections to silently discard (not useful for extraction)
@@ -4917,6 +4835,7 @@ function renderTemplateBody(templateId: string, resume: any) {
   // the one they previewed.
   if (templateId === 'academic') return renderAcademicTemplateArticle(resume);
   if (templateId === 'healthcare') return renderHealthcareTemplateArticle(resume);
+  if (templateId === 'medical-coder') return renderMedicalCoderTemplateArticle(resume);
   if (templateId === 'creative') return renderCreativeTemplateArticle(resume);
   if (templateId === 'sidebar-bold') return renderSidebarBoldTemplateArticle(resume);
   if (templateId === 'accent-header') return renderAccentHeaderTemplateArticle(resume);
@@ -5016,6 +4935,32 @@ function renderHealthcareTemplateArticle(resume: any) {
           experience: 'Clinical Experience',
           skills: 'Clinical Skills & Procedures',
           projects: 'Research & Quality Improvement',
+        },
+      })}
+    </article>
+  `;
+}
+
+/**
+ * R-077 — Medical Coder template. Reuses the healthcare single-column
+ * article with coding/billing-specific labels: certifications (CPC/CCS)
+ * lead the page and skills are framed as code sets (ICD-10, CPT, HCPCS).
+ */
+function renderMedicalCoderTemplateArticle(resume: any) {
+  const normalized = normalizeTemplateResumeData(resume);
+  return `
+    <article class="ats-template ats-template--healthcare ats-template--medical-coder">
+      ${templateHeader(normalized)}
+      ${renderOrderedSections(normalized, {
+        companyJoiner: ', ',
+        uppercaseHeadings: true,
+        certificationsFirst: true,
+        labels: {
+          summary: 'Professional Summary',
+          certifications: 'Coding Certifications & Credentials',
+          experience: 'Coding & Billing Experience',
+          skills: 'Code Sets & Systems',
+          projects: 'Audits & Compliance Projects',
         },
       })}
     </article>
@@ -5458,6 +5403,33 @@ function renderOrderedSections(
         <p>${escapeHtml(languages.join(', '))}</p>
       </section>
     ` : '';
+  // R-077 — profession-specific sections. Render whenever present; ATS-safe
+  // plain single-column markup mirrors the certifications block.
+  const licenses = Array.isArray((resume as { licenses?: unknown[] }).licenses)
+    ? ((resume as { licenses?: Array<Record<string, string>> }).licenses as Array<Record<string, string>>)
+    : [];
+  const licensesSection = licenses.length ? `
+      <section class="${sectionClass}">
+        ${heading('Licenses & Registrations')}
+        ${licenses.map((l) => `
+          <div class="ats-item">
+            <strong>${escapeHtml(l.name || '')}</strong>${l.authority ? ` — ${escapeHtml(l.authority)}` : ''}
+            ${l.licenseNumber ? `<div>License No.: ${escapeHtml(l.licenseNumber)}</div>` : ''}
+            ${l.region || l.validTill ? `<div>${[l.region, l.validTill ? `Valid till ${l.validTill}` : ''].filter(Boolean).map((x) => escapeHtml(String(x))).join(' · ')}</div>` : ''}
+          </div>`).join('')}
+      </section>
+    ` : '';
+  const publications = Array.isArray((resume as { publications?: unknown[] }).publications)
+    ? ((resume as { publications?: Array<Record<string, string>> }).publications as Array<Record<string, string>>)
+    : [];
+  const publicationsSection = publications.length ? `
+      <section class="${sectionClass}">
+        ${heading('Publications & Patents')}
+        <ul class="ats-item">
+          ${publications.map((pb) => `<li>${escapeHtml(pb.title || '')}${pb.venue ? `, ${escapeHtml(pb.venue)}` : ''}${pb.year ? ` (${escapeHtml(pb.year)})` : ''}${pb.type === 'patent' ? ' [Patent]' : ''}</li>`).join('')}
+        </ul>
+      </section>
+    ` : '';
   const achievementsHeading = labels.achievements || 'Achievements';
   const achievementsSection = achievements.length ? `
       <section class="${sectionClass}">
@@ -5474,10 +5446,10 @@ function renderOrderedSections(
   // (resolveSectionOrder). This mirrors the React OrderedAtsSections renderer
   // so preview and export stay in lock-step.
   const defaultBody = options.educationFirst
-    ? ['summary', 'education', 'experience', 'projects', 'achievements', 'certifications', 'skills', 'languages']
+    ? ['summary', 'education', 'experience', 'projects', 'achievements', 'certifications', 'licenses', 'publications', 'skills', 'languages']
     : options.certificationsFirst
-      ? ['summary', 'certifications', 'education', 'experience', 'skills', 'projects', 'achievements', 'languages']
-      : ['summary', 'skills', 'experience', 'projects', 'achievements', 'education', 'certifications', 'languages'];
+      ? ['summary', 'certifications', 'licenses', 'education', 'experience', 'skills', 'projects', 'achievements', 'publications', 'languages']
+      : ['summary', 'skills', 'experience', 'projects', 'achievements', 'education', 'certifications', 'licenses', 'publications', 'languages'];
 
   const blockByKey: Record<string, string> = {
     summary: summarySection,
@@ -5487,6 +5459,8 @@ function renderOrderedSections(
     achievements: achievementsSection,
     education: educationSection,
     certifications: certificationsSection,
+    licenses: licensesSection,
+    publications: publicationsSection,
     languages: languagesSection,
   };
 
@@ -5728,6 +5702,9 @@ function normalizeTemplateId(value: unknown) {
     'healthcare-cv': 'healthcare',
     medical: 'healthcare',
     clinical: 'healthcare',
+    'medical-coding': 'medical-coder',
+    'medical-billing': 'medical-coder',
+    coder: 'medical-coder',
     'creative-portfolio': 'creative',
     designer: 'creative',
     'two-column-bold': 'sidebar-bold',
@@ -5738,7 +5715,7 @@ function normalizeTemplateId(value: unknown) {
   const normalized = aliases[raw] || raw;
   if ([
     'classic', 'modern', 'executive', 'technical', 'minimal', 'consultant', 'graduate',
-    'academic', 'healthcare', 'creative', 'sidebar-bold', 'accent-header',
+    'academic', 'healthcare', 'medical-coder', 'creative', 'sidebar-bold', 'accent-header',
   ].includes(normalized)) {
     return normalized;
   }

@@ -38,7 +38,10 @@ services:
     plan: starter                    # $7/mo — always on, no cold starts
     region: singapore                # ap-southeast for Indian users
     numInstances: 1
-    healthCheckPath: /health
+    # DB-aware readiness: /health/db pings Postgres and 503s if it's down,
+    # so Render stops routing traffic to an instance whose database is
+    # unreachable (a bare /health returns ok even with the DB down).
+    healthCheckPath: /health/db
     # Run any pending Prisma migrations BEFORE the new code starts serving
     # traffic. Render executes this in a fresh container of the new image;
     # if it fails, the deploy is aborted and the old version keeps running,
@@ -102,6 +105,10 @@ services:
         value: "30000"
       - key: AI_FREE_MAX_REQUESTS_PER_DAY
         value: "10"
+
+      # ── Error tracking (Sentry) — optional, no-op when unset ─────────
+      - key: SENTRY_DSN
+        sync: false
 
       # ── Email / SMTP (Gmail, SendGrid, etc.) ────────────────────────
       - key: SMTP_HOST

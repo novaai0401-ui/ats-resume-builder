@@ -1,4 +1,5 @@
 ﻿import { BadRequestException, Body, Controller, Get, Headers, Post, Req, UseGuards } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import type { Request } from 'express';
 import { CreateCheckoutSessionSchema, type CreateCheckoutSessionDto } from 'resume-builder-shared';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -90,6 +91,9 @@ export class BillingController {
     return this.billingService.createPortalSession(req.user.userId);
   }
 
+  // Payment gateways retry webhooks in bursts; never rate-limit them or we
+  // could drop a payment confirmation. Signature-verified inside the service.
+  @SkipThrottle()
   @Post('webhook')
   webhook(@Req() req: Request, @Headers('stripe-signature') signature: string) {
     return this.billingService.handleWebhook(req, signature);
@@ -135,6 +139,7 @@ export class BillingController {
   }
 
   /** Razorpay webhook handler. */
+  @SkipThrottle()
   @Post('razorpay/webhook')
   razorpayWebhook(
     @Req() req: any,

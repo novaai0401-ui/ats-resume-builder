@@ -6,6 +6,8 @@ export type CanonicalSection =
   | 'projects'
   | 'achievements'
   | 'certifications'
+  | 'licenses'
+  | 'publications'
   | 'languages'
   | 'hobbies'
   | 'unmapped';
@@ -97,18 +99,18 @@ const SECTION_SYNONYMS: Record<CanonicalSection, string[]> = {
     'engagements', 'client engagements', 'project assignments', 'assignments',
   ],
   education: ['education', 'academics', 'academic background', 'education history', 'qualifications', 'quali cations', 'educational qualifications', 'academic qualifications', 'academic details', 'educational background', 'degrees', 'academic record', 'academic credentials', 'schooling', 'college education', 'university education', 'studies', 'educational details', 'academic experience'],
-  projects: ['projects', 'notable projects', 'research', 'key projects', 'project experience', 'personal projects', 'side projects', 'portfolio', 'portfolio projects', 'academic projects', 'research projects', 'open source', 'open source contributions', 'contributions', 'selected projects', 'publications', 'papers', 'research publications', 'research and publications', 'publications and research'],
+  projects: ['projects', 'notable projects', 'research', 'key projects', 'project experience', 'personal projects', 'side projects', 'portfolio', 'portfolio projects', 'academic projects', 'research projects', 'open source', 'open source contributions', 'contributions', 'selected projects'],
   /// Achievements / awards / honors are now their own section (the resume
   /// schema has a dedicated `achievements: string[]` field). Previously
   /// these headings were folded into projects, producing a phantom
   /// "Project" with the achievement text as bullets.
   achievements: ['achievements', 'accomplishments', 'key achievements', 'major achievements', 'awards', 'awards and achievements', 'achievements and awards', 'honors', 'honours', 'honors and awards', 'honours and awards', 'awards and honors', 'awards and honours', 'awards honors', 'awards honours', 'honors awards', 'achievements awards', 'awards achievements', 'recognitions', 'recognition', 'awards and recognition', 'awards and recognitions', 'awards recognition', 'achievements and recognition', 'achievements recognition', 'notable achievements', 'career highlights', 'highlights', 'key accomplishments'],
   certifications: [
-    'certifications', 'certi cations', 'licenses', 'certificates',
+    'certifications', 'certi cations', 'certificates',
     'professional certifications', 'pro essional certi cations',
     'training', 'training and certifications', 'courses',
     'professional development', 'continuing education',
-    'credentials', 'professional credentials', 'licensure',
+    'credentials', 'professional credentials',
     'accreditations', 'professional training',
     'courses and certifications', 'certifications and training',
     'certifications and licenses',
@@ -128,6 +130,23 @@ const SECTION_SYNONYMS: Record<CanonicalSection, string[]> = {
     'professional certificates',
     'badges',
     'qualifications and certifications',
+  ],
+  /// R-077 — licensure and publications are first-class resume sections
+  /// now (schema fields `licenses` / `publications`), so their headings
+  /// stop folding into certifications / projects.
+  licenses: [
+    'licenses', 'licences', 'license', 'licence', 'licensure',
+    'registrations', 'registration', 'licenses and registrations',
+    'registrations and licenses', 'licenses registrations', 'registrations licenses',
+    'medical registration', 'medical registrations', 'medical licenses',
+    'professional licenses', 'professional licensure', 'bar enrolment',
+    'bar enrollment', 'state licenses',
+  ],
+  publications: [
+    'publications', 'papers', 'research publications', 'publications and research',
+    'research and publications', 'selected publications', 'journal publications',
+    'conference papers', 'patents', 'publications and patents',
+    'patents and publications', 'published works', 'academic publications',
   ],
   languages: [
     'languages', 'language proficiency', 'language skills', 'known languages',

@@ -138,6 +138,20 @@ type ResumePayload = {
     date?: string;
     details?: string[];
   }[];
+  licenses?: {
+    name: string;
+    authority?: string;
+    licenseNumber?: string;
+    region?: string;
+    validTill?: string;
+  }[];
+  publications?: {
+    title: string;
+    venue?: string;
+    year?: string;
+    url?: string;
+    type?: 'publication' | 'patent';
+  }[];
   templateId?: string;
   /** R-045 — design customization. */
   fontFamily?: string | null;
@@ -1355,6 +1369,29 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
+
+  /** R-073: re-issue a download token for a resume the user already paid for. */
+  reissueDownloadToken: (resumeId: string) =>
+    request<{ downloadToken: string }>('/billing/download-charge/reissue', {
+      method: 'POST',
+      body: JSON.stringify({ resumeId }),
+    }),
+
+  /**
+   * R-073 self-serve recovery: "I paid but didn't get my download — email
+   * it to me." Identify the resume by id / payment id / name; the server
+   * verifies a real paid entitlement before sending to the account email.
+   */
+  emailPaidResumeCopy: (body: {
+    resumeId?: string;
+    paymentId?: string;
+    resumeName?: string;
+    format?: 'pdf' | 'docx';
+  }) =>
+    request<{ sent: boolean; to: string; resumeId: string; format: 'pdf' | 'docx' }>(
+      '/download-recovery/email-copy',
+      { method: 'POST', body: JSON.stringify(body) },
+    ),
 
   listJobs: (status?: JobStatus) =>
     request<JobApplication[]>(

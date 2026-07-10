@@ -19,6 +19,30 @@ export declare function extractInlineCertifications(bullets: string[]): Array<{
 }>;
 export declare function extractInlineAchievements(bullets: string[]): string[];
 /**
+ * R-077 — licensure lines become structured LicenseItems. A line like
+ * "Medical Registration — National Medical Commission, Reg No. NMC-12345,
+ * valid till 2030" yields name/authority/licenseNumber/validTill.
+ */
+export declare function mapLicenses(sections: Record<string, string[]>): {
+    name: string;
+    authority?: string;
+    licenseNumber?: string;
+    region?: string;
+    validTill?: string;
+}[];
+/**
+ * R-077 — publication/patent lines become structured PublicationItems.
+ * "Title, Venue (2024)" / "Title — Venue, 2024" / lines mentioning
+ * "patent" are typed as patents.
+ */
+export declare function mapPublications(sections: Record<string, string[]>): {
+    title: string;
+    venue?: string;
+    year?: string;
+    url?: string;
+    type?: "publication" | "patent";
+}[];
+/**
  * Decide whether a non-bullet `next` line is a continuation of the
  * previous bullet `prev` (PDF wrap-around) rather than a new bullet.
  *

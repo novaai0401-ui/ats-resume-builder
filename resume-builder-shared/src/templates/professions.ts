@@ -141,7 +141,7 @@ export const PROFESSION_INDUSTRIES: readonly ProfessionIndustry[] = [
     id: 'healthcare',
     label: 'Healthcare & Life Sciences',
     description: 'Clinical, nursing, pharmacy, and life-sciences roles.',
-    recommendedTemplates: ['healthcare', 'classic', 'consultant'],
+    recommendedTemplates: ['healthcare', 'medical-coder', 'classic', 'consultant'],
     roles: [
       { id: 'physician', label: 'Physician / Doctor' },
       { id: 'registered-nurse', label: 'Registered Nurse' },
@@ -150,6 +150,11 @@ export const PROFESSION_INDUSTRIES: readonly ProfessionIndustry[] = [
       { id: 'physiotherapist', label: 'Physiotherapist' },
       { id: 'dentist', label: 'Dentist' },
       { id: 'medical-laboratory-technician', label: 'Medical Lab Technician' },
+      {
+        id: 'medical-coder',
+        label: 'Medical Coder / Billing Specialist',
+        keywords: ['ICD-10', 'CPT', 'HCPCS', 'CPC', 'Medical Records', 'EHR', 'Claims', 'HIPAA'],
+      },
       { id: 'radiology-technician', label: 'Radiology Technician' },
       { id: 'healthcare-administrator', label: 'Healthcare Administrator' },
       { id: 'clinical-research-associate', label: 'Clinical Research Associate' },

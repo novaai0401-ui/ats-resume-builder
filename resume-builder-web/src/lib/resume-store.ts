@@ -46,6 +46,22 @@ export type CertificationItem = {
   details?: string[];
 };
 
+export type LicenseItem = {
+  name: string;
+  authority?: string;
+  licenseNumber?: string;
+  region?: string;
+  validTill?: string;
+};
+
+export type PublicationItem = {
+  title: string;
+  venue?: string;
+  year?: string;
+  url?: string;
+  type?: 'publication' | 'patent';
+};
+
 export type ResumeDraft = {
   title: string;
   contact: ContactInfo;
@@ -58,6 +74,8 @@ export type ResumeDraft = {
   education: EducationItem[];
   projects: ProjectItem[];
   certifications: CertificationItem[];
+  licenses?: LicenseItem[];
+  publications?: PublicationItem[];
   achievements: string[];
   templateId?: string;
   /** R-045 — design customization. */
@@ -93,6 +111,8 @@ export function getEmptyResumeDraft(): ResumeDraft {
     education: [],
     projects: [],
     certifications: [],
+    licenses: [],
+    publications: [],
     achievements: [],
     templateId: undefined,
   };

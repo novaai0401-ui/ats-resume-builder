@@ -1011,13 +1011,174 @@ and every external call still feeds the Outcome Graph.
     and `POST admin/support/resend` re-renders the resume (no quota charge,
     `generatePdfBypassingQuota` / `generateDocxBypassingQuota`) and emails
     it to the buyer, logging the `admin_resend`.
+  - [x] Self-serve recovery: signed-in user identifies the resume by name
+    and/or payment id; server confirms the resume is theirs AND paid for
+    (entitlement), then emails it to their account address —
+    `POST /download-recovery/email-copy` (`selfServeResend`). Blocks a
+    resume the user never paid for and a payment that isn't theirs. The
+    editor auto-fires this on a post-payment download failure, and a
+    `PaidResumeRecoveryForm` on the billing page covers the "came back
+    later" case.
   - [x] Pinning tests `tests/download-recovery.unit.test.cjs` (idempotency,
-    entitlement gate, reissue guard, support lookup + resend PDF/DOCF,
+    entitlement gate, reissue guard, support lookup + resend PDF/DOCX,
+    self-serve resolve-by-name/payment-id, unpaid + wrong-owner blocks,
     SMTP-missing failure).
 - Not in this batch (tracked, deliberately deferred): per-download
   webhook reconciliation for a payment captured at the gateway but never
   verified by the client (stranded `pending` row) — support resend covers
   it manually today.
+
+---
+
+### R-074 · Export reliability: charge-after-render + resilient PDF renderer
+
+- Status: **DONE** (this commit)
+- Depends-on: R-003 (export quota), R-073 (recovery)
+- Context: two launch-blockers from the pre-launch audit. (1) `generatePdf`
+  incremented `pdfExportsUsed` / decremented a referral credit BEFORE
+  launching Chrome, so a launch failure, render timeout, or "too busy"
+  burned one of the user's paid exports and returned nothing — the exact
+  "paid, no file" failure. (2) Every export cold-launched its own Chromium
+  with no concurrency cap and no timeouts, so a handful of simultaneous
+  exports could OOM Render's starter box or hang a worker forever.
+- Acceptance
+  - [x] `generatePdf` renders FIRST and charges only AFTER a successful
+    render (mirrors `generateDocx`). Pinned by
+    `tests/export-quota.unit.test.cjs` ("B1: a failed PDF render does NOT
+    charge the user an export").
+  - [x] All three export paths (paid export, share-link, R-073 resend) go
+    through one `renderHtmlToPdf` in `src/resume/pdf-renderer.ts`:
+    a single shared, self-healing Chromium (lazy launch, auto-relaunch on
+    disconnect); a concurrency semaphore (`PDF_MAX_CONCURRENCY`, default 2);
+    hard timeouts on `setContent` and `page.pdf` (`PDF_*_TIMEOUT_MS`); a
+    queue-wait ceiling that returns 503 "busy" instead of piling up; and
+    guaranteed page cleanup. Renderer is defensive against partial browser
+    objects (test stubs) so it can't crash the export path.
+  - [x] Tuning knobs documented in `.env.example`; `pdfRendererStats()`
+    exposes live active/queued counts for observability.
+- Not in this batch (still open from the audit): env-validation wiring,
+  global rate-limit registration, DB-aware health check, error tracking.
+
+---
+
+### R-075 · Security hardening: env validation, rate limiting, DB-aware health
+
+- Status: **DONE** (this commit)
+- Depends-on: none (pre-launch blockers from the audit)
+- Context: three audit blockers. (1) `validateProductionEnv()` was fully
+  implemented but NEVER called, so prod could boot with a missing
+  `JWT_SECRET` and sign tokens with the public `'dev_secret'` fallback →
+  forgeable admin tokens. (2) `ThrottleModule` existed but was never
+  imported into `AppModule`, so nothing was rate-limited. (3) Render's
+  health check hit a static `/health` that returns ok even with the DB
+  down, so a DB-less instance kept receiving traffic.
+- Acceptance
+  - [x] `main.ts` calls `validateProductionEnv()` before boot; it hard-fails
+    (process.exit 1) in production on a missing/weak/placeholder
+    `DATABASE_URL`, `JWT_SECRET`, `JWT_REFRESH_SECRET`, `CORS_ORIGIN`, or a
+    half-configured Stripe pair. `TOKEN_ENC_KEY` / `REDIS_*` are warn-only
+    (the app degrades without them today) so the safety net can't itself
+    brick a deploy. Pure `collectEnvIssues` unit-tested.
+  - [x] `ThrottleModule` imported into `AppModule`: global 60/min/IP via
+    `ThrottlerGuard`, tighter per-route caps on `/auth/register` (8/min),
+    `/auth/login` (12/min), `/auth/forgot-password` (6/min). Enforced in
+    production only (`shouldSkipThrottle`, honours `FORCE_DISABLE_RATE_LIMIT`);
+    health checks and payment webhooks are `@SkipThrottle()` so a gateway
+    retry burst can't 429 a payment confirmation.
+  - [x] `main.ts` sets `trust proxy = 1` so limiters key on the real client
+    IP behind Render's proxy (not the proxy, and not a spoofable XFF chain).
+  - [x] Render `healthCheckPath` → `/health/db` (pings Postgres, 503s when
+    down) so Render stops routing to a DB-less instance.
+  - [x] Verified the full DI graph boots in `NODE_ENV=production` with the
+    guard active; tests `tests/security-hardening.unit.test.cjs`.
+- Not in this batch (still open): error tracking / alerting (Sentry) and
+  moving rate-limit state to Redis for multi-instance correctness.
+
+---
+
+### R-076 · Error tracking / alerting (Sentry, opt-in)
+
+- Status: **DONE** (this commit)
+- Depends-on: R-075 (hardening batch)
+- Context: audit flagged that prod errors went only to stdout — nobody is
+  alerted when payments/exports/DB throw. Wires Sentry as a single capture
+  path that is a full no-op unless `SENTRY_DSN` is set (no account friction
+  for local/dev or a founder who hasn't set up a project).
+- Acceptance
+  - [x] `src/observability/sentry.ts`: `initSentry()` (no-op without DSN,
+    never throws on init failure), `captureException(err, ctx)`,
+    `flushSentry()`, `isSentryEnabled()`. Perf tracing off by default; PII
+    off by default.
+  - [x] `main.ts` calls `initSentry()` first (so boot failures + unhandled
+    rejections are captured), registers a global `SentryInterceptor` that
+    reports 5xx / non-HTTP failures and re-throws (4xx client errors are
+    NOT reported — expected outcomes, not incidents), and flushes on exit.
+  - [x] The swallowed recovery-email failure (`deliverResumeCopy`) — a paid
+    user whose resume email failed — is explicitly captured, since it's the
+    exact incident support needs and the interceptor can't see it.
+  - [x] `SENTRY_DSN` (+ optional `SENTRY_TRACES_SAMPLE_RATE`, `SENTRY_RELEASE`,
+    `SENTRY_SEND_PII`) documented in `.env.example` and declared in
+    `render.yaml`. Verified the app boots both with and without a DSN.
+  - [x] Tests `tests/observability-sentry.unit.test.cjs` (no-op when
+    disabled; interceptor re-throws originals and passes successes through).
+- Remaining audit item after this: move rate-limit state to Redis for
+  multi-instance correctness (fine at the current single instance).
+
+---
+
+### R-077 · Profession-specific resume depth (sections, Medical Coder, profile-matched jobs, JD suggestions)
+
+- Status: **DONE** (this commit)
+- Depends-on: R-045 (section order), C-001/C-002
+- Context: founder review as a job-seeker: professions/templates existed
+  for 21 industries, but the data model was generic — no first-class
+  licensure or publications; no Medical Coder profession; job search was
+  a blank keyword box not tied to the user's profile; and pasting a JD
+  gave no instant resume-content suggestions.
+- Acceptance
+  - [x] New sections, schema-first (C-001): `licenses[]` (name, authority,
+    licenseNumber, region, validTill) and `publications[]` (title, venue,
+    year, url, type publication|patent) in `packages/resume-schemas`,
+    shared types/DTOs/zod, Prisma columns + migration
+    `20260709090000_add_profession_sections`, create/update/duplicate
+    persistence, PDF-export HTML blocks, DOCX blocks. Section catalogue
+    (C-002) gains `licenses` ("Licenses & Registrations") and
+    `publications` ("Publications & Patents"), reorderable, presence-
+    gated in `getAtsSectionOrder`.
+  - [x] Editor: collapsible Licenses/Publications cards (always shown when
+    populated; expanded hint for licensure-heavy industries), included in
+    the save payload; ATS-family templates render both sections in
+    preview + export.
+  - [x] Medical Coder: role in the healthcare profession (ICD-10, CPT,
+    HCPCS, CPC, EHR, HIPAA keywords) + `medical-coder` template catalog
+    entry (ATS-safe, certifications-first, code-set labels; reuses the
+    healthcare component on-screen, dedicated export article with coder
+    labels; aliases medical-coding/medical-billing/coder).
+  - [x] Job search matches the user's profile: Live Openings pre-fills the
+    query from the dashboard-selected profession/role (localStorage) and
+    remembers the last search; hint copy tells the user it's editable.
+  - [x] JD paste → instant suggestions: pure client-side rule-based
+    `src/lib/jd-suggest.ts` (free for every user, no AI call): extracts
+    JD keywords across professions, computes matched/missing vs the
+    resume, generates a <=60-word tailored summary ("Use this summary"
+    one tap), missing-keyword chips ("+ Add to skills"), and 3 bullet
+    ideas ("Add as bullet"). AI-powered deep tailor remains the existing
+    plan/BYOK flow (R-034).
+  - [x] Extraction (phase 2): uploads with LICENSES / REGISTRATIONS /
+    PUBLICATIONS / PATENTS headings map into the first-class sections —
+    new canonical sections in `resume-intelligence/section-normalizer`
+    (licensure synonyms out of certifications, publication synonyms out
+    of projects; combined "Certifications and Licenses" stays in
+    certifications), structured `mapLicenses` / `mapPublications`
+    parsers (name/authority/licence-no/valid-till; title/venue/year/
+    patent type), wired through `mapParsedResume`, the API fallback
+    builder (`detectHeading`), and the upload `parsedPayload` so the
+    editor receives them. Pinned by
+    `tests/extraction-profession-sections.unit.test.cjs` (4).
+  - [x] Pinning tests: API `tests/profession-sections.unit.test.cjs`
+    (catalogue, presence, export HTML incl. licence number + [Patent],
+    medical-coder resolution + labels, profession role) and web
+    `tests/jd-suggest.test.ts`.
 
 ---
 
@@ -1087,6 +1248,10 @@ do not break it.
 
 | Date | Decision | Reason | Affected IDs |
 |---|---|---|---|
+| 2026-07-09 | Profession depth (R-077): first-class `licenses` + `publications` sections end-to-end (schema→prisma→editor→preview→PDF/DOCX export); Medical Coder profession role + ATS-safe `medical-coder` template; Live Openings pre-filled from the user's selected profession; free client-side JD→suggestions (tailored summary, missing-keyword chips, bullet ideas) on JD paste. | Founder walked the product as a job-seeker across IT/mechanical/medical/teacher/doctor profiles: generic schema shortchanged licensed/academic professions, no coder template, job search ignored the profile, and JD paste gave no instant help. | R-077, R-045, C-001, C-002 |
+| 2026-07-08 | Error tracking (R-076): wired Sentry as an opt-in, no-op-without-DSN capture path — global interceptor reports 5xx/non-HTTP failures (4xx skipped), boot failures + unhandled rejections captured, and the swallowed paid-user resume-email failure is explicitly reported. Closes the "flying blind in prod" gap. | Pre-launch audit: prod errors went only to stdout; nobody alerted when payments/exports/DB throw. | R-076 |
+| 2026-07-08 | Security hardening (R-075): wired the dead `validateProductionEnv()` into boot (hard-fail on missing/weak JWT/DB/CORS secrets in prod; REDIS/TOKEN_ENC_KEY warn-only so the net can't brick a deploy); registered the never-imported `ThrottleModule` (60/min global + tight auth-route caps, prod-only, webhooks/health exempt); `trust proxy=1` for real client IPs; Render health check moved to DB-aware `/health/db`. | Pre-launch audit blockers: forgeable tokens via `dev_secret` fallback, zero rate limiting, and a DB-down instance reported healthy. | R-075 |
+| 2026-07-08 | Export reliability (R-074): `generatePdf` now renders before charging (a failed/timed-out/too-busy render no longer burns a paid export — mirrors `generateDocx`); all export paths share one resilient, concurrency-capped, timed-out Chromium via `pdf-renderer.ts` (shared browser, semaphore, setContent/pdf timeouts, 503-on-busy) instead of a per-request cold launch that could OOM Render or hang a worker. | Pre-launch audit blockers: PDF charge-before-render mischarge (the "paid, no file" case) + unbounded Chromium concurrency/no timeouts. | R-074, R-003, R-073 |
 | 2026-07-08 | Added paid-but-couldn't-download recovery (R-073): PaymentHistory now links resumeId+email+fulfilledAt; createOrder is idempotent (no double-charge, free re-download of an already-paid resume); downloads gate on token OR paid entitlement so a lost/expired token still works; every export emails+logs a copy (PDF and DOCX) via ResumeEmailLog; new admin/support console looks up a payment by email and resends the resume by email (no re-charge, no quota hit). Email-only support, no phone. | Founder: a user who pays and then can't download had no recovery — no payment→resume→email link, no re-download, no support tool, and a possible double-charge. Deep audit also surfaced launch-blockers (env-validation dead code, throttling unregistered, PDF charge-before-render) deferred to a later batch per founder scope. | R-073, R-003, R-071 |
 | 2026-07-07 | Rebuilt the rule-based bullet remediation on one clause engine (`buildBulletCandidates`): splits on subordinate/participial connectors (not just commas) so a long single-sentence bullet tightens; drops leaked job-title clauses, dangling truncated fragments ("…recognized by"), and filler; ranks impact-first; pads single-idea rewrites with verb variants. An in-range bullet with droppable junk is now cleaned too (not just verb-swapped). Web mirror gains `shortenBulletText` + a "Shorten to one bullet" editor action. | Founder screenshots: over-limit bullets still got useless verb-swap-only rewrites and echoed extraction garbage; accepting a suggestion never cleared "exceeds 28 words". | R-072, R-006, R-071 |
 | 2026-06-11 | Defer vault flow decision to post-launch | Time pressure + need real user signal | R-001, R-052 |

@@ -47,6 +47,28 @@ export const CertificationItemSchema = z.object({
   details: z.array(z.string().min(1)).optional(),
 });
 
+/**
+ * R-077 — profession-specific sections (additive; TEMPLATE_SPEC §9.7).
+ * Licensure: doctors (NMC/state council), nurses, lawyers (bar enrolment),
+ * medical coders (CPC), CAs, etc. Publications: papers, conference talks,
+ * and patents (type differentiates) for academics/researchers/engineers.
+ */
+export const LicenseItemSchema = z.object({
+  name: z.string().min(1),               // e.g. "Medical Registration", "CPC"
+  authority: z.string().optional(),      // e.g. "National Medical Commission", "AAPC"
+  licenseNumber: z.string().optional(),
+  region: z.string().optional(),         // state council / jurisdiction
+  validTill: z.string().optional(),
+});
+
+export const PublicationItemSchema = z.object({
+  title: z.string().min(1),
+  venue: z.string().optional(),          // journal / conference / patent office
+  year: z.string().optional(),
+  url: z.string().optional(),
+  type: z.enum(['publication', 'patent']).optional(),
+});
+
 // Relaxed schemas for upload parsing/mapping before user confirmation.
 export const ParsedContactSchema = z.object({
   fullName: z.string().optional().default(''),
@@ -103,6 +125,8 @@ export const ResumeSectionsSchema = z.object({
   projects: z.array(ProjectItemSchema).default([]),
   certifications: z.array(CertificationItemSchema).default([]),
   achievements: z.array(z.string().min(1)).default([]),
+  licenses: z.array(LicenseItemSchema).default([]),
+  publications: z.array(PublicationItemSchema).default([]),
   unmappedText: z.string().optional(),
   roleLevel: RoleLevelSchema.optional(),
 });
@@ -120,6 +144,8 @@ export const ParsedResumeSchema = z.object({
   projects: z.array(ParsedProjectItemSchema).default([]),
   certifications: z.array(ParsedCertificationItemSchema).default([]),
   achievements: z.array(z.string()).default([]),
+  licenses: z.array(LicenseItemSchema).default([]),
+  publications: z.array(PublicationItemSchema).default([]),
   unmappedText: z.string().optional(),
   roleLevel: RoleLevelSchema.optional(),
 });
@@ -130,5 +156,7 @@ export type ExperienceItem = z.infer<typeof ExperienceItemSchema>;
 export type EducationItem = z.infer<typeof EducationItemSchema>;
 export type ProjectItem = z.infer<typeof ProjectItemSchema>;
 export type CertificationItem = z.infer<typeof CertificationItemSchema>;
+export type LicenseItem = z.infer<typeof LicenseItemSchema>;
+export type PublicationItem = z.infer<typeof PublicationItemSchema>;
 export type ResumeSections = z.infer<typeof ResumeSectionsSchema>;
 export type ParsedResume = z.infer<typeof ParsedResumeSchema>;

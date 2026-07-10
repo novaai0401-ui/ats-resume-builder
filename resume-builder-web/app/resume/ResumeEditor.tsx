@@ -65,6 +65,7 @@ import {
   TECHNICAL_SKILL_FALLBACK,
 } from '@/src/lib/suggestion-seeds';
 import { LANGUAGE_SUGGESTIONS, normalizeLanguageTag } from '@/src/lib/languages';
+import { buildJdSuggestions } from '@/src/lib/jd-suggest';
 
 type ContactInfo = {
   fullName: string;
@@ -108,6 +109,22 @@ type CertificationItem = {
   details?: string[];
 };
 
+type LicenseItem = {
+  name: string;
+  authority?: string;
+  licenseNumber?: string;
+  region?: string;
+  validTill?: string;
+};
+
+type PublicationItem = {
+  title: string;
+  venue?: string;
+  year?: string;
+  url?: string;
+  type?: 'publication' | 'patent';
+};
+
 /**
  * R-045 Phase 2 — single-column ATS templates that support body-section
  * reorder (the visual templates have fixed two-column/banded layouts). Includes
@@ -137,6 +154,8 @@ type ResumeDraft = {
   education: EducationItem[];
   projects: ProjectItem[];
   certifications: CertificationItem[];
+  licenses?: LicenseItem[];
+  publications?: PublicationItem[];
   achievements: string[];
   templateId?: string;
   /** R-045 — design customization. */
@@ -170,6 +189,19 @@ type UploadSummary = UploadSummaryState;
 
 const emptyEducation: EducationItem = { institution: '', degree: '', startDate: '', endDate: '', details: [], gpa: null, percentage: null };
 const emptyCertification: CertificationItem = { name: '', issuer: '', date: '', details: [''] };
+const emptyLicense: LicenseItem = { name: '', authority: '', licenseNumber: '', region: '', validTill: '' };
+const emptyPublication: PublicationItem = { title: '', venue: '', year: '', url: '', type: 'publication' };
+
+// Industries where recruiters expect licensure / publication details —
+// mirrors PROFESSION_INDUSTRIES ids persisted by the dashboard picker.
+const LICENSURE_EXPECTED_INDUSTRIES = new Set([
+  'healthcare',
+  'education',
+  'science-research',
+  'legal',
+  'engineering',
+]);
+const SELECTED_INDUSTRY_STORAGE_KEY = 'rb_selected_industry';
 
 type QuotaState = {
   resumeBlocked: boolean;
@@ -325,6 +357,17 @@ export default function ResumeEditor() {
 
   const [sections, setSections] = useState<SectionState[]>(() => getDefaultSections());
   const [jdText, setJdText] = useState('');
+  // Profession-relevant optional sections: hidden behind a "+ Add" affordance
+  // when empty, always visible once they contain data.
+  const [showLicensesEditor, setShowLicensesEditor] = useState(false);
+  const [showPublicationsEditor, setShowPublicationsEditor] = useState(false);
+  // Industry picked on the dashboard — used to nudge licensure-heavy fields.
+  const [selectedIndustryId, setSelectedIndustryId] = useState('');
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    setSelectedIndustryId(window.localStorage.getItem(SELECTED_INDUSTRY_STORAGE_KEY) || '');
+  }, []);
+  const licensureExpected = LICENSURE_EXPECTED_INDUSTRIES.has(selectedIndustryId);
   const [message, setMessage] = useState('');
   // True while api.getResume is in flight on initial mount. Prevents
   // the "blank fields with validation warnings" flash users reported
@@ -799,6 +842,24 @@ export default function ResumeEditor() {
     ),
     [resume.certifications],
   );
+  // JD paste → instant suggestions. Pure client-side rules (no API call,
+  // free for everyone) — only computed once the JD is long enough to be a
+  // real job ad rather than a stray paste.
+  const jdSuggestions = useMemo(() => {
+    if (jdText.trim().length <= 80) return null;
+    return buildJdSuggestions(
+      {
+        summary: resume.summary || '',
+        skills: [
+          ...(resume.skills || []),
+          ...(resume.technicalSkills || []),
+          ...(resume.softSkills || []),
+        ],
+        experience: resume.experience || [],
+      },
+      jdText,
+    );
+  }, [jdText, resume]);
   const fetchCompanySuggestions = useCallback(async (query: string) => {
     if (query.trim().length < 2) return [];
     try {
@@ -3884,6 +3945,203 @@ export default function ResumeEditor() {
           );
         })}
 
+        {/* Licenses & Registrations — profession-relevant optional section.
+            Collapsed behind a "+ Add" affordance when empty; always visible
+            once it contains data. */}
+        {((resume.licenses || []).length > 0 || showLicensesEditor) ? (
+          <div className="card" style={{ marginTop: 16, padding: 16 }} data-testid="licenses-section">
+            <h3 style={{ marginTop: 0 }}>Licenses &amp; Registrations</h3>
+            <div className="field-meta" style={{ marginBottom: 8 }}>
+              <span className={(resume.licenses || []).length ? 'hint good' : 'hint warn'}>
+                {(resume.licenses || []).length} licenses
+              </span>
+              <span className="hint">Include the issuing authority and validity for credibility.</span>
+            </div>
+            {(resume.licenses || []).map((lic, licIdx) => (
+              <div key={`lic-${licIdx}`} className="card" style={{ padding: 12, marginBottom: 12 }}>
+                <label className="label">License / registration name</label>
+                <input className="input" placeholder="e.g. Registered Nurse (RN)" value={lic.name} onChange={(e) => {
+                  const copy = [...(resume.licenses || [])];
+                  copy[licIdx] = { ...copy[licIdx], name: e.target.value };
+                  setResume((prev) => ({ ...prev, licenses: copy }));
+                  markDirty();
+                }} />
+                <div className="grid" style={{ marginTop: 8 }}>
+                  <div className="col-6">
+                    <label className="label">Issuing authority</label>
+                    <input className="input" placeholder="e.g. State Nursing Council" value={lic.authority || ''} onChange={(e) => {
+                      const copy = [...(resume.licenses || [])];
+                      copy[licIdx] = { ...copy[licIdx], authority: e.target.value };
+                      setResume((prev) => ({ ...prev, licenses: copy }));
+                      markDirty();
+                    }} />
+                  </div>
+                  <div className="col-6">
+                    <label className="label">License number</label>
+                    <input className="input" value={lic.licenseNumber || ''} onChange={(e) => {
+                      const copy = [...(resume.licenses || [])];
+                      copy[licIdx] = { ...copy[licIdx], licenseNumber: e.target.value };
+                      setResume((prev) => ({ ...prev, licenses: copy }));
+                      markDirty();
+                    }} />
+                  </div>
+                </div>
+                <div className="grid" style={{ marginTop: 8 }}>
+                  <div className="col-6">
+                    <label className="label">Region / state</label>
+                    <input className="input" placeholder="e.g. Maharashtra" value={lic.region || ''} onChange={(e) => {
+                      const copy = [...(resume.licenses || [])];
+                      copy[licIdx] = { ...copy[licIdx], region: e.target.value };
+                      setResume((prev) => ({ ...prev, licenses: copy }));
+                      markDirty();
+                    }} />
+                  </div>
+                  <div className="col-6">
+                    <label className="label">Valid till</label>
+                    <input
+                      className="input month-input"
+                      type="month"
+                      aria-label="License valid till"
+                      value={toMonthInputValue(lic.validTill || '')}
+                      onChange={(e) => {
+                        const copy = [...(resume.licenses || [])];
+                        copy[licIdx] = { ...copy[licIdx], validTill: toYearMonth(e.target.value) };
+                        setResume((prev) => ({ ...prev, licenses: copy }));
+                        markDirty();
+                      }}
+                    />
+                  </div>
+                </div>
+                <button className="btn secondary" style={{ marginTop: 8 }} onClick={() => {
+                  const copy = (resume.licenses || []).filter((_, i) => i !== licIdx);
+                  setResume((prev) => ({ ...prev, licenses: copy }));
+                  if (!copy.length) setShowLicensesEditor(false);
+                  markDirty();
+                }}>Remove</button>
+              </div>
+            ))}
+            <button className="btn" onClick={() => {
+              setResume((prev) => ({ ...prev, licenses: [...(prev.licenses || []), structuredClone(emptyLicense)] }));
+              markDirty();
+            }}>Add license</button>
+          </div>
+        ) : (
+          <div style={{ marginTop: 16 }}>
+            <button
+              className="btn secondary"
+              type="button"
+              data-testid="add-licenses-affordance"
+              onClick={() => {
+                setShowLicensesEditor(true);
+                setResume((prev) => ((prev.licenses || []).length ? prev : { ...prev, licenses: [structuredClone(emptyLicense)] }));
+              }}
+            >
+              + Add licenses / registrations
+            </button>
+            {licensureExpected && (
+              <p className="hint" style={{ marginTop: 6 }}>
+                Recruiters in your field expect licensure details.
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Publications & Patents — same collapsed-when-empty pattern. */}
+        {((resume.publications || []).length > 0 || showPublicationsEditor) ? (
+          <div className="card" style={{ marginTop: 16, padding: 16 }} data-testid="publications-section">
+            <h3 style={{ marginTop: 0 }}>Publications &amp; Patents</h3>
+            <div className="field-meta" style={{ marginBottom: 8 }}>
+              <span className={(resume.publications || []).length ? 'hint good' : 'hint warn'}>
+                {(resume.publications || []).length} publications
+              </span>
+              <span className="hint">List papers, articles, or patents with the venue and year.</span>
+            </div>
+            {(resume.publications || []).map((pub, pubIdx) => (
+              <div key={`pub-${pubIdx}`} className="card" style={{ padding: 12, marginBottom: 12 }}>
+                <label className="label">Title</label>
+                <input className="input" placeholder="e.g. Deep Learning for Radiology Triage" value={pub.title} onChange={(e) => {
+                  const copy = [...(resume.publications || [])];
+                  copy[pubIdx] = { ...copy[pubIdx], title: e.target.value };
+                  setResume((prev) => ({ ...prev, publications: copy }));
+                  markDirty();
+                }} />
+                <div className="grid" style={{ marginTop: 8 }}>
+                  <div className="col-6">
+                    <label className="label">Venue / journal</label>
+                    <input className="input" placeholder="e.g. IEEE Access" value={pub.venue || ''} onChange={(e) => {
+                      const copy = [...(resume.publications || [])];
+                      copy[pubIdx] = { ...copy[pubIdx], venue: e.target.value };
+                      setResume((prev) => ({ ...prev, publications: copy }));
+                      markDirty();
+                    }} />
+                  </div>
+                  <div className="col-6">
+                    <label className="label">Year</label>
+                    <input className="input" placeholder="e.g. 2024" value={pub.year || ''} onChange={(e) => {
+                      const copy = [...(resume.publications || [])];
+                      copy[pubIdx] = { ...copy[pubIdx], year: e.target.value };
+                      setResume((prev) => ({ ...prev, publications: copy }));
+                      markDirty();
+                    }} />
+                  </div>
+                </div>
+                <div className="grid" style={{ marginTop: 8 }}>
+                  <div className="col-6">
+                    <label className="label">URL (optional)</label>
+                    <input className="input" placeholder="https://doi.org/..." value={pub.url || ''} onChange={(e) => {
+                      const copy = [...(resume.publications || [])];
+                      copy[pubIdx] = { ...copy[pubIdx], url: e.target.value };
+                      setResume((prev) => ({ ...prev, publications: copy }));
+                      markDirty();
+                    }} />
+                  </div>
+                  <div className="col-6">
+                    <label className="label">Type</label>
+                    <select className="input" value={pub.type || 'publication'} onChange={(e) => {
+                      const copy = [...(resume.publications || [])];
+                      copy[pubIdx] = { ...copy[pubIdx], type: e.target.value === 'patent' ? 'patent' : 'publication' };
+                      setResume((prev) => ({ ...prev, publications: copy }));
+                      markDirty();
+                    }}>
+                      <option value="publication">Publication</option>
+                      <option value="patent">Patent</option>
+                    </select>
+                  </div>
+                </div>
+                <button className="btn secondary" style={{ marginTop: 8 }} onClick={() => {
+                  const copy = (resume.publications || []).filter((_, i) => i !== pubIdx);
+                  setResume((prev) => ({ ...prev, publications: copy }));
+                  if (!copy.length) setShowPublicationsEditor(false);
+                  markDirty();
+                }}>Remove</button>
+              </div>
+            ))}
+            <button className="btn" onClick={() => {
+              setResume((prev) => ({ ...prev, publications: [...(prev.publications || []), structuredClone(emptyPublication)] }));
+              markDirty();
+            }}>Add publication</button>
+          </div>
+        ) : (
+          <div style={{ marginTop: 8 }}>
+            <button
+              className="btn secondary"
+              type="button"
+              data-testid="add-publications-affordance"
+              onClick={() => {
+                setShowPublicationsEditor(true);
+                setResume((prev) => ((prev.publications || []).length ? prev : { ...prev, publications: [structuredClone(emptyPublication)] }));
+              }}
+            >
+              + Add publications / patents
+            </button>
+            {licensureExpected && (
+              <p className="hint" style={{ marginTop: 6 }}>
+                Publications and patents strengthen credibility in your field.
+              </p>
+            )}
+          </div>
+        )}
+
         {hiddenSections.length > 0 && (
           <div className="card" style={{ marginTop: 16, padding: 16 }}>
             <h3 style={{ marginTop: 0 }}>Add section</h3>
@@ -3943,6 +4201,94 @@ export default function ResumeEditor() {
           Paste the job description to get ATS match suggestions and tailor AI rewrites + cover letter to this role.
           Hover the <strong>?</strong> above for the full list. Leaving it blank won&apos;t affect your base ATS score.
         </p>
+
+        {jdSuggestions && (
+          <div className="card" style={{ marginTop: 12, padding: 16 }} data-testid="jd-suggestions-panel">
+            <h3 style={{ marginTop: 0 }}>Suggestions from this JD</h3>
+            <p className="small" style={{ marginTop: -4 }}>
+              Instant, rule-based suggestions computed on your device — no AI credits used.
+            </p>
+
+            <div style={{ marginTop: 10 }}>
+              <span className="small" style={{ fontWeight: 600 }}>Suggested summary</span>
+              <p className="small" style={{ marginTop: 4 }}>{jdSuggestions.suggestedSummary}</p>
+              <button
+                className="btn secondary"
+                type="button"
+                onClick={() => {
+                  setResume((prev) => ({ ...prev, summary: jdSuggestions.suggestedSummary }));
+                  markDirty();
+                  showSnackbar('success', 'Summary replaced — tap "Save changes" to keep it.');
+                }}
+              >
+                Use this summary
+              </button>
+            </div>
+
+            {jdSuggestions.missingKeywords.length > 0 && (
+              <div style={{ marginTop: 12 }}>
+                <span className="small" style={{ fontWeight: 600 }}>Missing keywords</span>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
+                  {jdSuggestions.missingKeywords.map((keyword) => {
+                    const alreadyAdded = (resume.skills || []).some((s) => s.toLowerCase() === keyword.toLowerCase());
+                    return (
+                      <button
+                        key={keyword}
+                        className="btn secondary"
+                        type="button"
+                        style={{ fontSize: '0.75rem', padding: '4px 10px' }}
+                        disabled={alreadyAdded}
+                        onClick={() => {
+                          if (alreadyAdded) return;
+                          setResume((prev) => ({ ...prev, skills: [...(prev.skills || []), keyword] }));
+                          markDirty();
+                        }}
+                      >
+                        {alreadyAdded ? `✓ ${keyword}` : `+ Add to skills: ${keyword}`}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {jdSuggestions.matchedKeywords.length > 0 && (
+              <p className="small" style={{ marginTop: 12 }}>
+                Already covered: {jdSuggestions.matchedKeywords.slice(0, 10).join(', ')}
+              </p>
+            )}
+
+            {jdSuggestions.bulletIdeas.length > 0 && (
+              <div style={{ marginTop: 12 }}>
+                <span className="small" style={{ fontWeight: 600 }}>Bullet ideas</span>
+                {jdSuggestions.bulletIdeas.map((idea, ideaIdx) => (
+                  <div key={`jd-bullet-${ideaIdx}`} style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 6 }}>
+                    <span className="small" style={{ flex: '1 1 260px' }}>{idea}</span>
+                    <button
+                      className="btn secondary"
+                      type="button"
+                      style={{ fontSize: '0.75rem', padding: '4px 10px' }}
+                      disabled={!resume.experience.length}
+                      title={resume.experience.length ? undefined : 'Add an experience entry first'}
+                      onClick={() => {
+                        if (!resume.experience.length) return;
+                        setResume((prev) => {
+                          const copy = [...prev.experience];
+                          copy[0] = { ...copy[0], highlights: [...copy[0].highlights, idea] };
+                          return { ...prev, experience: copy };
+                        });
+                        markDirty();
+                        showSnackbar('success', 'Bullet added to your first experience — edit it with your metric.');
+                      }}
+                    >
+                      Add as bullet
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         <div style={{ display: 'flex', gap: 12, marginTop: 8, flexWrap: 'wrap' }}>
           <button
@@ -4402,11 +4748,25 @@ export default function ResumeEditor() {
                 setPostDownloadPopup({ score: typeof scoreNow === 'number' ? scoreNow : null });
               } catch (err: unknown) {
                 // CRITICAL PATH: the user has ALREADY PAID (we hold a
-                // download token) and the export failed. Never leave them
-                // stranded — give the support address with their context.
-                const errorMessage = `${friendlyPdfErrorMessage(err, 'Download PDF failed')} You've already paid — email ${SUPPORT_EMAIL} with your payment ID and we'll send your resume or refund you.`;
+                // download token) and the browser download failed. Don't
+                // leave them stranded — automatically email them the resume
+                // straight from the database (R-073 self-serve recovery).
+                const base = friendlyPdfErrorMessage(err, 'Download failed');
+                let recoveredTo = '';
+                try {
+                  const r = await api.emailPaidResumeCopy({
+                    resumeId,
+                    format: exportFormat === 'docx' ? 'docx' : 'pdf',
+                  });
+                  if (r.sent) recoveredTo = r.to;
+                } catch {
+                  // fall through to the support path below
+                }
+                const errorMessage = recoveredTo
+                  ? `${base} Don't worry — you've already paid, so we've emailed your resume to ${recoveredTo}. Check your inbox (and spam). Still stuck? Email ${SUPPORT_EMAIL}.`
+                  : `${base} You've already paid — email ${SUPPORT_EMAIL} with your payment ID and we'll send your resume or refund you.`;
                 setMessage(errorMessage);
-                showSnackbar('error', errorMessage);
+                showSnackbar(recoveredTo ? 'success' : 'error', errorMessage);
               }
             }}
           />
@@ -5075,6 +5435,8 @@ function getEmptyResume(): ResumeDraft {
     education: [],
     projects: [],
     certifications: [],
+    licenses: [],
+    publications: [],
     achievements: [],
   };
 }
@@ -5155,6 +5517,24 @@ function buildPayload(resume: ResumeDraft, sections: SectionState[]) {
         details: (item.details || []).map((line) => line.trim()).filter(Boolean),
       }))
       : [],
+    licenses: (resume.licenses || [])
+      .map((item) => ({
+        name: item.name.trim(),
+        authority: item.authority?.trim() || undefined,
+        licenseNumber: item.licenseNumber?.trim() || undefined,
+        region: item.region?.trim() || undefined,
+        validTill: item.validTill?.trim() || undefined,
+      }))
+      .filter((item) => item.name),
+    publications: (resume.publications || [])
+      .map((item) => ({
+        title: item.title.trim(),
+        venue: item.venue?.trim() || undefined,
+        year: item.year?.trim() || undefined,
+        url: item.url?.trim() || undefined,
+        type: item.type || undefined,
+      }))
+      .filter((item) => item.title),
   };
 }
 
@@ -5202,6 +5582,20 @@ function resumeFromApi(resume: Resume): ResumeDraft {
       issuer: item.issuer?.trim(),
       date: item.date?.trim(),
       details: (item.details || []).map((line) => line.trim()).filter(Boolean),
+    })),
+    licenses: (resume.licenses || []).map((item) => ({
+      name: String(item.name || '').trim(),
+      authority: item.authority?.trim(),
+      licenseNumber: item.licenseNumber?.trim(),
+      region: item.region?.trim(),
+      validTill: item.validTill?.trim(),
+    })),
+    publications: (resume.publications || []).map((item) => ({
+      title: String(item.title || '').trim(),
+      venue: item.venue?.trim(),
+      year: item.year?.trim(),
+      url: item.url?.trim(),
+      type: item.type,
     })),
     achievements: ((resume as { achievements?: string[] }).achievements || [])
       .map((a) => String(a || '').trim())

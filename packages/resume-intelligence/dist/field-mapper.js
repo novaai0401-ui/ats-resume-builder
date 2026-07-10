@@ -4,6 +4,8 @@ exports.mapParsedResume = mapParsedResume;
 exports.extractInlineLanguages = extractInlineLanguages;
 exports.extractInlineCertifications = extractInlineCertifications;
 exports.extractInlineAchievements = extractInlineAchievements;
+exports.mapLicenses = mapLicenses;
+exports.mapPublications = mapPublications;
 exports.shouldMergeWrappedLine = shouldMergeWrappedLine;
 exports.mergeWrappedHighlights = mergeWrappedHighlights;
 const resume_schemas_1 = require("resume-schemas");
@@ -86,6 +88,8 @@ function mapParsedResume(parsed) {
     const educationRaw = mapEducation(effectiveParsed.sections);
     const projects = mapProjects(effectiveParsed.sections);
     const certifications = mapCertifications(effectiveParsed.sections);
+    const licenses = mapLicenses(effectiveParsed.sections);
+    const publications = mapPublications(effectiveParsed.sections);
     const achievements = mapAchievements(effectiveParsed.sections);
     const header = mapHeader(effectiveParsed.lines);
     const contact = header.contact;
@@ -197,6 +201,8 @@ function mapParsedResume(parsed) {
         projects,
         certifications: certificationsAugmented,
         achievements: achievementsAugmented,
+        licenses,
+        publications,
         unmappedText: unmappedText || undefined,
         roleLevel: levelResult.level,
     });
@@ -1178,10 +1184,90 @@ function extractInlineAchievements(bullets) {
     }
     return found;
 }
+/**
+ * R-077 — licensure lines become structured LicenseItems. A line like
+ * "Medical Registration — National Medical Commission, Reg No. NMC-12345,
+ * valid till 2030" yields name/authority/licenseNumber/validTill.
+ */
+function mapLicenses(sections) {
+    const lines = sections.licenses || [];
+    const items = [];
+    for (const rawLine of lines) {
+        const line = String(rawLine || '').replace(/^[-*•·]\s*/, '').trim();
+        if (!line || line.length < 3)
+            continue;
+        // Require an explicit "No./Number/#" marker or a digit-bearing token so
+        // prose like "Registration — National Medical Commission" never captures.
+        const numMatch = line.match(/(?:licen[cs]e|reg(?:istration)?|enrol?l?ment)\s*(?:no\.?|number|#)\s*[:\-]?\s*([A-Za-z0-9][A-Za-z0-9\/\-]{2,})/i)
+            || line.match(/\b(?:no\.?|#)\s*[:\-]?\s*([A-Za-z]{0,5}[-\/]?\d[A-Za-z0-9\/\-]{2,})/i);
+        const validMatch = line.match(/valid\s+(?:till|until|through|upto|up to)\s+([A-Za-z0-9\/\- ]{4,20})/i);
+        let rest = line
+            .replace(numMatch ? numMatch[0] : '', '')
+            .replace(validMatch ? validMatch[0] : '', '')
+            .replace(/[,;\s]+$/g, '').trim();
+        // "Name — Authority" or "Name - Authority" or "Name, Authority"
+        let name = rest, authority;
+        const split = rest.split(/\s+[—–-]\s+|,\s+/);
+        if (split.length >= 2) {
+            name = split[0].trim();
+            authority = split.slice(1).join(', ').replace(/[,;\s]+$/g, '').trim() || undefined;
+        }
+        if (!name)
+            continue;
+        items.push({
+            name,
+            authority,
+            licenseNumber: numMatch ? numMatch[1] : undefined,
+            validTill: validMatch ? validMatch[1].trim() : undefined,
+        });
+        if (items.length >= 12)
+            break;
+    }
+    return items;
+}
+/**
+ * R-077 — publication/patent lines become structured PublicationItems.
+ * "Title, Venue (2024)" / "Title — Venue, 2024" / lines mentioning
+ * "patent" are typed as patents.
+ */
+function mapPublications(sections) {
+    const lines = sections.publications || [];
+    const items = [];
+    for (const rawLine of lines) {
+        const line = String(rawLine || '').replace(/^[-*•·]\s*/, '').replace(/^\d{1,2}[.)]\s*/, '').trim();
+        if (!line || line.length < 8)
+            continue;
+        const yearMatch = line.match(/\b(19|20)\d{2}\b/);
+        const urlMatch = line.match(/https?:\/\/\S+/i);
+        const isPatent = /\bpatent\b/i.test(line);
+        let rest = line
+            .replace(urlMatch ? urlMatch[0] : '', '')
+            .replace(/[\(\[]?\b(19|20)\d{2}\b[\)\]]?/, '')
+            .replace(/,?\s*\bpatents?\b\s*(pending|filed|granted)?\s*$/i, '')
+            .replace(/[,;\s]+$/g, '').trim();
+        let title = rest, venue;
+        const split = rest.split(/\s+[—–]\s+|",\s*|,\s+(?=[A-Z])/);
+        if (split.length >= 2) {
+            title = split[0].replace(/^["']|["']$/g, '').trim();
+            venue = split.slice(1).join(', ').replace(/[,;\s]+$/g, '').trim() || undefined;
+        }
+        if (!title)
+            continue;
+        items.push({
+            title,
+            venue,
+            year: yearMatch ? yearMatch[0] : undefined,
+            url: urlMatch ? urlMatch[0].replace(/[),.]+$/, '') : undefined,
+            type: isPatent ? 'patent' : undefined,
+        });
+        if (items.length >= 20)
+            break;
+    }
+    return items;
+}
 function mapCertifications(sections) {
     const lines = [
         ...(sections.certifications || []),
-        ...(sections.licenses || []),
     ];
     const items = [];
     for (const rawLine of lines) {
@@ -1561,7 +1647,7 @@ function getUnmappedText(sections) {
         'experience', 'employment', 'work', 'career',
         'education', 'academics',
         'projects', 'research',
-        'certifications', 'licenses',
+        'certifications', 'licenses', 'publications',
         'languages', 'hobbies',
     ]);
     return Object.entries(sections)

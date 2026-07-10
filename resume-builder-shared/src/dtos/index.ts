@@ -61,6 +61,20 @@ export type CreateResumeDto = {
     date?: string;
     details?: string[];
   }[];
+  licenses?: {
+    name: string;
+    authority?: string;
+    licenseNumber?: string;
+    region?: string;
+    validTill?: string;
+  }[];
+  publications?: {
+    title: string;
+    venue?: string;
+    year?: string;
+    url?: string;
+    type?: 'publication' | 'patent';
+  }[];
   achievements?: string[];
   templateId?: string;
   fontFamily?: string | null;
@@ -113,6 +127,20 @@ export type UpdateResumeDto = {
     issuer?: string;
     date?: string;
     details?: string[];
+  }[];
+  licenses?: {
+    name: string;
+    authority?: string;
+    licenseNumber?: string;
+    region?: string;
+    validTill?: string;
+  }[];
+  publications?: {
+    title: string;
+    venue?: string;
+    year?: string;
+    url?: string;
+    type?: 'publication' | 'patent';
   }[];
   achievements?: string[];
   templateId?: string;

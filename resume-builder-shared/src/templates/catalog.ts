@@ -6,6 +6,7 @@ export type TemplateCatalogId =
   | 'consultant'
   | 'academic'
   | 'healthcare'
+  | 'medical-coder'
   | 'creative'
   | 'sidebar-bold'
   | 'accent-header';
@@ -204,6 +205,21 @@ export const TEMPLATE_CATALOG: readonly TemplateCatalogItem[] = [
     implementedVariants: ['screen', 'print', 'ats-export'],
   },
   {
+    id: 'medical-coder',
+    name: 'Medical Coder',
+    description: 'Certifications-and-credentials-first layout for medical coders and billing specialists: CPC/CCS certifications, code-set skills (ICD-10, CPT, HCPCS), and compliance experience lead the page. Single-column, standard headings.',
+    tags: ['ATS-safe', 'Healthcare', 'Coding & Billing'],
+    atsSafety: 'high',
+    recommendedFor: ['Medical Coders', 'Medical Billing Specialists', 'HIM professionals'],
+    industries: ['healthcare'],
+    componentKey: 'healthcare',
+    supportedSections: ['summary', 'skills', 'experience', 'projects', 'education', 'certifications', 'languages'],
+    supportedLocales: ['en-IN', 'en-US'],
+    layout: 'single-column',
+    paginationSafe: true,
+    implementedVariants: ['screen', 'print', 'ats-export'],
+  },
+  {
     id: 'creative',
     name: 'Creative Portfolio',
     description: 'Portfolio-friendly layout with highlighted links and visual rhythm. Recruiters love it for design-heavy roles; ATS systems sometimes mis-parse the styled link blocks. Use a Classic / Minimal variant for the actual application upload.',
@@ -283,6 +299,9 @@ const TEMPLATE_ID_ALIASES: Record<string, TemplateCatalogId> = {
   'healthcare-cv': 'healthcare',
   medical: 'healthcare',
   clinical: 'healthcare',
+  'medical-coding': 'medical-coder',
+  'medical-billing': 'medical-coder',
+  coder: 'medical-coder',
   'creative-portfolio': 'creative',
   designer: 'creative',
   portfolio: 'creative',
