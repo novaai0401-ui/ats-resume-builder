@@ -86,3 +86,52 @@ test('a LinkedIn paste extracts a full structured resume', () => {
   assert.equal(p.education.length >= 1, true);
   assert.ok((p.skills || []).some((s) => /java/i.test(s)));
 });
+
+// ── R-078: reject wrong-page pastes + strip app chrome ──────────────────
+const { looksLikeLinkedInFeedDump } = require('../dist/resume/linkedin-import.js');
+
+const FEED_DUMP = [
+  'Compose message',
+  'You are on the messaging overlay. Press enter to open the list of conversations.',
+  'TEKIVEX picture',
+  'TEKIVEX',
+  'Scrolled to top of feed',
+  'Start a post',
+  'Promoted',
+  'John Doe',
+  'Software Engineer at Acme',
+].join('\n');
+
+test('a LinkedIn HOME FEED / messaging paste is detected as a feed dump', () => {
+  assert.equal(looksLikeLinkedInFeedDump(FEED_DUMP), true);
+  // A real profile paste is NOT a feed dump.
+  assert.equal(looksLikeLinkedInFeedDump(LINKEDIN_PASTE), false);
+});
+
+test('app chrome (nav, messaging overlay, avatar alt-text, feed) is stripped', () => {
+  const out = normalizeLinkedInProfileText(FEED_DUMP);
+  assert.doesNotMatch(out, /messaging overlay|compose message|scrolled to top of feed|start a post|promoted|picture/i);
+});
+
+test('uploading a feed dump is rejected with actionable guidance (no phantom jobs)', async () => {
+  const { ResumeService } = svc;
+  const service = new ResumeService({}, undefined, undefined, undefined, undefined);
+  // Drive the real upload entry point with a .txt buffer of the feed dump.
+  const file = { originalname: 'linkedin-profile.txt', mimetype: 'text/plain', size: FEED_DUMP.length, buffer: Buffer.from(FEED_DUMP, 'utf8') };
+  await assert.rejects(
+    () => service.parseResumeUpload(file, { mode: 'extract-and-map' }),
+    (err) => {
+      const msg = JSON.stringify(err?.response || err?.message || err);
+      assert.match(msg, /home feed|profile page/i);
+      return true;
+    },
+  );
+});
+
+test('the real profile paste still extracts cleanly after the chrome expansion', () => {
+  const { ResumeService, normalizeUploadText, splitTabularExperienceHeaders } = svc;
+  const service = new ResumeService({}, undefined, undefined, undefined, undefined);
+  const normalized = normalizeLinkedInProfileText(LINKEDIN_PASTE);
+  const r = service['buildStructuredResume'](normalizeUploadText(splitTabularExperienceHeaders(normalized)));
+  assert.equal(r.parsedPayload.experience.length, 2);
+});

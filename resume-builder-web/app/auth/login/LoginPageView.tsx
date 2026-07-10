@@ -12,7 +12,6 @@ import {
   EMAIL_INVALID_MESSAGE,
 } from 'resume-builder-shared';
 import { PrivacyBadge } from '@/src/components/PrivacyBadge';
-import { LinkedInSignInButton } from '@/src/components/LinkedInSignInButton';
 import { readPendingReferralCode, storePendingReferralCode } from '@/src/lib/referral';
 
 type RouterLike = {
@@ -166,7 +165,6 @@ export function LoginPageView({ apiClient = api, routerOverride, defaultMode = '
               <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: '0.85rem' }}>
                 <Link href="/auth/forgot-password" className="auth-forgot-link">Forgot password?</Link>
               </div>
-              <LinkedInSignInButton />
             </form>
           ) : (
             <form onSubmit={handleRegister} noValidate style={{ display: 'grid', gap: 12 }}>
@@ -214,7 +212,6 @@ export function LoginPageView({ apiClient = api, routerOverride, defaultMode = '
                 minLength={MIN_PASSWORD_LENGTH}
               />
               <button className="btn" type="submit" disabled={loading} style={{ width: '100%' }}>{loading ? 'Creating account...' : 'Create Account'}</button>
-              <LinkedInSignInButton />
             </form>
           )}
 

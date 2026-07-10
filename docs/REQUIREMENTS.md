@@ -1182,6 +1182,66 @@ and every external call still feeds the Outcome Graph.
 
 ---
 
+### R-078 · Remove LinkedIn OAuth login; harden LinkedIn profile paste-import
+
+- Status: **DONE** (this commit)
+- Depends-on: R-007/R-010 (extraction)
+- Context: founder decision to drop "Sign in with LinkedIn" for now, plus a
+  real bug: the "Import from LinkedIn" box turned a home-feed/messaging
+  paste ("Compose message", "messaging overlay", "TEKIVEX picture",
+  "Scrolled to top of feed") into 8 phantom companies, and the button /
+  instructions were unclear.
+- Acceptance
+  - [x] "Continue with LinkedIn" login removed from login + register views;
+    `LinkedInSignInButton` deleted; `/auth/providers` + `/auth/linkedin`
+    client helpers left dormant (annotated) for a future re-enable; llms.txt
+    claim corrected. Backend OAuth endpoints remain but unadvertised.
+  - [x] Paste-import chrome hardening (`linkedin-import.ts`): a broad
+    `LINKEDIN_CHROME_LINE` filter drops global nav, the messaging overlay,
+    feed actions, avatar alt-text ("X picture"), promoted posts, degree
+    badges and follower counts.
+  - [x] Wrong-page guard: `looksLikeLinkedInFeedDump` detects a home-feed/
+    app-shell paste (feed markers present, no profile section markers);
+    `parseResumeUpload` rejects it with an actionable 422 ("This looks like
+    your LinkedIn home feed, not your profile…") instead of inventing jobs.
+    The import UI shows the same warning client-side before submit.
+  - [x] Import UX: instructions say to copy the PROFILE page (not the feed);
+    button relabelled "Build resume from this" with a tooltip clarifying it
+    reads the pasted text (no file upload).
+  - [x] Tests: `linkedin-import.unit.test.cjs` (+4 — feed-dump detection,
+    chrome stripping, upload rejection, real profile still extracts).
+    Deleted stale orphaned `login-page-social.test.cjs` (asserted a
+    non-existent 4-provider social-auth controller; not run by web CI).
+
+---
+
+### R-079 · Mail delivery diagnostics (why "Email delivery is not configured")
+
+- Status: **DONE** (this commit)
+- Depends-on: R-031 (mail), R-073/R-075 (admin surfaces)
+- Context: email flows (password-reset OTP, resume copy, support resend)
+  failed with "Email delivery is not configured. Contact support." because
+  the SMTP env vars aren't set on the server — but the failure was opaque,
+  so there was no way to tell WHICH var was missing or whether SMTP auth
+  itself was failing (Gmail login password vs App Password).
+- Acceptance
+  - [x] `MailService` records a precise `reason` at boot (which of
+    SMTP_HOST/USER/PASS is missing, or which looks like a placeholder) and
+    exposes `getStatus()` (no secrets; username masked), `verifyConnection()`
+    (live SMTP handshake → real error), and `sendTestEmail(to)`.
+  - [x] Placeholder detection tightened so real creds (a Gmail address, an
+    app password, or an address containing "test") are never false-flagged.
+  - [x] Admin-only `GET /admin/mail/status` (config + live handshake +
+    actionable hint) and `POST /admin/mail/test {to}` (real test send),
+    `@SkipThrottle`, AdminAuthGuard.
+  - [x] Tests `tests/mail-config.unit.test.cjs` (4): missing-vars reason,
+    Gmail accepted + masked, placeholder rejected, no false positive.
+  - Note: this is DIAGNOSTICS + robustness — actually enabling mail is an
+    ops step (set SMTP_HOST/PORT/USER/PASS/FROM on Render; Gmail needs an
+    App Password). render.yaml already declares the slots (sync:false).
+
+---
+
 ## §6. Cross-cutting constants
 
 These are constraints that every requirement must respect. Violations
@@ -1248,6 +1308,8 @@ do not break it.
 
 | Date | Decision | Reason | Affected IDs |
 |---|---|---|---|
+| 2026-07-09 | Mail diagnostics (R-079): email flows failed opaquely with "Email delivery is not configured" because SMTP env isn't set on the server; added precise boot-time reason, admin GET /admin/mail/status (config + live SMTP handshake + hint) and POST /admin/mail/test, and tightened placeholder detection so real Gmail creds aren't false-flagged. Enabling mail remains an ops step (set SMTP_* on Render; Gmail App Password). | Founder: mail not working, "not configured" with no way to see why. | R-079 |
+| 2026-07-09 | LinkedIn (R-078): removed "Sign in with LinkedIn" login (founder call); hardened the LinkedIn profile paste-import — strips app chrome (nav/messaging overlay/feed/avatar alt-text) and rejects a wrong-page home-feed paste with actionable guidance instead of building 8 phantom companies; clearer import instructions + button. | Founder dropped LinkedIn OAuth for now; a home-feed+messaging paste was mis-parsed into 8 fake jobs and the button was confusing. | R-078 |
 | 2026-07-09 | Profession depth (R-077): first-class `licenses` + `publications` sections end-to-end (schema→prisma→editor→preview→PDF/DOCX export); Medical Coder profession role + ATS-safe `medical-coder` template; Live Openings pre-filled from the user's selected profession; free client-side JD→suggestions (tailored summary, missing-keyword chips, bullet ideas) on JD paste. | Founder walked the product as a job-seeker across IT/mechanical/medical/teacher/doctor profiles: generic schema shortchanged licensed/academic professions, no coder template, job search ignored the profile, and JD paste gave no instant help. | R-077, R-045, C-001, C-002 |
 | 2026-07-08 | Error tracking (R-076): wired Sentry as an opt-in, no-op-without-DSN capture path — global interceptor reports 5xx/non-HTTP failures (4xx skipped), boot failures + unhandled rejections captured, and the swallowed paid-user resume-email failure is explicitly reported. Closes the "flying blind in prod" gap. | Pre-launch audit: prod errors went only to stdout; nobody alerted when payments/exports/DB throw. | R-076 |
 | 2026-07-08 | Security hardening (R-075): wired the dead `validateProductionEnv()` into boot (hard-fail on missing/weak JWT/DB/CORS secrets in prod; REDIS/TOKEN_ENC_KEY warn-only so the net can't brick a deploy); registered the never-imported `ThrottleModule` (60/min global + tight auth-route caps, prod-only, webhooks/health exempt); `trust proxy=1` for real client IPs; Render health check moved to DB-aware `/health/db`. | Pre-launch audit blockers: forgeable tokens via `dev_secret` fallback, zero rate limiting, and a DB-down instance reported healthy. | R-075 |

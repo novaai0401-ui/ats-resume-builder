@@ -173,41 +173,62 @@ export default function ResumeStartClient() {
           <div className="start-choice" data-testid="linkedin-import-choice">
             <h3>Import from LinkedIn</h3>
             <p className="small">
-              Open your LinkedIn profile, select all (Ctrl/Cmd+A), copy, and paste it here — we
-              turn it into a resume automatically.
+              Open <strong>your profile page</strong> (linkedin.com/in/your-name) — not the
+              home feed. Scroll through your About, Experience and Education, select that text
+              (or Ctrl/Cmd+A), copy, and paste below. We strip LinkedIn&apos;s menus and build
+              your resume automatically.
             </p>
             {linkedinOpen ? (
               <div style={{ display: 'grid', gap: 8 }}>
                 <textarea
                   className="input"
                   rows={6}
-                  placeholder="Paste your copied LinkedIn profile here…"
+                  placeholder="Paste your copied LinkedIn PROFILE text here…"
                   value={linkedinText}
                   onChange={(e) => setLinkedinText(e.target.value)}
                   data-testid="linkedin-paste-input"
                   disabled={loadingUpload}
                 />
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <button
-                    className="btn"
-                    disabled={loadingUpload || linkedinText.trim().length < 80}
-                    data-testid="linkedin-import-submit"
-                    onClick={() => {
-                      const file = new File([linkedinText], 'linkedin-profile.txt', { type: 'text/plain' });
-                      void onUpload(file);
-                    }}
-                  >
-                    {loadingUpload ? 'Importing…' : 'Import profile'}
-                  </button>
-                  <button className="btn ghost" onClick={() => setLinkedinOpen(false)} disabled={loadingUpload}>
-                    Cancel
-                  </button>
-                </div>
-                {linkedinText.trim().length > 0 && linkedinText.trim().length < 80 ? (
-                  <p className="small" style={{ margin: 0, color: 'var(--muted)' }}>
-                    Paste the whole profile page — that looks too short.
-                  </p>
-                ) : null}
+                {(() => {
+                  const t = linkedinText.trim();
+                  const looksLikeFeed =
+                    t.length > 0 &&
+                    /you are on the messaging overlay|scrolled to top of feed|compose message|start a post|\bpromoted\b|people you may know/i.test(t) &&
+                    !/^(about|experience|education|skills|licenses)\b/im.test(t);
+                  return (
+                    <>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        <button
+                          className="btn"
+                          disabled={loadingUpload || t.length < 80}
+                          data-testid="linkedin-import-submit"
+                          title="Reads the pasted text above and builds your resume — no file needed."
+                          onClick={() => {
+                            const file = new File([linkedinText], 'linkedin-profile.txt', { type: 'text/plain' });
+                            void onUpload(file);
+                          }}
+                        >
+                          {loadingUpload ? 'Importing…' : 'Build resume from this'}
+                        </button>
+                        <button className="btn ghost" onClick={() => setLinkedinOpen(false)} disabled={loadingUpload}>
+                          Cancel
+                        </button>
+                      </div>
+                      {t.length > 0 && t.length < 80 ? (
+                        <p className="small" style={{ margin: 0, color: 'var(--muted)' }}>
+                          That looks too short — paste your whole profile (About + Experience + Education).
+                        </p>
+                      ) : null}
+                      {looksLikeFeed ? (
+                        <p className="small" style={{ margin: 0, color: 'var(--danger, #b42318)' }}>
+                          This looks like your LinkedIn <strong>home feed</strong>, not your profile.
+                          Open your profile page (linkedin.com/in/your-name) and copy from there —
+                          otherwise the menus and posts get read as fake jobs.
+                        </p>
+                      ) : null}
+                    </>
+                  );
+                })()}
               </div>
             ) : (
               <button className="btn secondary" onClick={() => setLinkedinOpen(true)} data-testid="linkedin-import-open">

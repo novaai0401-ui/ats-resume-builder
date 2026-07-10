@@ -18,7 +18,7 @@ import { ACTION_VERB_REQUIRED_RATIO, analyzeActionVerbRule, normalizeBulletText,
 import { SettingsService } from '../settings/settings.service';
 import { MailService } from '../mail/mail.service';
 import { renderResumeDocx, buildResumeFileName } from './docx-export';
-import { looksLikeLinkedInProfile, normalizeLinkedInProfileText } from './linkedin-import';
+import { looksLikeLinkedInProfile, looksLikeLinkedInFeedDump, normalizeLinkedInProfileText } from './linkedin-import';
 import { PatternLearnerService } from '../pattern-learner/pattern-learner.service';
 import { applyLearnedPatterns } from '../pattern-learner/pattern-applier';
 import { TrainingDatasetService } from '../training-dataset/training-dataset.service';
@@ -1048,6 +1048,21 @@ export class ResumeService {
           {
             path: 'file',
             message: 'No extractable text found. If this is a scanned PDF, upload a text-based PDF or DOCX.',
+          },
+        ],
+      });
+    }
+
+    // R-078: reject a "wrong page" LinkedIn paste (home feed / app shell)
+    // BEFORE parsing, so it can't be turned into phantom companies from feed
+    // posts. Clear, actionable error instead of a garbage resume.
+    if (looksLikeLinkedInFeedDump(trimmed)) {
+      throw new UnprocessableEntityException({
+        errors: [
+          {
+            path: 'file',
+            message:
+              'This looks like your LinkedIn home feed, not your profile. Open your profile page (linkedin.com/in/your-name), scroll through Experience & Education, then select, copy, and paste that — not the home page.',
           },
         ],
       });

@@ -47,6 +47,73 @@ const LINKEDIN_SECTION_MAP: Array<[RegExp, string]> = [
   [/^volunteering$/i, 'VOLUNTEERING'],
 ];
 
+/**
+ * LinkedIn app chrome that is NOT resume content — global nav, the
+ * messaging overlay, feed actions, avatar alt-text ("X picture"), promoted
+ * posts, connection-degree badges, follower counts, etc. A whole-page
+ * Ctrl+A copy pulls all of this in; left in, the parser invents phantom
+ * "companies" from feed posts (the reported "8 companies" bug).
+ */
+const LINKEDIN_CHROME_LINE = new RegExp(
+  '^(' +
+  // global nav / top bar
+  'home|my network|jobs|messaging|notifications|me|work|search|for business|' +
+  'try premium.*|advertise|reactivate premium.*|get the app|' +
+  // messaging overlay
+  'compose message|you are on the messaging overlay.*|press enter to open.*|' +
+  'open messenger|new message|status is (online|offline|reachable|away).*|' +
+  'no new notifications|messaging$|' +
+  // feed
+  'scrolled to top of feed|start a post|start writing.*|feed post.*|' +
+  'promoted|sponsored|suggested|people you may know.*|add to your feed|' +
+  'add a comment.*|most relevant.*|create a post|share a post|' +
+  // post actions / social
+  'like|likes|comment|comments|repost|reposts|share|send|save|saved|' +
+  'follow|following|unfollow|connect|message|more|see more|see all|see less|' +
+  'show all.*|show more|show less|view profile|view full profile|' +
+  // counts / badges
+  '\\d[\\d,\\.]*\\+?\\s*(followers?|connections?|reactions?|comments?|reposts?|views?|impressions?)|' +
+  '•?\\s*(1st|2nd|3rd)(\\s*degree.*)?|' +
+  // misc chrome
+  'activity|ad|ads|linkedin|skip to.*|contact info|' +
+  '.+\\s+picture' +               // avatar alt-text: "TEKIVEX picture", "John Doe picture"
+  ')$',
+  'i',
+);
+
+/** Strong markers that a paste is the HOME FEED / app shell, not a profile. */
+const LINKEDIN_FEED_MARKERS = [
+  /you are on the messaging overlay/i,
+  /scrolled to top of feed/i,
+  /compose message/i,
+  /start a post/i,
+  /\bpromoted\b/i,
+  /people you may know/i,
+];
+
+/** Profile-page markers we expect a real profile paste to contain. */
+const LINKEDIN_PROFILE_MARKERS = [
+  /^about$/im,
+  /^experience$/im,
+  /^education$/im,
+  /^licenses?\s*&?\s*certifications?$/im,
+  /^skills$/im,
+  /·\s*(full|part)[- ]?time/i,
+];
+
+/**
+ * Detect a "wrong page" paste — the LinkedIn home feed / app shell rather
+ * than a profile. True when feed chrome is present AND no profile section
+ * markers are found. The upload flow uses this to give a clear, actionable
+ * error instead of building a resume out of feed noise.
+ */
+export function looksLikeLinkedInFeedDump(text: string): boolean {
+  const t = String(text || '');
+  const feedHits = LINKEDIN_FEED_MARKERS.filter((re) => re.test(t)).length;
+  const profileHits = LINKEDIN_PROFILE_MARKERS.filter((re) => re.test(t)).length;
+  return feedHits >= 1 && profileHits === 0;
+}
+
 /** Heuristic guard: does this paste look like a LinkedIn profile page? */
 export function looksLikeLinkedInProfile(text: string): boolean {
   const t = String(text || '');
@@ -73,9 +140,9 @@ export function normalizeLinkedInProfileText(text: string): string {
   for (const raw of rawLines) {
     let line = dedupeDoubledLine(raw.trim());
     if (!line) continue;
-    // Drop LinkedIn chrome that never belongs on a resume.
-    if (/^(see more|see all|show all \d*|connect|message|follow|more|contact info|\d+\+?\s*(followers|connections))/i.test(line)) continue;
-    if (/^(home|my network|jobs|messaging|notifications)$/i.test(line)) continue;
+    // Drop LinkedIn app chrome (nav, messaging overlay, feed, avatar
+    // alt-text, social actions) that never belongs on a resume.
+    if (LINKEDIN_CHROME_LINE.test(line)) continue;
 
     // Section heading?
     const section = LINKEDIN_SECTION_MAP.find(([re]) => re.test(line));

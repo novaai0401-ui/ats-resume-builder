@@ -1602,6 +1602,7 @@ export const api = {
     request<{ ok: boolean }>(`/job-alerts/${encodeURIComponent(id)}`, { method: 'DELETE' }),
 
   // Which social sign-in providers the server has configured (LinkedIn-only).
+  // Dormant: LinkedIn OAuth login was removed from the UI (kept for a future re-enable).
   getAuthProviders: () => request<{ linkedin: boolean }>(`/auth/providers`),
   // Returns the LinkedIn authorize URL to redirect the browser to.
   linkedinStartUrl: () => request<{ url: string }>(`/auth/linkedin`),
