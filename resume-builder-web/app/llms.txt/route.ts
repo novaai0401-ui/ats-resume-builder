@@ -49,7 +49,7 @@ const BODY = `# Pocket Resume
 - Job application tracker (Kanban) wired to the Outcome Loop.
 - Mentor mode, interview prep, salary bands, career navigator.
 - PDF/DOCX export. Web app + iOS/Android + a browser extension.
-- "Sign in with LinkedIn" (OIDC).
+- Import from LinkedIn (paste your profile text → resume).
 
 ## Pricing
 

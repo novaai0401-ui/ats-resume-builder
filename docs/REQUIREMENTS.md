@@ -1182,6 +1182,39 @@ and every external call still feeds the Outcome Graph.
 
 ---
 
+### R-078 · Remove LinkedIn OAuth login; harden LinkedIn profile paste-import
+
+- Status: **DONE** (this commit)
+- Depends-on: R-007/R-010 (extraction)
+- Context: founder decision to drop "Sign in with LinkedIn" for now, plus a
+  real bug: the "Import from LinkedIn" box turned a home-feed/messaging
+  paste ("Compose message", "messaging overlay", "TEKIVEX picture",
+  "Scrolled to top of feed") into 8 phantom companies, and the button /
+  instructions were unclear.
+- Acceptance
+  - [x] "Continue with LinkedIn" login removed from login + register views;
+    `LinkedInSignInButton` deleted; `/auth/providers` + `/auth/linkedin`
+    client helpers left dormant (annotated) for a future re-enable; llms.txt
+    claim corrected. Backend OAuth endpoints remain but unadvertised.
+  - [x] Paste-import chrome hardening (`linkedin-import.ts`): a broad
+    `LINKEDIN_CHROME_LINE` filter drops global nav, the messaging overlay,
+    feed actions, avatar alt-text ("X picture"), promoted posts, degree
+    badges and follower counts.
+  - [x] Wrong-page guard: `looksLikeLinkedInFeedDump` detects a home-feed/
+    app-shell paste (feed markers present, no profile section markers);
+    `parseResumeUpload` rejects it with an actionable 422 ("This looks like
+    your LinkedIn home feed, not your profile…") instead of inventing jobs.
+    The import UI shows the same warning client-side before submit.
+  - [x] Import UX: instructions say to copy the PROFILE page (not the feed);
+    button relabelled "Build resume from this" with a tooltip clarifying it
+    reads the pasted text (no file upload).
+  - [x] Tests: `linkedin-import.unit.test.cjs` (+4 — feed-dump detection,
+    chrome stripping, upload rejection, real profile still extracts).
+    Deleted stale orphaned `login-page-social.test.cjs` (asserted a
+    non-existent 4-provider social-auth controller; not run by web CI).
+
+---
+
 ## §6. Cross-cutting constants
 
 These are constraints that every requirement must respect. Violations
@@ -1248,6 +1281,7 @@ do not break it.
 
 | Date | Decision | Reason | Affected IDs |
 |---|---|---|---|
+| 2026-07-09 | LinkedIn (R-078): removed "Sign in with LinkedIn" login (founder call); hardened the LinkedIn profile paste-import — strips app chrome (nav/messaging overlay/feed/avatar alt-text) and rejects a wrong-page home-feed paste with actionable guidance instead of building 8 phantom companies; clearer import instructions + button. | Founder dropped LinkedIn OAuth for now; a home-feed+messaging paste was mis-parsed into 8 fake jobs and the button was confusing. | R-078 |
 | 2026-07-09 | Profession depth (R-077): first-class `licenses` + `publications` sections end-to-end (schema→prisma→editor→preview→PDF/DOCX export); Medical Coder profession role + ATS-safe `medical-coder` template; Live Openings pre-filled from the user's selected profession; free client-side JD→suggestions (tailored summary, missing-keyword chips, bullet ideas) on JD paste. | Founder walked the product as a job-seeker across IT/mechanical/medical/teacher/doctor profiles: generic schema shortchanged licensed/academic professions, no coder template, job search ignored the profile, and JD paste gave no instant help. | R-077, R-045, C-001, C-002 |
 | 2026-07-08 | Error tracking (R-076): wired Sentry as an opt-in, no-op-without-DSN capture path — global interceptor reports 5xx/non-HTTP failures (4xx skipped), boot failures + unhandled rejections captured, and the swallowed paid-user resume-email failure is explicitly reported. Closes the "flying blind in prod" gap. | Pre-launch audit: prod errors went only to stdout; nobody alerted when payments/exports/DB throw. | R-076 |
 | 2026-07-08 | Security hardening (R-075): wired the dead `validateProductionEnv()` into boot (hard-fail on missing/weak JWT/DB/CORS secrets in prod; REDIS/TOKEN_ENC_KEY warn-only so the net can't brick a deploy); registered the never-imported `ThrottleModule` (60/min global + tight auth-route caps, prod-only, webhooks/health exempt); `trust proxy=1` for real client IPs; Render health check moved to DB-aware `/health/db`. | Pre-launch audit blockers: forgeable tokens via `dev_secret` fallback, zero rate limiting, and a DB-down instance reported healthy. | R-075 |
