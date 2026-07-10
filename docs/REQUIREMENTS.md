@@ -1164,6 +1164,17 @@ and every external call still feeds the Outcome Graph.
     one tap), missing-keyword chips ("+ Add to skills"), and 3 bullet
     ideas ("Add as bullet"). AI-powered deep tailor remains the existing
     plan/BYOK flow (R-034).
+  - [x] Extraction (phase 2): uploads with LICENSES / REGISTRATIONS /
+    PUBLICATIONS / PATENTS headings map into the first-class sections —
+    new canonical sections in `resume-intelligence/section-normalizer`
+    (licensure synonyms out of certifications, publication synonyms out
+    of projects; combined "Certifications and Licenses" stays in
+    certifications), structured `mapLicenses` / `mapPublications`
+    parsers (name/authority/licence-no/valid-till; title/venue/year/
+    patent type), wired through `mapParsedResume`, the API fallback
+    builder (`detectHeading`), and the upload `parsedPayload` so the
+    editor receives them. Pinned by
+    `tests/extraction-profession-sections.unit.test.cjs` (4).
   - [x] Pinning tests: API `tests/profession-sections.unit.test.cjs`
     (catalogue, presence, export HTML incl. licence number + [Patent],
     medical-coder resolution + labels, profession role) and web

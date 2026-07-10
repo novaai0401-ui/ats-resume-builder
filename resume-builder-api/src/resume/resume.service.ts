@@ -11,7 +11,7 @@ import { designCssText, normalizeAccentColor, normalizePhotoUrl, templateSupport
 import { ResumeSectionsSchema } from 'resume-schemas';
 import { ensureUsagePeriod } from '../billing/usage';
 import { rateLimitOrThrow } from '../limits/rate-limit';
-import { mapParsedResume, parseResumeText } from 'resume-intelligence';
+import { mapParsedResume, parseResumeText, mapLicenses, mapPublications } from 'resume-intelligence';
 import type { ParsedResumeText } from 'resume-intelligence';
 import { sanitizeImportedResume } from './import-sanitizer';
 import { ACTION_VERB_REQUIRED_RATIO, analyzeActionVerbRule, normalizeBulletText, type ActionVerbFailure } from './action-verb-rule';
@@ -1276,6 +1276,9 @@ export class ResumeService {
       certifications: normalizedParsed.certifications,
       achievements: (normalizedParsed as { achievements?: string[] }).achievements
         ?? sanitized.achievements,
+      // R-077 — first-class profession sections extracted upstream.
+      licenses: (mapped as { licenses?: unknown[] }).licenses ?? [],
+      publications: (mapped as { publications?: unknown[] }).publications ?? [],
       roleLevel: mapped.roleLevel,
       signals: mapped.signals,
       unmappedText: sanitized.unmappedText,
@@ -3865,8 +3868,9 @@ function mapResumeSections(text: string) {
   ]);
   const certifications = extractCertifications([
     ...(sections.certifications || []),
-    ...(sections.licenses || []),
   ]);
+  const licenses = mapLicenses(sections);
+  const publications = mapPublications(sections);
 
   const mappedKeys = new Set([
     'summary', 'profile', 'objective',
@@ -3874,7 +3878,7 @@ function mapResumeSections(text: string) {
     'experience', 'employment', 'work', 'career',
     'projects', 'research',
     'education', 'academics',
-    'certifications', 'licenses',
+    'certifications', 'licenses', 'publications',
     'languages',
     'ignore',
   ]);
@@ -3905,6 +3909,8 @@ function mapResumeSections(text: string) {
     education,
     projects,
     certifications,
+    licenses,
+    publications,
     roleLevel,
     unmappedText: remainingLines.join('\n').trim() || undefined,
   };
@@ -3925,8 +3931,11 @@ function detectHeading(line: string) {
   if (/^education(al (background|qualifications?))?$|^academic(s|( background)?)?$|^education history$|^qualifications?$/.test(normalized)) return 'education';
   // Projects
   if (/^(notable |key )?projects?$|^(research|portfolio|personal projects?)$/.test(normalized)) return 'projects';
+  // R-077 — licensure and publications are first-class sections now.
+  if (/^licen[cs]es?$|^licensure$|^registrations?$|^(medical |professional )?licen[cs]es?( and registrations?)?$|^licen[cs]es? and registrations?$/.test(normalized)) return 'licenses';
+  if (/^publications?$|^papers$|^(research |journal |academic |selected )?publications?$|^publications? and (research|patents?)$|^patents?( and publications?)?$|^published works?$/.test(normalized)) return 'publications';
   // Certifications — also accept achievements/awards
-  if (/^certifications?$|^licenses?$|^certificates?$|^awards?( and (honors?|recognitions?))?$|^honors? and awards?$|^achievements?$/.test(normalized)) return 'certifications';
+  if (/^certifications?$|^certificates?$|^awards?( and (honors?|recognitions?))?$|^honors? and awards?$|^achievements?$/.test(normalized)) return 'certifications';
   // Languages
   if (/^languages?( known| skills?)?$/.test(normalized)) return 'languages';
   // Sections to silently discard (not useful for extraction)
