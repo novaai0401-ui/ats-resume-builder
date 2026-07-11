@@ -272,4 +272,37 @@ describe('PasswordResetService.confirmReset', () => {
     assert.equal(mail2.sentTo.length, 1);
     assert.equal(prisma.challenges.length, 1);
   });
+  it('MAIL_DEBUG_ERRORS surfaces the real SMTP error in the response (opt-in)', async () => {
+    const prisma = makePrismaMock();
+    prisma.users.set('user@example.com', { id: 'u1', email: 'user@example.com', hasUserSetPassword: true });
+    const mail = {
+      isConfigured: true,
+      async sendPasswordResetEmail() { return false; },
+      getStatus() { return { configured: true, lastSendError: { at: 'now', context: 'password-reset', error: 'Invalid login: 535-5.7.8 Username and Password not accepted' } }; },
+    };
+    const svc = new PasswordResetService(prisma, mail, makeAuthMock());
+    const prev = process.env.MAIL_DEBUG_ERRORS;
+    process.env.MAIL_DEBUG_ERRORS = 'true';
+    try {
+      await assert.rejects(() => svc.requestReset('user@example.com'), (e) => {
+        assert.match(String(e.message), /Username and Password not accepted/);
+        return true;
+      });
+    } finally {
+      if (prev === undefined) delete process.env.MAIL_DEBUG_ERRORS; else process.env.MAIL_DEBUG_ERRORS = prev;
+    }
+  });
+
+  it('without MAIL_DEBUG_ERRORS the error stays generic (no SMTP detail leaked)', async () => {
+    const prisma = makePrismaMock();
+    prisma.users.set('user@example.com', { id: 'u1', email: 'user@example.com', hasUserSetPassword: true });
+    const mail = { isConfigured: true, async sendPasswordResetEmail() { return false; }, getStatus() { return { lastSendError: { error: 'secret smtp detail' } }; } };
+    const svc = new PasswordResetService(prisma, mail, makeAuthMock());
+    delete process.env.MAIL_DEBUG_ERRORS;
+    await assert.rejects(() => svc.requestReset('user@example.com'), (e) => {
+      assert.match(String(e.message), /Please try again/);
+      assert.doesNotMatch(String(e.message), /secret smtp detail/);
+      return true;
+    });
+  });
 });

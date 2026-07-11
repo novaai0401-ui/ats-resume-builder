@@ -129,7 +129,10 @@ export default function DownloadChargeModal({
             key: init.keyId,
             amount: init.amount,
             currency: init.currency,
-            name: 'ATS Resume Builder',
+            // Brand shown in the Razorpay checkout popup — overrides the
+            // dashboard billing label, so customers see "Pocket Resume"
+            // regardless of the PAN-tied label on an individual account.
+            name: 'Pocket Resume',
             description: 'Resume PDF download',
             order_id: init.orderId,
             prefill: { email: getCurrentUserEmail() || undefined },
