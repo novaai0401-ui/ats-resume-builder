@@ -55,7 +55,7 @@ export const PROFESSION_INDUSTRIES: readonly ProfessionIndustry[] = [
     label: 'AI & Machine Learning',
     description:
       'Applied AI, agentic systems, LLM engineering, MLOps, and AI product roles.',
-    recommendedTemplates: ['technical', 'modern', 'classic'],
+    recommendedTemplates: ['ai-ml-engineer', 'technical', 'modern', 'classic'],
     roles: [
       {
         id: 'ai-engineer',
