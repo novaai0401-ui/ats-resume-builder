@@ -249,4 +249,27 @@ describe('PasswordResetService.confirmReset', () => {
     assert.equal(auth.resetCalls[0].newPassword, 'longenough123');
     assert.equal(prisma.challenges.length, 0, 'challenge should be deleted');
   });
+  it('does NOT persist a challenge when SMTP is not configured (retry stays possible)', async () => {
+    const prisma = makePrismaMock();
+    prisma.users.set('user@example.com', { id: 'u1', email: 'user@example.com', hasUserSetPassword: true });
+    const mail = makeMailMock({ configured: false });
+    const svc = new PasswordResetService(prisma, mail, makeAuthMock());
+    await assert.rejects(() => svc.requestReset('user@example.com'), (e) => /not configured/i.test(String(e.message)));
+    assert.equal(prisma.challenges.length, 0, 'no challenge => no bogus 60s cooldown blocking the retry');
+  });
+
+  it('does NOT persist a challenge when the send fails (no fake "code sent" on retry)', async () => {
+    const prisma = makePrismaMock();
+    prisma.users.set('user@example.com', { id: 'u1', email: 'user@example.com', hasUserSetPassword: true });
+    const mail = makeMailMock({ failSend: true });
+    const svc = new PasswordResetService(prisma, mail, makeAuthMock());
+    await assert.rejects(() => svc.requestReset('user@example.com'), (e) => /failed to send/i.test(String(e.message)));
+    assert.equal(prisma.challenges.length, 0);
+    // A retry (now with a working mailer) sends and persists exactly one challenge.
+    const mail2 = makeMailMock();
+    const svc2 = new PasswordResetService(prisma, mail2, makeAuthMock());
+    await svc2.requestReset('user@example.com');
+    assert.equal(mail2.sentTo.length, 1);
+    assert.equal(prisma.challenges.length, 1);
+  });
 });
