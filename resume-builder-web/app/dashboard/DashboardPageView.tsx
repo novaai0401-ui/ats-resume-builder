@@ -69,6 +69,8 @@ export default function DashboardPageView({
   const router = routerOverride ?? nextRouter ?? fallbackRouter;
   const [resumes, setResumes] = useState<Resume[]>([]);
   const [resumesLoading, setResumesLoading] = useState(false);
+  // Plan gate for the upgrade CTA — only free users see it.
+  const [plan, setPlan] = useState<string | null>(null);
   const [selectedResumeId, setSelectedResumeId] = useState(String(resumeId || '').trim());
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
@@ -86,6 +88,16 @@ export default function DashboardPageView({
     if (typeof window === 'undefined') return;
     const stored = window.localStorage.getItem(PROFESSION_STORAGE_KEY);
     if (stored) setSelectedIndustry(stored);
+  }, []);
+
+  // Fetch the plan so free users see the upgrade CTA (subscribers don't).
+  useEffect(() => {
+    if (!getAccessToken()) return;
+    let cancelled = false;
+    api.getBillingStatus()
+      .then((s) => { if (!cancelled) setPlan(s.plan); })
+      .catch(() => { /* non-blocking */ });
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
@@ -305,6 +317,21 @@ export default function DashboardPageView({
           Choose a resume, then browse ATS-safe templates.
         </p>
       </header>
+
+      {plan === 'FREE' ? (
+        <section className="upgrade-cta" data-testid="dashboard-upgrade-cta">
+          <div>
+            <strong>⭐ Get Pocket Resume Plus — ₹499/mo</strong>
+            <p className="small" style={{ margin: '4px 0 0' }}>
+              Unlimited AI everywhere (critique, tailoring, mentor, interview prep) and
+              free resume downloads — no per-download charge while subscribed.
+            </p>
+          </div>
+          <Link href="/billing" className="btn upgrade-cta__btn">
+            Upgrade to Plus
+          </Link>
+        </section>
+      ) : null}
 
       <PrivacyBadge variant="dashboard" />
       <CallbackRateCard resumeId={activeResume?.id || sortedResumes[0]?.id} />
