@@ -10,6 +10,7 @@ import { summarizeEvents } from './memory-summarizer';
 import { buildSahaayakSystemPrompt, type SahaayakMode } from './sahaayak.prompt';
 import { companionReply } from './companion-fallback';
 import { buildByokProvider } from '../ai/providers/byok-factory';
+import { isPlanActive } from '../ai/server-provider';
 
 const RECENT_MESSAGE_TURNS = 12;
 const RECENT_EVENT_LIMIT = 30;
@@ -145,12 +146,14 @@ export class SahaayakService {
       lastSeenAt: profile.lastInteractionAt?.toISOString(),
     });
 
-    // Prefer the user's BYOK key when present (free-tier users plug
-    // in their own provider via Settings). Falls back to the
-    // operator's shared key, then to the offline companion.
+    // Prefer the user's BYOK key when present. Otherwise OUR Groq runs ONLY
+    // for an active ₹499 plan — a free/trial user must never spend the
+    // operator's Groq budget (they get the offline companion instead). This
+    // closes the "free user costs the founder API money" leak.
+    const planUser = await this.prisma.user.findUnique({ where: { id: userId }, select: { plan: true } });
     const provider =
       buildByokProvider(opts?.byokProvider, opts?.byokKey)
-      ?? this.resolveProvider();
+      ?? (isPlanActive(planUser?.plan) ? this.resolveProvider() : null);
     let reply: string;
     // Seed rotates the offline companion's wording so it never repeats
     // the same sentence twice in a row. Message count is monotonic per

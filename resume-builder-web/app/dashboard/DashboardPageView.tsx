@@ -17,6 +17,7 @@ import {
 import { getSampleResumeForIndustry } from '@/src/lib/sample-resume-data';
 import { recommendTemplates } from '@/src/lib/template-recommendation';
 import { PrivacyBadge } from '@/src/components/PrivacyBadge';
+import { SUPPORT_EMAIL } from '@/src/lib/support';
 import { CallbackRateCard } from '@/src/components/CallbackRateCard';
 import { defaultTemplateId, resolveTemplateId, templateRegistry, type TemplateId } from '@/shared/templateRegistry';
 
@@ -519,6 +520,20 @@ export default function DashboardPageView({
           {status}
         </p>
       )}
+
+      <footer className="dashboard-credit">
+        <span>
+          Built with{' '}
+          <a href="https://ui.tekivex.com" target="_blank" rel="noopener noreferrer">
+            tekivex-ui
+          </a>
+        </span>
+        <span aria-hidden>·</span>
+        <span>
+          Need help? Email{' '}
+          <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>
+        </span>
+      </footer>
 
       {error && (
         <p className="small" style={{ marginTop: 12, color: 'var(--danger)' }}>
