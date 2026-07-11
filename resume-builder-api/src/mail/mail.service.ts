@@ -8,6 +8,39 @@ function isPlaceholderSmtpValue(value: string): boolean {
   return /(^|[_-])your[_-]|@example\.(com|org)$|changeme|change[_-]me|placeholder|^(test|demo|fake)@/i.test(value);
 }
 
+function isGmailHost(host: string): boolean {
+  return /(^|\.)gmail\.com$|(^|\.)googlemail\.com$/i.test(String(host || '').trim());
+}
+
+/**
+ * Gmail App Passwords are 16 chars shown grouped in fours ("abcd efgh ijkl
+ * mnop"); the ACTUAL secret has no spaces, but users paste it with them and
+ * Gmail then rejects the login. Strip internal spaces for Gmail/Google
+ * hosts only (a real password with spaces on other hosts is left intact).
+ */
+export function normalizeSmtpPass(host: string, pass: string): string {
+  const p = String(pass || '');
+  return isGmailHost(host) ? p.replace(/\s+/g, '') : p;
+}
+
+/**
+ * Most SMTP providers (Gmail, Outlook, Zoho, SES) only allow sending FROM
+ * the authenticated mailbox — a mismatched From is the #1 silent send
+ * rejection. So force the From email to the authenticated SMTP_USER while
+ * keeping any display name the operator set in SMTP_FROM. When SMTP_USER
+ * isn't an email (unusual providers), fall back to SMTP_FROM as-is.
+ */
+export function resolveFromAddress(fromRaw: string, user: string): string {
+  const u = String(user || '').trim();
+  const raw = String(fromRaw || '').trim();
+  const userIsEmail = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(u);
+  if (!userIsEmail) return raw || u;
+  // Parse an optional display name from `Name <email>` or a bare address.
+  const angled = raw.match(/^"?([^"<]*?)"?\s*<([^>]+)>$/);
+  const displayName = angled ? angled[1].trim() : raw && !raw.includes('@') ? raw : '';
+  return displayName ? `${displayName} <${u}>` : u;
+}
+
 /** Structured, log/endpoint-friendly view of the mail config. */
 export type MailConfigStatus = {
   configured: boolean;
@@ -52,9 +85,12 @@ export class MailService {
     const host = this.readEnv('SMTP_HOST');
     const port = parseInt(this.readEnv('SMTP_PORT') || '587', 10);
     const user = this.readEnv('SMTP_USER');
-    const pass = this.readEnv('SMTP_PASS');
+    // Strip the display spaces from a pasted Gmail App Password ("abcd efgh…").
+    const pass = normalizeSmtpPass(host, this.readEnv('SMTP_PASS'));
     const fromRaw = this.readEnv('SMTP_FROM');
-    this.fromAddress = fromRaw || user || '';
+    // Force From = the authenticated mailbox (keep any display name) so a
+    // mismatched SMTP_FROM can't get the send silently rejected.
+    this.fromAddress = resolveFromAddress(fromRaw, user);
     // Auto-derive TLS mode from the port for the standard SMTP ports so a
     // 587/465 mix-up can't silently break sends (the #1 Gmail misconfig:
     // port 587 is STARTTLS → secure=false; 465 is implicit TLS → secure=true).
@@ -82,6 +118,9 @@ export class MailService {
         host,
         port,
         secure,
+        // On the STARTTLS ports, require the TLS upgrade so we never send
+        // credentials over a plaintext connection.
+        requireTLS: !secure,
         auth: { user, pass },
         connectionTimeout: parseInt(this.readEnv('SMTP_CONNECTION_TIMEOUT_MS') || '10000', 10),
         greetingTimeout: parseInt(this.readEnv('SMTP_GREETING_TIMEOUT_MS') || '10000', 10),
