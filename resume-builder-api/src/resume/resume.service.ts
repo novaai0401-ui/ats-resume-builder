@@ -4851,6 +4851,8 @@ function renderTemplateBody(templateId: string, resume: any) {
   if (templateId === 'academic') return renderAcademicTemplateArticle(resume);
   if (templateId === 'healthcare') return renderHealthcareTemplateArticle(resume);
   if (templateId === 'medical-coder') return renderMedicalCoderTemplateArticle(resume);
+  if (templateId === 'ai-ml-engineer') return renderAiMlEngineerTemplateArticle(resume);
+  if (templateId === 'product-manager') return renderProductManagerTemplateArticle(resume);
   if (templateId === 'creative') return renderCreativeTemplateArticle(resume);
   if (templateId === 'sidebar-bold') return renderSidebarBoldTemplateArticle(resume);
   if (templateId === 'accent-header') return renderAccentHeaderTemplateArticle(resume);
@@ -4976,6 +4978,47 @@ function renderMedicalCoderTemplateArticle(resume: any) {
           experience: 'Coding & Billing Experience',
           skills: 'Code Sets & Systems',
           projects: 'Audits & Compliance Projects',
+        },
+      })}
+    </article>
+  `;
+}
+
+/** R-081 — AI/ML Engineer: technical layout, ML-framework + research framing. */
+function renderAiMlEngineerTemplateArticle(resume: any) {
+  const normalized = normalizeTemplateResumeData(resume);
+  const groupedSkills = buildGroupedSkillLine(resume);
+  return `
+    <article class="ats-template ats-template--technical ats-template--ai-ml-engineer">
+      ${templateHeader(normalized)}
+      ${renderOrderedSections(normalized, {
+        companyJoiner: ' @ ',
+        tight: true,
+        groupedSkillLine: groupedSkills,
+        labels: {
+          summary: 'Professional Summary',
+          skills: 'AI/ML Skills & Frameworks',
+          projects: 'Projects & Research',
+          experience: 'Experience',
+        },
+      })}
+    </article>
+  `;
+}
+
+/** R-081 — Product Manager: consultant layout, impact/competency framing. */
+function renderProductManagerTemplateArticle(resume: any) {
+  const normalized = normalizeTemplateResumeData(resume);
+  return `
+    <article class="ats-template ats-template--consultant ats-template--product-manager">
+      ${templateHeader(normalized)}
+      ${renderOrderedSections(normalized, {
+        companyJoiner: ', ',
+        labels: {
+          summary: 'Summary',
+          skills: 'Core Competencies',
+          experience: 'Experience',
+          projects: 'Key Initiatives',
         },
       })}
     </article>
@@ -5720,6 +5763,12 @@ function normalizeTemplateId(value: unknown) {
     'medical-coding': 'medical-coder',
     'medical-billing': 'medical-coder',
     coder: 'medical-coder',
+    'ai-engineer': 'ai-ml-engineer',
+    'ml-engineer': 'ai-ml-engineer',
+    'machine-learning': 'ai-ml-engineer',
+    'data-scientist': 'ai-ml-engineer',
+    'ai-ml': 'ai-ml-engineer',
+    pm: 'product-manager',
     'creative-portfolio': 'creative',
     designer: 'creative',
     'two-column-bold': 'sidebar-bold',
@@ -5730,7 +5779,7 @@ function normalizeTemplateId(value: unknown) {
   const normalized = aliases[raw] || raw;
   if ([
     'classic', 'modern', 'executive', 'technical', 'minimal', 'consultant', 'graduate',
-    'academic', 'healthcare', 'medical-coder', 'creative', 'sidebar-bold', 'accent-header',
+    'academic', 'healthcare', 'medical-coder', 'ai-ml-engineer', 'product-manager', 'creative', 'sidebar-bold', 'accent-header',
   ].includes(normalized)) {
     return normalized;
   }

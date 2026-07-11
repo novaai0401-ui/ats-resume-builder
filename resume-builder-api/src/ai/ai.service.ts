@@ -101,12 +101,20 @@ export class AiService {
     if (!user) {
       throw new ForbiddenException('User not found');
     }
-    // Post-pivot: no subscription tiers and no per-plan token cap. AI quality
-    // is gated by BYOK, not by plan. We still record usage for analytics.
+    // Per-plan token cap — protects the operator's Groq spend. A free/trial
+    // user gets the FREE allowance (aiTokensLimit); a ₹499 plan user gets the
+    // larger PRO allowance. Once the period allowance is spent, OUR-AI calls
+    // are blocked (features fall back to rule-based / the upsell) so a trial
+    // user can never run up an unbounded API bill. Reset each usage period.
     await ensureUsagePeriod(this.prisma, user);
     const updated = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!updated) {
       throw new ForbiddenException('User not found');
+    }
+    if (updated.aiTokensUsed + tokens > updated.aiTokensLimit) {
+      throw new ForbiddenException(
+        'AI usage limit reached for this period. Add your own AI key (free) in Settings, or upgrade to the ₹499 plan for a much larger allowance.',
+      );
     }
     await this.prisma.user.update({
       where: { id: userId },

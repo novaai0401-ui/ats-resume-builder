@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/src/lib/api';
 import { TkxButton } from 'tekivex-ui';
+import { SupportHelpLink } from '@/src/components/SupportHelpLink';
 
 export default function ForgotPasswordView() {
   const router = useRouter();
@@ -79,6 +80,7 @@ export default function ForgotPasswordView() {
           <Link href="/auth/login" className="btn ghost" style={{ justifySelf: 'start', fontSize: '0.85rem' }}>
             ← Back to sign in
           </Link>
+          <SupportHelpLink message="Not getting the reset email?" subject="Password reset issue" />
         </form>
       </section>
       <section className="card col-7">

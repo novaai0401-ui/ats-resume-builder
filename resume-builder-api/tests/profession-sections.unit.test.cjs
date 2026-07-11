@@ -78,3 +78,24 @@ test('medical-coder role exists in the healthcare profession with code-set keywo
   assert.ok(role.keywords.includes('ICD-10'));
   assert.ok(hc.recommendedTemplates.includes('medical-coder'));
 });
+
+test('R-081: AI/ML Engineer + Product Manager templates render with role labels', () => {
+  const aiml = renderResumeTemplateHtml({ templateId: 'ai-ml-engineer', resumeData: BASE, mode: 'export' });
+  assert.match(aiml.html, /ats-template--ai-ml-engineer/);
+  assert.match(aiml.html, /AI\/ML Skills & Frameworks/);
+  assert.equal(resolveTemplateCatalogId('data-scientist'), 'ai-ml-engineer');
+  assert.equal(resolveTemplateCatalogId('ml-engineer'), 'ai-ml-engineer');
+
+  const pm = renderResumeTemplateHtml({ templateId: 'product-manager', resumeData: BASE, mode: 'export' });
+  assert.match(pm.html, /ats-template--product-manager/);
+  assert.match(pm.html, /Core Competencies/);
+
+  const both = TEMPLATE_CATALOG.filter((t) => ['ai-ml-engineer', 'product-manager'].includes(t.id));
+  assert.equal(both.length, 2);
+  assert.ok(both.every((t) => t.atsSafety === 'high'));
+});
+
+test('R-081: AI/ML industry recommends the ai-ml-engineer template first', () => {
+  const aiml = PROFESSION_INDUSTRIES.find((i) => i.id === 'ai-machine-learning');
+  assert.equal(aiml.recommendedTemplates[0], 'ai-ml-engineer');
+});

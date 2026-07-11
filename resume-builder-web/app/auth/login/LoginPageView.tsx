@@ -13,6 +13,7 @@ import {
 } from 'resume-builder-shared';
 import { PrivacyBadge } from '@/src/components/PrivacyBadge';
 import { readPendingReferralCode, storePendingReferralCode } from '@/src/lib/referral';
+import { SupportHelpLink } from '@/src/components/SupportHelpLink';
 
 type RouterLike = {
   push: (href: string) => Promise<boolean> | void;
@@ -219,6 +220,12 @@ export function LoginPageView({ apiClient = api, routerOverride, defaultMode = '
           {error ? (
             <div className="alert alert-error" role="alert" aria-live="assertive">
               {error}
+              <div style={{ marginTop: 8 }}>
+                <SupportHelpLink
+                  variant="button"
+                  subject={mode === 'login' ? 'Login issue' : 'Registration issue'}
+                />
+              </div>
             </div>
           ) : null}
 
@@ -231,6 +238,10 @@ export function LoginPageView({ apiClient = api, routerOverride, defaultMode = '
               Already have an account? Sign in
             </Link>
           )}
+          <SupportHelpLink
+            message={mode === 'login' ? 'Trouble signing in?' : 'Trouble creating your account?'}
+            subject={mode === 'login' ? 'Login issue' : 'Registration issue'}
+          />
         </div>
       </section>
       <section className="card col-7">

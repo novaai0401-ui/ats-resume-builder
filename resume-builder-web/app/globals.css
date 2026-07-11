@@ -240,8 +240,10 @@ body.resume-embed-body .main-shell {
 }
 
 .section-card {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  border-left: 4px solid #cad8e6;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  /* Transparent by default so no stray grey stripe shows on every card;
+   * the accent left-border only appears on the active/current section. */
+  border-left: 4px solid transparent;
 }
 
 .section-card:hover {
@@ -4130,3 +4132,23 @@ a:hover { color: var(--primary-700); }
 @media (max-width: 768px) {
   .admin-2col { grid-template-columns: 1fr; }
 }
+
+/* Dashboard footer credit (tekivex-ui attribution + support). */
+.dashboard-credit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 40px 0 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border, #e2e8f0);
+  color: var(--muted, #64748b);
+  font-size: 13px;
+}
+.dashboard-credit a {
+  color: var(--primary, #6d28d9);
+  text-decoration: none;
+  font-weight: 600;
+}
+.dashboard-credit a:hover { text-decoration: underline; }

@@ -1249,6 +1249,26 @@ and every external call still feeds the Outcome Graph.
 
 ---
 
+### R-081 · Tekivex calendar, market/AI skills, profession templates
+
+- Status: **DONE** (this commit)
+- Depends-on: R-045 (templates), R-077 (professions), R-080 (tekivex)
+- Acceptance
+  - [x] Date fields use tekivex `TkxDatePicker` (calendar) via a
+    `MonthYearPicker` wrapper that round-trips the canonical `YYYY-MM`
+    string across all 8 date inputs (experience/education/projects/
+    certification/license), preserving the "Present" toggle.
+  - [x] Technical-skill seeds (web + API) expanded 450→567 with current
+    market skills, heavy on GenAI/ML (LLMs, RAG, agents, MCP, vector DBs,
+    fine-tuning, MLOps, modern data/cloud/security).
+  - [x] New profession-tuned templates `ai-ml-engineer` (AI/ML/data roles)
+    and `product-manager` (product/business) — catalog + web registry +
+    API export renderer with role labels + profession recommendations +
+    aliases (ai-engineer/ml-engineer/data-scientist → ai-ml-engineer).
+    Pinned by `tests/profession-sections.unit.test.cjs`.
+
+---
+
 ## §6. Cross-cutting constants
 
 These are constraints that every requirement must respect. Violations

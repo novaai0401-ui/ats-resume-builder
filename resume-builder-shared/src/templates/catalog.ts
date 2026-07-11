@@ -7,6 +7,8 @@ export type TemplateCatalogId =
   | 'academic'
   | 'healthcare'
   | 'medical-coder'
+  | 'ai-ml-engineer'
+  | 'product-manager'
   | 'creative'
   | 'sidebar-bold'
   | 'accent-header';
@@ -220,6 +222,36 @@ export const TEMPLATE_CATALOG: readonly TemplateCatalogItem[] = [
     implementedVariants: ['screen', 'print', 'ats-export'],
   },
   {
+    id: 'ai-ml-engineer',
+    name: 'AI / ML Engineer',
+    description: 'Skills-and-projects-forward single-column layout for AI/ML, data-science and GenAI roles: model/ML frameworks and code-set skills lead, projects/research and publications get first-class framing. ATS-safe.',
+    tags: ['ATS-safe', 'AI / ML', 'Engineering'],
+    atsSafety: 'high',
+    recommendedFor: ['AI Engineers', 'ML Engineers', 'Data Scientists', 'MLOps', 'Applied Scientists'],
+    industries: ['ai-machine-learning', 'information-technology', 'science-research'],
+    componentKey: 'technical',
+    supportedSections: ['summary', 'skills', 'experience', 'projects', 'education', 'certifications', 'languages'],
+    supportedLocales: ['en-IN', 'en-US'],
+    layout: 'single-column',
+    paginationSafe: true,
+    implementedVariants: ['screen', 'print', 'ats-export'],
+  },
+  {
+    id: 'product-manager',
+    name: 'Product Manager',
+    description: 'Impact-and-metrics-forward single-column layout for product, program and business roles: a crisp summary, competencies, and outcome-led experience bullets. ATS-safe.',
+    tags: ['ATS-safe', 'Product', 'Business'],
+    atsSafety: 'high',
+    recommendedFor: ['Product Managers', 'Program Managers', 'Business Analysts', 'Strategy / Ops'],
+    industries: ['business-management', 'information-technology', 'ai-machine-learning', 'sales-marketing'],
+    componentKey: 'consultant',
+    supportedSections: ['summary', 'skills', 'experience', 'projects', 'education', 'certifications', 'languages'],
+    supportedLocales: ['en-IN', 'en-US'],
+    layout: 'single-column',
+    paginationSafe: true,
+    implementedVariants: ['screen', 'print', 'ats-export'],
+  },
+  {
     id: 'creative',
     name: 'Creative Portfolio',
     description: 'Portfolio-friendly layout with highlighted links and visual rhythm. Recruiters love it for design-heavy roles; ATS systems sometimes mis-parse the styled link blocks. Use a Classic / Minimal variant for the actual application upload.',
@@ -302,6 +334,14 @@ const TEMPLATE_ID_ALIASES: Record<string, TemplateCatalogId> = {
   'medical-coding': 'medical-coder',
   'medical-billing': 'medical-coder',
   coder: 'medical-coder',
+  'ai-engineer': 'ai-ml-engineer',
+  'ml-engineer': 'ai-ml-engineer',
+  'machine-learning': 'ai-ml-engineer',
+  'data-scientist': 'ai-ml-engineer',
+  'ai-ml': 'ai-ml-engineer',
+  'product-manager': 'product-manager',
+  pm: 'product-manager',
+  product: 'product-manager',
   'creative-portfolio': 'creative',
   designer: 'creative',
   portfolio: 'creative',
