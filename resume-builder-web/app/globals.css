@@ -4120,3 +4120,13 @@ a:hover { color: var(--primary-700); }
 @media (max-width: 640px) {
   .diff-2col { grid-template-columns: 1fr; }
 }
+
+/* Admin two-column panels — side by side on desktop, stacked on phones. */
+.admin-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 768px) {
+  .admin-2col { grid-template-columns: 1fr; }
+}
