@@ -107,15 +107,9 @@ export class PasswordResetService {
       );
     }
 
-    const otp = generateOtp();
-    const otpHash = await bcrypt.hash(otp, HASH_ROUNDS);
-    const expiresAt = new Date(now + OTP_TTL_MS);
-
-    await this.prisma.passwordResetChallenge.deleteMany({ where: { email } });
-    await this.prisma.passwordResetChallenge.create({
-      data: { email, otpHash, expiresAt, ip: meta.ip, userAgent: meta.userAgent },
-    });
-
+    // Fail fast BEFORE creating a challenge — otherwise a failed send would
+    // leave a challenge (and its 60s cooldown) behind, so the user's retry
+    // returns a fake "a code was just sent" and no email ever goes out.
     if (!this.mailService.isConfigured) {
       this.logger.error(
         'SMTP not configured. Password-reset OTP cannot be delivered. Configure SMTP in .env.',
@@ -125,6 +119,14 @@ export class PasswordResetService {
         HttpStatus.SERVICE_UNAVAILABLE,
       );
     }
+
+    const otp = generateOtp();
+    const otpHash = await bcrypt.hash(otp, HASH_ROUNDS);
+    const expiresAt = new Date(now + OTP_TTL_MS);
+
+    // Send FIRST; only persist the challenge once a code has actually been
+    // delivered. A send failure creates nothing, so the user can retry
+    // immediately and always sees the real error (not a bogus success).
     const sent = await this.mailService.sendPasswordResetEmail(email, otp);
     if (!sent) {
       throw new HttpException(
@@ -132,6 +134,11 @@ export class PasswordResetService {
         HttpStatus.SERVICE_UNAVAILABLE,
       );
     }
+
+    await this.prisma.passwordResetChallenge.deleteMany({ where: { email } });
+    await this.prisma.passwordResetChallenge.create({
+      data: { email, otpHash, expiresAt, ip: meta.ip, userAgent: meta.userAgent },
+    });
     return ENUMERATION_SAFE_RESPONSE;
   }
 

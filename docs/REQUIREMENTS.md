@@ -1234,8 +1234,15 @@ and every external call still feeds the Outcome Graph.
   - [x] Admin-only `GET /admin/mail/status` (config + live handshake +
     actionable hint) and `POST /admin/mail/test {to}` (real test send),
     `@SkipThrottle`, AdminAuthGuard.
-  - [x] Tests `tests/mail-config.unit.test.cjs` (4): missing-vars reason,
-    Gmail accepted + masked, placeholder rejected, no false positive.
+  - [x] Send-time hardening: TLS mode is auto-derived from the SMTP port
+    (587/25 → STARTTLS/secure=false, 465 → implicit TLS/secure=true) so a
+    587-with-SSL mix-up (the #1 Gmail "configured but send fails" cause)
+    can't silently break delivery. The real send error is captured
+    (`lastSendError`) and surfaced by `GET /admin/mail/status`, so a 503
+    "Failed to send reset email" is diagnosable without Render logs.
+  - [x] Tests `tests/mail-config.unit.test.cjs` (6): missing-vars reason,
+    Gmail accepted + masked, placeholder rejected, no false positive,
+    port→TLS auto-derivation, lastSendError exposure.
   - Note: this is DIAGNOSTICS + robustness — actually enabling mail is an
     ops step (set SMTP_HOST/PORT/USER/PASS/FROM on Render; Gmail needs an
     App Password). render.yaml already declares the slots (sync:false).
@@ -1308,6 +1315,7 @@ do not break it.
 
 | Date | Decision | Reason | Affected IDs |
 |---|---|---|---|
+| 2026-07-09 | Password-reset ordering fix (R-079): the reset challenge (+60s cooldown) was created BEFORE the email send, so a failed first send left a challenge behind and the retry returned a fake "a code was just sent" while no email ever went out. Now SMTP is checked and the email is sent FIRST; the challenge is persisted only after a successful delivery — failures create nothing, so the user always sees the real error and can retry. | Founder: forgot-password flashed "not configured" then "code sent, wait 60s" but no mail arrived. | R-079 |
 | 2026-07-09 | Mail diagnostics (R-079): email flows failed opaquely with "Email delivery is not configured" because SMTP env isn't set on the server; added precise boot-time reason, admin GET /admin/mail/status (config + live SMTP handshake + hint) and POST /admin/mail/test, and tightened placeholder detection so real Gmail creds aren't false-flagged. Enabling mail remains an ops step (set SMTP_* on Render; Gmail App Password). | Founder: mail not working, "not configured" with no way to see why. | R-079 |
 | 2026-07-09 | LinkedIn (R-078): removed "Sign in with LinkedIn" login (founder call); hardened the LinkedIn profile paste-import — strips app chrome (nav/messaging overlay/feed/avatar alt-text) and rejects a wrong-page home-feed paste with actionable guidance instead of building 8 phantom companies; clearer import instructions + button. | Founder dropped LinkedIn OAuth for now; a home-feed+messaging paste was mis-parsed into 8 fake jobs and the button was confusing. | R-078 |
 | 2026-07-09 | Profession depth (R-077): first-class `licenses` + `publications` sections end-to-end (schema→prisma→editor→preview→PDF/DOCX export); Medical Coder profession role + ATS-safe `medical-coder` template; Live Openings pre-filled from the user's selected profession; free client-side JD→suggestions (tailored summary, missing-keyword chips, bullet ideas) on JD paste. | Founder walked the product as a job-seeker across IT/mechanical/medical/teacher/doctor profiles: generic schema shortchanged licensed/academic professions, no coder template, job search ignored the profile, and JD paste gave no instant help. | R-077, R-045, C-001, C-002 |

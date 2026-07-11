@@ -44,3 +44,15 @@ test('a real address containing "test" is NOT a false positive', () => {
   }));
   assert.equal(m.getStatus().configured, true);
 });
+
+test('TLS mode is auto-derived from the port (Gmail 587 → secure=false even if env says true)', () => {
+  const m587 = new MailService(cfg({ SMTP_HOST: 'smtp.gmail.com', SMTP_PORT: '587', SMTP_USER: 'a@gmail.com', SMTP_PASS: 'apppass1234', SMTP_SECURE: 'true' }));
+  assert.equal(m587.getStatus().secure, false);
+  const m465 = new MailService(cfg({ SMTP_HOST: 'smtp.gmail.com', SMTP_PORT: '465', SMTP_USER: 'a@gmail.com', SMTP_PASS: 'apppass1234', SMTP_SECURE: 'false' }));
+  assert.equal(m465.getStatus().secure, true);
+});
+
+test('getStatus exposes lastSendError (null until a send fails)', () => {
+  const m = new MailService(cfg({ SMTP_HOST: 'smtp.gmail.com', SMTP_PORT: '587', SMTP_USER: 'a@gmail.com', SMTP_PASS: 'apppass1234' }));
+  assert.equal(m.getStatus().lastSendError, null);
+});

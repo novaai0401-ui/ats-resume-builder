@@ -38,6 +38,15 @@ export class MailService {
   private readonly transporter: nodemailer.Transporter | null;
   private readonly fromAddress: string;
   private readonly status: MailConfigStatus;
+  /** Most recent real send failure, surfaced by the admin diagnostic. */
+  private lastSendError: { at: string; context: string; error: string } | null = null;
+
+  /** Record + log a real send failure so ops can see the actual SMTP error. */
+  private recordSendError(context: string, err: unknown): void {
+    const msg = (err instanceof Error ? err.message : String(err)).replace(/pass[^\s]*/gi, '***');
+    this.lastSendError = { at: new Date().toISOString(), context, error: msg };
+    this.logger.error(`Email send failed (${context}): ${msg}`);
+  }
 
   constructor(private readonly config: ConfigService) {
     const host = this.readEnv('SMTP_HOST');
@@ -46,7 +55,12 @@ export class MailService {
     const pass = this.readEnv('SMTP_PASS');
     const fromRaw = this.readEnv('SMTP_FROM');
     this.fromAddress = fromRaw || user || '';
-    const secure = this.readEnv('SMTP_SECURE') === 'true';
+    // Auto-derive TLS mode from the port for the standard SMTP ports so a
+    // 587/465 mix-up can't silently break sends (the #1 Gmail misconfig:
+    // port 587 is STARTTLS → secure=false; 465 is implicit TLS → secure=true).
+    // Only fall back to the explicit SMTP_SECURE flag for non-standard ports.
+    const secure =
+      port === 465 ? true : (port === 587 || port === 25) ? false : this.readEnv('SMTP_SECURE') === 'true';
 
     // Compute a precise reason so ops can see EXACTLY what's wrong instead
     // of a generic "not configured".
@@ -101,8 +115,8 @@ export class MailService {
   }
 
   /** Snapshot of the mail config (no secrets) for the admin diagnostic. */
-  getStatus(): MailConfigStatus {
-    return { ...this.status };
+  getStatus(): MailConfigStatus & { lastSendError: { at: string; context: string; error: string } | null } {
+    return { ...this.status, lastSendError: this.lastSendError };
   }
 
   /**
@@ -115,8 +129,8 @@ export class MailService {
       await this.transporter.verify();
       return { ok: true };
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      return { ok: false, error: msg.replace(/pass[^\s]*/gi, '***') };
+      this.recordSendError('verify', err);
+      return { ok: false, error: this.lastSendError?.error };
     }
   }
 
@@ -132,8 +146,8 @@ export class MailService {
       });
       return { ok: true };
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      return { ok: false, error: msg.replace(/pass[^\s]*/gi, '***') };
+      this.recordSendError('test', err);
+      return { ok: false, error: this.lastSendError?.error };
     }
   }
 
@@ -444,8 +458,7 @@ export class MailService {
       this.logger.log(`Password-reset email sent to ${to}`);
       return true;
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      this.logger.error(`Failed to send password-reset email to ${to}: ${msg.replace(/pass[^\s]*/gi, '***')}`);
+      this.recordSendError('password-reset', err);
       return false;
     }
   }
