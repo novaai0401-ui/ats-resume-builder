@@ -9,7 +9,7 @@ import useFeatureFlags from '@/src/hooks/use-feature-flags';
 import { FONT_OPTIONS, DENSITY_OPTIONS, ACCENT_PRESETS, REORDERABLE_SECTIONS, resolveSectionOrder, getAtsSectionTitle, templateSupportsPhoto, normalizePhotoUrl, isValidEmail, isValidPhone, EMAIL_INVALID_MESSAGE, PHONE_INVALID_MESSAGE } from 'resume-builder-shared';
 import { RESUME_CREATE_RATE_LIMIT_CODE, api, Resume, ResumeImportResult, UploadResumeResponse, getAccessToken, isApiRequestError } from '@/src/lib/api';
 import { loadByokKey, isPaidPlan } from '@/src/lib/byok-storage';
-import { SUPPORT_EMAIL } from '@/src/lib/support';
+import { SUPPORT_EMAIL, supportMailto } from '@/src/lib/support';
 import { splitBulletIntoBullets, canSplitBullet, shortenBulletText, wordCount as bulletWordCount, BULLET_MAX_WORDS as BULLET_LIMIT } from '@/src/lib/bullet-utils';
 import { PrivacyBadge } from '@/src/components/PrivacyBadge';
 import { useResumeStore } from '@/src/lib/resume-store';
@@ -4943,6 +4943,12 @@ export default function ResumeEditor() {
                     Print preview
                   </button>
                 </div>
+                <p className="small" style={{ textAlign: 'center', marginTop: 10, color: 'var(--muted)' }}>
+                  Download or payment not working?{' '}
+                  <a href={supportMailto('Download / payment issue')} style={{ color: 'var(--primary)', fontWeight: 600 }}>
+                    Email {SUPPORT_EMAIL}
+                  </a>
+                </p>
                 <ShareInExportModal resumeId={resumeId || null} />
               </>
             )}

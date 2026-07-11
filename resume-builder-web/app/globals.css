@@ -4152,3 +4152,19 @@ a:hover { color: var(--primary-700); }
   font-weight: 600;
 }
 .dashboard-credit a:hover { text-decoration: underline; }
+
+/* Dashboard upgrade CTA (free users → ₹499 Plus). */
+.upgrade-cta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+  padding: 16px 18px;
+  border-radius: 14px;
+  border: 1px solid var(--primary, #6d28d9);
+  background: linear-gradient(135deg, rgba(109, 40, 217, 0.08), rgba(139, 92, 246, 0.05));
+}
+.upgrade-cta strong { font-size: 15px; }
+.upgrade-cta__btn { white-space: nowrap; }
