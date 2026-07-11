@@ -4,6 +4,7 @@ import 'tekivex-ui/styles';
 import './globals.css';
 import TopNav from '@/src/components/TopNav';
 import MobileBottomNav from '@/src/components/MobileBottomNav';
+import { NavigationProgress } from '@/src/components/NavigationProgress';
 import Providers from '@/src/components/Providers';
 import PwaInstaller from '@/src/components/PwaInstaller';
 import SkipToContent from '@/src/components/SkipToContent';
@@ -137,6 +138,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body>
         <SkipToContent targetId="main-content" />
         <Providers>
+          <NavigationProgress />
           <div className="main-shell">
             <header className="topbar">
               <div className="brand">Pocket Resume</div>

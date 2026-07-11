@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { TkxBottomNav, TkxDrawer, TkxTagInput } from 'tekivex-ui';
+import { TkxBottomNav, TkxDrawer } from 'tekivex-ui';
 import useFeatureFlags from '@/src/hooks/use-feature-flags';
 import { FONT_OPTIONS, DENSITY_OPTIONS, ACCENT_PRESETS, REORDERABLE_SECTIONS, resolveSectionOrder, getAtsSectionTitle, templateSupportsPhoto, normalizePhotoUrl, isValidEmail, isValidPhone, EMAIL_INVALID_MESSAGE, PHONE_INVALID_MESSAGE } from 'resume-builder-shared';
 import { RESUME_CREATE_RATE_LIMIT_CODE, api, Resume, ResumeImportResult, UploadResumeResponse, getAccessToken, isApiRequestError } from '@/src/lib/api';
@@ -43,6 +43,7 @@ import { addEmptyExperience, removeExperienceAt } from '@/src/lib/experience-edi
 import { addEmptyProject, EMPTY_PROJECT, ensureAtLeastOneProject, isValidProjectUrl, moveProject } from '@/src/lib/project-editor';
 import { CompanyAutocomplete } from '@/src/components/CompanyAutocomplete';
 import { AutocompleteInput } from '@/src/components/AutocompleteInput';
+import { SuggestingTagInput } from '@/src/components/SuggestingTagInput';
 import FreeAiNotice from '@/src/components/FreeAiNotice';
 import PostDownloadSubscriptionPopup from '@/src/components/PostDownloadSubscriptionPopup';
 import DownloadChargeModal from '@/src/components/DownloadChargeModal';
@@ -2903,25 +2904,37 @@ export default function ResumeEditor() {
                     <span className="hint">{SECTION_GUIDANCE.skills.helper}</span>
                   </div>
                   <div className="skills-grid" style={{ marginTop: 8 }}>
-                    <div className="skills-group" data-testid="technical-skills-chips">
-                      {/* tekivex TkxTagInput: type + Enter to add, click × to
-                          remove. Replaces the custom autocomplete whose chip
-                          clicks were being intercepted by the suggestion menu. */}
-                      <TkxTagInput
+                    <div className="skills-group">
+                      {/* Chips render ABOVE the input and the suggestion menu
+                          opens BELOW, so the dropdown can't intercept chip /
+                          Add clicks (the old add/delete bug). Keeps the
+                          autocomplete suggestions. */}
+                      <SuggestingTagInput
                         label="Technical skills"
-                        value={technicalSkills}
-                        onChange={(tags) => updateSkillCategories(tags, softSkills)}
-                        placeholder="Type a technical skill and press Enter"
-                        allowDuplicates={false}
+                        testId="technical-skills-chips"
+                        tags={technicalSkills}
+                        onAdd={(value) => addSkill('technical', value)}
+                        onRemove={(value) => removeSkill('technical', value)}
+                        fetchSuggestions={fetchTechnicalSkillSuggestions}
+                        localSuggestions={technicalSkillSuggestionPool}
+                        placeholder="Type a technical skill…"
+                        inputValue={technicalSkillInput}
+                        onInputChange={setTechnicalSkillInput}
                       />
                     </div>
-                    <div className="skills-group" data-testid="soft-skills-chips">
-                      <TkxTagInput
+                    <div className="skills-group">
+                      <SuggestingTagInput
                         label="Soft skills"
-                        value={softSkills}
-                        onChange={(tags) => updateSkillCategories(technicalSkills, tags)}
-                        placeholder="Type a soft skill and press Enter"
-                        allowDuplicates={false}
+                        testId="soft-skills-chips"
+                        tags={softSkills}
+                        onAdd={(value) => addSkill('soft', value)}
+                        onRemove={(value) => removeSkill('soft', value)}
+                        fetchSuggestions={fetchSoftSkillSuggestions}
+                        localSuggestions={softSkillSuggestionPool}
+                        placeholder="Type a soft skill…"
+                        inputValue={softSkillInput}
+                        onInputChange={setSoftSkillInput}
+                        chipClassName="skill-chip soft"
                       />
                     </div>
                   </div>
@@ -4610,7 +4623,7 @@ export default function ResumeEditor() {
             {techGapResult.estimatedRoleReadiness && (
               <div className="ai-critique-section">
                 <h4>Role Readiness</h4>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <div className="diff-2col">
                   <div className="small"><strong>Overall:</strong> {techGapResult.estimatedRoleReadiness.overall}</div>
                   <div className="small"><strong>Technical:</strong> {techGapResult.estimatedRoleReadiness.technical}</div>
                   <div className="small"><strong>Leadership:</strong> {techGapResult.estimatedRoleReadiness.leadership}</div>

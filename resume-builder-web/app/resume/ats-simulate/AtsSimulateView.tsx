@@ -71,7 +71,7 @@ export default function AtsSimulateView() {
       {loading && <p style={{ color: 'var(--muted, #888)' }}>Simulating…</p>}
 
       {result && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 360px', gap: 20 }}>
+        <div className="ats-simulate-grid">
           <TkxCard>
             <TkxCardHeader>
               <strong>Recruiter view</strong>
