@@ -56,3 +56,36 @@ test('getStatus exposes lastSendError (null until a send fails)', () => {
   const m = new MailService(cfg({ SMTP_HOST: 'smtp.gmail.com', SMTP_PORT: '587', SMTP_USER: 'a@gmail.com', SMTP_PASS: 'apppass1234' }));
   assert.equal(m.getStatus().lastSendError, null);
 });
+
+const { normalizeSmtpPass, resolveFromAddress } = require('../dist/mail/mail.service.js');
+
+test('Gmail App Password: display spaces are stripped (Gmail hosts only)', () => {
+  assert.equal(normalizeSmtpPass('smtp.gmail.com', 'abcd efgh ijkl mnop'), 'abcdefghijklmnop');
+  assert.equal(normalizeSmtpPass('smtp.googlemail.com', 'ab cd ef gh'), 'abcdefgh');
+  // Non-Gmail host: leave a spaced password untouched.
+  assert.equal(normalizeSmtpPass('smtp.zoho.com', 'my pass word'), 'my pass word');
+});
+
+test('From address is forced to the authenticated mailbox, keeping the display name', () => {
+  // Mismatched SMTP_FROM address → rewritten to the authenticated user.
+  assert.equal(resolveFromAddress('Pocket Resume <noreply@other.com>', 'novaai0401@gmail.com'), 'Pocket Resume <novaai0401@gmail.com>');
+  // Bare display name → attach the user address.
+  assert.equal(resolveFromAddress('Pocket Resume', 'novaai0401@gmail.com'), 'Pocket Resume <novaai0401@gmail.com>');
+  // Bare address / empty → just the authenticated address.
+  assert.equal(resolveFromAddress('', 'novaai0401@gmail.com'), 'novaai0401@gmail.com');
+  assert.equal(resolveFromAddress('whoever@x.com', 'novaai0401@gmail.com'), 'novaai0401@gmail.com');
+  // Non-email SMTP_USER (unusual providers) → keep SMTP_FROM as-is.
+  assert.equal(resolveFromAddress('Brand <a@b.com>', 'AKIAEXAMPLEUSER'), 'Brand <a@b.com>');
+});
+
+test('a Gmail config with a spaced app password + branded From resolves correctly end-to-end', () => {
+  const m = new MailService(cfg({
+    SMTP_HOST: 'smtp.gmail.com', SMTP_PORT: '587',
+    SMTP_USER: 'novaai0401@gmail.com', SMTP_PASS: 'abcd efgh ijkl mnop',
+    SMTP_FROM: 'Pocket Resume <novaai0401@gmail.com>',
+  }));
+  const s = m.getStatus();
+  assert.equal(s.configured, true, `reason: ${s.reason}`);
+  assert.equal(s.secure, false);
+  assert.equal(s.fromAddress, 'Pocket Resume <novaai0401@gmail.com>');
+});
