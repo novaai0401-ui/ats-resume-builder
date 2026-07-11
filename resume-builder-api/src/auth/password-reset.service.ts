@@ -129,10 +129,17 @@ export class PasswordResetService {
     // immediately and always sees the real error (not a bogus success).
     const sent = await this.mailService.sendPasswordResetEmail(email, otp);
     if (!sent) {
-      throw new HttpException(
-        'Failed to send reset email. Please try again.',
-        HttpStatus.SERVICE_UNAVAILABLE,
-      );
+      // Opt-in diagnostic: with MAIL_DEBUG_ERRORS=true (ops flag, off by
+      // default) surface the REAL sanitized SMTP error in the response so
+      // the founder can read the actual Gmail rejection in the browser
+      // Network tab — no admin token, no log-diving. Turn it off after.
+      let message = 'Failed to send reset email. Please try again.';
+      if (String(process.env.MAIL_DEBUG_ERRORS || '').toLowerCase() === 'true') {
+        const status = typeof this.mailService.getStatus === 'function' ? this.mailService.getStatus() : null;
+        const detail = status?.lastSendError?.error;
+        if (detail) message = `Failed to send reset email. [SMTP] ${detail}`;
+      }
+      throw new HttpException(message, HttpStatus.SERVICE_UNAVAILABLE);
     }
 
     await this.prisma.passwordResetChallenge.deleteMany({ where: { email } });
