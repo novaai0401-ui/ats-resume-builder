@@ -104,7 +104,7 @@ export default function AdminDashboardView() {
             <Metric label="New users (7d)" value={summary.newUsers7d} />
             <Metric label="Total logins" value={summary.totalLoginEvents} />
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 16 }}>
+          <div className="admin-2col" style={{ marginTop: 16 }}>
             <div>
               <h3 style={{ marginBottom: 6 }}>Plan breakdown</h3>
               <ul className="small" style={{ paddingLeft: 18, margin: 0, lineHeight: 1.8 }}>

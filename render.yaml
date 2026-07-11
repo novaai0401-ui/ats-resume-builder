@@ -156,10 +156,16 @@ services:
       - key: RAZORPAY_WEBHOOK_SECRET
         sync: false
 
-      # ── Per-download charge (optional, off by default) ──────────────
-      # When true, /resumes/:id/pdf requires a one-time payment. The
-      # web service must set NEXT_PUBLIC_ENABLE_DOWNLOAD_CHARGE to the
-      # same value.
+      # ── Per-download charge ─────────────────────────────────────────
+      # This ONE flag drives the whole feature. When "true", downloads
+      # require a one-time payment (₹49 India / $0.99 rest) — the checkout
+      # window appears for FREE users (incl. anyone who cancelled a plan);
+      # active ₹499 plan users still download free. The web frontend reads
+      # this live from GET /billing/download-charge/config, so flipping it
+      # here (or in the Render dashboard) is enough — NO web rebuild and NO
+      # NEXT_PUBLIC mirror is needed (that var is unused by the code).
+      # PREREQUISITE: live RAZORPAY_KEY_ID/SECRET must be set, otherwise
+      # createOrder throws "Razorpay is not configured" and downloads break.
       - key: ENABLE_DOWNLOAD_CHARGE
         value: "false"
       - key: DOWNLOAD_CHARGE_INR_PAISE
@@ -282,8 +288,11 @@ services:
       - key: NEXT_PUBLIC_SESSION_IDLE_TIMEOUT_MS
         value: "1800000"
 
-      # ── Per-download charge (must mirror ENABLE_DOWNLOAD_CHARGE on API)
-      # BUILD-TIME variable — change requires a manual redeploy of the web
-      # service, not just an env-var save.
+      # ── Per-download charge (LEGACY / UNUSED) ───────────────────────
+      # The web no longer reads this build-time flag — the payment gate is
+      # driven live by the API's ENABLE_DOWNLOAD_CHARGE via
+      # GET /billing/download-charge/config. Kept only to avoid breaking an
+      # existing Render env; setting it has no effect. Enable the feature on
+      # the API flag alone.
       - key: NEXT_PUBLIC_ENABLE_DOWNLOAD_CHARGE
         value: "false"

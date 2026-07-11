@@ -463,6 +463,18 @@ body.resume-embed-body .main-shell {
   }
 }
 
+/* Suggestion-backed tag input: chips ABOVE, input (with dropdown) BELOW. */
+.tag-input {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.tag-input__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 .autocomplete-input {
   position: relative;
 }
@@ -3258,18 +3270,19 @@ h2 {
     position: fixed;
     left: 0;
     right: 0;
-    bottom: 0;
-    z-index: 60;
+    /* Sit ABOVE the global 5-hub bottom nav (~56px) instead of covering it,
+     * so editor users keep their bottom navigation. */
+    bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+    z-index: 55;
     background: var(--card);
     border-top: 1px solid var(--border);
-    padding-bottom: env(safe-area-inset-bottom, 0px);
     box-shadow: 0 -4px 16px rgba(23, 35, 50, 0.08);
   }
 
-  /* Give the editor main enough bottom space to scroll past the
-   * fixed action bar. 72px tracks the bar height + a little margin. */
+  /* Give the editor main enough bottom space to scroll past BOTH the fixed
+   * action bar (~72px) and the bottom nav (~56px). */
   main.grid {
-    padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(140px + env(safe-area-inset-bottom, 0px));
   }
 }
 
@@ -4050,4 +4063,70 @@ a:hover { color: var(--primary-700); }
   .sahaayak-workspace-grid {
     grid-template-columns: 1fr !important;
   }
+}
+
+/* ── Route navigation progress bar (NavigationProgress) ──────────────── */
+.route-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3px;
+  width: 0;
+  z-index: 9999;
+  background: linear-gradient(90deg, var(--primary, #6d28d9), var(--accent, #8b5cf6));
+  box-shadow: 0 0 8px rgba(109, 40, 217, 0.5);
+  opacity: 0;
+  pointer-events: none;
+  transition: width 0.2s ease, opacity 0.2s ease;
+}
+/* Indeterminate creep to ~90% while the next screen renders. */
+.route-progress--loading {
+  opacity: 1;
+  width: 90%;
+  transition: width 6s cubic-bezier(0.1, 0.7, 0.1, 1), opacity 0.2s ease;
+}
+.route-progress--done {
+  opacity: 1;
+  width: 100%;
+  transition: width 0.2s ease, opacity 0.4s ease 0.15s;
+}
+.route-progress--idle {
+  opacity: 0;
+  width: 0;
+  transition: opacity 0.3s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .route-progress { transition: opacity 0.15s ease; }
+  .route-progress--loading { width: 100%; }
+}
+
+/* ATS Simulate: main + 360px sidebar on desktop, stacked on mobile. */
+.ats-simulate-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 20px;
+  align-items: start;
+}
+@media (max-width: 768px) {
+  .ats-simulate-grid { grid-template-columns: 1fr; }
+}
+
+/* Before/after diff columns — side by side on desktop, stacked on phones. */
+.diff-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+@media (max-width: 640px) {
+  .diff-2col { grid-template-columns: 1fr; }
+}
+
+/* Admin two-column panels — side by side on desktop, stacked on phones. */
+.admin-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 768px) {
+  .admin-2col { grid-template-columns: 1fr; }
 }

@@ -43,6 +43,7 @@ import { addEmptyExperience, removeExperienceAt } from '@/src/lib/experience-edi
 import { addEmptyProject, EMPTY_PROJECT, ensureAtLeastOneProject, isValidProjectUrl, moveProject } from '@/src/lib/project-editor';
 import { CompanyAutocomplete } from '@/src/components/CompanyAutocomplete';
 import { AutocompleteInput } from '@/src/components/AutocompleteInput';
+import { SuggestingTagInput } from '@/src/components/SuggestingTagInput';
 import FreeAiNotice from '@/src/components/FreeAiNotice';
 import PostDownloadSubscriptionPopup from '@/src/components/PostDownloadSubscriptionPopup';
 import DownloadChargeModal from '@/src/components/DownloadChargeModal';
@@ -2904,76 +2905,37 @@ export default function ResumeEditor() {
                   </div>
                   <div className="skills-grid" style={{ marginTop: 8 }}>
                     <div className="skills-group">
-                      <label className="label">Technical skills</label>
-                      <div className="skills-entry-row">
-                        <AutocompleteInput
-                          value={technicalSkillInput}
-                          onChange={setTechnicalSkillInput}
-                          onSelect={(value) => addSkill('technical', value)}
-                          fetchSuggestions={fetchTechnicalSkillSuggestions}
-                          localSuggestions={technicalSkillSuggestionPool}
-                          placeholder="Add a technical skill"
-                          className="input"
-                          testId="technical-skills-autocomplete"
-                        />
-                        <button
-                          type="button"
-                          className="btn secondary"
-                          onClick={() => addSkill('technical', technicalSkillInput)}
-                          disabled={!technicalSkillInput.trim()}
-                        >
-                          Add
-                        </button>
-                      </div>
-                      <div className="skills-chips" data-testid="technical-skills-chips">
-                        {technicalSkills.map((skill) => (
-                          <button
-                            type="button"
-                            key={`technical-skill-${skill}`}
-                            className="skill-chip"
-                            onClick={() => removeSkill('technical', skill)}
-                            title={`Remove ${skill}`}
-                          >
-                            {skill} <span aria-hidden>×</span>
-                          </button>
-                        ))}
-                      </div>
+                      {/* Chips render ABOVE the input and the suggestion menu
+                          opens BELOW, so the dropdown can't intercept chip /
+                          Add clicks (the old add/delete bug). Keeps the
+                          autocomplete suggestions. */}
+                      <SuggestingTagInput
+                        label="Technical skills"
+                        testId="technical-skills-chips"
+                        tags={technicalSkills}
+                        onAdd={(value) => addSkill('technical', value)}
+                        onRemove={(value) => removeSkill('technical', value)}
+                        fetchSuggestions={fetchTechnicalSkillSuggestions}
+                        localSuggestions={technicalSkillSuggestionPool}
+                        placeholder="Type a technical skill…"
+                        inputValue={technicalSkillInput}
+                        onInputChange={setTechnicalSkillInput}
+                      />
                     </div>
                     <div className="skills-group">
-                      <label className="label">Soft skills</label>
-                      <div className="skills-entry-row">
-                        <AutocompleteInput
-                          value={softSkillInput}
-                          onChange={setSoftSkillInput}
-                          onSelect={(value) => addSkill('soft', value)}
-                          fetchSuggestions={fetchSoftSkillSuggestions}
-                          localSuggestions={softSkillSuggestionPool}
-                          placeholder="Add a soft skill"
-                          className="input"
-                          testId="soft-skills-autocomplete"
-                        />
-                        <button
-                          type="button"
-                          className="btn secondary"
-                          onClick={() => addSkill('soft', softSkillInput)}
-                          disabled={!softSkillInput.trim()}
-                        >
-                          Add
-                        </button>
-                      </div>
-                      <div className="skills-chips" data-testid="soft-skills-chips">
-                        {softSkills.map((skill) => (
-                          <button
-                            type="button"
-                            key={`soft-skill-${skill}`}
-                            className="skill-chip soft"
-                            onClick={() => removeSkill('soft', skill)}
-                            title={`Remove ${skill}`}
-                          >
-                            {skill} <span aria-hidden>×</span>
-                          </button>
-                        ))}
-                      </div>
+                      <SuggestingTagInput
+                        label="Soft skills"
+                        testId="soft-skills-chips"
+                        tags={softSkills}
+                        onAdd={(value) => addSkill('soft', value)}
+                        onRemove={(value) => removeSkill('soft', value)}
+                        fetchSuggestions={fetchSoftSkillSuggestions}
+                        localSuggestions={softSkillSuggestionPool}
+                        placeholder="Type a soft skill…"
+                        inputValue={softSkillInput}
+                        onInputChange={setSoftSkillInput}
+                        chipClassName="skill-chip soft"
+                      />
                     </div>
                   </div>
                   {detectedRoleLevel === 'FRESHER' && (
@@ -4661,7 +4623,7 @@ export default function ResumeEditor() {
             {techGapResult.estimatedRoleReadiness && (
               <div className="ai-critique-section">
                 <h4>Role Readiness</h4>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <div className="diff-2col">
                   <div className="small"><strong>Overall:</strong> {techGapResult.estimatedRoleReadiness.overall}</div>
                   <div className="small"><strong>Technical:</strong> {techGapResult.estimatedRoleReadiness.technical}</div>
                   <div className="small"><strong>Leadership:</strong> {techGapResult.estimatedRoleReadiness.leadership}</div>

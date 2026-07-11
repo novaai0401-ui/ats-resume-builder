@@ -97,7 +97,7 @@ export default function PatternReviewView() {
 
       {error && <TkxAlert variant="danger" style={{ marginBottom: 12 }}>{error}</TkxAlert>}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+      <div className="admin-2col">
         <TkxCard>
           <TkxCardHeader>
             <strong>Failure samples</strong>

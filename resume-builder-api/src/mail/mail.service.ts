@@ -13,6 +13,29 @@ function isGmailHost(host: string): boolean {
 }
 
 /**
+ * Map a raw SMTP send error to a SAFE, actionable hint (no secrets, no
+ * account-existence signal) so the cause can be shown to the operator
+ * without leaking credentials.
+ */
+export function categorizeSmtpError(raw: string): string {
+  const e = String(raw || '');
+  if (!e) return 'The email service is temporarily unavailable.';
+  if (/invalid login|username and password not accepted|badcredentials|5\.7\.8|auth(entication)? fail|not authenticated|535/i.test(e)) {
+    return 'The mail login was rejected — the Gmail App Password is wrong or revoked. Regenerate it (no spaces) and update SMTP_PASS.';
+  }
+  if (/\betimedout\b|\beconnrefused\b|\benotfound\b|\beconnreset\b|connection timeout|greeting never received|socket/i.test(e)) {
+    return 'Could not reach the mail server — check SMTP_HOST/SMTP_PORT and that outbound SMTP (587) is not blocked.';
+  }
+  if (/from|sender|does not (match|own)|5\.7\.1|not allowed to send/i.test(e)) {
+    return 'The sender address was rejected — SMTP_FROM must be the same mailbox as SMTP_USER.';
+  }
+  if (/self.signed|certificate|tls|ssl|wrong version number/i.test(e)) {
+    return 'A TLS error occurred — for port 587 use SMTP_SECURE=false; for 465 use SMTP_SECURE=true.';
+  }
+  return 'The mail server rejected the message.';
+}
+
+/**
  * Gmail App Passwords are 16 chars shown grouped in fours ("abcd efgh ijkl
  * mnop"); the ACTUAL secret has no spaces, but users paste it with them and
  * Gmail then rejects the login. Strip internal spaces for Gmail/Google

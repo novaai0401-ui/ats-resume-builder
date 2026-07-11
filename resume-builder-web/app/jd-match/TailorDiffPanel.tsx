@@ -289,7 +289,7 @@ export default function TailorDiffPanel({
 
         <div style={{ ...blockStyle, background: 'var(--surface-alt)' }}>
           <h3 style={sectionHeadStyle}>Label this version</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <div className="diff-2col">
             <input
               type="text"
               placeholder="Company (e.g. BigCo)"

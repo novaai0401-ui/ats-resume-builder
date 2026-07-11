@@ -78,7 +78,7 @@ export const NAV_HUBS: Hub[] = [
   },
   {
     key: 'applications',
-    label: 'Applications',
+    label: 'Jobs',
     landing: '/applications',
     routesUnder: [
       '/applications',
@@ -98,7 +98,7 @@ export const NAV_HUBS: Hub[] = [
   },
   {
     key: 'coach',
-    label: 'Coach',
+    label: 'Career',
     landing: '/coach',
     routesUnder: [
       '/coach',

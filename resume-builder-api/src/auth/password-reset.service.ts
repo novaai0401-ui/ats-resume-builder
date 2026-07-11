@@ -9,7 +9,7 @@ import {
 import * as bcrypt from 'bcryptjs';
 import { MIN_PASSWORD_LENGTH, PASSWORD_TOO_SHORT_MESSAGE } from 'resume-builder-shared';
 import { PrismaService } from '../prisma/prisma.service';
-import { MailService } from '../mail/mail.service';
+import { MailService, categorizeSmtpError } from '../mail/mail.service';
 import { AuthService } from './auth.service';
 
 const HASH_ROUNDS = 12;
@@ -129,15 +129,15 @@ export class PasswordResetService {
     // immediately and always sees the real error (not a bogus success).
     const sent = await this.mailService.sendPasswordResetEmail(email, otp);
     if (!sent) {
-      // Opt-in diagnostic: with MAIL_DEBUG_ERRORS=true (ops flag, off by
-      // default) surface the REAL sanitized SMTP error in the response so
-      // the founder can read the actual Gmail rejection in the browser
-      // Network tab — no admin token, no log-diving. Turn it off after.
-      let message = 'Failed to send reset email. Please try again.';
-      if (String(process.env.MAIL_DEBUG_ERRORS || '').toLowerCase() === 'true') {
-        const status = typeof this.mailService.getStatus === 'function' ? this.mailService.getStatus() : null;
-        const detail = status?.lastSendError?.error;
-        if (detail) message = `Failed to send reset email. [SMTP] ${detail}`;
+      // Surface a SAFE, actionable category (no secrets, no enumeration
+      // signal) so the cause is visible right in the response — the send
+      // failure is a server-side SMTP problem, identical for any address.
+      // MAIL_DEBUG_ERRORS additionally appends the raw SMTP line.
+      const status = typeof this.mailService.getStatus === 'function' ? this.mailService.getStatus() : null;
+      const raw = status?.lastSendError?.error || '';
+      let message = `Failed to send reset email. ${categorizeSmtpError(raw)}`;
+      if (raw && String(process.env.MAIL_DEBUG_ERRORS || '').toLowerCase() === 'true') {
+        message += ` [SMTP] ${raw}`;
       }
       throw new HttpException(message, HttpStatus.SERVICE_UNAVAILABLE);
     }
