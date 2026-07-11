@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { TkxBottomNav, TkxDrawer } from 'tekivex-ui';
+import { TkxBottomNav, TkxDrawer, TkxTagInput } from 'tekivex-ui';
 import useFeatureFlags from '@/src/hooks/use-feature-flags';
 import { FONT_OPTIONS, DENSITY_OPTIONS, ACCENT_PRESETS, REORDERABLE_SECTIONS, resolveSectionOrder, getAtsSectionTitle, templateSupportsPhoto, normalizePhotoUrl, isValidEmail, isValidPhone, EMAIL_INVALID_MESSAGE, PHONE_INVALID_MESSAGE } from 'resume-builder-shared';
 import { RESUME_CREATE_RATE_LIMIT_CODE, api, Resume, ResumeImportResult, UploadResumeResponse, getAccessToken, isApiRequestError } from '@/src/lib/api';
@@ -2903,77 +2903,26 @@ export default function ResumeEditor() {
                     <span className="hint">{SECTION_GUIDANCE.skills.helper}</span>
                   </div>
                   <div className="skills-grid" style={{ marginTop: 8 }}>
-                    <div className="skills-group">
-                      <label className="label">Technical skills</label>
-                      <div className="skills-entry-row">
-                        <AutocompleteInput
-                          value={technicalSkillInput}
-                          onChange={setTechnicalSkillInput}
-                          onSelect={(value) => addSkill('technical', value)}
-                          fetchSuggestions={fetchTechnicalSkillSuggestions}
-                          localSuggestions={technicalSkillSuggestionPool}
-                          placeholder="Add a technical skill"
-                          className="input"
-                          testId="technical-skills-autocomplete"
-                        />
-                        <button
-                          type="button"
-                          className="btn secondary"
-                          onClick={() => addSkill('technical', technicalSkillInput)}
-                          disabled={!technicalSkillInput.trim()}
-                        >
-                          Add
-                        </button>
-                      </div>
-                      <div className="skills-chips" data-testid="technical-skills-chips">
-                        {technicalSkills.map((skill) => (
-                          <button
-                            type="button"
-                            key={`technical-skill-${skill}`}
-                            className="skill-chip"
-                            onClick={() => removeSkill('technical', skill)}
-                            title={`Remove ${skill}`}
-                          >
-                            {skill} <span aria-hidden>×</span>
-                          </button>
-                        ))}
-                      </div>
+                    <div className="skills-group" data-testid="technical-skills-chips">
+                      {/* tekivex TkxTagInput: type + Enter to add, click × to
+                          remove. Replaces the custom autocomplete whose chip
+                          clicks were being intercepted by the suggestion menu. */}
+                      <TkxTagInput
+                        label="Technical skills"
+                        value={technicalSkills}
+                        onChange={(tags) => updateSkillCategories(tags, softSkills)}
+                        placeholder="Type a technical skill and press Enter"
+                        allowDuplicates={false}
+                      />
                     </div>
-                    <div className="skills-group">
-                      <label className="label">Soft skills</label>
-                      <div className="skills-entry-row">
-                        <AutocompleteInput
-                          value={softSkillInput}
-                          onChange={setSoftSkillInput}
-                          onSelect={(value) => addSkill('soft', value)}
-                          fetchSuggestions={fetchSoftSkillSuggestions}
-                          localSuggestions={softSkillSuggestionPool}
-                          placeholder="Add a soft skill"
-                          className="input"
-                          testId="soft-skills-autocomplete"
-                        />
-                        <button
-                          type="button"
-                          className="btn secondary"
-                          onClick={() => addSkill('soft', softSkillInput)}
-                          disabled={!softSkillInput.trim()}
-                        >
-                          Add
-                        </button>
-                      </div>
-                      <div className="skills-chips" data-testid="soft-skills-chips">
-                        {softSkills.map((skill) => (
-                          <button
-                            type="button"
-                            key={`soft-skill-${skill}`}
-                            className="skill-chip soft"
-                            onClick={() => removeSkill('soft', skill)}
-                            title={`Remove ${skill}`}
-                          >
-                            {skill} <span aria-hidden>×</span>
-                          </button>
-                        ))}
-                      </div>
+                    <div className="skills-group" data-testid="soft-skills-chips">
+                      <TkxTagInput
+                        label="Soft skills"
+                        value={softSkills}
+                        onChange={(tags) => updateSkillCategories(technicalSkills, tags)}
+                        placeholder="Type a soft skill and press Enter"
+                        allowDuplicates={false}
+                      />
                     </div>
                   </div>
                   {detectedRoleLevel === 'FRESHER' && (
