@@ -44,6 +44,7 @@ import { addEmptyProject, EMPTY_PROJECT, ensureAtLeastOneProject, isValidProject
 import { CompanyAutocomplete } from '@/src/components/CompanyAutocomplete';
 import { AutocompleteInput } from '@/src/components/AutocompleteInput';
 import { SuggestingTagInput } from '@/src/components/SuggestingTagInput';
+import { MonthYearPicker } from '@/src/components/MonthYearPicker';
 import FreeAiNotice from '@/src/components/FreeAiNotice';
 import PostDownloadSubscriptionPopup from '@/src/components/PostDownloadSubscriptionPopup';
 import DownloadChargeModal from '@/src/components/DownloadChargeModal';
@@ -3138,20 +3139,17 @@ export default function ResumeEditor() {
                                 storing it as YYYY-MM, which is what the API
                                 expects. The hint nudges users who don't realise
                                 the field is tappable. */}
-                            <input
-                              className={`input month-input${startError ? ' input-error' : ''}`}
-                              type="month"
-                              placeholder="YYYY-MM"
-                              aria-label="Start month and year"
-                              value={toMonthInputValue(exp.startDate)}
-                              onChange={(e) => {
+                            <MonthYearPicker
+                              value={exp.startDate}
+                              invalid={Boolean(startError)}
+                              placeholder="Start month & year"
+                              onChange={(ym) => {
                                 const copy = [...resume.experience];
-                                copy[expIdx] = { ...copy[expIdx], startDate: toYearMonth(e.target.value) };
+                                copy[expIdx] = { ...copy[expIdx], startDate: toYearMonth(ym) };
                                 setResume((prev) => ({ ...prev, experience: copy }));
                                 markDirty();
                               }}
                             />
-                            <p className="hint">Tap to pick month and year.</p>
                             {startError && <p className="hint error">{startError}</p>}
                           </div>
                           <div className="experience-entry__field">
@@ -3183,16 +3181,14 @@ export default function ResumeEditor() {
                                 Present
                               </label>
                             </div>
-                            <input
-                              className={`input month-input${endError ? ' input-error' : ''}`}
-                              type="month"
-                              placeholder="YYYY-MM"
-                              aria-label="End month and year"
-                              value={toMonthInputValue(exp.endDate)}
+                            <MonthYearPicker
+                              value={exp.endDate}
+                              invalid={Boolean(endError)}
                               disabled={endIsPresent}
-                              onChange={(e) => {
+                              placeholder="End month & year"
+                              onChange={(ym) => {
                                 const copy = [...resume.experience];
-                                copy[expIdx] = { ...copy[expIdx], endDate: toYearMonth(e.target.value) };
+                                copy[expIdx] = { ...copy[expIdx], endDate: toYearMonth(ym) };
                                 setResume((prev) => ({ ...prev, experience: copy }));
                                 markDirty();
                               }}
@@ -3568,36 +3564,32 @@ export default function ResumeEditor() {
                                 centered and overlaps the right border at
                                 small widths — that's the bug the project
                                 owner reported. */}
-                            <input
-                              className={`input month-input${eduErrors.startDate ? ' input-error' : ''}`}
-                              type="month"
-                              aria-label="Start month and year"
-                              value={toMonthInputValue(edu.startDate)}
-                              onChange={(e) => {
+                            <MonthYearPicker
+                              value={edu.startDate}
+                              invalid={Boolean(eduErrors.startDate)}
+                              placeholder="Start month & year"
+                              onChange={(ym) => {
                                 const copy = [...resume.education];
-                                copy[eduIdx] = { ...copy[eduIdx], startDate: toYearMonth(e.target.value) };
+                                copy[eduIdx] = { ...copy[eduIdx], startDate: toYearMonth(ym) };
                                 setResume((prev) => ({ ...prev, education: copy }));
                                 markDirty();
                               }}
                             />
-                            <p className="hint">Tap to pick month and year.</p>
                             {eduErrors.startDate && <p className="hint error">{eduErrors.startDate}</p>}
                           </div>
                           <div className="education-entry__field">
                             <label className="label">End month</label>
-                            <input
-                              className={`input month-input${eduErrors.endDate ? ' input-error' : ''}`}
-                              type="month"
-                              aria-label="End month and year"
-                              value={toMonthInputValue(edu.endDate)}
-                              onChange={(e) => {
+                            <MonthYearPicker
+                              value={edu.endDate}
+                              invalid={Boolean(eduErrors.endDate)}
+                              placeholder="End month & year"
+                              onChange={(ym) => {
                                 const copy = [...resume.education];
-                                copy[eduIdx] = { ...copy[eduIdx], endDate: toYearMonth(e.target.value) };
+                                copy[eduIdx] = { ...copy[eduIdx], endDate: toYearMonth(ym) };
                                 setResume((prev) => ({ ...prev, education: copy }));
                                 markDirty();
                               }}
                             />
-                            <p className="hint">Tap to pick month and year.</p>
                             {eduErrors.endDate && <p className="hint error">{eduErrors.endDate}</p>}
                           </div>
                           <div className="education-entry__field">
@@ -3741,28 +3733,22 @@ export default function ResumeEditor() {
                         markDirty();
                       }} />
                       <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                        <input
-                          className="input month-input"
-                          type="month"
-                          aria-label="Project start month and year"
-                          placeholder="Start (YYYY-MM)"
-                          value={toMonthInputValue(proj.startDate || '')}
-                          onChange={(e) => {
+                        <MonthYearPicker
+                          value={proj.startDate || ''}
+                          placeholder="Start month & year"
+                          onChange={(ym) => {
                             const copy = [...resume.projects];
-                            copy[projIdx] = { ...copy[projIdx], startDate: toYearMonth(e.target.value) };
+                            copy[projIdx] = { ...copy[projIdx], startDate: toYearMonth(ym) };
                             setResume((prev) => ({ ...prev, projects: copy }));
                             markDirty();
                           }}
                         />
-                        <input
-                          className="input month-input"
-                          type="month"
-                          aria-label="Project end month and year"
-                          placeholder="End (YYYY-MM)"
-                          value={toMonthInputValue(proj.endDate || '')}
-                          onChange={(e) => {
+                        <MonthYearPicker
+                          value={proj.endDate || ''}
+                          placeholder="End month & year"
+                          onChange={(ym) => {
                             const copy = [...resume.projects];
-                            copy[projIdx] = { ...copy[projIdx], endDate: toYearMonth(e.target.value) };
+                            copy[projIdx] = { ...copy[projIdx], endDate: toYearMonth(ym) };
                             setResume((prev) => ({ ...prev, projects: copy }));
                             markDirty();
                           }}
@@ -3865,14 +3851,12 @@ export default function ResumeEditor() {
                         </div>
                         <div className="col-6">
                           <label className="label">Date</label>
-                          <input
-                            className="input month-input"
-                            type="month"
-                            aria-label="Certification date"
-                            value={toMonthInputValue(cert.date || '')}
-                            onChange={(e) => {
+                          <MonthYearPicker
+                            value={cert.date || ''}
+                            placeholder="Month & year"
+                            onChange={(ym) => {
                               const copy = [...resume.certifications];
-                              copy[certIdx] = { ...copy[certIdx], date: toYearMonth(e.target.value) };
+                              copy[certIdx] = { ...copy[certIdx], date: toYearMonth(ym) };
                               setResume((prev) => ({ ...prev, certifications: copy }));
                               markDirty();
                             }}
@@ -3960,14 +3944,12 @@ export default function ResumeEditor() {
                   </div>
                   <div className="col-6">
                     <label className="label">Valid till</label>
-                    <input
-                      className="input month-input"
-                      type="month"
-                      aria-label="License valid till"
-                      value={toMonthInputValue(lic.validTill || '')}
-                      onChange={(e) => {
+                    <MonthYearPicker
+                      value={lic.validTill || ''}
+                      placeholder="Valid till (month & year)"
+                      onChange={(ym) => {
                         const copy = [...(resume.licenses || [])];
-                        copy[licIdx] = { ...copy[licIdx], validTill: toYearMonth(e.target.value) };
+                        copy[licIdx] = { ...copy[licIdx], validTill: toYearMonth(ym) };
                         setResume((prev) => ({ ...prev, licenses: copy }));
                         markDirty();
                       }}
