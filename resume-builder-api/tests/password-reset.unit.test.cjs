@@ -300,7 +300,8 @@ describe('PasswordResetService.confirmReset', () => {
     const svc = new PasswordResetService(prisma, mail, makeAuthMock());
     delete process.env.MAIL_DEBUG_ERRORS;
     await assert.rejects(() => svc.requestReset('user@example.com'), (e) => {
-      assert.match(String(e.message), /Please try again/);
+      // A safe category is always shown; the raw SMTP string is NOT leaked.
+      assert.match(String(e.message), /Failed to send reset email\./);
       assert.doesNotMatch(String(e.message), /secret smtp detail/);
       return true;
     });
