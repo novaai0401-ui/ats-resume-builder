@@ -4168,3 +4168,13 @@ a:hover { color: var(--primary-700); }
 }
 .upgrade-cta strong { font-size: 15px; }
 .upgrade-cta__btn { white-space: nowrap; }
+
+/* Month + Year picker: two dropdowns side by side (stack on very small). */
+.month-year-picker {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.month-year-picker__select {
+  min-width: 0;
+}

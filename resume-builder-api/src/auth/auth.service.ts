@@ -233,8 +233,12 @@ export class AuthService {
       );
     }
     if (user.lockedUntil && user.lockedUntil.getTime() > Date.now()) {
+      // Relative duration avoids GMT/timezone confusion — clearer for the
+      // user than an absolute UTC timestamp in a foreign timezone.
+      const minutesLeft = Math.max(1, Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60000));
+      const wait = minutesLeft === 1 ? 'about a minute' : `about ${minutesLeft} minutes`;
       throw new UnauthorizedException(
-        `Account temporarily locked due to repeated failed attempts. Try again after ${user.lockedUntil.toUTCString()}.`,
+        `Account temporarily locked due to repeated failed attempts. Please try again in ${wait}, or reset your password.`,
       );
     }
     const valid = await bcrypt.compare(password, user.passwordHash);
