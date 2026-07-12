@@ -59,7 +59,7 @@ function createMockApi() {
         calls.loginWithPassword.push({ email, password });
         return { user: { id: '1', email, fullName: 'Test' }, accessToken: 'a', refreshToken: 'r' };
       },
-      register: async (payload: { fullName: string; email: string; mobile: string }) => {
+      register: async (payload: { fullName: string; email: string }) => {
         calls.register.push(payload);
         return { user: { id: '1', email: payload.email, fullName: payload.fullName }, accessToken: 'a', refreshToken: 'r' };
       },
@@ -110,16 +110,14 @@ test('register form is accessible via defaultMode', async () => {
 
   fireEvent.change(view.getByLabelText(/full name/i), { target: { value: 'John Doe' } });
   fireEvent.change(view.getByLabelText(/^email$/i), { target: { value: 'john@example.com' } });
-  fireEvent.change(view.getByLabelText(/mobile/i), { target: { value: '+919876543210' } });
   fireEvent.change(view.getByLabelText(/password/i), { target: { value: 'securepass1' } });
   fireEvent.click(view.getByRole('button', { name: /create account/i }));
 
   await waitFor(() => {
     assert.equal(calls.register.length, 1);
-    const payload = calls.register[0] as { fullName: string; email: string; mobile: string };
+    const payload = calls.register[0] as { fullName: string; email: string };
     assert.equal(payload.fullName, 'John Doe');
     assert.equal(payload.email, 'john@example.com');
-    assert.equal(payload.mobile, '+919876543210');
     assert.equal(routerHits[0], '/dashboard');
   });
 });

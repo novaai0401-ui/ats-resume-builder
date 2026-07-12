@@ -199,3 +199,50 @@ test('maskedKey handles null + short keys safely', () => {
 test('BYOK_PROVIDERS lists exactly the three supported providers', () => {
   assert.deepEqual([...BYOK_PROVIDERS].sort(), ['anthropic', 'groq', 'openai']);
 });
+
+// --------------------------------------------------------------------
+// Provider-specific model (R-084): Groq is key-only; OpenAI/Anthropic
+// carry an optional model that rides along as the X-User-AI-Model header.
+// --------------------------------------------------------------------
+
+const OPENAI_KEY = 'sk-abcdef1234567890abcdef1234567890abcdef12';
+
+test('saveByokKey ignores a model for Groq (key-only)', () => {
+  installLocalStorageShim();
+  const rec = saveByokKey('groq', 'gsk_abcdef1234567890abcdef1234567890abcdef12', 'llama-x');
+  assert.equal(rec.model, undefined);
+  uninstall();
+});
+
+test('saveByokKey stores a model for OpenAI', () => {
+  installLocalStorageShim();
+  const rec = saveByokKey('openai', OPENAI_KEY, 'gpt-4o');
+  assert.equal(rec.model, 'gpt-4o');
+  assert.equal(loadByokKey()?.model, 'gpt-4o');
+  uninstall();
+});
+
+test('saveByokKey drops a blank model to undefined', () => {
+  installLocalStorageShim();
+  const rec = saveByokKey('openai', OPENAI_KEY, '   ');
+  assert.equal(rec.model, undefined);
+  uninstall();
+});
+
+test('getByokHeader sends X-User-AI-Model only for a provider that has one', () => {
+  installLocalStorageShim();
+  saveByokKey('openai', OPENAI_KEY, 'gpt-4o');
+  const h = getByokHeader();
+  assert.equal(h?.['X-User-AI-Provider'], 'openai');
+  assert.equal(h?.['X-User-AI-Model'], 'gpt-4o');
+  uninstall();
+});
+
+test('getByokHeader omits X-User-AI-Model for Groq', () => {
+  installLocalStorageShim();
+  saveByokKey('groq', 'gsk_abcdef1234567890abcdef1234567890abcdef12');
+  const h = getByokHeader();
+  assert.equal(h?.['X-User-AI-Provider'], 'groq');
+  assert.equal('X-User-AI-Model' in (h || {}), false);
+  uninstall();
+});

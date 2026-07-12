@@ -81,15 +81,21 @@ test('achievements render everywhere: first-class OR via the shared fallback', (
   const { readFileSync } = require('node:fs');
   const path = require('node:path');
   const dir = path.resolve(__dirname, '..', 'components', 'templates');
+  // Map the registry's componentKey (not the template id) to its source file.
+  // Templates that reuse a proven component on-screen (e.g. medical-coder →
+  // HealthcareCV, ai-ml-engineer → TechnicalCompact) share the same key, so
+  // every catalog entry — including profession-tuned ones — is covered.
+  const COMPONENT_FILE: Record<string, string> = {
+    classic: 'ClassicATS', modern: 'ModernProfessional', technical: 'TechnicalCompact',
+    minimal: 'MinimalClean', consultant: 'ConsultantClean', academic: 'AcademicCV',
+    healthcare: 'HealthcareCV', creative: 'CreativePortfolio',
+    'sidebar-bold': 'SidebarBold', 'accent-header': 'AccentHeader',
+  };
   for (const t of TEMPLATE_CATALOG) {
     const entry = templateRegistry[t.id as TemplateId];
     assert.ok(entry, `registry missing ${t.id}`);
-    const file = {
-      classic: 'ClassicATS', modern: 'ModernProfessional', executive: 'ExecutiveImpact',
-      technical: 'TechnicalCompact', minimal: 'MinimalClean', consultant: 'ConsultantClean',
-      academic: 'AcademicCV', healthcare: 'HealthcareCV', creative: 'CreativePortfolio',
-      'sidebar-bold': 'SidebarBold', 'accent-header': 'AccentHeader',
-    }[t.id];
+    const file = COMPONENT_FILE[t.componentKey];
+    assert.ok(file, `no component-file mapping for componentKey "${t.componentKey}" (template ${t.id})`);
     const src = readFileSync(path.join(dir, `${file}.tsx`), 'utf8');
     // R-045 Phase 2: the ATS family now renders achievements (and every other
     // body section) through the shared OrderedAtsSections renderer; the visual

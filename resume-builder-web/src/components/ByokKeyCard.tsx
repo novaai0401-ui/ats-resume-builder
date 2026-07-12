@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import {
   BYOK_PROVIDERS,
+  DEFAULT_MODELS,
+  PROVIDERS_NEEDING_MODEL,
   clearByokKey,
   loadByokKey,
   maskedKey,
@@ -26,6 +28,8 @@ export default function ByokKeyCard() {
   const [record, setRecord] = useState<ByokKeyRecord | null>(null);
   const [provider, setProvider] = useState<ByokProvider>('groq');
   const [input, setInput] = useState('');
+  const [model, setModel] = useState('');
+  const needsModel = PROVIDERS_NEEDING_MODEL.has(provider);
   const [shown, setShown] = useState(false);
   const [error, setError] = useState('');
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
@@ -43,7 +47,9 @@ export default function ByokKeyCard() {
     }
     setStatus('saving');
     try {
-      const saved = saveByokKey(provider, input);
+      // Groq is key-only; OpenAI/Anthropic accept an optional model (blank →
+      // the provider's default).
+      const saved = saveByokKey(provider, input, needsModel ? model : undefined);
       setRecord(saved);
       setInput('');
       setStatus('saved');
@@ -85,7 +91,9 @@ export default function ByokKeyCard() {
               {record.provider === 'groq' ? 'Groq' : record.provider === 'openai' ? 'OpenAI' : 'Anthropic'} key active
             </p>
             <p className="small" style={{ margin: '2px 0 0', color: 'var(--muted)' }}>
-              {maskedKey(record)} · added {new Date(record.addedAt).toLocaleDateString()}
+              {maskedKey(record)}
+              {record.provider !== 'groq' ? ` · model ${record.model || DEFAULT_MODELS[record.provider]}` : ''}
+              {' '}· added {new Date(record.addedAt).toLocaleDateString()}
             </p>
           </div>
           <button type="button" className="btn secondary" onClick={onRemove}>
@@ -100,7 +108,11 @@ export default function ByokKeyCard() {
           id="byok-provider"
           className="input"
           value={provider}
-          onChange={(e) => setProvider(e.target.value as ByokProvider)}
+          onChange={(e) => {
+            setProvider(e.target.value as ByokProvider);
+            setModel('');
+            setError('');
+          }}
           style={{ maxWidth: 280, marginBottom: 12 }}
         >
           {BYOK_PROVIDERS.map((p) => (
@@ -145,6 +157,28 @@ export default function ByokKeyCard() {
             {status === 'saving' ? 'Saving…' : status === 'saved' ? 'Saved ✓' : record ? 'Replace key' : 'Save key'}
           </button>
         </div>
+
+        {needsModel ? (
+          <div style={{ marginTop: 12 }}>
+            <label className="label" htmlFor="byok-model">Model <span style={{ color: 'var(--muted)', fontWeight: 400 }}>(optional)</span></label>
+            <input
+              id="byok-model"
+              className="input"
+              type="text"
+              value={model}
+              autoComplete="off"
+              spellCheck={false}
+              onChange={(e) => setModel(e.target.value)}
+              placeholder={DEFAULT_MODELS[provider]}
+              style={{ maxWidth: 320 }}
+            />
+            <p className="small" style={{ margin: '4px 0 0', color: 'var(--muted)' }}>
+              Leave blank to use <code>{DEFAULT_MODELS[provider]}</code>. Set this to any model your
+              key can access (e.g. <code>gpt-4o</code>).
+            </p>
+          </div>
+        ) : null}
+
         {error ? (
           <p className="small" role="alert" style={{ marginTop: 8, color: 'var(--danger)' }}>
             {error}

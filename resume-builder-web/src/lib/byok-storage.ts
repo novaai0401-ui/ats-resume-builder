@@ -23,9 +23,25 @@ export type ByokProvider = (typeof BYOK_PROVIDERS)[number];
 export interface ByokKeyRecord {
   provider: ByokProvider;
   apiKey: string;
+  /**
+   * Optional model name. Groq runs a fixed free model so this is ignored
+   * for it; OpenAI/Anthropic bill per model, so those users can pin one
+   * (e.g. 'gpt-4o-mini'). Empty → the server's per-provider default.
+   */
+  model?: string;
   /** ISO timestamp of when the user added this key. */
   addedAt: string;
 }
+
+/** Providers that need a model name alongside the key (Groq is key-only). */
+export const PROVIDERS_NEEDING_MODEL: ReadonlySet<ByokProvider> = new Set(['openai', 'anthropic']);
+
+/** Suggested default model per provider — shown as the input placeholder. */
+export const DEFAULT_MODELS: Record<ByokProvider, string> = {
+  groq: 'llama-3.3-70b-versatile',
+  openai: 'gpt-4o-mini',
+  anthropic: 'claude-3-5-haiku-latest',
+};
 
 const STORAGE_KEY = 'rb_user_ai_key';
 
@@ -80,6 +96,7 @@ export function loadByokKey(): ByokKeyRecord | null {
     return {
       provider: parsed.provider as ByokProvider,
       apiKey: parsed.apiKey,
+      model: typeof parsed.model === 'string' && parsed.model.trim() ? parsed.model.trim() : undefined,
       addedAt: parsed.addedAt || new Date().toISOString(),
     };
   } catch {
@@ -87,12 +104,16 @@ export function loadByokKey(): ByokKeyRecord | null {
   }
 }
 
-export function saveByokKey(provider: ByokProvider, apiKey: string): ByokKeyRecord {
+export function saveByokKey(provider: ByokProvider, apiKey: string, model?: string): ByokKeyRecord {
   const check = validateKeyShape(provider, apiKey);
   if (!check.ok) throw new Error(check.reason);
+  const trimmedModel = String(model || '').trim();
+  // Groq is key-only; drop any model to avoid sending a stray header for it.
+  const modelToStore = provider !== 'groq' && trimmedModel ? trimmedModel : undefined;
   const record: ByokKeyRecord = {
     provider,
     apiKey: String(apiKey).trim(),
+    model: modelToStore,
     addedAt: new Date().toISOString(),
   };
   if (typeof window !== 'undefined') {
@@ -125,10 +146,15 @@ export function isPaidPlan(plan: string | null | undefined): boolean {
 export function getByokHeader(): Record<string, string> | null {
   const rec = loadByokKey();
   if (!rec) return null;
-  return {
+  const headers: Record<string, string> = {
     'X-User-AI-Key': rec.apiKey,
     'X-User-AI-Provider': rec.provider,
   };
+  // Only OpenAI/Anthropic carry a model; Groq is key-only.
+  if (rec.model && PROVIDERS_NEEDING_MODEL.has(rec.provider)) {
+    headers['X-User-AI-Model'] = rec.model;
+  }
+  return headers;
 }
 
 /** Masked preview for the UI — never shows the whole key. */

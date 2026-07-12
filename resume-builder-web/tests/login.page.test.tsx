@@ -107,10 +107,12 @@ test('login with password calls API and navigates on success', async () => {
 test('register form is accessible via defaultMode prop', async () => {
   const { render, fireEvent, waitFor } = await getTestingLib();
   const { LoginPageView } = await getLoginPageModule();
-  const registerCalls: Array<{ fullName: string; email: string; mobile: string }> = [];
+  // Registration is email + password only (mobile was removed in the
+  // email-required auth refactor); the form no longer collects a mobile.
+  const registerCalls: Array<{ fullName: string; email: string }> = [];
   const apiClient = {
     ...createMockApi(),
-    register: async (payload: { fullName: string; email: string; mobile: string }) => {
+    register: async (payload: { fullName: string; email: string }) => {
       registerCalls.push(payload);
       return { user: { id: '1', email: 'a', fullName: 'b' }, accessToken: 'a', refreshToken: 'r' };
     },
@@ -126,7 +128,6 @@ test('register form is accessible via defaultMode prop', async () => {
   const view = render(React.createElement(LoginPageView, { apiClient: apiClient as any, routerOverride: routerStub, defaultMode: 'register' }));
   fireEvent.change(view.getByLabelText(/full name/i), { target: { value: 'John Doe' } });
   fireEvent.change(view.getByLabelText(/^email$/i), { target: { value: 'john@example.com' } });
-  fireEvent.change(view.getByLabelText(/mobile/i), { target: { value: '+919876543210' } });
   fireEvent.change(view.getByLabelText(/password/i), { target: { value: 'secure123!' } });
   fireEvent.click(view.getByRole('button', { name: /create account/i }));
 
@@ -134,7 +135,6 @@ test('register form is accessible via defaultMode prop', async () => {
     assert.equal(registerCalls.length, 1);
     assert.equal(registerCalls[0].fullName, 'John Doe');
     assert.equal(registerCalls[0].email, 'john@example.com');
-    assert.equal(registerCalls[0].mobile, '+919876543210');
     assert.equal(routerHits[0], '/dashboard');
   });
 });

@@ -1612,7 +1612,15 @@ export default function ResumeEditor() {
       });
       setAiCritiqueResult(result);
       if (result.provider === 'fallback') {
-        showSnackbar('success', 'Showing basic suggestions. Add your own AI key in Settings (free) for tailored, higher-quality critique.');
+        // Don't nag users who already have AI access (BYOK key or paid plan) to
+        // add a key — for them a fallback means our AI is momentarily down.
+        const entitled = aiAccessMode() !== 'free';
+        showSnackbar(
+          'success',
+          entitled
+            ? 'Showing basic suggestions — full AI is momentarily unavailable. Please try again in a moment.'
+            : 'Showing basic suggestions. Add your own AI key in Settings (free) for tailored, higher-quality critique.',
+        );
       } else {
         showSnackbar('success', 'AI critique ready.');
       }
@@ -3142,7 +3150,6 @@ export default function ResumeEditor() {
                             <MonthYearPicker
                               value={exp.startDate}
                               invalid={Boolean(startError)}
-                              placeholder="Start month & year"
                               onChange={(ym) => {
                                 const copy = [...resume.experience];
                                 copy[expIdx] = { ...copy[expIdx], startDate: toYearMonth(ym) };
@@ -3185,7 +3192,6 @@ export default function ResumeEditor() {
                               value={exp.endDate}
                               invalid={Boolean(endError)}
                               disabled={endIsPresent}
-                              placeholder="End month & year"
                               onChange={(ym) => {
                                 const copy = [...resume.experience];
                                 copy[expIdx] = { ...copy[expIdx], endDate: toYearMonth(ym) };
@@ -3567,7 +3573,6 @@ export default function ResumeEditor() {
                             <MonthYearPicker
                               value={edu.startDate}
                               invalid={Boolean(eduErrors.startDate)}
-                              placeholder="Start month & year"
                               onChange={(ym) => {
                                 const copy = [...resume.education];
                                 copy[eduIdx] = { ...copy[eduIdx], startDate: toYearMonth(ym) };
@@ -3582,7 +3587,6 @@ export default function ResumeEditor() {
                             <MonthYearPicker
                               value={edu.endDate}
                               invalid={Boolean(eduErrors.endDate)}
-                              placeholder="End month & year"
                               onChange={(ym) => {
                                 const copy = [...resume.education];
                                 copy[eduIdx] = { ...copy[eduIdx], endDate: toYearMonth(ym) };
@@ -3735,7 +3739,6 @@ export default function ResumeEditor() {
                       <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                         <MonthYearPicker
                           value={proj.startDate || ''}
-                          placeholder="Start month & year"
                           onChange={(ym) => {
                             const copy = [...resume.projects];
                             copy[projIdx] = { ...copy[projIdx], startDate: toYearMonth(ym) };
@@ -3745,7 +3748,6 @@ export default function ResumeEditor() {
                         />
                         <MonthYearPicker
                           value={proj.endDate || ''}
-                          placeholder="End month & year"
                           onChange={(ym) => {
                             const copy = [...resume.projects];
                             copy[projIdx] = { ...copy[projIdx], endDate: toYearMonth(ym) };
@@ -3853,7 +3855,6 @@ export default function ResumeEditor() {
                           <label className="label">Date</label>
                           <MonthYearPicker
                             value={cert.date || ''}
-                            placeholder="Month & year"
                             onChange={(ym) => {
                               const copy = [...resume.certifications];
                               copy[certIdx] = { ...copy[certIdx], date: toYearMonth(ym) };
@@ -3946,7 +3947,6 @@ export default function ResumeEditor() {
                     <label className="label">Valid till</label>
                     <MonthYearPicker
                       value={lic.validTill || ''}
-                      placeholder="Valid till (month & year)"
                       onChange={(ym) => {
                         const copy = [...(resume.licenses || [])];
                         copy[licIdx] = { ...copy[licIdx], validTill: toYearMonth(ym) };

@@ -1269,6 +1269,44 @@ and every external call still feeds the Outcome Graph.
 
 ---
 
+### R-084 · BYOK end-to-end fix, provider model option, subscriber token cap
+
+- Status: **DONE** (this commit)
+- Depends-on: R-071 (monetization/BYOK), R-011 (per-plan AI limits)
+- Problem (founder, pre-prod): a free user who added their own Groq key
+  got an error on AI Critique and was still nagged to "add a key or
+  subscribe" on every AI surface; the same nag persisted after
+  subscribing to ₹499.
+- Acceptance
+  - [x] BYOK requests actually reach the API: `X-User-AI-Key`,
+    `X-User-AI-Provider`, `X-User-AI-Model` added to CORS
+    `allowedHeaders` (`main.ts`). Previously the browser preflight
+    blocked every BYOK AI call → surfaced as "AI Critique error". This
+    was the root cause and is BYOK-specific (only BYOK attaches the
+    custom headers).
+  - [x] BYOK is exempt from the free daily-critique cap (`ai.service.ts`
+    `aiCritique`): a user on their own key no longer hits a spurious
+    403 after N/day.
+  - [x] The "add your own AI key / get the ₹499 plan" upsell copy in the
+    rule-based fallback critique (`buildFallbackCritique`) and the editor
+    snackbar is gated on entitlement: BYOK/paid users get a neutral
+    "AI momentarily unavailable, retry" message instead of a nag for
+    something they already have (C-003).
+  - [x] BYOK headers added to the AI api calls that were missing them
+    (`parseJd`, `critique`, `skillGap`, `tailorApply`) so every AI path
+    honours the user's key.
+  - [x] Provider-specific BYOK options: Groq is key-only; OpenAI and
+    Anthropic accept an optional model name (`X-User-AI-Model`, default
+    per provider) surfaced as a field in `ByokKeyCard`. Threaded through
+    `getByokHeader` → `byokFromReq` → `buildByokProvider(provider,key,model)`.
+    Pinned by `byok-storage.test.ts` (+5) and `byok-factory.unit.test.cjs` (+2).
+  - [x] Subscriber (₹499 `PRO`) AI token allowance sized for Groq
+    profitability: `aiTokensLimit` 120k → 750k accounted input tokens
+    (~₹100 API cost at the cap, ~20% of ₹499; ~1,000 AI actions/mo).
+    See `plan-limits.ts` `getPlanConfig`.
+
+---
+
 ## §6. Cross-cutting constants
 
 These are constraints that every requirement must respect. Violations
@@ -1335,6 +1373,8 @@ do not break it.
 
 | Date | Decision | Reason | Affected IDs |
 |---|---|---|---|
+| 2026-07-12 | Web CI stabilization (R-084): fixed three stale/pre-existing web-test failures blocking the BYOK PR — (1) `template-registry.test.ts` keyed a hardcoded id→component map that never covered the profession templates (medical-coder/ai-ml-engineer/product-manager) so it read `undefined.tsx`; now keys off the registry `componentKey`; (2) `login.page`/`email-otp-login.page` register tests still filled a `/mobile/i` field the email-only register form dropped — removed. Also QUARANTINED the heavy `dashboard-auth-flow.test.tsx` (13-template live-render jsdom file) in `scripts/test.mjs`: it now runs as a separate ADVISORY step whose result is non-blocking (it SIGKILLs on React-18 teardown locally and races its async-render assertions in CI). Every other file stays strictly enforced; the accepted tradeoff is that a regression inside that one file alone won't fail CI until these render tests move to Vitest. | Founder wanted PR #103 mergeable/green; the flake was pre-existing and unreproducible locally (container too slow to finish the render before timeout). Decision approved by founder. | R-084 |
+| 2026-07-12 | BYOK end-to-end fix + provider model + subscriber token cap (R-084): root-caused the "AI Critique error on own Groq key" to the CORS preflight blocking the BYOK headers — added `X-User-AI-Key`/`X-User-AI-Provider`/`X-User-AI-Model` to `allowedHeaders`. Also: exempted BYOK from the free daily-critique cap; gated the "add key/subscribe" fallback copy (server + editor snackbar) on entitlement so BYOK/paid users aren't nagged; added missing BYOK headers to `parseJd`/`critique`/`skillGap`/`tailorApply`; added an optional model field for OpenAI/Anthropic (Groq stays key-only); sized the ₹499 PRO `aiTokensLimit` to 750k accounted tokens (~₹100 Groq cost at the cap, ~20% of ₹499). | Founder pre-prod: own-key AI Critique errored and every AI page kept asking to add a key or subscribe even after adding a key / subscribing — "our failure". | R-084, R-071, R-011, C-003, C-004 |
 | 2026-07-09 | Gmail send hardening (R-079): eliminated the two most common Gmail send-rejection causes — a pasted App Password with display spaces ("abcd efgh…") is now stripped for Gmail hosts, and the From address is forced to the authenticated mailbox (keeping any display name) so a mismatched SMTP_FROM can't get the send silently rejected; added requireTLS on STARTTLS ports. Real send error remains visible via lastSendError / logs. | Founder: forgot-password consistently "Failed to send" with correct-looking SMTP. | R-079 |
 | 2026-07-09 | Password-reset ordering fix (R-079): the reset challenge (+60s cooldown) was created BEFORE the email send, so a failed first send left a challenge behind and the retry returned a fake "a code was just sent" while no email ever went out. Now SMTP is checked and the email is sent FIRST; the challenge is persisted only after a successful delivery — failures create nothing, so the user always sees the real error and can retry. | Founder: forgot-password flashed "not configured" then "code sent, wait 60s" but no mail arrived. | R-079 |
 | 2026-07-09 | Mail diagnostics (R-079): email flows failed opaquely with "Email delivery is not configured" because SMTP env isn't set on the server; added precise boot-time reason, admin GET /admin/mail/status (config + live SMTP handshake + hint) and POST /admin/mail/test, and tightened placeholder detection so real Gmail creds aren't false-flagged. Enabling mail remains an ops step (set SMTP_* on Render; Gmail App Password). | Founder: mail not working, "not configured" with no way to see why. | R-079 |

@@ -77,8 +77,9 @@ export default function Page() {
           <h2>Built for the people most resume tools ignore</h2>
           <p className="small">
             Students applying to their first job. Workers re-entering after a break.
-            Professionals who can't afford ₹999/month for a resume site. Pocket Resume is free
-            forever to build and edit — you only pay a small one-time fee per download (₹49).
+            Professionals who want a clean resume without an expensive subscription. Pocket
+            Resume is free forever to build and edit — pay just ₹49 per download, or get one
+            simple ₹499/month plan (the same for everyone) for unlimited AI and free downloads.
           </p>
         </article>
         <article className="card col-5">
@@ -116,7 +117,9 @@ export default function Page() {
             <li>Resume preview and print (free, watermarked)</li>
           </ul>
           <p className="small" style={{ marginTop: 8 }}>
-            <strong>One-time charge ₹49</strong> for each clean PDF or Word export. No subscription, no upsells.
+            <strong>Pay ₹49 per download</strong> for each clean PDF or Word export — no plan needed.
+            Or get <strong>Pocket Resume Plus at ₹499/month</strong> (one plan for everyone, cancel anytime):
+            unlimited AI everywhere plus free, unlimited downloads.
           </p>
         </article>
       </section>

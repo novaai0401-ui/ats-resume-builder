@@ -24,14 +24,19 @@ import { MockInterviewService, type MockInterviewInput } from './mock-interview.
 /** Request shape with optional BYOK headers (X-User-AI-Provider / X-User-AI-Key). */
 type AuthedAiReq = { user: { userId: string }; headers?: Record<string, string | string[] | undefined> };
 
-/** Pull the user's bring-your-own-key provider + key from request headers. */
-function byokFromReq(req: AuthedAiReq): { provider?: string | null; key?: string | null } {
+/** Pull the user's bring-your-own-key provider + key (+ optional model) from request headers. */
+function byokFromReq(req: AuthedAiReq): { provider?: string | null; key?: string | null; model?: string | null } {
   const headers = req.headers || {};
   const pick = (name: string) => {
     const v = headers[name] ?? headers[name.toLowerCase()];
     return Array.isArray(v) ? v[0] : v;
   };
-  return { provider: pick('x-user-ai-provider'), key: pick('x-user-ai-key') };
+  return {
+    provider: pick('x-user-ai-provider'),
+    key: pick('x-user-ai-key'),
+    // OpenAI/Anthropic BYOK users can pin a specific model; Groq ignores it.
+    model: pick('x-user-ai-model'),
+  };
 }
 
 @Controller('ai')
