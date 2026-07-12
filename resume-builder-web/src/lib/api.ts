@@ -956,18 +956,21 @@ export const api = {
   parseJd: (text: string) =>
     request<JdParseResult>(`/ai/parse-jd`, {
       method: 'POST',
+      headers: { ...(getByokHeader() || {}) },
       body: JSON.stringify({ text }),
     }),
 
   critique: (resumeText: string, jdText?: string) =>
     request<ResumeCritiqueResult>(`/ai/critique`, {
       method: 'POST',
+      headers: { ...(getByokHeader() || {}) },
       body: JSON.stringify({ resumeText, jdText }),
     }),
 
   skillGap: (resumeText: string, jdText: string) =>
     request<SkillGapResult>(`/ai/skill-gap`, {
       method: 'POST',
+      headers: { ...(getByokHeader() || {}) },
       body: JSON.stringify({ resumeText, jdText }),
     }),
 
@@ -1042,6 +1045,7 @@ export const api = {
       appliedToLive: boolean;
     }>(`/ai/tailor/${encodeURIComponent(resumeId)}/apply`, {
       method: 'POST',
+      headers: { ...(getByokHeader() || {}) },
       body: JSON.stringify(input),
     }),
 

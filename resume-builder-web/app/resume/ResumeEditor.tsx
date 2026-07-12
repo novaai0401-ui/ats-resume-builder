@@ -1612,7 +1612,15 @@ export default function ResumeEditor() {
       });
       setAiCritiqueResult(result);
       if (result.provider === 'fallback') {
-        showSnackbar('success', 'Showing basic suggestions. Add your own AI key in Settings (free) for tailored, higher-quality critique.');
+        // Don't nag users who already have AI access (BYOK key or paid plan) to
+        // add a key — for them a fallback means our AI is momentarily down.
+        const entitled = aiAccessMode() !== 'free';
+        showSnackbar(
+          'success',
+          entitled
+            ? 'Showing basic suggestions — full AI is momentarily unavailable. Please try again in a moment.'
+            : 'Showing basic suggestions. Add your own AI key in Settings (free) for tailored, higher-quality critique.',
+        );
       } else {
         showSnackbar('success', 'AI critique ready.');
       }

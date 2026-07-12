@@ -126,15 +126,13 @@ export class AiService {
    * AI-powered ATS critique using configured provider (GROQ default).
    * Falls back to rule-based fallback if the provider fails or is unconfigured.
    */
-  async aiCritique(userId: string, input: AiCritiqueInput, byok?: { provider?: string | null; key?: string | null }): Promise<AiCritiqueResponse> {
+  async aiCritique(userId: string, input: AiCritiqueInput, byok?: { provider?: string | null; key?: string | null; model?: string | null }): Promise<AiCritiqueResponse> {
     rateLimitOrThrow({
       key: `ai:ai-critique:${userId}`,
       limit: 5,
       windowMs: 60_000,
       message: 'Rate limit exceeded for AI critique. Try again shortly.',
     });
-
-    await this.enforceDailyCritiqueLimit(userId);
 
     const plan: 'free' | 'premium' = 'free';
     // Resume-upgrade AI: the user's own key (free) if present, otherwise OUR AI
@@ -146,22 +144,31 @@ export class AiService {
     //  • free/key-less/non-subscriber → OUR AI only if they explicitly opt
     //    in (aiOptIn); that run flags the resume so the next download adds
     //    the ₹20 AI fee. Without opt-in they get the rule-based critique.
-    const byokProvider = buildByokProvider(byok?.provider, byok?.key);
+    const byokProvider = buildByokProvider(byok?.provider, byok?.key, byok?.model);
     let provider = byokProvider;
     let chargeable = false;
+    let entitled = !!byokProvider; // BYOK or paid → don't nag to add a key/subscribe
     if (!provider) {
       const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { plan: true } });
       if (isPlanActive(user?.plan)) {
         provider = this.resolveProvider();
+        entitled = true;
       } else if (input.aiOptIn) {
         provider = this.resolveProvider();
         chargeable = true;
       }
     }
 
+    // Daily critique cap protects OUR shared Groq spend from free-tier abuse.
+    // BYOK users pay for their own upstream calls, so the cap must NOT apply to
+    // them (R-084) — otherwise a user on their own key hits a spurious 403.
+    if (!byokProvider) {
+      await this.enforceDailyCritiqueLimit(userId);
+    }
+
     if (!provider) {
       this.logger.warn('No eligible AI provider — returning rule-based critique');
-      return this.buildFallbackCritique(input, plan);
+      return this.buildFallbackCritique(input, plan, entitled);
     }
 
     const promptInput: CritiquePromptInput = {
@@ -214,7 +221,7 @@ export class AiService {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       this.logger.error(`AI critique failed (provider=${provider.name}): ${msg}`);
-      return this.buildFallbackCritique(input, plan);
+      return this.buildFallbackCritique(input, plan, entitled);
     }
   }
 
@@ -275,7 +282,15 @@ export class AiService {
     }
   }
 
-  private buildFallbackCritique(input: AiCritiqueInput, plan: 'free' | 'premium'): AiCritiqueResponse {
+  private buildFallbackCritique(
+    input: AiCritiqueInput,
+    plan: 'free' | 'premium',
+    // True when the user already has AI access (BYOK key or a paid plan). We
+    // must NOT nag them to "add a key or subscribe" — the fallback here means
+    // OUR provider is momentarily unconfigured/failing, not that they lack
+    // entitlement (R-084). Nagging an entitled user is the reported bug.
+    entitled = false,
+  ): AiCritiqueResponse {
     const issues: Array<{ type: string; severity: string; message: string }> = [];
     if (!input.summary || input.summary.trim().length < 50) {
       issues.push({ type: 'summary', severity: 'high', message: 'Add a detailed professional summary with role-specific keywords.' });
@@ -298,15 +313,21 @@ export class AiService {
       provider: 'fallback',
       plan,
       critique: {
-        summary: 'Showing basic suggestions. Use our AI for a full critique (adds ₹20 to this resume’s download), add your own AI key in Settings (free), or get the ₹499/mo plan.',
+        summary: entitled
+          ? 'Showing basic suggestions — our AI is momentarily unavailable, so here are rule-based checks. Please try the full critique again in a moment.'
+          : 'Showing basic suggestions. Use our AI for a full critique (adds ₹20 to this resume’s download), add your own AI key in Settings (free), or get the ₹499/mo plan.',
         topIssues: issues,
         missingKeywords: input.missingKeywords?.slice(0, 8) || [],
         sectionSuggestions: { summary: [], skills: [], experience: [] },
         atsSafetyWarnings: ['Use standard section headers (Experience, Education, Skills).', 'Avoid tables, graphics, or multi-column layouts.'],
         estimatedImprovementBand: {
           current: input.currentScore != null ? String(input.currentScore) : 'unknown',
-          possibleFree: 'Add your own AI key (free) for tailored optimization',
-          premium: 'Full AI optimization with our AI (₹20/download) or the ₹499/mo plan',
+          possibleFree: entitled
+            ? 'Retry for a full AI critique in a moment'
+            : 'Add your own AI key (free) for tailored optimization',
+          premium: entitled
+            ? 'Full AI optimization is included with your access'
+            : 'Full AI optimization with our AI (₹20/download) or the ₹499/mo plan',
         },
       },
     };

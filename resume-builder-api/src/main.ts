@@ -67,7 +67,19 @@ async function bootstrap() {
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-user-locale', 'x-user-timezone'],
+    // BYOK free-tier users attach their own AI key/provider as custom
+    // headers; without these in the allowlist the browser's CORS preflight
+    // blocks every AI request they make (their key never reaches the API,
+    // and the editor surfaces it as an "AI Critique error"). See R-084.
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'x-user-locale',
+      'x-user-timezone',
+      'X-User-AI-Key',
+      'X-User-AI-Provider',
+      'X-User-AI-Model',
+    ],
     preflightContinue: false,
     optionsSuccessStatus: 204,
   });

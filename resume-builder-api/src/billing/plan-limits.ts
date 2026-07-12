@@ -25,7 +25,14 @@ export function getPlanConfig(plan: PlanName): PlanConfig {
     case 'STUDENT':
       return { aiTokensLimit: 40000, pdfExportsLimit: 25, atsScansLimit: 50, resumesLimit: 10 };
     case 'PRO':
-      return { aiTokensLimit: 120000, pdfExportsLimit: 200, atsScansLimit: 300, resumesLimit: 100 };
+      // ₹499/mo plan. AI token allowance sized to stay profitable on Groq:
+      // accounting counts INPUT tokens only (chars/4), so real Groq usage
+      // (incl. output) is roughly 2x. Groq Llama-3.3-70B blends to ~₹135 per
+      // 1M ACCOUNTED tokens. 750k accounted ≈ ~₹100 API cost at the cap
+      // (~20% of ₹499) and ~1,000 AI actions/month — generous for one
+      // job-seeker, comfortably profitable. Tune via this number if pricing
+      // or model changes. (See R-084 calc in REQUIREMENTS decisions log.)
+      return { aiTokensLimit: 750000, pdfExportsLimit: 200, atsScansLimit: 300, resumesLimit: 100 };
     case 'FREE':
     default:
       return { aiTokensLimit: 8000, pdfExportsLimit: 5, atsScansLimit: 2, resumesLimit: 2 };

@@ -53,6 +53,22 @@ test('provider name is normalised (lowercased + trimmed)', () => {
   assert.equal(p.name, 'groq');
 });
 
+test('accepts an optional model header for OpenAI/Anthropic (R-084)', () => {
+  // The model rides along as X-User-AI-Model; the factory must accept it
+  // without changing the allowlist behaviour. We can't read the private
+  // model field, but building must still succeed with a model present.
+  const p = buildByokProvider('openai', 'sk-' + 'x'.repeat(50), 'gpt-4o');
+  assert.ok(p);
+  assert.equal(p.name, 'openai');
+  const a = buildByokProvider('anthropic', 'sk-ant-' + 'y'.repeat(50), 'claude-3-5-sonnet-latest');
+  assert.ok(a);
+  assert.equal(a.name, 'anthropic');
+});
+
+test('a model header alone (no key) still returns null', () => {
+  assert.equal(buildByokProvider('openai', '', 'gpt-4o'), null);
+});
+
 test('isByokProviderName is true only for the three allowlist entries', () => {
   assert.equal(isByokProviderName('groq'), true);
   assert.equal(isByokProviderName('openai'), true);
