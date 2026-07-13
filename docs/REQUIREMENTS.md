@@ -1307,6 +1307,24 @@ and every external call still feeds the Outcome Graph.
 
 ---
 
+### R-085 · Admin AI-key health check (is our Groq key working?)
+
+- Status: **DONE** (this commit)
+- Depends-on: R-084 (BYOK/server AI), R-079 (mail-status pattern)
+- Acceptance
+  - [x] `GET /admin/ai/status` (admin-guarded, throttle-skipped) returns a
+    no-secrets config snapshot (`provider`, `model`, `configured`,
+    `keyPresent`) PLUS a live Groq handshake (`reachable`, `error`,
+    `latencyMs`) and an actionable `hint`. Mirrors `admin/mail/status`.
+  - [x] `POST /admin/ai/test` runs the same live handshake on demand.
+  - [x] `verify()` NEVER reports ok when no server provider is configured
+    (no false-positive; C-004), and scrubs any key-like token from error
+    bodies (`gsk_***`, `Bearer ***`).
+  - [x] `buildAiHint` maps Groq 401 / 404 (model) / 429 / timeout to a
+    specific next step. Pinned by `tests/ai-health.unit.test.cjs` (8).
+
+---
+
 ## §6. Cross-cutting constants
 
 These are constraints that every requirement must respect. Violations
@@ -1373,6 +1391,7 @@ do not break it.
 
 | Date | Decision | Reason | Affected IDs |
 |---|---|---|---|
+| 2026-07-13 | Admin AI-key health check (R-085): added `GET /admin/ai/status` + `POST /admin/ai/test` (admin-guarded, mirrors admin/mail/status) — config snapshot + a live Groq handshake with an actionable hint (401→bad key, 404→model not available, 429→rate/quota, timeout→egress), so ops can confirm the operator Groq key works without shelling into Render. Never returns/logs the key (scrubbed). Pinned by `ai-health.unit.test.cjs`. | Founder asked how to verify the added Groq key is working; there was no equivalent of the mail health check for AI. | R-085, R-084 |
 | 2026-07-12 | Web CI stabilization (R-084): fixed three stale/pre-existing web-test failures blocking the BYOK PR — (1) `template-registry.test.ts` keyed a hardcoded id→component map that never covered the profession templates (medical-coder/ai-ml-engineer/product-manager) so it read `undefined.tsx`; now keys off the registry `componentKey`; (2) `login.page`/`email-otp-login.page` register tests still filled a `/mobile/i` field the email-only register form dropped — removed. Also QUARANTINED the heavy `dashboard-auth-flow.test.tsx` (13-template live-render jsdom file) in `scripts/test.mjs`: it now runs as a separate ADVISORY step whose result is non-blocking (it SIGKILLs on React-18 teardown locally and races its async-render assertions in CI). Every other file stays strictly enforced; the accepted tradeoff is that a regression inside that one file alone won't fail CI until these render tests move to Vitest. | Founder wanted PR #103 mergeable/green; the flake was pre-existing and unreproducible locally (container too slow to finish the render before timeout). Decision approved by founder. | R-084 |
 | 2026-07-12 | BYOK end-to-end fix + provider model + subscriber token cap (R-084): root-caused the "AI Critique error on own Groq key" to the CORS preflight blocking the BYOK headers — added `X-User-AI-Key`/`X-User-AI-Provider`/`X-User-AI-Model` to `allowedHeaders`. Also: exempted BYOK from the free daily-critique cap; gated the "add key/subscribe" fallback copy (server + editor snackbar) on entitlement so BYOK/paid users aren't nagged; added missing BYOK headers to `parseJd`/`critique`/`skillGap`/`tailorApply`; added an optional model field for OpenAI/Anthropic (Groq stays key-only); sized the ₹499 PRO `aiTokensLimit` to 750k accounted tokens (~₹100 Groq cost at the cap, ~20% of ₹499). | Founder pre-prod: own-key AI Critique errored and every AI page kept asking to add a key or subscribe even after adding a key / subscribing — "our failure". | R-084, R-071, R-011, C-003, C-004 |
 | 2026-07-09 | Gmail send hardening (R-079): eliminated the two most common Gmail send-rejection causes — a pasted App Password with display spaces ("abcd efgh…") is now stripped for Gmail hosts, and the From address is forced to the authenticated mailbox (keeping any display name) so a mismatched SMTP_FROM can't get the send silently rejected; added requireTLS on STARTTLS ports. Real send error remains visible via lastSendError / logs. | Founder: forgot-password consistently "Failed to send" with correct-looking SMTP. | R-079 |
