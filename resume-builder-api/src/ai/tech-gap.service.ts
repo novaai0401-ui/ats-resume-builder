@@ -4,9 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import type { AiProvider } from './providers/ai-provider.interface';
 import { GroqProvider } from './providers/groq.provider';
 import { XaiProvider } from './providers/xai.provider';
-import { buildByokProvider } from './providers/byok-factory';
-import { isPlanActive } from './server-provider';
-import { enforceResumeAiFreeDaily, recordResumeAiFreeUsage } from './resume-ai-access';
+import { enforceResumeAiFreeDaily, recordResumeAiFreeUsage, resolveResumeAiProvider } from './resume-ai-access';
 import { filterJdKeywords } from '../lib/keyword-stopwords';
 
 export interface TechGapInput {
@@ -107,18 +105,10 @@ export class TechGapService {
     // Resume-page AI access (R-086): OUR Groq key powers Tech Gap for every
     // user — BYOK (own key) / ₹499 plan (uncapped) / FREE (our key, capped to
     // N actions/user/day, shared across all resume AI buttons). No ₹20 fee.
-    const byokProvider = buildByokProvider(byok?.provider, byok?.key);
-    let provider = byokProvider;
-    let freeDaily = false;
-    if (!provider) {
-      const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { plan: true } });
-      if (isPlanActive(user?.plan)) {
-        provider = this.resolveProvider();
-      } else {
-        provider = this.resolveProvider();
-        freeDaily = Boolean(provider);
-      }
-    }
+    const { provider, source } = await resolveResumeAiProvider(
+      this.prisma, userId, byok, () => this.resolveProvider(),
+    );
+    const freeDaily = source === 'free';
 
     if (!provider) {
       return this.buildRuleBasedAnalysis(input);

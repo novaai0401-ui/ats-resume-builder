@@ -1346,8 +1346,10 @@ and every external call still feeds the Outcome Graph.
   - [x] OFF the resume page (Mentor, Interview, Mock, Recruiter, Skill-demand,
     Cover-letter, Sahaayak) our key is unchanged: only BYOK or an active plan
     spends it — free users still get rule-based/upsell (verified, no leak).
-  - [x] Pinned by `tests/resume-ai-access.unit.test.cjs` (7); full API suite
-    green (538).
+  - [x] Provider routing per user state is centralized in
+    `resolveResumeAiProvider` (BYOK → own key, never our key; plan → our key;
+    free → our key day-capped; no server key → null) and pinned by
+    `tests/resume-ai-access.unit.test.cjs` (14). Full API suite green (545).
 
 ---
 

@@ -6,9 +6,7 @@ import { rateLimitOrThrow } from '../limits/rate-limit';
 import { SettingsService } from '../settings/settings.service';
 import type { AiProvider } from './providers/ai-provider.interface';
 import { GroqProvider } from './providers/groq.provider';
-import { buildByokProvider } from './providers/byok-factory';
-import { isPlanActive } from './server-provider';
-import { enforceResumeAiFreeDaily, recordResumeAiFreeUsage } from './resume-ai-access';
+import { enforceResumeAiFreeDaily, recordResumeAiFreeUsage, resolveResumeAiProvider } from './resume-ai-access';
 import { XaiProvider } from './providers/xai.provider';
 import { buildCritiquePrompt, type CritiquePromptInput } from './prompts/ats-critique.prompt';
 
@@ -140,20 +138,11 @@ export class AiService {
     //  • ₹499 plan → OUR AI (uncapped here; monthly PRO token budget applies).
     //  • FREE      → OUR AI too, capped to N actions/user/day (shared across
     //                all resume AI buttons). No ₹20 fee, no subscribe needed.
-    const byokProvider = buildByokProvider(byok?.provider, byok?.key, byok?.model);
-    let provider = byokProvider;
-    let freeDaily = false;
-    let entitled = !!byokProvider; // BYOK or paid → don't nag to add a key/subscribe
-    if (!provider) {
-      const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { plan: true } });
-      if (isPlanActive(user?.plan)) {
-        provider = this.resolveProvider();
-        entitled = true;
-      } else {
-        provider = this.resolveProvider();
-        freeDaily = Boolean(provider); // free user on our key → daily-capped
-      }
-    }
+    const { provider, source } = await resolveResumeAiProvider(
+      this.prisma, userId, byok, () => this.resolveProvider(),
+    );
+    const freeDaily = source === 'free';
+    const entitled = source === 'byok' || source === 'plan'; // don't nag to add a key/subscribe
 
     // Only the FREE-on-our-key path is metered. BYOK (user's own key) and plan
     // users are never day-capped here. Enforce BEFORE spending a call.

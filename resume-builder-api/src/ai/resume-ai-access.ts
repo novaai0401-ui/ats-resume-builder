@@ -1,6 +1,9 @@
 import { ForbiddenException } from '@nestjs/common';
 import type { ConfigService } from '@nestjs/config';
 import type { PrismaService } from '../prisma/prisma.service';
+import type { AiProvider } from './providers/ai-provider.interface';
+import { buildByokProvider } from './providers/byok-factory';
+import { isPlanActive } from './server-provider';
 
 /**
  * R-086 — Resume-page AI access policy.
@@ -25,6 +28,44 @@ import type { PrismaService } from '../prisma/prisma.service';
  */
 
 export const RESUME_AI_FREE_DAILY_LIMIT_DEFAULT = 10;
+
+/** Which key a resume-page AI call routes to. */
+export type ResumeAiSource = 'byok' | 'plan' | 'free' | null;
+
+export type ResumeAiResolution = {
+  provider: AiProvider | null;
+  source: ResumeAiSource;
+};
+
+export type ByokHeaders = { provider?: string | null; key?: string | null; model?: string | null };
+
+/**
+ * Decide which AI provider a resume-page call uses, per user state:
+ *   • the user added their own key (BYOK)  → their key   (source 'byok')
+ *   • the user subscribed (₹499 plan)       → OUR key     (source 'plan')
+ *   • free user                             → OUR key     (source 'free', day-capped)
+ *   • no server key configured at all       → null        (caller falls back)
+ *
+ * `buildOurProvider` is the caller's own server-provider builder (so a service
+ * that supports extra providers, e.g. xAI, keeps that) — it's only invoked for
+ * the plan/free paths, never for BYOK. The BYOK path is honoured FIRST so an
+ * own-key user never touches our key.
+ */
+export async function resolveResumeAiProvider(
+  prisma: PrismaService,
+  userId: string,
+  byok: ByokHeaders | undefined,
+  buildOurProvider: () => AiProvider | null,
+): Promise<ResumeAiResolution> {
+  const byokProvider = buildByokProvider(byok?.provider, byok?.key, byok?.model);
+  if (byokProvider) return { provider: byokProvider, source: 'byok' };
+
+  const our = buildOurProvider();
+  if (!our) return { provider: null, source: null };
+
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { plan: true } });
+  return { provider: our, source: isPlanActive(user?.plan) ? 'plan' : 'free' };
+}
 
 /** Per-user daily cap for FREE users on our Groq key. Tunable via env. */
 export function resumeAiFreeDailyLimit(config: ConfigService): number {

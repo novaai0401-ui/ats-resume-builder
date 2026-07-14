@@ -12,9 +12,7 @@ import { rateLimitOrThrow } from '../limits/rate-limit';
 import { SettingsService } from '../settings/settings.service';
 import type { AiProvider } from './providers/ai-provider.interface';
 import { GroqProvider } from './providers/groq.provider';
-import { buildByokProvider } from './providers/byok-factory';
-import { isPlanActive } from './server-provider';
-import { enforceResumeAiFreeDaily, recordResumeAiFreeUsage } from './resume-ai-access';
+import { enforceResumeAiFreeDaily, recordResumeAiFreeUsage, resolveResumeAiProvider } from './resume-ai-access';
 
 /**
  * R-034 — One-click tailor: JD → tailored ResumeVersion.
@@ -114,18 +112,10 @@ export class TailorService {
     // N actions/user/day, shared across all resume AI buttons). There is no
     // rule-based tailoring, so if no server key is configured at all we still
     // ask the user to add a key or subscribe.
-    const byokProvider = buildByokProvider(byok?.provider, byok?.key);
-    let provider = byokProvider;
-    let freeDaily = false;
-    if (!provider) {
-      const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { plan: true } });
-      if (isPlanActive(user?.plan)) {
-        provider = this.resolveProvider();
-      } else {
-        provider = this.resolveProvider();
-        freeDaily = Boolean(provider);
-      }
-    }
+    const { provider, source } = await resolveResumeAiProvider(
+      this.prisma, userId, byok, () => this.resolveProvider(),
+    );
+    const freeDaily = source === 'free';
     if (!provider) {
       throw new ForbiddenException(
         'AI tailoring needs AI access. Add your own AI key in Settings (free), or get the ₹499/mo plan.',

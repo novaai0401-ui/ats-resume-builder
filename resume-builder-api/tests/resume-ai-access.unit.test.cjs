@@ -4,6 +4,7 @@ const {
   resumeAiFreeDailyLimit,
   enforceResumeAiFreeDaily,
   recordResumeAiFreeUsage,
+  resolveResumeAiProvider,
   RESUME_AI_FREE_DAILY_LIMIT_DEFAULT,
 } = require('../dist/ai/resume-ai-access.js');
 
@@ -73,4 +74,78 @@ test('record writes one log row for the user', async () => {
 test('record never throws even if the DB write fails', async () => {
   const prisma = { aiCritiqueLog: { create: async () => { throw new Error('db down'); } } };
   await assert.doesNotReject(() => recordResumeAiFreeUsage(prisma, 'u1'));
+});
+
+// ── Provider routing per user state (the founder's ask) ─────────────────────
+// When a user adds their own key → call goes to THEIR key. When they subscribe
+// → OUR key (source 'plan'). Free → OUR key, day-capped (source 'free').
+
+function prismaWithPlan(plan) {
+  return { user: { findUnique: async () => (plan == null ? null : { plan }) } };
+}
+// Sentinel "our" server provider; a spy flag proves whether it was built.
+function ourBuilder() {
+  const our = { name: 'groq', complete: async () => '{}' };
+  const fn = () => { fn.called = true; return our; };
+  fn.called = false;
+  fn.instance = our;
+  return fn;
+}
+
+test('user WITH their own Groq key → routes to BYOK (never our key)', async () => {
+  const build = ourBuilder();
+  const res = await resolveResumeAiProvider(
+    prismaWithPlan('FREE'), 'u1',
+    { provider: 'groq', key: 'gsk_' + 'a'.repeat(40) },
+    build,
+  );
+  assert.equal(res.source, 'byok');
+  assert.equal(res.provider.name, 'groq');
+  assert.equal(build.called, false, 'BYOK must NOT build our server provider');
+});
+
+test('user with their own OpenAI key → routes to BYOK OpenAI', async () => {
+  const build = ourBuilder();
+  const res = await resolveResumeAiProvider(
+    prismaWithPlan('FREE'), 'u1',
+    { provider: 'openai', key: 'sk-' + 'a'.repeat(40), model: 'gpt-4o' },
+    build,
+  );
+  assert.equal(res.source, 'byok');
+  assert.equal(res.provider.name, 'openai');
+  assert.equal(build.called, false);
+});
+
+test('subscribed user (PRO), no own key → routes to OUR key (source plan)', async () => {
+  const build = ourBuilder();
+  const res = await resolveResumeAiProvider(prismaWithPlan('PRO'), 'u1', undefined, build);
+  assert.equal(res.source, 'plan');
+  assert.equal(res.provider, build.instance);
+  assert.equal(build.called, true);
+});
+
+test('legacy STUDENT plan also counts as subscribed (our key)', async () => {
+  const res = await resolveResumeAiProvider(prismaWithPlan('STUDENT'), 'u1', undefined, ourBuilder());
+  assert.equal(res.source, 'plan');
+});
+
+test('free user, no own key → OUR key on the day-capped free path', async () => {
+  const res = await resolveResumeAiProvider(prismaWithPlan('FREE'), 'u1', undefined, ourBuilder());
+  assert.equal(res.source, 'free');
+});
+
+test('no server key configured at all → null (caller falls back to rule-based)', async () => {
+  const res = await resolveResumeAiProvider(prismaWithPlan('FREE'), 'u1', undefined, () => null);
+  assert.equal(res.source, null);
+  assert.equal(res.provider, null);
+});
+
+test('malformed BYOK header falls through to our key by plan', async () => {
+  // Unknown provider name is rejected by the allowlist → not treated as BYOK.
+  const res = await resolveResumeAiProvider(
+    prismaWithPlan('PRO'), 'u1',
+    { provider: 'evil', key: 'whatever' },
+    ourBuilder(),
+  );
+  assert.equal(res.source, 'plan');
 });
