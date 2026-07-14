@@ -14,6 +14,7 @@ import type { AiProvider } from './providers/ai-provider.interface';
 import { GroqProvider } from './providers/groq.provider';
 import { buildByokProvider } from './providers/byok-factory';
 import { isPlanActive } from './server-provider';
+import { enforceResumeAiFreeDaily, recordResumeAiFreeUsage } from './resume-ai-access';
 
 /**
  * R-034 — One-click tailor: JD → tailored ResumeVersion.
@@ -108,20 +109,30 @@ export class TailorService {
     const resume = await this.prisma.resume.findFirst({ where: { id: resumeId, userId } });
     if (!resume) throw new NotFoundException('Resume not found.');
 
-    // Tailoring is NOT one of the two free-user AI features (only AI
-    // Critique + Tech Gap are). OUR AI runs only with the user's own key
-    // (BYOK) or the ₹499 plan; everyone else is asked to add a key or
-    // subscribe. There is no rule-based tailoring.
+    // Resume-page AI access (R-086): OUR Groq key powers Tailor for every
+    // user — BYOK (own key) / ₹499 plan (uncapped) / FREE (our key, capped to
+    // N actions/user/day, shared across all resume AI buttons). There is no
+    // rule-based tailoring, so if no server key is configured at all we still
+    // ask the user to add a key or subscribe.
     const byokProvider = buildByokProvider(byok?.provider, byok?.key);
     let provider = byokProvider;
+    let freeDaily = false;
     if (!provider) {
       const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { plan: true } });
-      if (isPlanActive(user?.plan)) provider = this.resolveProvider();
+      if (isPlanActive(user?.plan)) {
+        provider = this.resolveProvider();
+      } else {
+        provider = this.resolveProvider();
+        freeDaily = Boolean(provider);
+      }
     }
     if (!provider) {
       throw new ForbiddenException(
         'AI tailoring needs AI access. Add your own AI key in Settings (free), or get the ₹499/mo plan.',
       );
+    }
+    if (freeDaily) {
+      await enforceResumeAiFreeDaily(this.prisma, this.config, userId);
     }
 
     const experience = Array.isArray(resume.experience) ? (resume.experience as any[]) : [];
@@ -178,6 +189,9 @@ export class TailorService {
     }
 
     const parsed = parseTailorResponse(raw, bulletsCatalog);
+    if (freeDaily) {
+      await recordResumeAiFreeUsage(this.prisma, userId);
+    }
     return {
       summary: parsed.summary && parsed.summary !== String(resume.summary || '').trim()
         ? { before: String(resume.summary || ''), after: parsed.summary }

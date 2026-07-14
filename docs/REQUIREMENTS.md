@@ -1325,6 +1325,32 @@ and every external call still feeds the Outcome Graph.
 
 ---
 
+### R-086 · Resume-page AI on our key (free, daily-capped); off-page BYOK/subscribe
+
+- Status: **DONE** (this commit)
+- Depends-on: R-084 (server AI / BYOK), R-085 (key health)
+- Founder decision: OUR Groq key is spent ONLY on the Edit Resume page. There
+  it powers every AI button for all users; everywhere else stays BYOK-or-plan.
+- Acceptance
+  - [x] On the resume page, AI Critique / Rewrite / JD-match (Scan job
+    skills) / Tech Gap / Tailor run on OUR Groq key for BYOK (own key),
+    ₹499 plan (uncapped), AND free users — no ₹20 fee, no subscribe wall.
+  - [x] Free users are capped at **10 our-AI actions per user per day**
+    (shared across all resume AI buttons; env `AI_FREE_MAX_REQUESTS_PER_DAY`).
+    BYOK and plan users are not day-capped. Cap throws a typed exception
+    naming the remediation (BYOK / plan / wait) — C-004. Shared helper
+    `ai/resume-ai-access.ts` reuses the `AiCritiqueLog` table (no migration).
+  - [x] Removed the resume-page ₹20 AI opt-in fee + opt-in dialog
+    (`flagResumeAiAssist` calls, `aiOptInPrompt` modal). Free users just
+    use the AI directly.
+  - [x] OFF the resume page (Mentor, Interview, Mock, Recruiter, Skill-demand,
+    Cover-letter, Sahaayak) our key is unchanged: only BYOK or an active plan
+    spends it — free users still get rule-based/upsell (verified, no leak).
+  - [x] Pinned by `tests/resume-ai-access.unit.test.cjs` (7); full API suite
+    green (538).
+
+---
+
 ## §6. Cross-cutting constants
 
 These are constraints that every requirement must respect. Violations
@@ -1391,6 +1417,7 @@ do not break it.
 
 | Date | Decision | Reason | Affected IDs |
 |---|---|---|---|
+| 2026-07-14 | Resume-page AI on our key, free + daily-capped (R-086): OUR Groq key is now spent ONLY on the Edit Resume page, where AI Critique / Rewrite / JD-match / Tech Gap / Tailor run for ALL users — free users included — with NO ₹20 fee and NO subscribe wall, protected by a per-user cap of 10 our-AI actions/day (shared across all resume AI buttons; `AI_FREE_MAX_REQUESTS_PER_DAY`). Removed the ₹20 opt-in fee + dialog. Off the resume page (Mentor/Interview/Mock/Recruiter/Skill-demand/Cover-letter/Sahaayak) our key stays BYOK-or-plan only — free users get rule-based/upsell (verified, no leak). New shared helper `ai/resume-ai-access.ts` reuses `AiCritiqueLog` (no migration). | Founder: make the resume page the free AI hook on our cheap Groq key; everywhere else require the user's own key or a subscription; hard daily cap so free Groq data isn't exhausted. Decisions (free-not-fee, 10/day) approved by founder. | R-086, R-084, R-071 |
 | 2026-07-13 | Admin AI-key health check (R-085): added `GET /admin/ai/status` + `POST /admin/ai/test` (admin-guarded, mirrors admin/mail/status) — config snapshot + a live Groq handshake with an actionable hint (401→bad key, 404→model not available, 429→rate/quota, timeout→egress), so ops can confirm the operator Groq key works without shelling into Render. Never returns/logs the key (scrubbed). Pinned by `ai-health.unit.test.cjs`. | Founder asked how to verify the added Groq key is working; there was no equivalent of the mail health check for AI. | R-085, R-084 |
 | 2026-07-12 | Web CI stabilization (R-084): fixed three stale/pre-existing web-test failures blocking the BYOK PR — (1) `template-registry.test.ts` keyed a hardcoded id→component map that never covered the profession templates (medical-coder/ai-ml-engineer/product-manager) so it read `undefined.tsx`; now keys off the registry `componentKey`; (2) `login.page`/`email-otp-login.page` register tests still filled a `/mobile/i` field the email-only register form dropped — removed. Also QUARANTINED the heavy `dashboard-auth-flow.test.tsx` (13-template live-render jsdom file) in `scripts/test.mjs`: it now runs as a separate ADVISORY step whose result is non-blocking (it SIGKILLs on React-18 teardown locally and races its async-render assertions in CI). Every other file stays strictly enforced; the accepted tradeoff is that a regression inside that one file alone won't fail CI until these render tests move to Vitest. | Founder wanted PR #103 mergeable/green; the flake was pre-existing and unreproducible locally (container too slow to finish the render before timeout). Decision approved by founder. | R-084 |
 | 2026-07-12 | BYOK end-to-end fix + provider model + subscriber token cap (R-084): root-caused the "AI Critique error on own Groq key" to the CORS preflight blocking the BYOK headers — added `X-User-AI-Key`/`X-User-AI-Provider`/`X-User-AI-Model` to `allowedHeaders`. Also: exempted BYOK from the free daily-critique cap; gated the "add key/subscribe" fallback copy (server + editor snackbar) on entitlement so BYOK/paid users aren't nagged; added missing BYOK headers to `parseJd`/`critique`/`skillGap`/`tailorApply`; added an optional model field for OpenAI/Anthropic (Groq stays key-only); sized the ₹499 PRO `aiTokensLimit` to 750k accounted tokens (~₹100 Groq cost at the cap, ~20% of ₹499). | Founder pre-prod: own-key AI Critique errored and every AI page kept asking to add a key or subscribe even after adding a key / subscribing — "our failure". | R-084, R-071, R-011, C-003, C-004 |

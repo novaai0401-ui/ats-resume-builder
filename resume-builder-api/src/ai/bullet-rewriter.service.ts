@@ -12,6 +12,7 @@ import type { AiProvider } from './providers/ai-provider.interface';
 import { GroqProvider } from './providers/groq.provider';
 import { buildByokProvider } from './providers/byok-factory';
 import { isPlanActive } from './server-provider';
+import { enforceResumeAiFreeDaily, recordResumeAiFreeUsage } from './resume-ai-access';
 
 /**
  * AI Bullet Rewriter — Student/Pro feature.
@@ -76,14 +77,20 @@ export class BulletRewriterService {
       message: 'Rate limit exceeded for bullet rewriter. Try again shortly.',
     });
 
-    // Bullet rewrite is NOT one of the two free-user AI features (only AI
-    // Critique + Tech Gap are). OUR AI runs only with the user's own key
-    // (BYOK) or the ₹499 plan; everyone else gets rule-based variants.
+    // Resume-page AI access (R-086): OUR Groq key powers Rewrite for every
+    // user — BYOK (own key) / ₹499 plan (uncapped) / FREE (our key, capped to
+    // N actions/user/day, shared across all resume AI buttons).
     const byokProvider = buildByokProvider(byok?.provider, byok?.key);
     let provider = byokProvider;
+    let freeDaily = false;
     if (!provider) {
       const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { plan: true } });
-      if (isPlanActive(user?.plan)) provider = this.resolveProvider();
+      if (isPlanActive(user?.plan)) {
+        provider = this.resolveProvider();
+      } else {
+        provider = this.resolveProvider();
+        freeDaily = Boolean(provider);
+      }
     }
     if (!provider) {
       this.logger.warn('No eligible AI provider — returning rule-based bullet rewrites');
@@ -92,6 +99,9 @@ export class BulletRewriterService {
         provider: 'rule-based',
         tokensUsed: APPROX_TOKENS,
       };
+    }
+    if (freeDaily) {
+      await enforceResumeAiFreeDaily(this.prisma, this.config, userId);
     }
 
     const role = String(input.role || '').trim().slice(0, 80);
@@ -130,6 +140,9 @@ export class BulletRewriterService {
           provider: 'rule-based',
           tokensUsed: APPROX_TOKENS,
         };
+      }
+      if (freeDaily) {
+        await recordResumeAiFreeUsage(this.prisma, userId);
       }
       return {
         alternatives: parsed.slice(0, 3),

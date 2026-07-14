@@ -8,11 +8,10 @@ import type { AiProvider } from './providers/ai-provider.interface';
 import { GroqProvider } from './providers/groq.provider';
 import { buildByokProvider } from './providers/byok-factory';
 import { isPlanActive } from './server-provider';
+import { enforceResumeAiFreeDaily, recordResumeAiFreeUsage } from './resume-ai-access';
 import { XaiProvider } from './providers/xai.provider';
 import { buildCritiquePrompt, type CritiquePromptInput } from './prompts/ats-critique.prompt';
 
-/** Daily AI critique limit for free users. */
-const FREE_DAILY_CRITIQUE_LIMIT = 10;
 /** Max experience bullets rewritten per free request. */
 const FREE_MAX_BULLET_REWRITES = 5;
 
@@ -135,35 +134,31 @@ export class AiService {
     });
 
     const plan: 'free' | 'premium' = 'free';
-    // Resume-upgrade AI: the user's own key (free) if present, otherwise OUR AI
-    // (billed via the flat per-download fee). Only falls back to rule-based when
-    // no provider is configured at all.
-    // AI access resolution (R-071):
-    //  • BYOK → user's own key, free.
-    //  • ₹499 plan → OUR AI, free downloads.
-    //  • free/key-less/non-subscriber → OUR AI only if they explicitly opt
-    //    in (aiOptIn); that run flags the resume so the next download adds
-    //    the ₹20 AI fee. Without opt-in they get the rule-based critique.
+    // Resume-page AI access (R-086): on the Edit Resume page OUR Groq key
+    // powers AI Critique for EVERY user.
+    //  • BYOK      → the user's own key (uncapped, no charge).
+    //  • ₹499 plan → OUR AI (uncapped here; monthly PRO token budget applies).
+    //  • FREE      → OUR AI too, capped to N actions/user/day (shared across
+    //                all resume AI buttons). No ₹20 fee, no subscribe needed.
     const byokProvider = buildByokProvider(byok?.provider, byok?.key, byok?.model);
     let provider = byokProvider;
-    let chargeable = false;
+    let freeDaily = false;
     let entitled = !!byokProvider; // BYOK or paid → don't nag to add a key/subscribe
     if (!provider) {
       const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { plan: true } });
       if (isPlanActive(user?.plan)) {
         provider = this.resolveProvider();
         entitled = true;
-      } else if (input.aiOptIn) {
+      } else {
         provider = this.resolveProvider();
-        chargeable = true;
+        freeDaily = Boolean(provider); // free user on our key → daily-capped
       }
     }
 
-    // Daily critique cap protects OUR shared Groq spend from free-tier abuse.
-    // BYOK users pay for their own upstream calls, so the cap must NOT apply to
-    // them (R-084) — otherwise a user on their own key hits a spurious 403.
-    if (!byokProvider) {
-      await this.enforceDailyCritiqueLimit(userId);
+    // Only the FREE-on-our-key path is metered. BYOK (user's own key) and plan
+    // users are never day-capped here. Enforce BEFORE spending a call.
+    if (freeDaily) {
+      await enforceResumeAiFreeDaily(this.prisma, this.config, userId);
     }
 
     if (!provider) {
@@ -205,11 +200,10 @@ export class AiService {
       });
 
       const critique = parseAiCritiqueJson(raw, plan);
-      await this.recordCritiqueUsage(userId);
-      // Only the opted-in, free-user path is chargeable — flag the resume so
-      // its next download carries the ₹20 AI fee. BYOK + plan stay free.
-      if (chargeable && input.resumeId) {
-        await this.flagResumeAiAssist(userId, input.resumeId);
+      // Count one free action against today's cap only on the free path.
+      // BYOK / plan users are not metered here.
+      if (freeDaily) {
+        await recordResumeAiFreeUsage(this.prisma, userId);
       }
 
       return {
@@ -222,18 +216,6 @@ export class AiService {
       const msg = err instanceof Error ? err.message : String(err);
       this.logger.error(`AI critique failed (provider=${provider.name}): ${msg}`);
       return this.buildFallbackCritique(input, plan, entitled);
-    }
-  }
-
-  /** Mark that OUR AI assisted this resume (drives the flat per-download fee). */
-  private async flagResumeAiAssist(userId: string, resumeId: string): Promise<void> {
-    try {
-      await this.prisma.resume.updateMany({
-        where: { id: resumeId, userId },
-        data: { aiAssistUsed: true },
-      });
-    } catch {
-      // Non-critical: never fail the AI response over the billing flag.
     }
   }
 
@@ -253,33 +235,6 @@ export class AiService {
     if (!key) return null;
     const model = this.config.get<string>('GROQ_MODEL', '');
     return new GroqProvider(key, model || undefined);
-  }
-
-  private async enforceDailyCritiqueLimit(userId: string) {
-    const maxPerDay = parseInt(
-      this.config.get<string>('AI_FREE_MAX_REQUESTS_PER_DAY', String(FREE_DAILY_CRITIQUE_LIMIT)), 10,
-    );
-    const since = new Date();
-    since.setHours(0, 0, 0, 0);
-    const count = await this.prisma.aiCritiqueLog.count({
-      where: { userId, createdAt: { gte: since } },
-    });
-    if (count >= maxPerDay) {
-      throw new ForbiddenException(
-        `Daily AI critique limit reached (${maxPerDay}/day). Try again tomorrow.`,
-      );
-    }
-  }
-
-  private async recordCritiqueUsage(userId: string) {
-    try {
-      await this.prisma.aiCritiqueLog.create({
-        data: { userId },
-      });
-    } catch {
-      // Non-critical — log but don't fail the request
-      this.logger.warn(`Failed to record AI critique usage for user ${userId}`);
-    }
   }
 
   private buildFallbackCritique(
