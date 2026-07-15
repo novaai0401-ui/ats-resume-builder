@@ -1,8 +1,10 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { AnalyticsService } from '../analytics/analytics.service';
+import { WhatsappService } from '../notifications/whatsapp.service';
 
 /**
  * R-031 — Outcome-status nudge.
@@ -55,6 +57,8 @@ export class OutcomeNudgeService {
     private readonly prisma: PrismaService,
     private readonly mail: MailService,
     private readonly analytics: AnalyticsService,
+    private readonly whatsapp: WhatsappService,
+    private readonly config: ConfigService,
   ) {}
 
   /**
@@ -91,7 +95,7 @@ export class OutcomeNudgeService {
 
       const user = await this.prisma.user.findUnique({
         where: { id: app.userId },
-        select: { email: true, fullName: true, nudgeEmailsEnabled: true },
+        select: { email: true, fullName: true, mobile: true, nudgeEmailsEnabled: true },
       });
       if (!user?.email) { skippedNoEmail += 1; continue; }
       if (!user.nudgeEmailsEnabled) { skippedOptOut += 1; continue; }
@@ -121,6 +125,15 @@ export class OutcomeNudgeService {
       });
       if (ok) {
         sent += 1;
+        // R-087 — ADDITIVE WhatsApp copy of the nudge. Only after the
+        // email succeeded, only when the channel + template are
+        // configured AND the user has a phone. Fire-and-forget:
+        // sendTemplate never throws, so a WhatsApp outage can never
+        // fail or delay the email path above.
+        const nudgeTemplate = String(this.config?.get('WHATSAPP_NUDGE_TEMPLATE', '') || '').trim();
+        if (nudgeTemplate && this.whatsapp?.isConfigured() && user.mobile) {
+          void this.whatsapp.sendTemplate(user.mobile, nudgeTemplate, [app.company, app.role]);
+        }
       } else {
         // Send failed (SMTP outage / unconfigured). Delete the row so
         // the next scan retries this application — otherwise a single

@@ -1,7 +1,9 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { LiveJobsService } from '../live-jobs/live-jobs.service';
 import { MailService } from '../mail/mail.service';
+import { WhatsappService } from '../notifications/whatsapp.service';
 
 /**
  * Saved job-search alerts (ADDITIVE — reuses the existing Adzuna
@@ -29,6 +31,8 @@ export class JobAlertsService {
     private readonly prisma: PrismaService,
     private readonly liveJobs: LiveJobsService,
     private readonly mail: MailService,
+    private readonly whatsapp: WhatsappService,
+    private readonly config: ConfigService,
   ) {}
 
   async create(userId: string, input: { query?: string; location?: string }) {
@@ -106,7 +110,7 @@ export class JobAlertsService {
 
     const user = await this.prisma.user.findUnique({
       where: { id: alert.userId },
-      select: { email: true, fullName: true },
+      select: { email: true, fullName: true, mobile: true },
     });
     let sent = false;
     if (user?.email) {
@@ -119,6 +123,17 @@ export class JobAlertsService {
           title: o.title, company: o.company, location: o.location, url: o.url, salaryText: o.salaryText,
         })),
       });
+      // R-087 — ADDITIVE WhatsApp copy of the digest. Only when the
+      // channel + template are configured AND the user has a phone.
+      // Fire-and-forget: sendTemplate never throws, so a WhatsApp
+      // outage can never fail or delay the email path above.
+      const alertTemplate = String(this.config?.get('WHATSAPP_ALERT_TEMPLATE', '') || '').trim();
+      if (alertTemplate && this.whatsapp?.isConfigured() && user.mobile) {
+        void this.whatsapp.sendTemplate(user.mobile, alertTemplate, [
+          alert.query,
+          fresh.length === 1 ? fresh[0].title : `${fresh.length} new openings`,
+        ]);
+      }
     }
 
     // Record the fresh keys regardless of SMTP success so a broken mailer

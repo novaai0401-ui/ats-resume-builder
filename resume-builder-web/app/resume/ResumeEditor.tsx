@@ -68,6 +68,7 @@ import {
 } from '@/src/lib/suggestion-seeds';
 import { LANGUAGE_SUGGESTIONS, normalizeLanguageTag } from '@/src/lib/languages';
 import { buildJdSuggestions } from '@/src/lib/jd-suggest';
+import AiTrustNote from '@/src/components/AiTrustNote';
 
 type ContactInfo = {
   fullName: string;

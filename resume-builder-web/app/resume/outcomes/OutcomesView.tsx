@@ -18,6 +18,7 @@ import DataLoader from '@/src/components/DataLoader';
 import {
   api,
   isApiRequestError,
+  type JobBenchmark,
   type OutcomeReport,
   type OutcomeVersionStats,
 } from '@/src/lib/api';
@@ -35,6 +36,7 @@ export default function OutcomesView() {
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [benchmark, setBenchmark] = useState<JobBenchmark | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -46,6 +48,8 @@ export default function OutcomesView() {
         setError(extractErrorMessage(err));
       }
     })();
+    // Benchmark is account-level (all your applications), not per-resume.
+    api.getJobBenchmark().then(setBenchmark).catch(() => setBenchmark(null));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -139,6 +143,8 @@ export default function OutcomesView() {
             </TkxCardBody>
           </TkxCard>
 
+          {benchmark && <BenchmarkCard benchmark={benchmark} />}
+
           {/* SCORE HISTORY — ATS score vs. observed callback rate over versions. */}
           {report.scoreHistory.length >= 2 && (
             <TkxCard style={{ marginBottom: 16 }}>
@@ -224,6 +230,47 @@ export default function OutcomesView() {
         </>
       )}
     </main>
+  );
+}
+
+/**
+ * "How you compare" — response rate vs. the platform median, powered only by
+ * anonymized outcome data. Honest gating: shows a locked state (never fake
+ * numbers) until the caller and the community cohort clear the thresholds.
+ * Phrasing is deliberately supportive either side of the median.
+ */
+function BenchmarkCard({ benchmark }: { benchmark: JobBenchmark }) {
+  const { available, yours, platform, reason } = benchmark;
+  return (
+    <TkxCard style={{ marginBottom: 16 }} data-testid="benchmark-card">
+      <TkxCardHeader><strong>How you compare</strong></TkxCardHeader>
+      <TkxCardBody>
+        {available && platform ? (
+          <>
+            <p style={{ margin: 0, fontSize: 15, lineHeight: 1.5 }}>
+              Median response rate across Pocket Resume users:{' '}
+              <strong>{platform.medianResponseRatePct}%</strong> — yours is{' '}
+              <strong>{yours.responseRatePct}%</strong>{' '}
+              <span style={{ color: 'var(--muted, #5a6778)', fontSize: 13 }}>
+                ({yours.responses} response{yours.responses === 1 ? '' : 's'} across {yours.applications} applications)
+              </span>
+            </p>
+            <p style={{ margin: '8px 0 0', fontSize: 13, color: 'var(--muted, #5a6778)' }}>
+              {yours.responseRatePct >= platform.medianResponseRatePct
+                ? 'You’re ahead of the community median — whatever you’re doing, keep doing it.'
+                : 'You’re below the median right now — most users who iterate on their top version close this gap. Try snapshotting a new version and comparing.'}
+            </p>
+            <p style={{ margin: '8px 0 0', fontSize: 12, color: 'var(--muted, #888)' }}>
+              Based on anonymized aggregates from {platform.cohortUsers} users with 5+ tracked applications. No individual data is ever shared.
+            </p>
+          </>
+        ) : (
+          <p style={{ margin: 0, fontSize: 14, color: 'var(--muted, #5a6778)' }}>
+            {reason || 'Community benchmarks unlock as more outcomes are logged (needs 10+ users with 5+ tracked applications).'}
+          </p>
+        )}
+      </TkxCardBody>
+    </TkxCard>
   );
 }
 

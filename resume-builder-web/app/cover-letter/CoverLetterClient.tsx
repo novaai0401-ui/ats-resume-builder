@@ -7,6 +7,7 @@ import type {
   Resume,
 } from 'resume-builder-shared';
 import { api } from '@/src/lib/api';
+import AiTrustNote from '@/src/components/AiTrustNote';
 
 const TONES: Array<{ id: CoverLetterTone; label: string; description: string }> = [
   { id: 'professional', label: 'Professional', description: 'Warm, polished, confident.' },
@@ -150,6 +151,7 @@ export default function CoverLetterClient() {
             Tailored cover letters in seconds — grounded in your resume and the job description,
             with four tone presets you can A/B test per role.
           </p>
+          <AiTrustNote />
         </div>
       </header>
 

@@ -29,6 +29,11 @@ export class JobsController {
     return this.jobs.stats(req.user.userId);
   }
 
+  @Get('benchmark')
+  benchmark(@Req() req: { user: { userId: string } }) {
+    return this.jobs.benchmark(req.user.userId);
+  }
+
   @Get('upcoming')
   upcoming(@Req() req: { user: { userId: string } }, @Query('days') days?: string) {
     const parsed = days ? parseInt(days, 10) : 14;
