@@ -1404,6 +1404,8 @@ export const api = {
 
   getJobStats: () => request<JobStats>('/jobs/stats'),
 
+  getJobBenchmark: () => request<JobBenchmark>('/jobs/benchmark'),
+
   getUpcomingJobs: (days = 14) =>
     request<JobApplication[]>(`/jobs/upcoming?days=${days}`),
 
@@ -1670,6 +1672,15 @@ export type OutcomeReport = {
   baseline: OutcomeVersionStats | null;
   lift: { multiplier: number | null; deltaPoints: number | null; headline: string };
   unattributed: number;
+};
+
+// "Your response rate vs. platform median" — anonymized aggregate only;
+// stays available=false with an honest reason until thresholds are met.
+export type JobBenchmark = {
+  available: boolean;
+  reason?: string;
+  yours: { applications: number; responses: number; responseRatePct: number };
+  platform?: { medianResponseRatePct: number; cohortUsers: number };
 };
 
 // Anonymized, signed snapshot served by the public share endpoint.

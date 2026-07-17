@@ -34,6 +34,10 @@ export function CallbackRateCard({ resumeId }: { resumeId?: string }) {
   const overall = report?.overall;
   const hasData = Boolean(overall && overall.applied > 0);
   const rate = overall ? formatCallbackRate(overall.callbackRate, overall.applied) : '—';
+  // The moat, one line: which version actually gets replies. The API computes
+  // the lift headline ("v3 gets 2.4× more replies than v1"); show it the
+  // moment it exists so the Outcome Loop sells itself from the dashboard.
+  const liftHeadline = hasData && report?.lift?.multiplier ? report.lift.headline : '';
 
   return (
     <section
@@ -52,8 +56,13 @@ export function CallbackRateCard({ resumeId }: { resumeId?: string }) {
           <div className="small" style={{ color: 'var(--muted)' }}>
             {hasData
               ? `${overall!.applied} application${overall!.applied === 1 ? '' : 's'} · ${overall!.interviews} interview${overall!.interviews === 1 ? '' : 's'}`
-              : 'Track applications against your resume versions to measure what actually works.'}
+              : 'Track applications against your resume versions to measure what actually works — no other resume tool can tell you this.'}
           </div>
+          {liftHeadline ? (
+            <div className="small" style={{ marginTop: 4, color: 'var(--primary)', fontWeight: 600 }}>
+              📈 {liftHeadline}
+            </div>
+          ) : null}
         </div>
       </div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

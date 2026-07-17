@@ -68,6 +68,7 @@ import {
 } from '@/src/lib/suggestion-seeds';
 import { LANGUAGE_SUGGESTIONS, normalizeLanguageTag } from '@/src/lib/languages';
 import { buildJdSuggestions } from '@/src/lib/jd-suggest';
+import AiTrustNote from '@/src/components/AiTrustNote';
 
 type ContactInfo = {
   fullName: string;
@@ -404,9 +405,6 @@ export default function ResumeEditor() {
   const [aiCritiqueError, setAiCritiqueError] = useState('');
   const [techGapResult, setTechGapResult] = useState<import('@/src/lib/api').TechGapResult | null>(null);
   const [techGapLoading, setTechGapLoading] = useState(false);
-  // Opt-in prompt shown to free, key-less, non-subscriber users before OUR AI
-  // runs on AI Critique / Tech Gap (adds the ₹20 fee to this resume's download).
-  const [aiOptInPrompt, setAiOptInPrompt] = useState<{ feature: 'critique' | 'techgap' } | null>(null);
   const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [premiumOptimizing, setPremiumOptimizing] = useState(false);
   const [postDownloadPopup, setPostDownloadPopup] = useState<{ score: number | null } | null>(null);
@@ -1565,9 +1563,10 @@ export default function ResumeEditor() {
     }
   }
 
-  // Free, key-less, non-subscriber users must consciously opt in to OUR AI
-  // for AI Critique / Tech Gap, because that adds the ₹20 fee to this
-  // resume's next download. BYOK and ₹499-plan users skip the prompt.
+  // Resume-page AI (R-086) is free on OUR key for everyone here — BYOK / ₹499
+  // plan (uncapped) / free (our key, 10 actions/day). No opt-in, no ₹20 fee.
+  // aiAccessMode is still used to decide whether to gently suggest adding a
+  // key when our AI falls back to rule-based.
   function aiAccessMode(): 'byok' | 'plan' | 'free' {
     if (loadByokKey()) return 'byok';
     if (isPaidPlan(currentPlan)) return 'plan';
@@ -1575,10 +1574,6 @@ export default function ResumeEditor() {
   }
 
   function critique() {
-    if (aiAccessMode() === 'free') {
-      setAiOptInPrompt({ feature: 'critique' });
-      return;
-    }
     void runCritique(false);
   }
 
@@ -1643,10 +1638,6 @@ export default function ResumeEditor() {
   }
 
   function analyzeTechGap() {
-    if (aiAccessMode() === 'free') {
-      setAiOptInPrompt({ feature: 'techgap' });
-      return;
-    }
     void runTechGap(false);
   }
 
@@ -4615,47 +4606,6 @@ export default function ResumeEditor() {
             )}
           </div>
         )}
-        {/* ─── Per-download payment gate (feature-flagged) ─── */}
-        {aiOptInPrompt && (
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="ai-optin-title"
-            className="session-warning-overlay"
-            onClick={() => setAiOptInPrompt(null)}
-          >
-            <div className="card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 460 }}>
-              <h3 id="ai-optin-title" style={{ marginTop: 0 }}>
-                Use AI for {aiOptInPrompt.feature === 'critique' ? 'AI Critique' : 'Tech Gap'}?
-              </h3>
-              <p className="small" style={{ color: '#3a4655', lineHeight: 1.6 }}>
-                You don&rsquo;t have an AI key or the ₹499/mo plan. We can run our AI on this resume
-                now — a one-time <strong>₹20 AI fee</strong> is then added to this resume&rsquo;s next
-                download (₹49 → ₹69). It applies once, no matter how many times you run AI here.
-              </p>
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 14 }}>
-                <button
-                  className="btn"
-                  onClick={() => {
-                    const feature = aiOptInPrompt.feature;
-                    setAiOptInPrompt(null);
-                    if (feature === 'critique') void runCritique(true);
-                    else void runTechGap(true);
-                  }}
-                >
-                  Use AI — adds ₹20 at download
-                </button>
-                <button className="btn ghost" onClick={() => { setAiOptInPrompt(null); router.push('/settings'); }}>
-                  Add my AI key (free)
-                </button>
-                <button className="btn ghost" onClick={() => setAiOptInPrompt(null)}>
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
         {downloadChargeOpen && resumeId && (
           <DownloadChargeModal
             resumeId={resumeId}

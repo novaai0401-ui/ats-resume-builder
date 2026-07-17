@@ -4,8 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import type { AiProvider } from './providers/ai-provider.interface';
 import { GroqProvider } from './providers/groq.provider';
 import { XaiProvider } from './providers/xai.provider';
-import { buildByokProvider } from './providers/byok-factory';
-import { isPlanActive } from './server-provider';
+import { enforceResumeAiFreeDaily, recordResumeAiFreeUsage, resolveResumeAiProvider } from './resume-ai-access';
 import { filterJdKeywords } from '../lib/keyword-stopwords';
 
 export interface TechGapInput {
@@ -103,24 +102,20 @@ export class TechGapService {
     input: TechGapInput,
     byok?: { provider?: string | null; key?: string | null },
   ): Promise<TechGapResult> {
-    // AI access resolution (R-071): BYOK → free; ₹499 plan → OUR AI free;
-    // free/key-less/non-subscriber → OUR AI only on explicit opt-in, which
-    // flags the resume for the ₹20 download fee. Otherwise rule-based.
-    const byokProvider = buildByokProvider(byok?.provider, byok?.key);
-    let provider = byokProvider;
-    let chargeable = false;
-    if (!provider) {
-      const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { plan: true } });
-      if (isPlanActive(user?.plan)) {
-        provider = this.resolveProvider();
-      } else if (input.aiOptIn) {
-        provider = this.resolveProvider();
-        chargeable = true;
-      }
-    }
+    // Resume-page AI access (R-086): OUR Groq key powers Tech Gap for every
+    // user — BYOK (own key) / ₹499 plan (uncapped) / FREE (our key, capped to
+    // N actions/user/day, shared across all resume AI buttons). No ₹20 fee.
+    const { provider, source } = await resolveResumeAiProvider(
+      this.prisma, userId, byok, () => this.resolveProvider(),
+    );
+    const freeDaily = source === 'free';
 
     if (!provider) {
       return this.buildRuleBasedAnalysis(input);
+    }
+
+    if (freeDaily) {
+      await enforceResumeAiFreeDaily(this.prisma, this.config, userId);
     }
 
     const userPrompt = this.buildPrompt(input);
@@ -132,27 +127,14 @@ export class TechGapService {
         timeoutMs: 30_000,
       });
       const result = this.parseResponse(raw);
-      // Only the opted-in, free-user path is chargeable → flag the resume.
-      if (chargeable && input.resumeId) {
-        await this.flagResumeAiAssist(userId, input.resumeId);
+      if (freeDaily) {
+        await recordResumeAiFreeUsage(this.prisma, userId);
       }
       return result;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       this.logger.error(`Tech gap AI analysis failed: ${msg}`);
       return this.buildRuleBasedAnalysis(input);
-    }
-  }
-
-  /** Flag the resume so its next download carries the ₹20 AI fee. */
-  private async flagResumeAiAssist(userId: string, resumeId: string): Promise<void> {
-    try {
-      await this.prisma.resume.updateMany({
-        where: { id: resumeId, userId },
-        data: { aiAssistUsed: true },
-      });
-    } catch {
-      // Non-critical — never fail the AI response over the billing flag.
     }
   }
 

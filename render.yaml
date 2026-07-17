@@ -247,6 +247,39 @@ services:
       - key: FORCE_DISABLE_RATE_LIMIT
         value: "false"
 
+      # ── Live jobs feed (Adzuna) — R-087 ─────────────────────────────
+      # Register free at https://developer.adzuna.com → Application ID +
+      # Application Key. Setting BOTH enables the /jobs live-openings
+      # panel and the email job alerts; without them those surfaces stay
+      # honestly disabled. Verify with GET /admin/jobs/status.
+      - key: ADZUNA_APP_ID
+        sync: false
+      - key: ADZUNA_APP_KEY
+        sync: false
+      - key: ADZUNA_COUNTRY
+        value: "in"
+      - key: ADZUNA_DEFAULT_LOCATION
+        value: ""
+
+      # ── Cron trigger secret — R-087 ─────────────────────────────────
+      # Shared secret the cron services below send as `x-cron-secret`.
+      # Generate any long random string; must match the cron services.
+      - key: CRON_SECRET
+        sync: false
+
+      # ── WhatsApp notifications (Meta Cloud API) — R-087, optional ───
+      # From developers.facebook.com → WhatsApp → API Setup. All unset =
+      # channel silently off (email keeps working). Verify with
+      # GET /admin/whatsapp/status.
+      - key: WHATSAPP_ACCESS_TOKEN
+        sync: false
+      - key: WHATSAPP_PHONE_NUMBER_ID
+        sync: false
+      - key: WHATSAPP_NUDGE_TEMPLATE
+        sync: false
+      - key: WHATSAPP_ALERT_TEMPLATE
+        sync: false
+
   # ─────────────────────────────────────────────────────────────────────
   # 2. FRONTEND WEB — Next.js (App Router, Standalone)
   # ─────────────────────────────────────────────────────────────────────
@@ -296,3 +329,43 @@ services:
       # the API flag alone.
       - key: NEXT_PUBLIC_ENABLE_DOWNLOAD_CHARGE
         value: "false"
+
+  # ─────────────────────────────────────────────────────────────────────
+  # 3. CRON — outcome nudges (R-031: the 7-day "any reply?" single-tap
+  #    email that fights ghosting, the #1 job-seeker pain). The endpoint
+  #    has existed for a while; this cron is what actually fires it in
+  #    prod. Runs daily 03:30 UTC = 09:00 IST.
+  #    Set the SAME CRON_SECRET here and on ats-rb-api.
+  # ─────────────────────────────────────────────────────────────────────
+  - type: cron
+    name: ats-rb-cron-nudges
+    runtime: image
+    image:
+      url: docker.io/curlimages/curl:latest
+    schedule: "30 3 * * *"
+    dockerCommand: >-
+      sh -c 'curl -fsS -X POST -H "x-cron-secret: $CRON_SECRET"
+      https://ats-rb-api.onrender.com/outcome-nudge/run'
+    region: singapore
+    envVars:
+      - key: CRON_SECRET
+        sync: false
+
+  # ─────────────────────────────────────────────────────────────────────
+  # 4. CRON — job-alert email digests (needs Adzuna keys on the API to
+  #    produce results; no-ops harmlessly otherwise). Daily 04:00 UTC =
+  #    09:30 IST, after the nudge run.
+  # ─────────────────────────────────────────────────────────────────────
+  - type: cron
+    name: ats-rb-cron-job-alerts
+    runtime: image
+    image:
+      url: docker.io/curlimages/curl:latest
+    schedule: "0 4 * * *"
+    dockerCommand: >-
+      sh -c 'curl -fsS -X POST -H "x-cron-secret: $CRON_SECRET"
+      https://ats-rb-api.onrender.com/job-alerts/run-cron'
+    region: singapore
+    envVars:
+      - key: CRON_SECRET
+        sync: false

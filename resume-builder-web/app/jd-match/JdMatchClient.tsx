@@ -21,6 +21,7 @@ import { api, getAccessToken } from '@/src/lib/api';
 import { useResumeStore } from '@/src/lib/resume-store';
 import { readActiveResumeSelection } from '@/src/lib/resume-flow';
 import TailorDiffPanel from './TailorDiffPanel';
+import AiTrustNote from '@/src/components/AiTrustNote';
 
 type MatchResult = {
   matchPercent: number;
@@ -149,6 +150,7 @@ export default function JdMatchClient() {
             Different from <a href="/resume/ats" style={{ color: 'var(--primary)' }}>ATS Score</a>, which checks whether your resume <em>format</em> parses cleanly — no JD needed for that.
           </span>
         </p>
+        <AiTrustNote />
       </section>
 
       <section className="card col-12">

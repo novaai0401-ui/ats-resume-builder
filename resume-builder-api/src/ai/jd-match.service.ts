@@ -6,8 +6,7 @@ import { rateLimitOrThrow } from '../limits/rate-limit';
 import { SettingsService } from '../settings/settings.service';
 import type { AiProvider } from './providers/ai-provider.interface';
 import { GroqProvider } from './providers/groq.provider';
-import { buildByokProvider } from './providers/byok-factory';
-import { isPlanActive } from './server-provider';
+import { enforceResumeAiFreeDaily, recordResumeAiFreeUsage, resolveResumeAiProvider } from './resume-ai-access';
 
 /**
  * JD Match Score — Student/Pro feature.
@@ -94,15 +93,13 @@ export class JdMatchService {
     // produces stronger keyword coverage).
     const baseline = computeRuleBasedMatch(resumeText, jdText, input.currentSkills ?? []);
 
-    // JD Match is NOT one of the two free-user AI features (only AI
-    // Critique + Tech Gap are). So OUR AI runs only with the user's own
-    // key (BYOK) or the ₹499 plan; everyone else gets the rule-based score.
-    const byokProvider = buildByokProvider(byok?.provider, byok?.key);
-    let provider = byokProvider;
-    if (!provider) {
-      const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { plan: true } });
-      if (isPlanActive(user?.plan)) provider = this.resolveProvider();
-    }
+    // Resume-page AI access (R-086): OUR Groq key powers JD Match / Scan job
+    // skills for every user — BYOK (own key) / ₹499 plan (uncapped) / FREE
+    // (our key, capped to N actions/user/day, shared across resume AI buttons).
+    const { provider, source } = await resolveResumeAiProvider(
+      this.prisma, userId, byok, () => this.resolveProvider(),
+    );
+    const freeDaily = source === 'free';
     if (!provider) {
       return {
         matchPercent: baseline.matchPercent,
@@ -111,6 +108,9 @@ export class JdMatchService {
         bulletSuggestions: ruleBasedBulletSuggestions(baseline.missingKeywords),
         provider: 'rule-based',
       };
+    }
+    if (freeDaily) {
+      await enforceResumeAiFreeDaily(this.prisma, this.config, userId);
     }
 
     const system = [
@@ -141,6 +141,9 @@ export class JdMatchService {
       const parsed = parseJdMatchResponse(raw);
       if (!parsed) {
         return { ...baseline, bulletSuggestions: ruleBasedBulletSuggestions(baseline.missingKeywords), provider: 'rule-based' };
+      }
+      if (freeDaily) {
+        await recordResumeAiFreeUsage(this.prisma, userId);
       }
       return {
         matchPercent: clampPercent(parsed.matchPercent ?? baseline.matchPercent),

@@ -13,6 +13,7 @@ import { MetaModule } from './meta/meta.module';
 import { SettingsModule } from './settings/settings.module';
 import { AdminModule } from './admin/admin.module';
 import { MailModule } from './mail/mail.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { JobAlertsModule } from './job-alerts/job-alerts.module';
 import { JobsModule } from './jobs/jobs.module';
 import { AppMetaModule } from './app-meta/app-meta.module';
@@ -40,6 +41,7 @@ import { ThrottleModule } from './throttle/throttle.module';
     ThrottleModule,
     PrismaModule,
     MailModule,
+    NotificationsModule,
     JobAlertsModule,
     AuthModule,
     SettingsModule,

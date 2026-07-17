@@ -31,6 +31,57 @@ export interface JobApplicationInput {
   closedAt?: string | null;
 }
 
+/**
+ * Benchmark (R-050 scope): statuses that count toward the response-rate
+ * denominator ("reached at least applied") and numerator ("employer
+ * responded"). Mirrors the math in stats(): wishlist/withdrawn are out of
+ * the denominator; phone_screen/interview/offer count as a response.
+ */
+export const BENCHMARK_DENOMINATOR_STATUSES = [
+  'applied',
+  'phone_screen',
+  'interview',
+  'offer',
+  'rejected',
+] as const;
+export const BENCHMARK_RESPONSE_STATUSES = ['phone_screen', 'interview', 'offer'] as const;
+/** Privacy + significance gates: no benchmark until both are met. */
+export const BENCHMARK_MIN_APPLICATIONS = 5;
+export const BENCHMARK_MIN_COHORT_USERS = 10;
+
+/** Median of a list of numbers; null for an empty list. */
+export function median(values: number[]): number | null {
+  if (values.length === 0) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 1 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+/** Response rate (as a 0–100 pct, 1 decimal) from a user's application statuses. */
+export function responseRateFromStatuses(statuses: string[]): {
+  applications: number;
+  responses: number;
+  responseRatePct: number;
+} {
+  const qualifying = statuses.filter((s) =>
+    (BENCHMARK_DENOMINATOR_STATUSES as readonly string[]).includes(s),
+  );
+  const responses = qualifying.filter((s) =>
+    (BENCHMARK_RESPONSE_STATUSES as readonly string[]).includes(s),
+  ).length;
+  const applications = qualifying.length;
+  const responseRatePct =
+    applications > 0 ? Math.round((responses / applications) * 1000) / 10 : 0;
+  return { applications, responses, responseRatePct };
+}
+
+export interface BenchmarkReport {
+  available: boolean;
+  reason?: string;
+  yours: { applications: number; responses: number; responseRatePct: number };
+  platform?: { medianResponseRatePct: number; cohortUsers: number };
+}
+
 function coerceStatus(raw: unknown, fallback: JobStatus = 'wishlist'): JobStatus {
   if (typeof raw !== 'string') return fallback;
   return (JOB_STATUSES as readonly string[]).includes(raw) ? (raw as JobStatus) : fallback;
@@ -143,6 +194,61 @@ export class JobsService {
       byStatus: counts,
       responseRate: Math.round(responseRate * 100) / 100,
       offerRate: Math.round(offerRate * 100) / 100,
+    };
+  }
+
+  /**
+   * "Your response rate vs. platform median." The platform figure is an
+   * anonymized aggregate only: per-user rates for users with >= 5 applied
+   * applications, then the median. Never returns another user's data, and
+   * stays locked (available=false, honest reason) until both the caller
+   * and the cohort clear the privacy/significance thresholds.
+   */
+  async benchmark(userId: string): Promise<BenchmarkReport> {
+    // Only userId + status leave the database; nothing identifying is aggregated.
+    const rows = await this.prisma.jobApplication.findMany({
+      where: { status: { in: [...BENCHMARK_DENOMINATOR_STATUSES] } },
+      select: { userId: true, status: true },
+    });
+
+    const byUser = new Map<string, string[]>();
+    for (const row of rows) {
+      const list = byUser.get(row.userId) || [];
+      list.push(row.status);
+      byUser.set(row.userId, list);
+    }
+
+    const yours = responseRateFromStatuses(byUser.get(userId) || []);
+
+    const cohortRates: number[] = [];
+    for (const statuses of byUser.values()) {
+      const rate = responseRateFromStatuses(statuses);
+      if (rate.applications >= BENCHMARK_MIN_APPLICATIONS) {
+        cohortRates.push(rate.responseRatePct);
+      }
+    }
+    const cohortUsers = cohortRates.length;
+    const medianRate = median(cohortRates);
+
+    if (yours.applications < BENCHMARK_MIN_APPLICATIONS) {
+      return {
+        available: false,
+        reason: `Log at least ${BENCHMARK_MIN_APPLICATIONS} applications to unlock your community comparison (you have ${yours.applications}).`,
+        yours,
+      };
+    }
+    if (cohortUsers < BENCHMARK_MIN_COHORT_USERS || medianRate === null) {
+      return {
+        available: false,
+        reason: `Community benchmarks unlock once ${BENCHMARK_MIN_COHORT_USERS}+ users have ${BENCHMARK_MIN_APPLICATIONS}+ tracked applications (currently ${cohortUsers}).`,
+        yours,
+      };
+    }
+
+    return {
+      available: true,
+      yours,
+      platform: { medianResponseRatePct: medianRate, cohortUsers },
     };
   }
 

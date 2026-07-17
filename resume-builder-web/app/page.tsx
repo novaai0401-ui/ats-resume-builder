@@ -31,6 +31,10 @@ const FAQ = [
     a: 'Yes. It scores ATS-friendliness with explainable feedback and the ATS Simulator renders exactly what an applicant tracking system (Workday, Greenhouse, iCIMS) would parse from your file.',
   },
   {
+    q: 'Does the AI make up numbers or achievements on my resume?',
+    a: 'No — and this is a hard rule, not a preference. Most AI resume tools invent metrics ("cut costs by 35%") that were never in your history. Pocket Resume’s AI is instructed to never invent numbers, achievements, employers, or skills; it only rephrases and reorganizes what is genuinely on your resume.',
+  },
+  {
     q: 'Is my resume data private?',
     a: 'Yes. Storage is local-first with zero-knowledge encrypted backup. Resume content is never sold and never used to train AI unless you explicitly opt in.',
   },
