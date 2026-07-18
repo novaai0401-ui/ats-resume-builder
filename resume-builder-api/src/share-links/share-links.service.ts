@@ -526,7 +526,7 @@ function sanitiseResumeForPublic(resumeBody: any, maskContact: boolean) {
 /**
  * Coarse-geo enrichment for visit logs (R-038 Phase 2 step 4).
  *
- * Pocket Resume does not own an IP-geolocation database — bringing
+ * CallbackCV does not own an IP-geolocation database — bringing
  * one in just for the share-link log would be a significant license
  * + binary-size + memory tradeoff (MaxMind: paid; ipinfo: paid;
  * GeoLite2: 60 MB binary, attribution licence). What we DO have for

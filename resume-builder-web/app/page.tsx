@@ -2,7 +2,7 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Pocket Resume — Free ATS resume builder',
+  title: 'CallbackCV — Free ATS resume builder',
   description:
     'Build, score, and export resumes that pass applicant tracking systems. ' +
     'Local-first privacy: your resume stays on your device. Free to start, works on web and mobile.',
@@ -19,20 +19,20 @@ export const metadata: Metadata = {
 // facts for AI assistants (GEO) — pair with /llms.txt.
 const FAQ = [
   {
-    q: 'Is Pocket Resume a free ATS resume builder?',
-    a: 'Yes. The resume editor and ATS scorer are free forever. AI career features like the Recruiter-AI Simulator, mentor chat, and live job openings are free with your own AI key (BYOK), or get Pocket Resume Plus at ₹499/mo for our AI everywhere. Downloads are ₹49 each.',
+    q: 'Is CallbackCV a free ATS resume builder?',
+    a: 'Yes. The resume editor and ATS scorer are free forever. AI career features like the Recruiter-AI Simulator, mentor chat, and live job openings are free with your own AI key (BYOK), or get CallbackCV Plus at ₹499/mo for our AI everywhere. Downloads are ₹49 each.',
   },
   {
-    q: 'How is Pocket Resume different from other ATS resume builders?',
-    a: 'Most tools stop at a predicted ATS score. Pocket Resume measures your real callback rate per resume version (the Outcome Loop), simulates the AI hiring screen recruiters now run (Recruiter-AI Simulator), and shows the literal recruiter-view text an ATS extracts (ATS Simulator).',
+    q: 'How is CallbackCV different from other ATS resume builders?',
+    a: 'Most tools stop at a predicted ATS score. CallbackCV measures your real callback rate per resume version (the Outcome Loop), simulates the AI hiring screen recruiters now run (Recruiter-AI Simulator), and shows the literal recruiter-view text an ATS extracts (ATS Simulator).',
   },
   {
-    q: 'Does Pocket Resume check if my resume is ATS-compatible?',
+    q: 'Does CallbackCV check if my resume is ATS-compatible?',
     a: 'Yes. It scores ATS-friendliness with explainable feedback and the ATS Simulator renders exactly what an applicant tracking system (Workday, Greenhouse, iCIMS) would parse from your file.',
   },
   {
     q: 'Does the AI make up numbers or achievements on my resume?',
-    a: 'No — and this is a hard rule, not a preference. Most AI resume tools invent metrics ("cut costs by 35%") that were never in your history. Pocket Resume’s AI is instructed to never invent numbers, achievements, employers, or skills; it only rephrases and reorganizes what is genuinely on your resume.',
+    a: 'No — and this is a hard rule, not a preference. Most AI resume tools invent metrics ("cut costs by 35%") that were never in your history. CallbackCV’s AI is instructed to never invent numbers, achievements, employers, or skills; it only rephrases and reorganizes what is genuinely on your resume.',
   },
   {
     q: 'Is my resume data private?',
@@ -40,7 +40,7 @@ const FAQ = [
   },
   {
     q: 'Does it work for the India job market?',
-    a: 'Yes. Pocket Resume is India-first with Pocket Resume Plus at ₹499/mo (cancel anytime), India-aware live job openings, and Razorpay payments, while also supporting global users.',
+    a: 'Yes. CallbackCV is India-first with CallbackCV Plus at ₹499/mo (cancel anytime), India-aware live job openings, and Razorpay payments, while also supporting global users.',
   },
 ];
 
@@ -76,13 +76,13 @@ export default function Page() {
         </p>
       </section>
 
-      <section className="grid" aria-label="Why Pocket Resume">
+      <section className="grid" aria-label="Why CallbackCV">
         <article className="card col-7">
           <h2>Built for the people most resume tools ignore</h2>
           <p className="small">
             Students applying to their first job. Workers re-entering after a break.
-            Professionals who want a clean resume without an expensive subscription. Pocket
-            Resume is free forever to build and edit — pay just ₹49 per download, or get one
+            Professionals who want a clean resume without an expensive subscription. CallbackCV
+            is free forever to build and edit — pay just ₹49 per download, or get one
             simple ₹499/month plan (the same for everyone) for unlimited AI and free downloads.
           </p>
         </article>
@@ -97,7 +97,7 @@ export default function Page() {
         <article className="card col-6">
           <h2>Privacy that's actually true</h2>
           <p className="small">
-            Your resume is stored in your Pocket Resume account so it's there on every device you
+            Your resume is stored in your CallbackCV account so it's there on every device you
             sign in from. We don't sell your data and we never train AI on your resume unless you
             opt in (Settings → Training data). Delete any resume — or your whole account — anytime.
           </p>
@@ -106,7 +106,7 @@ export default function Page() {
           <h2>One account, every device</h2>
           <p className="small">
             Build on your laptop in the morning, polish on your phone over chai, export the PDF
-            or Word file when a recruiter asks. Same login on every device — install Pocket Resume
+            or Word file when a recruiter asks. Same login on every device — install CallbackCV
             from your browser's home-screen menu.
           </p>
         </article>
@@ -122,7 +122,7 @@ export default function Page() {
           </ul>
           <p className="small" style={{ marginTop: 8 }}>
             <strong>Pay ₹49 per download</strong> for each clean PDF or Word export — no plan needed.
-            Or get <strong>Pocket Resume Plus at ₹499/month</strong> (one plan for everyone, cancel anytime):
+            Or get <strong>CallbackCV Plus at ₹499/month</strong> (one plan for everyone, cancel anytime):
             unlimited AI everywhere plus free, unlimited downloads.
           </p>
         </article>
@@ -147,7 +147,7 @@ export default function Page() {
           <li><Link href="/ats-resume-templates">ATS resume templates</Link> — free, ATS-safe layouts tested across major systems.</li>
           <li><Link href="/ats-resume-checker">ATS resume checker</Link> — score your resume and see what an ATS extracts.</li>
           <li><Link href="/resume-builder-india">Resume builder for India</Link> — ₹ pricing, UPI, India-aware live openings.</li>
-          <li><Link href="/compare">Pocket Resume vs Rezi, Teal &amp; Jobscan</Link> — how we compare.</li>
+          <li><Link href="/compare">CallbackCV vs Rezi, Teal &amp; Jobscan</Link> — how we compare.</li>
         </ul>
       </section>
 

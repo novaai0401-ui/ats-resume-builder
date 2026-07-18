@@ -172,7 +172,7 @@ export default function TailorDiffPanel({
         </p>
         <p className="small" style={{ color: 'var(--muted)', marginBottom: 12 }}>
           When you apply to this job, attach this version in the Jobs tracker — that's
-          how Pocket Resume measures which tailoring actually got you replies.
+          how CallbackCV measures which tailoring actually got you replies.
         </p>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <Link className="btn" href={`/resume/versions?id=${encodeURIComponent(resumeId)}`}>

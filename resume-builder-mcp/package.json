@@ -1,13 +1,13 @@
 {
-  "name": "@pocketresume/mcp",
+  "name": "@tekivex/callbackcv-mcp",
   "version": "0.1.0",
-  "description": "MCP server for Pocket Resume — lets AI agents read resumes, tailor them per JD, log applications, and query outcome stats. Every agent action feeds the same Outcome Graph as the web app.",
+  "description": "MCP server for CallbackCV — lets AI agents read resumes, tailor them per JD, log applications, and query outcome stats. Every agent action feeds the same Outcome Graph as the web app.",
   "license": "MIT",
   "type": "module",
   "publishConfig": { "access": "public" },
   "repository": { "type": "git", "url": "https://github.com/novaai0401-ui/ats-resume-builder", "directory": "resume-builder-mcp" },
   "keywords": ["mcp", "model-context-protocol", "resume", "ats", "job-search", "career", "claude", "ai-agents"],
-  "bin": { "pocketresume-mcp": "dist/index.js" },
+  "bin": { "callbackcv-mcp": "dist/index.js" },
   "main": "dist/index.js",
   "files": ["dist", "README.md"],
   "scripts": {

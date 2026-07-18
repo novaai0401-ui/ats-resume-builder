@@ -321,7 +321,7 @@ export default function DashboardPageView({
       {plan === 'FREE' ? (
         <section className="upgrade-cta" data-testid="dashboard-upgrade-cta">
           <div>
-            <strong>⭐ Get Pocket Resume Plus — ₹499/mo</strong>
+            <strong>⭐ Get CallbackCV Plus — ₹499/mo</strong>
             <p className="small" style={{ margin: '4px 0 0' }}>
               Unlimited AI everywhere (critique, tailoring, mentor, interview prep) and
               free resume downloads — no per-download charge while subscribed.

@@ -7,8 +7,8 @@
  * target role. Each card has the question, why it's asked, and an
  * answer outline (3 bullets).
  *
- * Usable with the user's own AI key (BYOK, free) or with Pocket
- * Resume Plus. Users without either see a paywall card pointing them
+ * Usable with the user's own AI key (BYOK, free) or with CallbackCV
+ * Plus. Users without either see a paywall card pointing them
  * to add a key in Settings or get Plus.
  */
 
@@ -71,7 +71,7 @@ export default function InterviewPrepClient() {
     } catch { /* ignore */ }
   }, []);
 
-  // Usable with Pocket Resume Plus (the 'PRO' plan value) or BYOK key.
+  // Usable with CallbackCV Plus (the 'PRO' plan value) or BYOK key.
   const canUseAi = plan === 'PRO' || hasByok;
   const resumeText = buildResumeText(resume as never);
   const hasResume = resumeText.trim().length > 30;
@@ -143,7 +143,7 @@ export default function InterviewPrepClient() {
         >
           <h2 style={{ marginTop: 0 }}>Use AI for Interview Prep</h2>
           <p className="small" style={{ color: 'var(--ink)', lineHeight: 1.6, marginBottom: 12 }}>
-            Add your own AI key in Settings (free) to use this now — or get Pocket Resume Plus
+            Add your own AI key in Settings (free) to use this now — or get CallbackCV Plus
             (₹499/mo) for our AI across every feature, with no per-download AI fee. Cancel anytime.
           </p>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -188,7 +188,7 @@ export default function InterviewPrepClient() {
         {paywall ? (
           <p className="small" style={{ marginTop: 10, color: 'var(--muted)' }}>
             <Link href="/settings">Add your AI key</Link> (free) or{' '}
-            <Link href="/billing">get Pocket Resume Plus</Link> to use Interview Prep.
+            <Link href="/billing">get CallbackCV Plus</Link> to use Interview Prep.
           </p>
         ) : null}
       </section>
@@ -247,7 +247,7 @@ export default function InterviewPrepClient() {
 
       {/* Mock Interview — live back-and-forth with an AI interviewer that
           asks questions grounded in the resume, critiques each answer and
-          offers a model answer. Available with BYOK or Pocket Resume Plus. */}
+          offers a model answer. Available with BYOK or CallbackCV Plus. */}
       {canUseAi ? (
         <MockInterviewPanel resumeText={resumeText} targetRole={targetRole} jdText={jdText} />
       ) : null}

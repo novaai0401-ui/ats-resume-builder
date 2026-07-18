@@ -68,9 +68,9 @@ test('Gmail App Password: display spaces are stripped (Gmail hosts only)', () =>
 
 test('From address is forced to the authenticated mailbox, keeping the display name', () => {
   // Mismatched SMTP_FROM address → rewritten to the authenticated user.
-  assert.equal(resolveFromAddress('Pocket Resume <noreply@other.com>', 'novaai0401@gmail.com'), 'Pocket Resume <novaai0401@gmail.com>');
+  assert.equal(resolveFromAddress('CallbackCV <noreply@other.com>', 'novaai0401@gmail.com'), 'CallbackCV <novaai0401@gmail.com>');
   // Bare display name → attach the user address.
-  assert.equal(resolveFromAddress('Pocket Resume', 'novaai0401@gmail.com'), 'Pocket Resume <novaai0401@gmail.com>');
+  assert.equal(resolveFromAddress('CallbackCV', 'novaai0401@gmail.com'), 'CallbackCV <novaai0401@gmail.com>');
   // Bare address / empty → just the authenticated address.
   assert.equal(resolveFromAddress('', 'novaai0401@gmail.com'), 'novaai0401@gmail.com');
   assert.equal(resolveFromAddress('whoever@x.com', 'novaai0401@gmail.com'), 'novaai0401@gmail.com');
@@ -82,10 +82,10 @@ test('a Gmail config with a spaced app password + branded From resolves correctl
   const m = new MailService(cfg({
     SMTP_HOST: 'smtp.gmail.com', SMTP_PORT: '587',
     SMTP_USER: 'novaai0401@gmail.com', SMTP_PASS: 'abcd efgh ijkl mnop',
-    SMTP_FROM: 'Pocket Resume <novaai0401@gmail.com>',
+    SMTP_FROM: 'CallbackCV <novaai0401@gmail.com>',
   }));
   const s = m.getStatus();
   assert.equal(s.configured, true, `reason: ${s.reason}`);
   assert.equal(s.secure, false);
-  assert.equal(s.fromAddress, 'Pocket Resume <novaai0401@gmail.com>');
+  assert.equal(s.fromAddress, 'CallbackCV <novaai0401@gmail.com>');
 });

@@ -7,7 +7,7 @@ import path from 'node:path';
  * Source-level guardrails for the Free vs Paid feature matrix and the
  * ₹49 explainer on the billing page.
  *
- * Post-pivot (R-071) there is ONE paid plan — "Pocket Resume Plus" at
+ * Post-pivot (R-071) there is ONE paid plan — "CallbackCV Plus" at
  * ₹499/mo (the 'PRO' value internally). The Free column doubles as the
  * BYOK path. The numbers must match
  * resume-builder-api/src/billing/plan-limits.ts (FREE + PRO).
@@ -34,8 +34,8 @@ test('quotas match plan-limits.ts source of truth (FREE + Plus/PRO)', () => {
   assert.match(src, /plus:\s*'120,000'/);
 });
 
-test('single paid plan is ₹499/mo and labelled Pocket Resume Plus', () => {
-  assert.match(src, /Pocket Resume Plus/);
+test('single paid plan is ₹499/mo and labelled CallbackCV Plus', () => {
+  assert.match(src, /CallbackCV Plus/);
   assert.match(src, /₹499\/mo/);
   // No legacy tiers/prices should linger.
   assert.doesNotMatch(src, /₹199/);
@@ -53,7 +53,7 @@ test('₹49 explainer states what the micro-payment unlocks', () => {
 });
 
 test('explainer up-sells the ₹499 Plus plan and the free BYOK path', () => {
-  assert.match(src, /Pocket Resume Plus at ₹499\/mo/);
+  assert.match(src, /CallbackCV Plus at ₹499\/mo/);
   assert.match(src, /own AI key/);
 });
 

@@ -70,8 +70,8 @@ export default function BillingPage() {
           key: order.keyId,
           amount: order.amount,
           currency: order.currency,
-          name: 'Pocket Resume',
-          description: 'Pocket Resume Plus — ₹499/mo',
+          name: 'CallbackCV',
+          description: 'CallbackCV Plus — ₹499/mo',
           order_id: order.orderId,
           prefill: { email: getCurrentUserEmail() || order.userEmail || undefined },
           handler: async (response: {
@@ -88,7 +88,7 @@ export default function BillingPage() {
                 interval: 'monthly',
               });
               setPlan(verify.plan);
-              setNotice('You’re on Pocket Resume Plus. AI is unlocked everywhere and the per-download AI fee is waived.');
+              setNotice('You’re on CallbackCV Plus. AI is unlocked everywhere and the per-download AI fee is waived.');
               resolve();
             } catch (verifyErr: unknown) {
               reject(verifyErr instanceof Error ? verifyErr : new Error('Verification failed.'));
@@ -191,7 +191,7 @@ export default function BillingPage() {
           <div style={{ position: 'absolute', top: 14, right: 14 }}>
             <TkxBadge variant="primary">Most popular</TkxBadge>
           </div>
-          <h3 style={{ marginTop: 0, marginBottom: 4 }}>Pocket Resume Plus</h3>
+          <h3 style={{ marginTop: 0, marginBottom: 4 }}>CallbackCV Plus</h3>
           <p style={{ fontSize: 30, fontWeight: 800, margin: '4px 0 14px', letterSpacing: '-0.02em' }}>
             ₹499 <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--muted)' }}>/ month</span>
           </p>
@@ -237,7 +237,7 @@ export default function BillingPage() {
         ) : (
           <TkxCard variant="glass" padding="lg">
             <p style={{ margin: 0, color: 'var(--ink)', lineHeight: 1.6 }}>
-              You’re on Pocket Resume Plus — our AI is unlocked across every feature, with no
+              You’re on CallbackCV Plus — our AI is unlocked across every feature, with no
               per-download AI fee, and downloads are free on your plan.
             </p>
             <div style={{ marginTop: 12 }}>

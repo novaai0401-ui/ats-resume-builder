@@ -66,7 +66,7 @@ export default async function Image({
           </div>
         ) : null}
         <div style={{ marginTop: 'auto', fontSize: 32, color: '#7d97bd' }}>
-          Measured, not predicted · Pocket Resume
+          Measured, not predicted · CallbackCV
         </div>
       </div>
     ),

@@ -1,6 +1,6 @@
-# @pocketresume/mcp
+# @tekivex/callbackcv-mcp
 
-MCP server for [Pocket Resume](https://pocketresume.app). Lets AI
+MCP server for [CallbackCV](https://pocketresume.app). Lets AI
 agents (Claude Desktop, Claude Code, any MCP host) read your resumes,
 tailor them to job descriptions, log applications, and query which
 resume version actually gets replies.
@@ -16,9 +16,9 @@ tailoring work?" is answerable in your Outcomes dashboard.
 ```json
 {
   "mcpServers": {
-    "pocketresume": {
+    "callbackcv": {
       "command": "npx",
-      "args": ["-y", "@pocketresume/mcp"],
+      "args": ["-y", "@tekivex/callbackcv-mcp"],
       "env": {
         "POCKET_RESUME_TOKEN": "<your token — Settings → API access>",
         "POCKET_RESUME_API_URL": "https://api.pocketresume.app"

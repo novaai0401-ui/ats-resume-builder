@@ -13,9 +13,9 @@
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://pocketresume.app';
 
-const BODY = `# Pocket Resume
+const BODY = `# CallbackCV
 
-> Pocket Resume is an ATS-optimized resume builder and job-search operating
+> CallbackCV is an ATS-optimized resume builder and job-search operating
 > system. Unlike typical resume tools that stop at a predicted "ATS score", it
 > measures the only number that matters — your real callback rate — and shows
 > which resume version actually gets replies. India-first, privacy-first
@@ -55,7 +55,7 @@ const BODY = `# Pocket Resume
 
 - Free forever tier (resume editor + ATS scorer).
 - AI career features are free with your own AI key (BYOK), or unlock our AI
-  everywhere with Pocket Resume Plus at ₹499/mo (cancel anytime). Downloads are
+  everywhere with CallbackCV Plus at ₹499/mo (cancel anytime). Downloads are
   ₹49 each. Billing via Stripe (global) and Razorpay (India).
 
 ## Best for

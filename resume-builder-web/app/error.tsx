@@ -52,7 +52,7 @@ export default function RootError({
           </div>
           <p className="small" style={{ color: 'var(--muted)', marginTop: 14, marginBottom: 0 }}>
             Still stuck? Email{' '}
-            <a href={supportMailto('Pocket Resume — problem report')}>{SUPPORT_EMAIL}</a>
+            <a href={supportMailto('CallbackCV — problem report')}>{SUPPORT_EMAIL}</a>
             {error.digest ? <> and mention reference <code>{error.digest}</code></> : null} — we reply fast.
           </p>
         </TkxCardBody>

@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "ATS Builder — Job Hunt Companion",
+  "name": "CallbackCV — Job Hunt Companion",
   "version": "0.1.0",
   "description": "Capture job descriptions, auto-track applications with the resume version you used, and reach Sahaayak from any job board.",
   "permissions": ["storage", "activeTab", "scripting", "contextMenus"],

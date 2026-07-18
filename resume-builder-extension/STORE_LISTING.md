@@ -21,10 +21,10 @@ Required change before submitting (small, ~1 day):
 1. Create a Chrome Web Store developer account:
    https://chrome.google.com/webstore/devconsole — one-time $5 fee,
    use the company Google account.
-2. `cd resume-builder-extension && zip -r ../pocketresume-extension.zip . -x "tests/*" "*.md"`
+2. `cd resume-builder-extension && zip -r ../callbackcv-extension.zip . -x "tests/*" "*.md"`
 3. Dev console → New item → upload the zip.
 4. Listing content (draft):
-   - Name: **Pocket Resume — Job Hunt Companion**
+   - Name: **CallbackCV — Job Hunt Companion**
    - Summary: One-click job saving and apply-tracking. Captures the JD and
      asks which resume version you used, so your Outcome Loop fills itself.
    - Category: Productivity → Tools. Language: English (India available).
@@ -33,7 +33,7 @@ Required change before submitting (small, ~1 day):
    - Privacy tab: declare storage + activeTab + scripting + contextMenus;
      single purpose = "track job applications the user explicitly saves";
      data use = auth token stored locally, job data sent only to the
-     user's own Pocket Resume account. No sale of data.
+     user's own CallbackCV account. No sale of data.
 5. Privacy policy URL: https://ats-rb-web.onrender.com/privacy (must
    mention the extension).
 6. Submit for review — typical review time 1–3 business days.

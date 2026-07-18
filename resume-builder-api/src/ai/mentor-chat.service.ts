@@ -115,7 +115,7 @@ export class MentorChatService {
       // message instead of a silly canned response.
       return {
         reply:
-          'Mentor Chat needs the AI provider to be configured. Please reach out to support@pocketresume.app — this should be live shortly.',
+          'Mentor Chat needs the AI provider to be configured. Please reach out to support@tekivex.com — this should be live shortly.',
         provider: 'unavailable',
         tokensUsed: 0,
       };
@@ -218,7 +218,7 @@ export function buildSystemPrompt(
   jobs: Array<{ company: string; role: string; status: string }>,
 ): string {
   const parts = [
-    'You are a senior career mentor for Pocket Resume users.',
+    'You are a senior career mentor for CallbackCV users.',
     'Your job is to give concrete, actionable career advice — never generic platitudes.',
     'Tone: warm, direct, like a senior peer who has 15+ years of experience and respects the user\'s time.',
     'Constraints:',
@@ -231,7 +231,7 @@ export function buildSystemPrompt(
   if (resumeText.trim()) {
     parts.push('\nCANDIDATE\'S CURRENT RESUME:\n' + resumeText.trim());
   } else {
-    parts.push('\n(No resume on file — encourage the user to build one in Pocket Resume.)');
+    parts.push('\n(No resume on file — encourage the user to build one in CallbackCV.)');
   }
   if (jobs.length > 0) {
     const lines = jobs.map((j) => `  • ${j.role} at ${j.company} — ${j.status}`).join('\n');

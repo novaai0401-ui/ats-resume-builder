@@ -1,5 +1,5 @@
 /**
- * Salary band hints for Pocket Resume's Pro tier.
+ * Salary band hints for CallbackCV's Pro tier.
  *
  * Approach: a small base table per (role × level) with INR/year p25 /
  * median / p75 figures, multiplied by a city factor. This is the

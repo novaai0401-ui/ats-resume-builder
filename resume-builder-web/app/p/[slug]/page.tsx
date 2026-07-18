@@ -267,7 +267,7 @@ export default async function PublicSharePage({
 
         <footer style={footerStyle}>
           <p style={{ margin: 0, fontSize: 12, color: '#94a3b8' }}>
-            Shared via Pocket Resume. The owner of this page can see the number of views,
+            Shared via CallbackCV. The owner of this page can see the number of views,
             the number of downloads, the visitor's coarse location, and a hashed visitor
             id — never your IP address. <Link href="/" style={{ color: '#1a3a5c' }}>Build your own resume →</Link>
           </p>

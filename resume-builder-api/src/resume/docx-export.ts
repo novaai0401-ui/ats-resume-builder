@@ -273,7 +273,7 @@ export async function renderResumeDocx(resume: ResumeLike): Promise<Buffer> {
   }
 
   const doc = new Document({
-    creator: 'Pocket Resume',
+    creator: 'CallbackCV',
     title: fullName,
     styles: {
       default: {

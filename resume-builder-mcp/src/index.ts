@@ -10,11 +10,11 @@ import { PocketResumeClient } from './api-client.js';
  *
  *   stdio (default) — what Claude Desktop / Claude Code / most MCP
  *   hosts spawn:
- *     POCKET_RESUME_TOKEN=... POCKET_RESUME_API_URL=... pocketresume-mcp
+ *     POCKET_RESUME_TOKEN=... POCKET_RESUME_API_URL=... callbackcv-mcp
  *
  *   HTTP — for remote hosting (one server per user-token is still the
  *   model; multi-tenant HTTP belongs to the R-041 API-key work):
- *     MCP_TRANSPORT=http MCP_PORT=8941 pocketresume-mcp
+ *     MCP_TRANSPORT=http MCP_PORT=8941 callbackcv-mcp
  *
  * Config is env-only, no flags: MCP host configs pass env cleanly and
  * tokens never end up in argv (visible in `ps`).
@@ -22,7 +22,7 @@ import { PocketResumeClient } from './api-client.js';
 
 function fatal(message: string): never {
   // stderr only — stdout belongs to the JSON-RPC stream in stdio mode.
-  console.error(`[pocketresume-mcp] ${message}`);
+  console.error(`[callbackcv-mcp] ${message}`);
   process.exit(1);
 }
 
@@ -30,7 +30,7 @@ const token = String(process.env.POCKET_RESUME_TOKEN || '').trim();
 const baseUrl = String(process.env.POCKET_RESUME_API_URL || 'https://api.pocketresume.app').trim();
 if (!token) {
   fatal(
-    'POCKET_RESUME_TOKEN is required. Get a token from Pocket Resume → Settings → API access, then set it in your MCP host config.',
+    'POCKET_RESUME_TOKEN is required. Get a token from CallbackCV → Settings → API access, then set it in your MCP host config.',
   );
 }
 
@@ -54,7 +54,7 @@ async function main() {
       await transport.handleRequest(req, res);
     });
     httpServer.listen(port, () => {
-      console.error(`[pocketresume-mcp] HTTP transport listening on :${port}`);
+      console.error(`[callbackcv-mcp] HTTP transport listening on :${port}`);
     });
     return;
   }
@@ -62,7 +62,7 @@ async function main() {
   const server = buildServer(client);
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error('[pocketresume-mcp] stdio transport connected');
+  console.error('[callbackcv-mcp] stdio transport connected');
 }
 
 main().catch((err) => fatal(err instanceof Error ? err.message : String(err)));

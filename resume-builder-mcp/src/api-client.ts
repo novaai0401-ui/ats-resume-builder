@@ -1,5 +1,5 @@
 /**
- * Minimal authenticated client for the Pocket Resume REST API.
+ * Minimal authenticated client for the CallbackCV REST API.
  *
  * The MCP server is a THIN wrapper: every tool call delegates to the
  * same endpoints the web app uses, so plan gating, AI-token quotas,

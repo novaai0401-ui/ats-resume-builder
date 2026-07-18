@@ -4,7 +4,7 @@ import type { Metadata } from 'next';
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://pocketresume.app';
 
 export const metadata: Metadata = {
-  title: 'Resume Builder for India — ATS-friendly, ₹ pricing — Pocket Resume',
+  title: 'Resume Builder for India — ATS-friendly, ₹ pricing — CallbackCV',
   description:
     'An India-first ATS resume builder. Sub-₹400/month plans, UPI & cards via Razorpay, India-aware live job openings, and ATS-safe templates that pass Indian and global applicant tracking systems.',
   alternates: { canonical: '/resume-builder-india' },
@@ -19,11 +19,11 @@ export const metadata: Metadata = {
 const FAQ = [
   {
     q: 'Is there a resume builder made for the India job market?',
-    a: 'Yes. Pocket Resume is India-first: Pocket Resume Plus at ₹499/mo (cancel anytime), UPI/card/netbanking payments via Razorpay, India-aware live job openings, and templates that pass both Indian and global applicant tracking systems.',
+    a: 'Yes. CallbackCV is India-first: CallbackCV Plus at ₹499/mo (cancel anytime), UPI/card/netbanking payments via Razorpay, India-aware live job openings, and templates that pass both Indian and global applicant tracking systems.',
   },
   {
     q: 'How much does it cost in India?',
-    a: 'You can build and score resumes for free. AI features are free with your own AI key (BYOK), or unlock our AI everywhere with Pocket Resume Plus at ₹499/mo; a ₹49 charge applies per clean PDF/Word export.',
+    a: 'You can build and score resumes for free. AI features are free with your own AI key (BYOK), or unlock our AI everywhere with CallbackCV Plus at ₹499/mo; a ₹49 charge applies per clean PDF/Word export.',
   },
   {
     q: 'Does it support UPI and Indian payment methods?',
@@ -93,7 +93,7 @@ export default function ResumeBuilderIndiaPage() {
         <h2>Made for freshers, students, and career switchers</h2>
         <p className="small">
           Whether it&apos;s your first campus placement, a switch after a break, or a jump to a new field,
-          Pocket Resume gives you ATS-safe <Link href="/ats-resume-templates">templates</Link>, a free{' '}
+          CallbackCV gives you ATS-safe <Link href="/ats-resume-templates">templates</Link>, a free{' '}
           <Link href="/ats-resume-checker">ATS checker</Link>, and proof of what&apos;s working through the
           Outcome Loop.
         </p>

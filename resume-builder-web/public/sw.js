@@ -1,4 +1,4 @@
-// Pocket Resume — service worker
+// CallbackCV — service worker
 //
 // Strategy:
 //   • Static assets (Next.js _next/static, icons): cache-first, long-lived.

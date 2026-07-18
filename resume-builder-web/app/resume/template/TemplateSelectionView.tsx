@@ -374,7 +374,7 @@ export default function TemplateSelectionView({
   // both faster and reliable across browsers.
   //
   // Plan-driven watermark:
-  //   • free → a fixed POCKET RESUME overlay sits over the preview and
+  //   • free → a fixed CALLBACKCV overlay sits over the preview and
   //            (because position: fixed repaints per page in Chrome's
   //            print path) over every printed / Saved-as-PDF sheet. The
   //            clean, watermark-free copy comes only from the paid

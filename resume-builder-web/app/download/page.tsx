@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Download Pocket Resume',
-  description: 'Install Pocket Resume on Android (APK), iOS (TestFlight or PWA), or as a web app on desktop. Verified downloads with published checksums.',
+  title: 'Download CallbackCV',
+  description: 'Install CallbackCV on Android (APK), iOS (TestFlight or PWA), or as a web app on desktop. Verified downloads with published checksums.',
 };
 
 // We don't ship through the stores, so users need confidence the file
@@ -41,9 +41,9 @@ export default async function DownloadPage() {
 
   return (
     <main style={{ maxWidth: 760, margin: '0 auto', padding: '32px 20px 80px' }}>
-      <h1 style={{ fontSize: 28, marginBottom: 8 }}>Get Pocket Resume on your phone</h1>
+      <h1 style={{ fontSize: 28, marginBottom: 8 }}>Get CallbackCV on your phone</h1>
       <p style={{ color: 'var(--muted)', lineHeight: 1.55, marginBottom: 24 }}>
-        Pocket Resume isn&rsquo;t in the App Store or Play Store yet. Install one of the options
+        CallbackCV isn&rsquo;t in the App Store or Play Store yet. Install one of the options
         below — your account works the same on every platform.
       </p>
 
@@ -79,7 +79,7 @@ export default async function DownloadPage() {
               <p style={{ margin: '4px 0' }}>
                 After downloading, run these commands to confirm the file matches what we
                 published. If either value differs, do not install — re-download from this
-                page or report it to security@pocketresume.app.
+                page or report it to security@tekivex.com.
               </p>
               <Code label="SHA-256 of the APK" value={manifest.android.sha256} command="sha256sum pocket-resume.apk" />
               <Code
@@ -98,7 +98,7 @@ export default async function DownloadPage() {
             <li>When prompted, tap <strong>Open</strong>. Android will warn that the file is from an unknown source.</li>
             <li>Tap <strong>Settings</strong> → enable <em>&ldquo;Allow from this source&rdquo;</em> for your browser.</li>
             <li>Go back and tap <strong>Install</strong>.</li>
-            <li>Open Pocket Resume and sign in with your existing account.</li>
+            <li>Open CallbackCV and sign in with your existing account.</li>
           </ol>
         </details>
       </section>

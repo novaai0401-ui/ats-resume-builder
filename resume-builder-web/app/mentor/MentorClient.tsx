@@ -187,7 +187,7 @@ export default function MentorClient() {
     () => (showResult ? getSalaryBand(role, level as SalaryLevel, city) : null),
     [showResult, role, level, city],
   );
-  // Mentor path unlocks with Pocket Resume Plus (the 'PRO'/'STUDENT'
+  // Mentor path unlocks with CallbackCV Plus (the 'PRO'/'STUDENT'
   // plan values) or the user's own AI key (BYOK, free). The salary band
   // is a Plus perk (kept on the paid plan value).
   const isPaid = plan === 'STUDENT' || plan === 'PRO' || hasByok;
@@ -288,7 +288,7 @@ export default function MentorClient() {
               ))}
             </ul>
 
-            {/* Salary band — a Pocket Resume Plus perk. Everyone who
+            {/* Salary band — a CallbackCV Plus perk. Everyone who
                 reaches the result sees the heading; BYOK and free users
                 see the upsell card below it. */}
             <h3 style={{ marginTop: 24 }}>
@@ -327,14 +327,14 @@ export default function MentorClient() {
                 }}
               >
                 <p style={{ margin: 0, fontWeight: 600, color: 'var(--primary)' }}>
-                  Salary bands are a Pocket Resume Plus perk
+                  Salary bands are a CallbackCV Plus perk
                 </p>
                 <p className="small" style={{ marginTop: 6, color: 'var(--muted)', lineHeight: 1.5 }}>
                   Plus shows the 25th / 50th / 75th percentile annual compensation for your role,
                   level, and city — sourced from public 2024–2025 surveys.
                 </p>
                 <Link className="btn" href="/billing" style={{ marginTop: 10, fontSize: 13 }}>
-                  Get Pocket Resume Plus — ₹499/mo
+                  Get CallbackCV Plus — ₹499/mo
                 </Link>
               </div>
             )}
@@ -342,7 +342,7 @@ export default function MentorClient() {
             <p className="small" style={{ marginTop: 18, color: 'var(--muted)' }}>
               {isPro
                 ? 'Tip: head over to the Cover Letter Studio to draft a tailored letter for any of these roles.'
-                : 'Add your own AI key (free) or get Pocket Resume Plus (₹499/mo) to unlock our AI across every feature, including salary bands.'}
+                : 'Add your own AI key (free) or get CallbackCV Plus (₹499/mo) to unlock our AI across every feature, including salary bands.'}
             </p>
           </section>
         ) : (
@@ -358,12 +358,12 @@ export default function MentorClient() {
             <p className="small" style={{ color: 'var(--ink)', lineHeight: 1.6 }}>
               You picked <strong>{seed.role} — {seed.level}</strong>. To see the full path
               (technologies recruiters expect, ATS keywords for this role, curated free
-              learning resources), add your own AI key in Settings (free) — or get Pocket
-              Resume Plus (₹499/mo) for our AI across every feature. Cancel anytime.
+              learning resources), add your own AI key in Settings (free) — or get CallbackCV
+              Plus (₹499/mo) for our AI across every feature. Cancel anytime.
             </p>
             <ul className="small" style={{ paddingLeft: 18, lineHeight: 1.7, marginBottom: 14 }}>
               <li>Every AI feature, free, with your own AI key</li>
-              <li>Or Pocket Resume Plus — our AI everywhere, no per-download AI fee</li>
+              <li>Or CallbackCV Plus — our AI everywhere, no per-download AI fee</li>
               <li>Tech Gap analysis tailored to your industry</li>
               <li>This Mentor Mode page, fully unlocked</li>
             </ul>
@@ -379,7 +379,7 @@ export default function MentorClient() {
         <section className="card col-12" style={{ background: 'var(--surface-alt)' }}>
           <h3 style={{ marginTop: 0 }}>Sign in to use Mentor Mode</h3>
           <p className="small" style={{ marginBottom: 12 }}>
-            Mentor Mode is free to preview but requires a Pocket Resume account.
+            Mentor Mode is free to preview but requires a CallbackCV account.
           </p>
           <Link className="btn" href="/auth/login">Sign in</Link>
         </section>

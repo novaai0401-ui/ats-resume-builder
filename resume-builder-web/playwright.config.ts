@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
- * Playwright end-to-end tests for Pocket Resume (web).
+ * Playwright end-to-end tests for CallbackCV (web).
  *
  * Runs against a deployed/preview URL or a locally-served build.
  *   PLAYWRIGHT_BASE_URL   target origin (default http://localhost:3000)

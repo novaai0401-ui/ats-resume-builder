@@ -8,7 +8,7 @@ import { resetUsageForPlan } from './usage';
 /**
  * Plan pricing in paise (INR smallest unit).
  *
- * Post-pivot there is ONE paid plan — "Pocket Resume Plus" at ₹499/mo —
+ * Post-pivot there is ONE paid plan — "CallbackCV Plus" at ₹499/mo —
  * which maps to the internal 'PRO' value. STUDENT is retained only so old
  * payment history keeps resolving; it is not offered in the UI.
  * Overridable via RAZORPAY_PRICE_<PLAN>_<INTERVAL> env vars.

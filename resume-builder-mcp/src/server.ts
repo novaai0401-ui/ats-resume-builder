@@ -3,11 +3,11 @@ import { z } from 'zod';
 import { ApiError, PocketResumeClient } from './api-client.js';
 
 /**
- * R-040 — Pocket Resume MCP server.
+ * R-040 — CallbackCV MCP server.
  *
  * The strategic frame (PRODUCT_STRATEGY §3.1): when an agent applies
  * to jobs on a user's behalf it needs a resume source of truth, a
- * tailoring function, and an application log. If Pocket Resume is the
+ * tailoring function, and an application log. If CallbackCV is the
  * MCP server it calls, every agent-driven application still feeds the
  * Outcome Graph — agents become a distribution channel, not a threat.
  *
@@ -27,7 +27,7 @@ import { ApiError, PocketResumeClient } from './api-client.js';
 
 export function buildServer(client: PocketResumeClient): McpServer {
   const server = new McpServer({
-    name: 'pocketresume',
+    name: 'callbackcv',
     version: '0.1.0',
   });
 
@@ -38,7 +38,7 @@ export function buildServer(client: PocketResumeClient): McpServer {
     const msg =
       err instanceof ApiError
         ? err.status === 401
-          ? 'Pocket Resume token is invalid or expired. Mint a new one in Settings → API access and update POCKET_RESUME_TOKEN.'
+          ? 'CallbackCV token is invalid or expired. Mint a new one in Settings → API access and update POCKET_RESUME_TOKEN.'
           : err.message
         : err instanceof Error
           ? err.message
@@ -146,7 +146,7 @@ export function buildServer(client: PocketResumeClient): McpServer {
     [
       'Record a job application in the user\'s tracker. If a tailored',
       'version was used (from tailor_resume), pass its resumeVersionId —',
-      'that link is how Pocket Resume measures which resume variant',
+      'that link is how CallbackCV measures which resume variant',
       'actually gets replies.',
     ].join(' '),
     {

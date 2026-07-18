@@ -854,8 +854,8 @@ body.resume-embed-body .main-shell {
   height: 100%;
 }
 
-/* ── Watermark (Pocket Resume) ────────────────────────────────────────
-   Renders a tiled, semi-transparent "POCKET RESUME" overlay across the
+/* ── Watermark (CallbackCV) ────────────────────────────────────────
+   Renders a tiled, semi-transparent "CALLBACKCV" overlay across the
    preview surface. Implementation notes:
      • Uses SVG-as-data-URI so the watermark prints reliably (canvas
        overlays drop out of print). Browsers serialise the data URI as
@@ -873,7 +873,7 @@ body.resume-embed-body .main-shell {
   inset: 0;
   pointer-events: none;
   z-index: 50;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='420' height='240' viewBox='0 0 420 240'><g transform='rotate(-30 210 120)' fill='%231a3a5c' fill-opacity='0.12' font-family='IBM Plex Sans, Arial, sans-serif' font-weight='700' font-size='34'><text x='50%25' y='50%25' text-anchor='middle' dominant-baseline='middle'>POCKET RESUME</text></g></svg>");
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='420' height='240' viewBox='0 0 420 240'><g transform='rotate(-30 210 120)' fill='%231a3a5c' fill-opacity='0.12' font-family='IBM Plex Sans, Arial, sans-serif' font-weight='700' font-size='34'><text x='50%25' y='50%25' text-anchor='middle' dominant-baseline='middle'>CALLBACKCV</text></g></svg>");
   background-repeat: repeat;
   background-size: 420px 240px;
 }
@@ -885,7 +885,7 @@ body.resume-embed-body .main-shell {
 @media print {
   /* Watermark stays visible through Save-as-PDF / printer output. */
   .template-preview-frame__container::after {
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='420' height='240' viewBox='0 0 420 240'><g transform='rotate(-30 210 120)' fill='%231a3a5c' fill-opacity='0.18' font-family='IBM Plex Sans, Arial, sans-serif' font-weight='700' font-size='34'><text x='50%25' y='50%25' text-anchor='middle' dominant-baseline='middle'>POCKET RESUME</text></g></svg>") !important;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='420' height='240' viewBox='0 0 420 240'><g transform='rotate(-30 210 120)' fill='%231a3a5c' fill-opacity='0.18' font-family='IBM Plex Sans, Arial, sans-serif' font-weight='700' font-size='34'><text x='50%25' y='50%25' text-anchor='middle' dominant-baseline='middle'>CALLBACKCV</text></g></svg>") !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
@@ -998,7 +998,7 @@ body.resume-embed-body .main-shell {
   inset: 0;
   pointer-events: none;
   z-index: 50;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='360' height='200' viewBox='0 0 360 200'><g transform='rotate(-30 180 100)' fill='%231a3a5c' fill-opacity='0.22' font-family='IBM Plex Sans, Arial, sans-serif' font-weight='700' font-size='30'><text x='50%25' y='50%25' text-anchor='middle' dominant-baseline='middle'>POCKET RESUME</text></g></svg>");
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='360' height='200' viewBox='0 0 360 200'><g transform='rotate(-30 180 100)' fill='%231a3a5c' fill-opacity='0.22' font-family='IBM Plex Sans, Arial, sans-serif' font-weight='700' font-size='30'><text x='50%25' y='50%25' text-anchor='middle' dominant-baseline='middle'>CALLBACKCV</text></g></svg>");
   background-repeat: repeat;
   background-size: 360px 200px;
   -webkit-print-color-adjust: exact;
@@ -4027,7 +4027,7 @@ a:hover { color: var(--primary-700); }
  * Renders on phones only (TopNav burger + drawer handle small-screen
  * navigation in the header; this nav lives at the bottom so common
  * destinations are reachable without scrolling back up). The shell
- * is the wrapper Pocket Resume owns; TkxBottomNav handles the row
+ * is the wrapper CallbackCV owns; TkxBottomNav handles the row
  * layout + active-state styling.
  */
 .mobile-bottom-nav {
