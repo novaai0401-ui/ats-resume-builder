@@ -341,11 +341,20 @@ services:
     name: ats-rb-cron-nudges
     runtime: image
     image:
-      url: docker.io/curlimages/curl:latest
+      # Plain alpine (no ENTRYPOINT quirks — curlimages/curl has curl as its
+      # entrypoint, which can prepend itself to the command). busybox wget
+      # exits non-zero on HTTP 4xx/5xx and prints the status line, so a bad
+      # secret shows up in the logs as "HTTP/1.1 403 Forbidden" instead of a
+      # silent failure.
+      url: docker.io/library/alpine:3.20
     schedule: "30 3 * * *"
     dockerCommand: >-
-      sh -c 'curl -fsS -X POST -H "x-cron-secret: $CRON_SECRET"
-      https://ats-rb-api.onrender.com/outcome-nudge/run'
+      sh -c 'if [ -z "$CRON_SECRET" ]; then
+      echo "FIX: CRON_SECRET env var is not set on THIS cron service. Set it to the same value as on ats-rb-api.";
+      exit 1; fi;
+      wget -S -q -O- --header "x-cron-secret: $CRON_SECRET" --post-data ""
+      https://ats-rb-api.onrender.com/outcome-nudge/run
+      && echo " -- nudge run OK"'
     region: singapore
     envVars:
       - key: CRON_SECRET
@@ -360,11 +369,15 @@ services:
     name: ats-rb-cron-job-alerts
     runtime: image
     image:
-      url: docker.io/curlimages/curl:latest
+      url: docker.io/library/alpine:3.20
     schedule: "0 4 * * *"
     dockerCommand: >-
-      sh -c 'curl -fsS -X POST -H "x-cron-secret: $CRON_SECRET"
-      https://ats-rb-api.onrender.com/job-alerts/run-cron'
+      sh -c 'if [ -z "$CRON_SECRET" ]; then
+      echo "FIX: CRON_SECRET env var is not set on THIS cron service. Set it to the same value as on ats-rb-api.";
+      exit 1; fi;
+      wget -S -q -O- --header "x-cron-secret: $CRON_SECRET" --post-data ""
+      https://ats-rb-api.onrender.com/job-alerts/run-cron
+      && echo " -- job-alerts run OK"'
     region: singapore
     envVars:
       - key: CRON_SECRET

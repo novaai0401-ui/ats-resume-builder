@@ -39,6 +39,13 @@ export class JobsStatusController {
       probeCount = openings.length;
     }
 
+    // The two Render cron services (nudges / job alerts) authenticate with
+    // CRON_SECRET. Report whether the API side has it, so a "Failed run"
+    // on the cron can be diagnosed in one call: false here → set it on
+    // ats-rb-api; true here but cron still 403s → the cron service's copy
+    // doesn't match.
+    const cronSecretConfigured = Boolean(String(process.env.CRON_SECRET || '').trim());
+
     return {
       provider: 'adzuna',
       configured,
@@ -46,12 +53,16 @@ export class JobsStatusController {
       defaultLocation,
       probeOk,
       probeCount,
-      hint: buildHint(configured, probeOk),
+      cronSecretConfigured,
+      hint: buildHint(configured, probeOk, cronSecretConfigured),
     };
   }
 }
 
-function buildHint(configured: boolean, probeOk: boolean): string {
+function buildHint(configured: boolean, probeOk: boolean, cronSecretConfigured?: boolean): string {
+  if (!cronSecretConfigured) {
+    return 'CRON_SECRET is NOT set on the API — the daily nudge and job-alert crons will get 403 and show "Failed run" on Render. Set the same CRON_SECRET value on ats-rb-api AND both cron services (ats-rb-cron-nudges, ats-rb-cron-job-alerts), then use each cron\'s "Trigger Run" button to verify.';
+  }
   if (!configured) {
     return 'Live jobs are OFF. Register free at developer.adzuna.com, then set ADZUNA_APP_ID and ADZUNA_APP_KEY in the environment (optional: ADZUNA_COUNTRY, default "in", and ADZUNA_DEFAULT_LOCATION). The jobs panel and email job alerts enable themselves once both are set.';
   }
