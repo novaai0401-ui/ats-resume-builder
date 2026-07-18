@@ -4743,21 +4743,28 @@ const ATS_TEMPLATE_EXPORT_CSS = `
       .nb-accent-header__title { font-size: 13px; opacity: 0.85; margin: 0 0 8px; font-weight: 400; }
       .nb-accent-header__contact { font-size: 11px; opacity: 0.75; margin: 0; }
       .nb-accent-header__body { padding: 24px 32px; }
-      .nb-accent-header__section { margin-bottom: 22px; page-break-inside: avoid; break-inside: avoid; }
-      .nb-accent-header__section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: var(--rb-accent, #2563a8); margin: 0 0 10px; display: flex; align-items: center; gap: 8px; }
+      /* Pagination doctrine (same as .ats-section, see the comment there):
+         sections and items must break FREELY across pages. With
+         break-inside: avoid, a tall Experience section that didn't fit
+         under the header jumped wholesale to page 2, leaving page 1
+         blank after the profile — the founder's exact report for the
+         visual templates. Headings stay glued to their first item via
+         break-after: avoid on the title rows below. */
+      .nb-accent-header__section { margin-bottom: 22px; page-break-inside: auto; break-inside: auto; }
+      .nb-accent-header__section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: var(--rb-accent, #2563a8); margin: 0 0 10px; display: flex; align-items: center; gap: 8px; break-after: avoid; page-break-after: avoid; }
       .nb-accent-header__section-title::after { content: ''; flex: 1; height: 1px; background: #d0dff0; }
       .nb-accent-header__summary { font-size: 11px; color: #3a4a5c; line-height: 1.7; margin: 0; }
       .nb-accent-header__skills-wrap { display: flex; flex-wrap: wrap; gap: 6px; }
       .nb-accent-header__skill-pill { background: #e8f0f8; color: #1a3a6e; border: 1px solid #c0d4ea; border-radius: 20px; padding: 3px 10px; font-size: 10px; font-weight: 500; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .nb-accent-header__skill-pill--soft { background: #f0f8ee; color: #1e5535; border-color: #b8dfb0; }
-      .nb-accent-header__item { margin-bottom: 14px; padding-left: 18px; position: relative; page-break-inside: avoid; break-inside: avoid; }
-      .nb-accent-header__item-header { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 4px; }
+      .nb-accent-header__item { margin-bottom: 14px; padding-left: 18px; position: relative; page-break-inside: auto; break-inside: auto; }
+      .nb-accent-header__item-header { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 4px; break-after: avoid; page-break-after: avoid; }
       .nb-accent-header__item-dot { position: absolute; left: 0; top: 5px; width: 8px; height: 8px; border-radius: 50%; background: var(--rb-accent, #2563a8); flex-shrink: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .nb-accent-header__item-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px; flex: 1; }
       .nb-accent-header__item-role { font-size: 12px; font-weight: 600; color: #1a2e4a; }
       .nb-accent-header__item-company { font-size: 11px; color: #5a7a9a; font-style: italic; }
       .nb-accent-header__item-date { font-size: 10px; color: #8aa8c8; margin-left: auto; white-space: nowrap; }
-      .nb-accent-header__bullets { margin: 4px 0 0 4px; padding: 0 0 0 12px; list-style: disc; }
+      .nb-accent-header__bullets { margin: 4px 0 0 4px; padding: 0 0 0 12px; list-style: disc; orphans: 3; widows: 2; }
       .nb-accent-header__bullets li { font-size: 10px; color: #3a4a5c; margin-bottom: 2px; line-height: 1.5; }
       .nb-accent-header__lower { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
       .nb-accent-header__edu-item { margin-bottom: 8px; }
@@ -4788,15 +4795,20 @@ const ATS_TEMPLATE_EXPORT_CSS = `
       .nb-sidebar-bold__edu-inst { font-size: 10px; color: #a8bdd0; margin: 0 0 2px; }
       .nb-sidebar-bold__edu-date { font-size: 9px; color: #7eb8e8; margin: 0; }
       .nb-sidebar-bold__main { padding: 28px 24px; background: #ffffff; }
-      .nb-sidebar-bold__content-section { margin-bottom: 22px; page-break-inside: avoid; break-inside: avoid; }
-      .nb-sidebar-bold__content-title { font-size: 13px; font-weight: 700; color: var(--rb-accent, #1a2e4a); text-transform: uppercase; letter-spacing: 0.06em; margin: 0 0 10px; padding-bottom: 5px; border-bottom: 2px solid var(--rb-accent, #1a2e4a); }
+      /* Pagination doctrine (same as .ats-section / accent-header above):
+         main-column sections and items break freely; only heading rows
+         glue to their first line. Section-level break-inside: avoid made
+         a tall Experience section jump wholesale to page 2, leaving
+         page 1 blank after the profile. */
+      .nb-sidebar-bold__content-section { margin-bottom: 22px; page-break-inside: auto; break-inside: auto; }
+      .nb-sidebar-bold__content-title { font-size: 13px; font-weight: 700; color: var(--rb-accent, #1a2e4a); text-transform: uppercase; letter-spacing: 0.06em; margin: 0 0 10px; padding-bottom: 5px; border-bottom: 2px solid var(--rb-accent, #1a2e4a); break-after: avoid; page-break-after: avoid; }
       .nb-sidebar-bold__summary { font-size: 11px; color: #3a4a5c; line-height: 1.6; margin: 0; }
-      .nb-sidebar-bold__exp-item { margin-bottom: 14px; page-break-inside: avoid; break-inside: avoid; }
-      .nb-sidebar-bold__exp-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 5px; }
+      .nb-sidebar-bold__exp-item { margin-bottom: 14px; page-break-inside: auto; break-inside: auto; }
+      .nb-sidebar-bold__exp-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 5px; break-after: avoid; page-break-after: avoid; }
       .nb-sidebar-bold__exp-role { font-size: 12px; font-weight: 600; color: #1a2e4a; margin: 0 0 2px; }
       .nb-sidebar-bold__exp-company { font-size: 11px; color: #5a7a9a; margin: 0; font-style: italic; }
       .nb-sidebar-bold__exp-date { font-size: 10px; color: #7a9ab8; white-space: nowrap; flex-shrink: 0; }
-      .nb-sidebar-bold__exp-bullets { margin: 4px 0 0 14px; padding: 0; list-style: disc; }
+      .nb-sidebar-bold__exp-bullets { margin: 4px 0 0 14px; padding: 0; list-style: disc; orphans: 3; widows: 2; }
       .nb-sidebar-bold__exp-bullets li { font-size: 10px; color: #3a4a5c; margin-bottom: 2px; line-height: 1.5; }
 `;
 
