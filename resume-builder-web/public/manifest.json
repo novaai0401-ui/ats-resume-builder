@@ -1,7 +1,7 @@
 {
-  "name": "Pocket Resume",
-  "short_name": "Pocket Resume",
-  "description": "ATS-optimized resume builder — create, edit, and export resumes that get past applicant tracking systems. Same login as the Pocket Resume mobile app.",
+  "name": "CallbackCV",
+  "short_name": "CallbackCV",
+  "description": "ATS-optimized resume builder — create, edit, and export resumes that get past applicant tracking systems. Same login as the CallbackCV mobile app.",
   "id": "/?source=pwa",
   "start_url": "/dashboard?source=pwa",
   "scope": "/",

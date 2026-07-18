@@ -9,7 +9,7 @@ import { SUPPORT_EMAIL, supportMailto } from '@/src/lib/support';
  * for a first launch where trust matters more than polish.
  */
 export function SupportHelpLink({
-  subject = 'Help with Pocket Resume',
+  subject = 'Help with CallbackCV',
   message = 'Trouble signing in or registering?',
   variant = 'link',
 }: {

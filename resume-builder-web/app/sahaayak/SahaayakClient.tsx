@@ -335,7 +335,7 @@ function SahaayakWorkspace({ profile, onProfileChange }: { profile: SahaayakProf
           <a href="https://findahelpline.com" target="_blank" rel="noreferrer">findahelpline.com</a>
         </div>
         <div style={{ marginTop: 6 }}>
-          Questions or feedback about Pocket Resume?{' '}
+          Questions or feedback about CallbackCV?{' '}
           <a href="mailto:novaai0401@gmail.com">novaai0401@gmail.com</a>
         </div>
       </footer>

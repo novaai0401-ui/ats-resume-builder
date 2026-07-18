@@ -8,7 +8,7 @@ import { AnalyticsService } from '../analytics/analytics.service';
  * R-032 — mail-in outcome capture.
  *
  * The user forwards a rejection / interview-invite / offer email to
- * track@pocketresume.app. An inbound-mail provider (SendGrid Inbound
+ * track@tekivex.com. An inbound-mail provider (SendGrid Inbound
  * Parse, Mailgun Routes, Cloudflare Email Workers — all POST the
  * parsed message to a webhook) hits POST /outcome-mail/inbound. We:
  *

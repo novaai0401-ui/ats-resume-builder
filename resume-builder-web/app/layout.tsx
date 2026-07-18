@@ -19,8 +19,8 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://pocketresume.app';
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: 'Pocket Resume — ATS-optimized resume builder',
-    template: '%s · Pocket Resume',
+    default: 'CallbackCV — ATS-optimized resume builder',
+    template: '%s · CallbackCV',
   },
   description:
     'Free ATS-friendly resume builder. Build, score, and export resumes that actually pass ' +
@@ -34,15 +34,15 @@ export const metadata: Metadata = {
     'resume templates India',
     'job application tracker',
     'cover letter generator',
-    'pocket resume',
+    'callbackcv',
   ],
   manifest: '/manifest.json',
-  applicationName: 'Pocket Resume',
-  authors: [{ name: 'Pocket Resume' }],
+  applicationName: 'CallbackCV',
+  authors: [{ name: 'CallbackCV' }],
   category: 'productivity',
   appleWebApp: {
     capable: true,
-    title: 'Pocket Resume',
+    title: 'CallbackCV',
     statusBarStyle: 'black-translucent' as const,
   },
   icons: {
@@ -53,18 +53,18 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true, googleBot: { index: true, follow: true } },
   openGraph: {
     type: 'website',
-    siteName: 'Pocket Resume',
-    title: 'Pocket Resume — ATS-optimized resume builder',
+    siteName: 'CallbackCV',
+    title: 'CallbackCV — ATS-optimized resume builder',
     description:
       'Build, score, and export resumes that pass ATS. Free to start, local-first privacy, ' +
       'works on web and mobile with one account.',
     url: SITE_URL,
     locale: 'en_US',
-    images: [{ url: '/icons/icon.svg', width: 512, height: 512, alt: 'Pocket Resume' }],
+    images: [{ url: '/icons/icon.svg', width: 512, height: 512, alt: 'CallbackCV' }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Pocket Resume — ATS-optimized resume builder',
+    title: 'CallbackCV — ATS-optimized resume builder',
     description:
       'Build, score, and export resumes that pass ATS. Local-first privacy. Free to start.',
     images: ['/icons/icon.svg'],
@@ -104,7 +104,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               '@graph': [
                 {
                   '@type': 'SoftwareApplication',
-                  name: 'Pocket Resume',
+                  name: 'CallbackCV',
                   applicationCategory: 'BusinessApplication',
                   operatingSystem: 'Web, iOS, Android',
                   url: SITE_URL,
@@ -115,7 +115,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 },
                 {
                   '@type': 'WebSite',
-                  name: 'Pocket Resume',
+                  name: 'CallbackCV',
                   url: SITE_URL,
                   potentialAction: {
                     '@type': 'SearchAction',
@@ -141,7 +141,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <NavigationProgress />
           <div className="main-shell">
             <header className="topbar">
-              <div className="brand">Pocket Resume</div>
+              <div className="brand">CallbackCV</div>
               <TopNav />
             </header>
             {/* Skip-link target. tabindex="-1" lets us focus a non-interactive

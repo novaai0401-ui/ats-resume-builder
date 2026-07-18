@@ -1400,6 +1400,29 @@ and every external call still feeds the Outcome Graph.
 
 ---
 
+### R-088 · Rebrand to CallbackCV + visual-template export gate fix
+
+- Status: **DONE** (this commit)
+- Depends-on: R-045 (visual templates), R-087 (launch batch)
+- Acceptance
+  - [x] Product renamed **CallbackCV** (house brand Tekivex) after name-collision
+    research killed "Pocket Resume" (identically-named resume apps live since
+    2010 on the App Store / Play Store). All user-facing copy, SEO landers +
+    JSON-LD, PWA manifest, plan name ("CallbackCV Plus"), PDF watermark
+    ("CALLBACKCV"), DOCX metadata, mail templates, MCP package
+    (`@tekivex/callbackcv-mcp`), and extension name updated. Emails moved
+    `@pocketresume.app` → `@tekivex.com`. Internal identifiers / env vars /
+    repo names intentionally unchanged; domain migration is a separate ops task.
+  - [x] Sidebar Bold download bug: `validatePdfExportSafety` no longer applies
+    the ATS-safety gate ("|" / bullet-glyph rejection, min score) to visual
+    showcase templates (`sidebar-bold`, `accent-header`, `creative`) — they are
+    explicitly sold as "Not ATS-safe", so blocking them on ATS rules was a
+    contradiction (hit with imported resumes). ATS-family templates and
+    legacy no-templateId callers keep the strict gate. Pinned by
+    `tests/visual-template-export-gate.unit.test.cjs` (5).
+
+---
+
 ## §6. Cross-cutting constants
 
 These are constraints that every requirement must respect. Violations
@@ -1466,6 +1489,7 @@ do not break it.
 
 | Date | Decision | Reason | Affected IDs |
 |---|---|---|---|
+| 2026-07-16 | Rebrand to CallbackCV (by Tekivex): all user-facing copy renamed from "Pocket Resume" to "CallbackCV" (house brand Tekivex, tagline "CallbackCV by Tekivex") — web copy/metadata/SEO landers/PWA manifest, plan name "CallbackCV Plus", support/track emails moved to @tekivex.com, PDF/CSS watermark "CALLBACKCV", MCP package renamed `@tekivex/callbackcv-mcp` (bin `callbackcv-mcp`), extension renamed "CallbackCV — Job Hunt Companion". Internal doc bodies (strategy/requirements text) intentionally left as-is. | Name-collision research: "Pocket Resume" apps have existed since 2010 plus current Play Store listings; a distinct, ownable brand was needed before launch. | R-088 |
 | 2026-07-15 | Launch-readiness batch (R-087): turned the "unshipped uniqueness" into shipped surface — Adzuna admin diagnostics + env plumbing (feed was fully built but keys were never declared), TWO render.yaml cron services so outcome nudges + job-alert digests actually fire in prod (endpoints existed since R-031/032, nothing triggered them), WhatsApp channel (R-043 PARTIAL: env-gated, per-user opt-in still required before enabling — Meta consent policy), benchmark insights Phase 1 (R-050 DONE: median response-rate card, ≥5-apps/≥10-users privacy gate), "no fake numbers" AI trust note (verified against prompts, C-003), dashboard lift headline, MCP publish metadata, extension store runbook. | Founder: execute research points 1–8 pre-launch; market data shows ghosting (55%), fabricated AI metrics, and WhatsApp-first alerts are the wedge. | R-087, R-050, R-043, R-040, R-033, R-031 |
 | 2026-07-14 | Resume-page AI on our key, free + daily-capped (R-086): OUR Groq key is now spent ONLY on the Edit Resume page, where AI Critique / Rewrite / JD-match / Tech Gap / Tailor run for ALL users — free users included — with NO ₹20 fee and NO subscribe wall, protected by a per-user cap of 10 our-AI actions/day (shared across all resume AI buttons; `AI_FREE_MAX_REQUESTS_PER_DAY`). Removed the ₹20 opt-in fee + dialog. Off the resume page (Mentor/Interview/Mock/Recruiter/Skill-demand/Cover-letter/Sahaayak) our key stays BYOK-or-plan only — free users get rule-based/upsell (verified, no leak). New shared helper `ai/resume-ai-access.ts` reuses `AiCritiqueLog` (no migration). | Founder: make the resume page the free AI hook on our cheap Groq key; everywhere else require the user's own key or a subscription; hard daily cap so free Groq data isn't exhausted. Decisions (free-not-fee, 10/day) approved by founder. | R-086, R-084, R-071 |
 | 2026-07-13 | Admin AI-key health check (R-085): added `GET /admin/ai/status` + `POST /admin/ai/test` (admin-guarded, mirrors admin/mail/status) — config snapshot + a live Groq handshake with an actionable hint (401→bad key, 404→model not available, 429→rate/quota, timeout→egress), so ops can confirm the operator Groq key works without shelling into Render. Never returns/logs the key (scrubbed). Pinned by `ai-health.unit.test.cjs`. | Founder asked how to verify the added Groq key is working; there was no equivalent of the mail health check for AI. | R-085, R-084 |

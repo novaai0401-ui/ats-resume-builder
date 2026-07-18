@@ -1,7 +1,7 @@
-# ATS Builder — Browser Extension
+# CallbackCV — Browser Extension
 
 A Manifest V3 extension that closes the loop between job-hunt browsing and
-the ATS Builder app. Three things it does that nobody else does together:
+the CallbackCV app. Three things it does that nobody else does together:
 
 1. **Auto-attribute applications.** When you click apply on a job posting,
    the extension catches the click and asks which resume version you used.
@@ -55,7 +55,7 @@ production, publish through the Chrome Web Store.
 - `activeTab` — read the JD on the page when the user explicitly clicks
   the extension.
 - `scripting` — inject the overlay when requested.
-- `contextMenus` — right-click "Send selection to ATS Builder".
+- `contextMenus` — right-click "Send selection to CallbackCV".
 - `host_permissions` — the job boards we add the apply-button hook to.
 
 We do not request `<all_urls>` host_permissions in production — the wildcard

@@ -56,7 +56,7 @@ export function TemplatePreviewFrame({
 
   // Deter casual copy/right-click/save-as on the preview. Browsers can't
   // reliably block OS-level screenshots, but combined with the diagonal
-  // POCKET RESUME watermark, this discourages people from lifting the
+  // CALLBACKCV watermark, this discourages people from lifting the
   // unpaid preview as a final document.
   const blockCopyInteraction = useCallback((event: { preventDefault: () => void }) => {
     event.preventDefault();

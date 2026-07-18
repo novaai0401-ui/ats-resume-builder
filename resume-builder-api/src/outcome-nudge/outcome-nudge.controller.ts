@@ -92,7 +92,7 @@ export class OutcomeNudgeController {
 /**
  * R-032 webhook. Inbound-mail providers (SendGrid Inbound Parse,
  * Mailgun Routes, Cloudflare Email Workers) POST the parsed message
- * here when a user forwards an email to track@pocketresume.app.
+ * here when a user forwards an email to track@tekivex.com.
  *
  * Guarded by INBOUND_MAIL_SECRET as a query param — providers can't
  * set custom headers, but they CAN post to a URL with a secret in it:
@@ -140,7 +140,7 @@ function confirmationHtml(message: string, ok: boolean): string {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
-  <title>${title} · Pocket Resume</title>
+  <title>${title} · CallbackCV</title>
 </head>
 <body style="margin:0;background:#f3f6fa;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
   <div style="max-width:480px;margin:48px auto;padding:32px;background:#ffffff;border-radius:14px;box-shadow:0 1px 3px rgba(15,23,42,0.08);text-align:center;">

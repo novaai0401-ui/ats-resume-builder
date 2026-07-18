@@ -5,7 +5,7 @@ import { TEMPLATE_CATALOG } from 'resume-builder-shared';
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://pocketresume.app';
 
 export const metadata: Metadata = {
-  title: 'ATS Resume Templates (Free, ATS-safe) — Pocket Resume',
+  title: 'ATS Resume Templates (Free, ATS-safe) — CallbackCV',
   description:
     'Free ATS-friendly resume templates tested against Workday, Greenhouse, iCIMS, Taleo and BambooHR. Single-column, parse-clean layouts you can fill, score, and export in minutes.',
   alternates: { canonical: '/ats-resume-templates' },
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 const FAQ = [
   {
     q: 'What is an ATS-friendly resume template?',
-    a: 'An ATS-friendly template uses a single-column, parse-clean structure with standard section headings and no tables, text boxes, or images that applicant tracking systems mis-read. Every Pocket Resume template is built and tested this way.',
+    a: 'An ATS-friendly template uses a single-column, parse-clean structure with standard section headings and no tables, text boxes, or images that applicant tracking systems mis-read. Every CallbackCV template is built and tested this way.',
   },
   {
     q: 'Are these ATS resume templates free?',
@@ -105,7 +105,7 @@ export default function AtsResumeTemplatesPage() {
         <p className="small">
           Most applications are first read by software, not a person. Multi-column layouts, tables, and
           graphics routinely get scrambled or dropped on the way into a recruiter&apos;s dashboard — which
-          is why a beautiful resume can still score zero. Pocket Resume&apos;s templates keep the structure
+          is why a beautiful resume can still score zero. CallbackCV&apos;s templates keep the structure
           machines expect, and the <Link href="/ats-resume-checker">ATS resume checker</Link> shows you
           exactly what survives.
         </p>

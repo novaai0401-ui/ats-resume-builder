@@ -130,9 +130,9 @@ export default function DownloadChargeModal({
             amount: init.amount,
             currency: init.currency,
             // Brand shown in the Razorpay checkout popup — overrides the
-            // dashboard billing label, so customers see "Pocket Resume"
+            // dashboard billing label, so customers see "CallbackCV"
             // regardless of the PAN-tied label on an individual account.
-            name: 'Pocket Resume',
+            name: 'CallbackCV',
             description: 'Resume PDF download',
             order_id: init.orderId,
             prefill: { email: getCurrentUserEmail() || undefined },

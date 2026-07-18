@@ -12,10 +12,10 @@
  *
  * Source of truth: resume-builder-api/src/billing/plan-limits.ts
  * (FREE 8k tokens / 2 scans / 5 PDFs / 2 resumes;
- *  PRO — sold as "Pocket Resume Plus" — 120k / 300 / 200 / 100 @ ₹499/mo)
+ *  PRO — sold as "CallbackCV Plus" — 120k / 300 / 200 / 100 @ ₹499/mo)
  * Keep this file in sync if those limits ever move.
  *
- * Note: the only paid plan is "Pocket Resume Plus" (the 'PRO' plan
+ * Note: the only paid plan is "CallbackCV Plus" (the 'PRO' plan
  * value internally). The "Free" column doubles as the BYOK path: every
  * AI feature is usable on Free when the user adds their own AI key.
  */
@@ -23,7 +23,7 @@
 type Row = {
   feature: string;
   free: string | boolean;
-  /** "Pocket Resume Plus" column (the 'PRO' plan value internally). */
+  /** "CallbackCV Plus" column (the 'PRO' plan value internally). */
   plus: string | boolean;
 };
 
@@ -85,7 +85,7 @@ export default function PlanFeatureComparison() {
       </h2>
       <p className="small" style={{ color: 'var(--muted)', marginTop: 4, marginBottom: 12 }}>
         Everything in the Free tier stays free forever. Add your own AI key to use every
-        AI feature for free, or get Pocket Resume Plus (₹499/mo) for our AI everywhere
+        AI feature for free, or get CallbackCV Plus (₹499/mo) for our AI everywhere
         and the higher monthly quotas. Cancel anytime.
       </p>
 
@@ -121,7 +121,7 @@ export default function PlanFeatureComparison() {
                   color: 'var(--primary)',
                 }}
               >
-                Pocket Resume Plus
+                CallbackCV Plus
                 <span className="small" style={{ display: 'block', fontWeight: 400, color: 'var(--muted)' }}>
                   ₹499/mo
                 </span>
@@ -222,7 +222,7 @@ export function MicroPaymentExplainer() {
       </ul>
 
       <p className="small" style={{ color: 'var(--muted)', marginTop: 8 }}>
-        Want AI everywhere without managing your own key? <strong>Pocket Resume Plus at ₹499/mo</strong>{' '}
+        Want AI everywhere without managing your own key? <strong>CallbackCV Plus at ₹499/mo</strong>{' '}
         unlocks our AI across every feature — AI critique, JD match, Mentor Mode, and more.
         Prefer free? Add your own AI key in Settings and every AI feature is free. Downloads
         stay ₹49 each on any plan.

@@ -95,7 +95,7 @@ export class DownloadChargeService {
     const user = await this.prisma.user.findUnique({ where: { id: params.userId } });
     if (!user) throw new ForbiddenException('User not found');
 
-    // ₹499/mo plan ("Pocket Resume Plus") includes downloads — no charge.
+    // ₹499/mo plan ("CallbackCV Plus") includes downloads — no charge.
     // Issue a download token directly so the PDF/DOCX route unlocks.
     if (user.plan && user.plan !== 'FREE') {
       await this.clearResumeAiAssist(params.userId, params.resumeId);

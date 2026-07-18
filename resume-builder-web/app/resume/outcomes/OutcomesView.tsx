@@ -248,7 +248,7 @@ function BenchmarkCard({ benchmark }: { benchmark: JobBenchmark }) {
         {available && platform ? (
           <>
             <p style={{ margin: 0, fontSize: 15, lineHeight: 1.5 }}>
-              Median response rate across Pocket Resume users:{' '}
+              Median response rate across CallbackCV users:{' '}
               <strong>{platform.medianResponseRatePct}%</strong> — yours is{' '}
               <strong>{yours.responseRatePct}%</strong>{' '}
               <span style={{ color: 'var(--muted, #5a6778)', fontSize: 13 }}>

@@ -71,7 +71,7 @@ export default function PwaInstaller() {
   return (
     <div
       role="dialog"
-      aria-label="Install Pocket Resume"
+      aria-label="Install CallbackCV"
       style={{
         position: 'fixed',
         left: 16,
@@ -91,7 +91,7 @@ export default function PwaInstaller() {
       }}
     >
       <div style={{ flex: 1, lineHeight: 1.4 }}>
-        <strong style={{ display: 'block', marginBottom: 2 }}>Install Pocket Resume</strong>
+        <strong style={{ display: 'block', marginBottom: 2 }}>Install CallbackCV</strong>
         {iosHint ? (
           <span>Tap Share, then “Add to Home Screen” to use it like a native app.</span>
         ) : (

@@ -543,7 +543,7 @@ test('public share-link PDF carries a watermark; the owner export does not', asy
 
   const marked = renderResumeTemplateHtml({ templateId: 'classic', resumeData: resume, mode: 'export', watermark: true });
   assert.match(marked.html, /class="resume-export-watermark"/);
-  assert.match(marked.html, /POCKET RESUME/);
+  assert.match(marked.html, /CALLBACKCV/);
   assert.match(marked.html, /print-color-adjust: exact/);
 });
 

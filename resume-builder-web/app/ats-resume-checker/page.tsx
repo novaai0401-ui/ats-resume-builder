@@ -4,7 +4,7 @@ import type { Metadata } from 'next';
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://pocketresume.app';
 
 export const metadata: Metadata = {
-  title: 'Free ATS Resume Checker & Scanner — Pocket Resume',
+  title: 'Free ATS Resume Checker & Scanner — CallbackCV',
   description:
     'Check if your resume passes applicant tracking systems. Get an explainable ATS score, see the literal recruiter-view text an ATS extracts, and simulate the AI hiring screen against a job description — free.',
   alternates: { canonical: '/ats-resume-checker' },
@@ -19,11 +19,11 @@ export const metadata: Metadata = {
 const FAQ = [
   {
     q: 'How does the ATS resume checker work?',
-    a: 'Upload or build your resume and Pocket Resume scores its ATS-friendliness with specific, explainable feedback — missing keywords, weak action verbs, and formatting that breaks parsing. The ATS Simulator then shows the literal text an ATS would extract.',
+    a: 'Upload or build your resume and CallbackCV scores its ATS-friendliness with specific, explainable feedback — missing keywords, weak action verbs, and formatting that breaks parsing. The ATS Simulator then shows the literal text an ATS would extract.',
   },
   {
     q: 'Is the ATS checker free?',
-    a: 'Yes, the ATS score and recruiter-view simulation are free. The Recruiter-AI Simulator (an LLM hiring-screen verdict against a specific job description) is an AI feature — free with your own AI key, or included in Pocket Resume Plus (₹499/mo).',
+    a: 'Yes, the ATS score and recruiter-view simulation are free. The Recruiter-AI Simulator (an LLM hiring-screen verdict against a specific job description) is an AI feature — free with your own AI key, or included in CallbackCV Plus (₹499/mo).',
   },
   {
     q: 'What is the difference between an ATS score and the ATS Simulator?',
@@ -92,7 +92,7 @@ export default function AtsResumeCheckerPage() {
       <section className="card" style={{ marginTop: 18 }}>
         <h2>Most resume checkers stop at a score. We measure outcomes.</h2>
         <p className="small">
-          A score predicts; Pocket Resume also tracks what actually happens. The Outcome Loop records your
+          A score predicts; CallbackCV also tracks what actually happens. The Outcome Loop records your
           real response, interview, and offer rates per resume version, so you can see whether a higher
           ATS score truly moved your callback rate — proof, not opinions.
         </p>

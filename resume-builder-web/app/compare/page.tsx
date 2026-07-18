@@ -4,13 +4,13 @@ import type { Metadata } from 'next';
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://pocketresume.app';
 
 export const metadata: Metadata = {
-  title: 'Pocket Resume vs Rezi, Teal & Jobscan — an honest comparison',
+  title: 'CallbackCV vs Rezi, Teal & Jobscan — an honest comparison',
   description:
-    'How Pocket Resume compares to Rezi, Teal, and Jobscan. The difference: it measures your real callback rate per resume version and simulates the AI hiring screen — not just a predicted ATS score.',
+    'How CallbackCV compares to Rezi, Teal, and Jobscan. The difference: it measures your real callback rate per resume version and simulates the AI hiring screen — not just a predicted ATS score.',
   alternates: { canonical: '/compare' },
   openGraph: {
-    title: 'Pocket Resume vs Rezi, Teal & Jobscan',
-    description: 'Most tools predict an ATS score. Pocket Resume measures real callbacks and simulates the AI hiring screen.',
+    title: 'CallbackCV vs Rezi, Teal & Jobscan',
+    description: 'Most tools predict an ATS score. CallbackCV measures real callbacks and simulates the AI hiring screen.',
     url: `${SITE_URL}/compare`,
     type: 'website',
   },
@@ -19,15 +19,15 @@ export const metadata: Metadata = {
 const FAQ = [
   {
     q: 'What is the best alternative to Rezi, Teal, or Jobscan?',
-    a: 'Pocket Resume is a strong alternative if you want proof your resume works, not just a predicted ATS score. It measures real callback/interview/offer rates per resume version, simulates the AI hiring screen against a JD, and is India-first with a free tier.',
+    a: 'CallbackCV is a strong alternative if you want proof your resume works, not just a predicted ATS score. It measures real callback/interview/offer rates per resume version, simulates the AI hiring screen against a JD, and is India-first with a free tier.',
   },
   {
-    q: 'What does Pocket Resume do that most ATS tools do not?',
+    q: 'What does CallbackCV do that most ATS tools do not?',
     a: 'Three things are rare or unique: the Outcome Loop (observed callback rate per resume version), the Recruiter-AI Simulator (an LLM hiring-screen verdict against a specific job), and the ATS Simulator (the literal recruiter-view text an ATS extracts).',
   },
   {
-    q: 'Is Pocket Resume free?',
-    a: 'Yes — the resume editor and ATS scorer are free forever. AI career features are free with your own AI key (BYOK), or get Pocket Resume Plus at ₹499/mo for our AI everywhere. Downloads are ₹49 each.',
+    q: 'Is CallbackCV free?',
+    a: 'Yes — the resume editor and ATS scorer are free forever. AI career features are free with your own AI key (BYOK), or get CallbackCV Plus at ₹499/mo for our AI everywhere. Downloads are ₹49 each.',
   },
 ];
 
@@ -72,9 +72,9 @@ export default function ComparePage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
       <section className="hero">
-        <h1>Pocket Resume vs Rezi, Teal &amp; Jobscan</h1>
+        <h1>CallbackCV vs Rezi, Teal &amp; Jobscan</h1>
         <p className="small">
-          Most ATS tools predict a score. Pocket Resume measures whether your resume is actually getting
+          Most ATS tools predict a score. CallbackCV measures whether your resume is actually getting
           callbacks — and simulates the AI screen recruiters now run before a human sees you.
         </p>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 12 }}>
@@ -83,7 +83,7 @@ export default function ComparePage() {
         </div>
       </section>
 
-      <section className="grid" aria-label="What makes Pocket Resume different">
+      <section className="grid" aria-label="What makes CallbackCV different">
         {differentiators.map((d) => (
           <article key={d.h} className="card col-6">
             <h2 style={{ marginTop: 0, fontSize: 18 }}>{d.h}</h2>
@@ -100,9 +100,9 @@ export default function ComparePage() {
         </p>
         {alternatives.map((a) => (
           <div key={a.name} style={{ marginTop: 12 }}>
-            <h3 style={{ margin: 0, fontSize: 16 }}>Pocket Resume vs {a.name}</h3>
+            <h3 style={{ margin: 0, fontSize: 16 }}>CallbackCV vs {a.name}</h3>
             <p className="small" style={{ marginTop: 4 }}>
-              {a.note} Pocket Resume&apos;s edge is measuring real outcomes (callback rate per version) and
+              {a.note} CallbackCV&apos;s edge is measuring real outcomes (callback rate per version) and
               simulating the AI hiring screen — plus a free tier and India-first pricing.
             </p>
           </div>

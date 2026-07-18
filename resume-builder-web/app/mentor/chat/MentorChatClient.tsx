@@ -2,7 +2,7 @@
 
 /**
  * Mentor Chat — AI chat UI. Usable with your own AI key (BYOK, free)
- * or with Pocket Resume Plus.
+ * or with CallbackCV Plus.
  *
  * Conversation lives in memory only (no localStorage). On every send
  * we:
@@ -69,7 +69,7 @@ export default function MentorChatClient() {
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages, busy]);
 
-  // Usable with Pocket Resume Plus (the 'PRO' plan value) or with the
+  // Usable with CallbackCV Plus (the 'PRO' plan value) or with the
   // user's own AI key (BYOK, free).
   const canUseAi = plan === 'PRO' || hasByok;
   const canSend = !busy && input.trim().length > 0 && canUseAi;
@@ -151,7 +151,7 @@ export default function MentorChatClient() {
         >
           <h2 style={{ marginTop: 0 }}>Use AI for Mentor Chat</h2>
           <p className="small" style={{ color: 'var(--ink)', lineHeight: 1.6, marginBottom: 12 }}>
-            Add your own AI key in Settings (free) to use this now — or get Pocket Resume Plus
+            Add your own AI key in Settings (free) to use this now — or get CallbackCV Plus
             (₹499/mo) for our AI across every feature, with no per-download AI fee. Cancel anytime.
           </p>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

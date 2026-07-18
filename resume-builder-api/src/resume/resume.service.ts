@@ -4484,7 +4484,7 @@ type RenderResumeTemplateHtmlInput = {
   resumeData: any;
   mode: RenderContext;
   /**
-   * When true, overlay a diagonal "POCKET RESUME" watermark on every page.
+   * When true, overlay a diagonal "CALLBACKCV" watermark on every page.
    * Used for public share-link downloads so a recruiter can grab the PDF
    * while the document stays visibly un-final until the owner exports a
    * clean copy from their account.
@@ -4519,7 +4519,7 @@ const EXPORT_WATERMARK_CSS = `
         print-color-adjust: exact;
       }
       .resume-export-watermark::after {
-        content: 'POCKET RESUME · POCKET RESUME · POCKET RESUME · POCKET RESUME · POCKET RESUME · POCKET RESUME · POCKET RESUME · POCKET RESUME · POCKET RESUME · POCKET RESUME · POCKET RESUME · POCKET RESUME';
+        content: 'CALLBACKCV · CALLBACKCV · CALLBACKCV · CALLBACKCV · CALLBACKCV · CALLBACKCV · CALLBACKCV · CALLBACKCV · CALLBACKCV · CALLBACKCV · CALLBACKCV · CALLBACKCV';
         position: absolute;
         top: 50%;
         left: 50%;

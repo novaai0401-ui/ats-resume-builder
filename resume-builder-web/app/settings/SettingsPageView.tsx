@@ -22,7 +22,7 @@ export default function SettingsPageView() {
       <section className="card">
         <h1 style={{ marginTop: 0 }}>Settings</h1>
         <p className="small" style={{ marginTop: 0, color: 'var(--muted)' }}>
-          Pocket Resume keeps preferences minimal — most of what would live in a settings page
+          CallbackCV keeps preferences minimal — most of what would live in a settings page
           is just plan management.
         </p>
       </section>

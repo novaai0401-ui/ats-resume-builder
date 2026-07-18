@@ -1,4 +1,4 @@
-# Pocket Resume — Session pin
+# CallbackCV (formerly Pocket Resume) — Session pin
 
 > Read me before doing anything. The next three files are non-negotiable
 > context for every change in this repo.

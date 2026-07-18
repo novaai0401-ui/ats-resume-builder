@@ -27,7 +27,7 @@ const BENEFITS: Record<Plan, Benefit[]> = {
     { label: 'All ATS-safe templates', details: '10+ layouts that pass ATS parsers.' },
     { label: 'Rule-based bullet checks', details: 'Action verb + length suggestions.' },
   ],
-  // STUDENT and PRO are both the single paid plan, "Pocket Resume Plus"
+  // STUDENT and PRO are both the single paid plan, "CallbackCV Plus"
   // (we keep the legacy plan values for logic but show the same Plus
   // benefits for either).
   STUDENT: PLUS_BENEFITS(),
@@ -63,15 +63,15 @@ function readPlan(): Plan {
 
 const PLAN_LABEL: Record<Plan, string> = {
   FREE: 'Free',
-  // Both legacy paid values are surfaced as "Pocket Resume Plus".
-  STUDENT: 'Pocket Resume Plus',
-  PRO: 'Pocket Resume Plus',
+  // Both legacy paid values are surfaced as "CallbackCV Plus".
+  STUDENT: 'CallbackCV Plus',
+  PRO: 'CallbackCV Plus',
 };
 
-// The only paid plan is Pocket Resume Plus (the 'PRO' plan value).
+// The only paid plan is CallbackCV Plus (the 'PRO' plan value).
 // Anyone already on a paid value has nothing left to upgrade to.
 const NEXT_TIER: Record<Plan, { plan: Plan; cta: string } | null> = {
-  FREE: { plan: 'PRO', cta: 'Get Pocket Resume Plus — ₹499/mo' },
+  FREE: { plan: 'PRO', cta: 'Get CallbackCV Plus — ₹499/mo' },
   STUDENT: null,
   PRO: null,
 };
@@ -136,8 +136,8 @@ export function PlanBenefitsCard({ defaultPlan }: { defaultPlan?: Plan } = {}) {
 
       {isFree ? (
         <p className="small" style={{ marginTop: 14, color: 'var(--muted)' }}>
-          Pocket Resume stays free forever for the basics. Add your own AI key to use every
-          AI feature for free, or get Pocket Resume Plus for our AI everywhere — AI critique,
+          CallbackCV stays free forever for the basics. Add your own AI key to use every
+          AI feature for free, or get CallbackCV Plus for our AI everywhere — AI critique,
           tech-gap analysis, and Mentor Mode — at ₹499/mo, cancel anytime.
         </p>
       ) : null}

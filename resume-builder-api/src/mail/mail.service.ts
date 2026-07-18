@@ -203,8 +203,8 @@ export class MailService {
       await this.transporter.sendMail({
         from: this.fromAddress,
         to,
-        subject: 'Pocket Resume — SMTP test email',
-        text: 'This is a test email from Pocket Resume. If you received it, email delivery is working.',
+        subject: 'CallbackCV — SMTP test email',
+        text: 'This is a test email from CallbackCV. If you received it, email delivery is working.',
       });
       return { ok: true };
     } catch (err: unknown) {
@@ -241,7 +241,7 @@ export class MailService {
     const safeMsg = String(args.message || '').slice(0, 4000);
     const subject = `New message about your resume (${args.slug})`;
     const text = [
-      `${args.senderName} reached out via your public Pocket Resume link.`,
+      `${args.senderName} reached out via your public CallbackCV link.`,
       args.senderCompany ? `Company: ${args.senderCompany}` : '',
       `Reply directly to: ${args.senderEmail}`,
       `Link: ${args.publicUrl}`,
@@ -249,7 +249,7 @@ export class MailService {
       'Message:',
       safeMsg,
       '',
-      '— Pocket Resume contact relay. The sender does not see your email address.',
+      '— CallbackCV contact relay. The sender does not see your email address.',
     ].filter(Boolean).join('\n');
     try {
       await this.transporter.sendMail({
@@ -295,9 +295,9 @@ export class MailService {
       '',
       ...args.openings.map((o) => `- ${o.title} @ ${o.company} (${o.location})${o.salaryText ? ` — ${o.salaryText}` : ''}\n  ${o.url}`),
       '',
-      'Tailor your resume to the JD before applying — JD Match on Pocket Resume shows the gap in seconds.',
+      'Tailor your resume to the JD before applying — JD Match on CallbackCV shows the gap in seconds.',
       '',
-      'Manage alerts from the Jobs page in Pocket Resume.',
+      'Manage alerts from the Jobs page in CallbackCV.',
     ].join('\n');
     const rows = args.openings.map((o) => `
         <tr><td style="padding:10px 0;border-bottom:1px solid #e6e8f2;">
@@ -344,7 +344,7 @@ export class MailService {
       `Rejected:       ${args.links.rejected}`,
       `Interview! :    ${args.links.interview}`,
       '',
-      `Recording outcomes is how Pocket Resume learns which of your resume versions actually works.`,
+      `Recording outcomes is how CallbackCV learns which of your resume versions actually works.`,
       '',
       `Stop these emails: ${args.links.unsubscribe}`,
     ].join('\n');
@@ -363,7 +363,7 @@ export class MailService {
           ${btn(args.links.interview, 'Interview!', '#1e7a3a')}
         </div>
         <p style="color:#888;font-size:12px;margin:0 0 4px;">
-          Recording outcomes is how Pocket Resume learns which of your resume versions actually works.
+          Recording outcomes is how CallbackCV learns which of your resume versions actually works.
         </p>
         <p style="color:#aaa;font-size:11px;margin:12px 0 0;">
           <a href="${args.links.unsubscribe}" style="color:#aaa;">Stop these emails</a>

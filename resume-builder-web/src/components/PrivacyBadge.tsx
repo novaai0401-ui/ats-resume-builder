@@ -38,7 +38,7 @@ const COPY: Record<Variant, { title: string; body: string; dismissable: boolean 
   dashboard: {
     title: 'Your resumes, your account',
     body:
-      'Saved resumes live in your Pocket Resume account so they show up when you sign in on another device. ' +
+      'Saved resumes live in your CallbackCV account so they show up when you sign in on another device. ' +
       'You can delete any resume — or your entire account — from Settings.',
     dismissable: true,
   },
