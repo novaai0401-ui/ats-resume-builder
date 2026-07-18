@@ -115,7 +115,7 @@ export class MentorChatService {
       // message instead of a silly canned response.
       return {
         reply:
-          'Mentor Chat needs the AI provider to be configured. Please reach out to support@tekivex.com — this should be live shortly.',
+          'Mentor Chat needs the AI provider to be configured. Please reach out to novaai0401@gmail.com — this should be live shortly.',
         provider: 'unavailable',
         tokensUsed: 0,
       };

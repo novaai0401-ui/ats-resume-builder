@@ -79,7 +79,7 @@ export default async function DownloadPage() {
               <p style={{ margin: '4px 0' }}>
                 After downloading, run these commands to confirm the file matches what we
                 published. If either value differs, do not install — re-download from this
-                page or report it to security@tekivex.com.
+                page or report it to novaai0401@gmail.com.
               </p>
               <Code label="SHA-256 of the APK" value={manifest.android.sha256} command="sha256sum pocket-resume.apk" />
               <Code
