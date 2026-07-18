@@ -679,7 +679,7 @@ export class ResumeService {
     // Mismatch root-cause: preview uses React template components + app CSS, while
     // export used a separate HTML/CSS builder path. Keep export on a single renderer.
     const resolvedTemplateId = resolveExportTemplateId(templateIdOverride, resume.templateId);
-    validatePdfExportSafety(resume, { enforceMinimumScore: productFlowRestrictionsEnabled });
+    validatePdfExportSafety(resume, { enforceMinimumScore: productFlowRestrictionsEnabled, templateId: resolvedTemplateId });
     const rendered = renderResumeTemplateHtml({
       templateId: resolvedTemplateId,
       resumeData: resume,
@@ -743,7 +743,7 @@ export class ResumeService {
     // enforceMinimumScore=false: the owner already accepted the score
     // when they enabled the share link; we should not 4xx a recruiter
     // mid-download because the owner's resume slipped under threshold.
-    validatePdfExportSafety(resume, { enforceMinimumScore: false });
+    validatePdfExportSafety(resume, { enforceMinimumScore: false, templateId: resolvedTemplateId });
     const rendered = renderResumeTemplateHtml({
       templateId: resolvedTemplateId,
       resumeData: resume,
@@ -4408,14 +4408,30 @@ function detectExperienceLevelFromBlocks(input: {
   return 'MID' as const;
 }
 
-﻿function validatePdfExportSafety(resume: {
+﻿/**
+ * Templates sold as visual showcases ("Not ATS-safe — do not upload to a job
+ * portal"). The ATS-safety export gate below must NOT apply to them: blocking
+ * a deliberately non-ATS template on ATS rules is a contradiction the founder
+ * hit in testing (Sidebar Bold + an imported resume containing "|" / bullet
+ * glyphs → export refused). Rendering is safe regardless — all text passes
+ * through escapeHtml before it reaches the PDF renderer.
+ */
+const VISUAL_SHOWCASE_TEMPLATES = new Set(['creative', 'sidebar-bold', 'accent-header']);
+
+export function validatePdfExportSafety(resume: {
   summary: string;
   skills: string[];
   experience: unknown;
   education: unknown;
   projects?: unknown;
   certifications?: unknown;
-}, options?: { enforceMinimumScore?: boolean }) {
+}, options?: { enforceMinimumScore?: boolean; templateId?: string }) {
+  // Visual templates skip the ATS gate entirely — the user has explicitly
+  // chosen a layout we label "not ATS-safe", so refusing the download on
+  // ATS-safety grounds is wrong. The UI already warns against portals.
+  if (options?.templateId && VISUAL_SHOWCASE_TEMPLATES.has(options.templateId)) {
+    return;
+  }
   const errors: string[] = [];
   const text = buildResumeText(resume);
   const hasUnsafeFormatting = /<[^>]+>/.test(text) || /[\t|]/.test(text) || /[•◦▪★✓]/.test(text);
