@@ -332,40 +332,46 @@ services:
 
   # ─────────────────────────────────────────────────────────────────────
   # 3. CRON — outcome nudges (R-031: the 7-day "any reply?" single-tap
-  #    email that fights ghosting, the #1 job-seeker pain). The endpoint
-  #    has existed for a while; this cron is what actually fires it in
-  #    prod. Runs daily 03:30 UTC = 09:00 IST.
+  #    email that fights ghosting). Runs daily 03:30 UTC = 09:00 IST.
+  #
+  #    Built from cron/Dockerfile — the script is the image ENTRYPOINT and
+  #    reads CRON_TARGET_URL + CRON_SECRET from env. Deliberately NO
+  #    dockerCommand: Render exec-parses that field without a real shell,
+  #    which mangled the previous quoted curl one-liner into a single
+  #    "command not found" token (exit 127, Jul 19 failed runs).
   #    Set the SAME CRON_SECRET here and on ats-rb-api.
   # ─────────────────────────────────────────────────────────────────────
   - type: cron
     name: ats-rb-cron-nudges
-    runtime: image
-    image:
-      url: docker.io/curlimages/curl:latest
+    runtime: docker
+    dockerfilePath: ./cron/Dockerfile
+    dockerContext: ./cron
+    repo: https://github.com/novaai0401-ui/ats-resume-builder
+    branch: main
     schedule: "30 3 * * *"
-    dockerCommand: >-
-      sh -c 'curl -fsS -X POST -H "x-cron-secret: $CRON_SECRET"
-      https://ats-rb-api.onrender.com/outcome-nudge/run'
     region: singapore
     envVars:
+      - key: CRON_TARGET_URL
+        value: https://ats-rb-api.onrender.com/outcome-nudge/run
       - key: CRON_SECRET
         sync: false
 
   # ─────────────────────────────────────────────────────────────────────
   # 4. CRON — job-alert email digests (needs Adzuna keys on the API to
   #    produce results; no-ops harmlessly otherwise). Daily 04:00 UTC =
-  #    09:30 IST, after the nudge run.
+  #    09:30 IST. Same image/script as the nudges cron.
   # ─────────────────────────────────────────────────────────────────────
   - type: cron
     name: ats-rb-cron-job-alerts
-    runtime: image
-    image:
-      url: docker.io/curlimages/curl:latest
+    runtime: docker
+    dockerfilePath: ./cron/Dockerfile
+    dockerContext: ./cron
+    repo: https://github.com/novaai0401-ui/ats-resume-builder
+    branch: main
     schedule: "0 4 * * *"
-    dockerCommand: >-
-      sh -c 'curl -fsS -X POST -H "x-cron-secret: $CRON_SECRET"
-      https://ats-rb-api.onrender.com/job-alerts/run-cron'
     region: singapore
     envVars:
+      - key: CRON_TARGET_URL
+        value: https://ats-rb-api.onrender.com/job-alerts/run-cron
       - key: CRON_SECRET
         sync: false
