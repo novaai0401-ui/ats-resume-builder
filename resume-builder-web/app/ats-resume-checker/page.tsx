@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
+import AtsCheckWidget from './AtsCheckWidget';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://pocketresume.app';
 
@@ -79,6 +80,8 @@ export default function AtsResumeCheckerPage() {
           <Link className="btn secondary" href="/ats-resume-templates">ATS-safe templates</Link>
         </div>
       </section>
+
+      <AtsCheckWidget />
 
       <section className="grid" aria-label="How it works">
         {steps.map((s) => (

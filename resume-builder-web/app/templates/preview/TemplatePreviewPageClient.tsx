@@ -11,6 +11,32 @@ import { buildResumePreview, persistActiveResumeSelection, resolveCurrentSession
 
 const VALID_TEMPLATE_IDS = new Set(templates.map((template) => template.id));
 
+type RouterLike = {
+  push: (href: string) => unknown;
+  replace?: (href: string) => unknown;
+};
+
+const fallbackRouter: RouterLike = {
+  push: async () => true,
+  replace: async () => true,
+};
+
+export type TemplatePreviewApiClient = {
+  getResume: typeof api.getResume;
+  updateResume: typeof api.updateResume;
+};
+
+export type TemplatePreviewPageClientProps = {
+  apiClient?: TemplatePreviewApiClient;
+  routerOverride?: RouterLike;
+  searchParamsOverride?: URLSearchParams;
+};
+
+// 'unknown' covers the server render + first client paint, before we can
+// read localStorage. We render the public sample gallery in that window so
+// logged-out visitors (and crawlers) get meaningful content immediately.
+type AuthState = 'unknown' | 'guest' | 'authed';
+
 function resolveTemplateId(value: string, fallback: TemplateId = 'classic'): TemplateId {
   const candidate = String(value || '').trim() as TemplateId;
   if (candidate && VALID_TEMPLATE_IDS.has(candidate)) {
@@ -19,16 +45,24 @@ function resolveTemplateId(value: string, fallback: TemplateId = 'classic'): Tem
   return fallback;
 }
 
-export default function TemplatePreviewPageClient() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
+export default function TemplatePreviewPageClient({
+  apiClient,
+  routerOverride,
+  searchParamsOverride,
+}: TemplatePreviewPageClientProps = {}) {
+  const nextRouter = process.env.NEXT_TEST_MOCK_ROUTER === '1' ? null : useRouter();
+  const nextSearchParams = process.env.NEXT_TEST_MOCK_ROUTER === '1' ? null : useSearchParams();
+  const router = routerOverride ?? nextRouter ?? fallbackRouter;
+  const searchParams = searchParamsOverride ?? nextSearchParams ?? new URLSearchParams();
+  const client: TemplatePreviewApiClient = apiClient ?? api;
   const requestedResumeId = String(searchParams.get('resumeId') || '').trim();
-  const resumeId = resolveCurrentSessionResumeId(requestedResumeId);
   const initialTemplate = resolveTemplateId(searchParams.get('template') || '');
   const [templateId, setTemplateId] = useState<TemplateId>(initialTemplate);
   const [resume, setResume] = useState<Resume | null>(null);
-  const [activeResumeId, setActiveResumeId] = useState(resumeId);
-  const [loading, setLoading] = useState(true);
+  const [authState, setAuthState] = useState<AuthState>('unknown');
+  const [resumeId, setResumeId] = useState('');
+  const [activeResumeId, setActiveResumeId] = useState('');
+  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -39,38 +73,40 @@ export default function TemplatePreviewPageClient() {
   }, [searchParams]);
 
   useEffect(() => {
-    setActiveResumeId(resumeId);
-    if (resumeId) {
-      persistActiveResumeSelection(resumeId);
+    // Auth + resume resolution happens in an effect (never during render)
+    // so the server-rendered sample gallery hydrates without mismatch.
+    if (!getAccessToken()) {
+      setAuthState('guest');
+      setResumeId('');
+      return;
     }
-  }, [resumeId]);
+    setAuthState('authed');
+    const resolved = resolveCurrentSessionResumeId(requestedResumeId);
+    setResumeId(resolved);
+    if (resolved) {
+      persistActiveResumeSelection(resolved);
+    }
+  }, [requestedResumeId]);
 
   useEffect(() => {
-    if (!getAccessToken()) {
-      setError('Please sign in to preview templates.');
-      setLoading(false);
+    // Sample mode (logged out, or logged in without a resume selection)
+    // must never fire authenticated API calls — no getResume, no 401s.
+    if (authState !== 'authed' || !resumeId) {
+      setActiveResumeId('');
+      setResume(null);
       return;
     }
     let cancelled = false;
     setLoading(true);
     setError('');
-    const load = async () => {
-      const targetResumeId = resumeId;
-      if (!targetResumeId) {
-        if (!cancelled) {
-          setActiveResumeId('');
-          setResume(null);
-        }
-        throw new Error('Select a saved resume or upload a new one to preview templates.');
-      }
-      const payload = await api.getResume(targetResumeId);
-      if (cancelled) return;
-      setActiveResumeId(targetResumeId);
-      setResume(payload);
-      const fallbackTemplate = resolveTemplateId(payload.templateId || '', 'classic');
-      setTemplateId((prev) => resolveTemplateId(prev, fallbackTemplate));
-    };
-    load()
+    client.getResume(resumeId)
+      .then((payload) => {
+        if (cancelled) return;
+        setActiveResumeId(resumeId);
+        setResume(payload);
+        const fallbackTemplate = resolveTemplateId(payload.templateId || '', 'classic');
+        setTemplateId((prev) => resolveTemplateId(prev, fallbackTemplate));
+      })
       .catch((err: unknown) => {
         if (cancelled) return;
         setError(err instanceof Error ? err.message : 'Failed to load resume preview.');
@@ -83,7 +119,7 @@ export default function TemplatePreviewPageClient() {
     return () => {
       cancelled = true;
     };
-  }, [resumeId]);
+  }, [authState, resumeId]);
 
   const previewResume = useMemo(() => {
     if (!resume) return null;
@@ -97,7 +133,7 @@ export default function TemplatePreviewPageClient() {
     setError('');
     setMessage('');
     try {
-      const updated = await api.updateResume(activeResumeId, { templateId });
+      const updated = await client.updateResume(activeResumeId, { templateId });
       setResume(updated);
       setMessage('Template applied.');
     } catch (err: unknown) {
@@ -108,60 +144,98 @@ export default function TemplatePreviewPageClient() {
   };
 
   const selectedTemplate = templates.find((item) => item.id === templateId) || templates[0];
+  const isSampleMode = authState !== 'authed' || !resumeId;
 
-  // No saved resume yet → don't dead-end the user. Show the whole gallery
-  // rendered with a realistic sample so they can browse every template, then
-  // pick one (which carries through to upload / start-from-scratch).
-  if (!activeResumeId && !loading) {
+  // PUBLIC sample mode: logged-out visitors and signed-in users without a
+  // saved resume selection both get the full gallery + live preview rendered
+  // with realistic sample content. No auth wall, no dead ends, no authed
+  // API calls (download/apply stay behind sign-up).
+  if (isSampleMode) {
     const sample = getSampleResumeForIndustry();
+    const isGuest = authState === 'guest';
+    // Register page doesn't consume a `next` query param today, so we link
+    // to plain /auth/register (the login flow's rb_return_to handles the
+    // signed-in return path separately).
+    const primaryCta = isGuest
+      ? { href: '/auth/register', label: 'Use this template — free' }
+      : { href: `/resume/start?template=${encodeURIComponent(templateId)}`, label: 'Use this template' };
     return (
-      <main className="grid">
-        <section className="card col-12">
-          <h2>Browse templates</h2>
-          <p className="small">
-            Preview every ATS-safe template below with sample content, then pick one to start your resume.
-          </p>
-          <Link className="btn" href="/resume/start" style={{ marginTop: 8, alignSelf: 'flex-start' }}>
-            Start your resume
-          </Link>
+      <main className="grid template-grid-layout">
+        {isGuest ? (
+          <section className="card col-12" data-testid="template-sample-banner">
+            <p className="small" style={{ margin: 0 }}>
+              You&apos;re previewing with sample data — sign up free to build your own resume with this template.
+            </p>
+            <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+              <Link className="btn" href="/auth/register">Start my resume — free</Link>
+              <Link className="btn secondary" href="/auth/login">Sign in</Link>
+            </div>
+          </section>
+        ) : (
+          <section className="card col-12">
+            <h2>Browse templates</h2>
+            <p className="small">
+              Preview every ATS-safe template below with sample content, then pick one to start your resume.
+            </p>
+            <Link className="btn" href="/resume/start" style={{ marginTop: 8, alignSelf: 'flex-start' }}>
+              Start your resume
+            </Link>
+          </section>
+        )}
+
+        <section className="card col-7">
+          <h2>Template Preview</h2>
+          <p className="small">Viewing {selectedTemplate?.name || 'template'} with sample content.</p>
+          <div className="template-live__canvas" style={{ marginTop: 12 }}>
+            <ResumeTemplateRender templateId={templateId} resumeData={sample} mode="full" />
+          </div>
         </section>
 
-        <section className="card col-12">
+        <section className="card col-5">
+          <h3 style={{ marginTop: 0 }}>{selectedTemplate?.name}</h3>
+          <p className="small">{selectedTemplate?.description || 'Pick any template to preview it live.'}</p>
+          <Link className="btn" href={primaryCta.href} style={{ marginTop: 8, alignSelf: 'flex-start' }}>
+            {primaryCta.label}
+          </Link>
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
-              gap: 16,
+              gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
+              gap: 12,
+              marginTop: 16,
             }}
           >
             {templates.map((tpl) => (
-              <Link
+              <button
                 key={tpl.id}
-                href={`/resume/start?template=${encodeURIComponent(tpl.id)}`}
+                type="button"
+                onClick={() => setTemplateId(tpl.id)}
                 className="template-gallery-card"
+                aria-pressed={tpl.id === templateId}
                 style={{
                   display: 'block',
-                  border: '1px solid var(--border, #e2e8f0)',
+                  border: tpl.id === templateId
+                    ? '2px solid var(--primary-600, #2b6cb0)'
+                    : '1px solid var(--border, #e2e8f0)',
                   borderRadius: 12,
                   overflow: 'hidden',
-                  textDecoration: 'none',
+                  textAlign: 'left',
+                  cursor: 'pointer',
                   color: 'inherit',
                   background: '#fff',
+                  padding: 0,
                 }}
               >
-                <div style={{ background: '#f5f8fc', padding: 8, maxHeight: 280, overflow: 'hidden' }}>
+                <div style={{ background: '#f5f8fc', padding: 8, maxHeight: 200, overflow: 'hidden' }}>
                   <ResumeTemplateRender templateId={tpl.id} resumeData={sample} mode="thumbnail" />
                 </div>
-                <div style={{ padding: '10px 12px' }}>
-                  <strong style={{ color: '#1a3a5c', fontSize: 14 }}>{tpl.name}</strong>
+                <div style={{ padding: '8px 10px' }}>
+                  <strong style={{ color: '#1a3a5c', fontSize: 13 }}>{tpl.name}</strong>
                   {tpl.description ? (
                     <div className="small" style={{ color: '#5a6778', marginTop: 2 }}>{tpl.description}</div>
                   ) : null}
-                  <div className="small" style={{ color: 'var(--primary-600, #2b6cb0)', marginTop: 6, fontWeight: 600 }}>
-                    Use this template →
-                  </div>
                 </div>
-              </Link>
+              </button>
             ))}
           </div>
         </section>
