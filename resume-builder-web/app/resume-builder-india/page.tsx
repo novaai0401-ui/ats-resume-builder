@@ -6,7 +6,7 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://pocketresume.app';
 export const metadata: Metadata = {
   title: 'Resume Builder for India — ATS-friendly, ₹ pricing — CallbackCV',
   description:
-    'An India-first ATS resume builder. Sub-₹400/month plans, UPI & cards via Razorpay, India-aware live job openings, and ATS-safe templates that pass Indian and global applicant tracking systems.',
+    'An India-first ATS resume builder. Free to build, ₹49 per download or ₹499/month for everything-AI, UPI & cards via Razorpay, India-aware live job openings, and ATS-safe templates that pass Indian and global applicant tracking systems.',
   alternates: { canonical: '/resume-builder-india' },
   openGraph: {
     title: 'Resume Builder for India — ATS-friendly with ₹ pricing',
@@ -58,7 +58,7 @@ export default function ResumeBuilderIndiaPage() {
   };
 
   const points = [
-    { h: '₹ pricing, UPI-ready', p: 'Sub-₹400/month plans with UPI, cards, and netbanking via Razorpay. A free forever tier to start.' },
+    { h: '₹ pricing, UPI-ready', p: 'Free forever to build; ₹49 per download or CallbackCV Plus at ₹499/month — with UPI, cards, and netbanking via Razorpay.' },
     { h: 'India-aware live openings', p: 'Real, current job openings with location filtering for Indian cities — one tap to track them.' },
     { h: 'ATS-safe, globally', p: 'Templates that parse cleanly for Indian employers and global ATS (Workday, Greenhouse, iCIMS).' },
     { h: 'Privacy-first', p: 'Local-first storage with zero-knowledge encrypted backup. Your resume is never sold or used to train AI without opt-in.' },
