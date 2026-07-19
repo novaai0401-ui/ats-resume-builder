@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
+import JdQuickStart from '@/src/components/JdQuickStart';
 
 export const metadata: Metadata = {
   title: 'CallbackCV — Free ATS resume builder',
@@ -128,6 +129,8 @@ export default function Page() {
           </p>
         </article>
       </section>
+
+      <JdQuickStart />
 
       <section className="card" style={{ marginTop: 18, textAlign: 'center' }}>
         <h2 style={{ marginBottom: 8 }}>Ready to get started?</h2>
