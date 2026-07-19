@@ -4,8 +4,8 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'CallbackCV — Free ATS resume builder',
   description:
-    'Build, score, and export resumes that pass applicant tracking systems. ' +
-    'Local-first privacy: your resume stays on your device. Free to start, works on web and mobile.',
+    'The resume builder that measures which resume actually gets callbacks. ' +
+    'ATS-safe templates, honest AI, and real per-version response tracking. Free to start.',
   alternates: { canonical: '/' },
 };
 
@@ -36,7 +36,7 @@ const FAQ = [
   },
   {
     q: 'Is my resume data private?',
-    a: 'Yes. Storage is local-first with zero-knowledge encrypted backup. Resume content is never sold and never used to train AI unless you explicitly opt in.',
+    a: 'Yes. Your resume is stored securely in your account (encrypted in transit and at rest), never sold, and never used to train AI unless you explicitly opt in. Delete any resume — or your whole account — anytime.',
   },
   {
     q: 'Does it work for the India job market?',
@@ -62,10 +62,11 @@ export default function Page() {
         }}
       />
       <section className="hero">
-        <h1>Free ATS-ready resumes in minutes.</h1>
+        <h1>Know which resume actually gets callbacks.</h1>
         <p className="small">
-          The resume builder for students, freshers, and career changers.
-          Local-first privacy &middot; AI ATS scoring &middot; one click PDF or Word export.
+          Every builder gives you a score. CallbackCV measures the truth: real response,
+          interview, and offer rates for each version of your resume &mdash; so you send
+          the one that works. Free ATS-safe builder &middot; honest AI &middot; PDF/Word export.
         </p>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 12 }}>
           <Link className="btn" href="/resume/start">Start your resume — free</Link>
@@ -144,6 +145,7 @@ export default function Page() {
       <section className="card" style={{ marginTop: 18 }} aria-labelledby="guides-heading">
         <h2 id="guides-heading">Popular guides</h2>
         <ul>
+          <li><Link href="/pricing">Pricing</Link> — the complete price list (₹0 to build, ₹49/download, ₹499/mo Plus), shown before you start.</li>
           <li><Link href="/ats-resume-templates">ATS resume templates</Link> — free, ATS-safe layouts tested across major systems.</li>
           <li><Link href="/ats-resume-checker">ATS resume checker</Link> — score your resume and see what an ATS extracts.</li>
           <li><Link href="/resume-builder-india">Resume builder for India</Link> — ₹ pricing, UPI, India-aware live openings.</li>

@@ -252,7 +252,7 @@ export function LoginPageView({ apiClient = api, routerOverride, defaultMode = '
           <li>Get AI-powered ATS optimization</li>
           <li>Identify technology and skill gaps</li>
           <li>Export professional PDF templates</li>
-          <li>Sync across all your devices</li>
+          <li>Access your resumes from any device you sign in on</li>
         </ul>
       </section>
     </main>

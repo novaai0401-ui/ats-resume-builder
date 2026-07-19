@@ -1423,6 +1423,41 @@ and every external call still feeds the Outcome Graph.
 
 ---
 
+### R-089 · Pre-signup funnel: public gallery, free ATS check, pricing page, callback-first hero
+
+- Status: **DONE** (this commit)
+- Depends-on: R-088 (rebrand), R-041 (stateless scoring)
+- Source: full product critique (local Playwright walkthrough of 26 routes +
+  2026 market research). Top finding: every pre-signup conversion asset was
+  auth-walled and the differentiator was invisible on the home page.
+- Acceptance
+  - [x] `/templates` (+`/templates/preview`) is PUBLIC: logged-out visitors get
+    the full gallery + live preview rendered with the sample resume, a
+    non-blocking sign-up banner, and ZERO authenticated API calls (no doomed
+    401s). Logged-in behavior unchanged. Pinned by
+    `tests/templates-public-gallery.test.tsx` (4).
+  - [x] Anonymous ATS check: `POST /public/ats-check` (no auth) reuses the
+    existing `scoreFreeText` engine — no AI call, no DB write, text processed
+    in-memory only (stated in the response disclaimer). Rate-limited 3/IP/day
+    with a C-004-style message naming the remediation. Widget on
+    `/ats-resume-checker` (paste-text; file upload honestly deferred to
+    signed-in parsing). Pinned by `tests/public-ats-check.unit.test.cjs` (6)
+    + web api test (2).
+  - [x] Public `/pricing` page: the complete price list (free build / ₹49
+    download / ₹499 Plus) shown before a user invests build time — the
+    counter to the category's most-resented hidden-paywall pattern.
+  - [x] Home hero leads with the callback-measurement differentiator;
+    logged-out nav gains Templates / ATS Check / Pricing / Why CallbackCV.
+  - [x] Trust copy made true (C-003): "Local-first privacy" claim removed
+    (storage is server-side), FAQ privacy answer rewritten, "Sync across all
+    your devices" reworded to the true claim, `/resume-builder-india`
+    "Sub-₹400/month" contradiction fixed, "The moat." removed from user copy.
+  - [ ] Follow-ups (Week 2-3 of the critique plan): guest resume draft,
+    home-page "Paste a JD" entry, hub consolidation, worked-example empty
+    states, kill anonymous-page authed calls, register `next=` param.
+
+---
+
 ## §6. Cross-cutting constants
 
 These are constraints that every requirement must respect. Violations
@@ -1490,6 +1525,7 @@ do not break it.
 | Date | Decision | Reason | Affected IDs |
 |---|---|---|---|
 | 2026-07-16 | Rebrand to CallbackCV (by Tekivex): all user-facing copy renamed from "Pocket Resume" to "CallbackCV" (house brand Tekivex, tagline "CallbackCV by Tekivex") — web copy/metadata/SEO landers/PWA manifest, plan name "CallbackCV Plus", support/track emails moved to @tekivex.com, PDF/CSS watermark "CALLBACKCV", MCP package renamed `@tekivex/callbackcv-mcp` (bin `callbackcv-mcp`), extension renamed "CallbackCV — Job Hunt Companion". Internal doc bodies (strategy/requirements text) intentionally left as-is. | Name-collision research: "Pocket Resume" apps have existed since 2010 plus current Play Store listings; a distinct, ownable brand was needed before launch. | R-088 |
+| 2026-07-19 | Pre-signup funnel opened (R-089): product critique (Playwright walkthrough + market research) found the funnel died at the first click — templates auth-walled, no try-before-signup, differentiator buried, no public pricing, trust-copy contradictions. Shipped: public sample-data template gallery, anonymous rate-limited ATS check (reuses scoreFreeText, no storage), public /pricing page, callback-first hero, public nav links, and five truth fixes to privacy/pricing copy. | Founder: "make this the top choice for job hunters — test it like a critic." | R-089, R-088, R-041, C-003 |
 | 2026-07-15 | Launch-readiness batch (R-087): turned the "unshipped uniqueness" into shipped surface — Adzuna admin diagnostics + env plumbing (feed was fully built but keys were never declared), TWO render.yaml cron services so outcome nudges + job-alert digests actually fire in prod (endpoints existed since R-031/032, nothing triggered them), WhatsApp channel (R-043 PARTIAL: env-gated, per-user opt-in still required before enabling — Meta consent policy), benchmark insights Phase 1 (R-050 DONE: median response-rate card, ≥5-apps/≥10-users privacy gate), "no fake numbers" AI trust note (verified against prompts, C-003), dashboard lift headline, MCP publish metadata, extension store runbook. | Founder: execute research points 1–8 pre-launch; market data shows ghosting (55%), fabricated AI metrics, and WhatsApp-first alerts are the wedge. | R-087, R-050, R-043, R-040, R-033, R-031 |
 | 2026-07-14 | Resume-page AI on our key, free + daily-capped (R-086): OUR Groq key is now spent ONLY on the Edit Resume page, where AI Critique / Rewrite / JD-match / Tech Gap / Tailor run for ALL users — free users included — with NO ₹20 fee and NO subscribe wall, protected by a per-user cap of 10 our-AI actions/day (shared across all resume AI buttons; `AI_FREE_MAX_REQUESTS_PER_DAY`). Removed the ₹20 opt-in fee + dialog. Off the resume page (Mentor/Interview/Mock/Recruiter/Skill-demand/Cover-letter/Sahaayak) our key stays BYOK-or-plan only — free users get rule-based/upsell (verified, no leak). New shared helper `ai/resume-ai-access.ts` reuses `AiCritiqueLog` (no migration). | Founder: make the resume page the free AI hook on our cheap Groq key; everywhere else require the user's own key or a subscription; hard daily cap so free Groq data isn't exhausted. Decisions (free-not-fee, 10/day) approved by founder. | R-086, R-084, R-071 |
 | 2026-07-13 | Admin AI-key health check (R-085): added `GET /admin/ai/status` + `POST /admin/ai/test` (admin-guarded, mirrors admin/mail/status) — config snapshot + a live Groq handshake with an actionable hint (401→bad key, 404→model not available, 429→rate/quota, timeout→egress), so ops can confirm the operator Groq key works without shelling into Render. Never returns/logs the key (scrubbed). Pinned by `ai-health.unit.test.cjs`. | Founder asked how to verify the added Groq key is working; there was no equivalent of the mail health check for AI. | R-085, R-084 |

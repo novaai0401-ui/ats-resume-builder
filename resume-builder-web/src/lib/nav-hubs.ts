@@ -92,7 +92,7 @@ export const NAV_HUBS: Hub[] = [
       { href: '/jobs', label: 'Job tracker', blurb: 'Kanban of every role you have applied to. Statuses + reminders.' },
       { href: '/jd-match', label: 'JD Match', blurb: 'Paste a job description, see what your resume covers and what to add.' },
       { href: '/recruiter-sim', label: 'Recruiter AI', blurb: 'See the verdict an AI hiring screen would give you against a JD.', planBadge: 'AI' },
-      { href: '/resume/outcomes', label: 'Outcomes', blurb: 'Per-version response, interview, and offer rates. The moat.' },
+      { href: '/resume/outcomes', label: 'Outcomes', blurb: 'Real response, interview, and offer rates for each resume version.' },
       { href: '/cover-letter', label: 'Cover Letter', blurb: 'Tailored cover letters per JD with tone control.', planBadge: 'AI' },
     ],
   },

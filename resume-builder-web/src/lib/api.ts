@@ -1837,3 +1837,26 @@ export function acknowledgeTrainingNotice() {
 export function purgeTrainingSamples() {
   return request<{ deleted: number }>('/me/training-samples', { method: 'DELETE' });
 }
+
+// ---------------------------------------------------------------------------
+// Anonymous public ATS check (/ats-resume-checker lander widget).
+// No auth token, no session heartbeat — the whole point is "no account".
+// ---------------------------------------------------------------------------
+
+export type PublicAtsCheckResult = {
+  atsScore: number;
+  band: 'strong' | 'promising' | 'needs-work' | 'at-risk';
+  topIssues: string[];
+  missingSections: string[];
+  disclaimer: string;
+};
+
+export async function publicAtsCheck(resumeText: string): Promise<PublicAtsCheckResult> {
+  const res = await fetch(`${baseUrl}/public/ats-check`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ resumeText }),
+  });
+  if (!res.ok) throw new ApiRequestError(await readApiErrorDetails(res, 'ATS check failed'));
+  return res.json() as Promise<PublicAtsCheckResult>;
+}

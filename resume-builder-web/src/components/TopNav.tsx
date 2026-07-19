@@ -141,6 +141,14 @@ export default function TopNav() {
         <button className="btn secondary" type="button" onClick={onLogout}>Logout</button>
       ) : (
         <>
+          {/* Public nav (R-089): the critique found the best pre-signup
+              pages — templates, the free ATS check, pricing, the
+              competitor comparison — were orphaned behind login-only
+              nav. Surface them to every logged-out visitor. */}
+          <Link href="/templates" onClick={closeDrawer} {...exactProps('/templates')}>Templates</Link>
+          <Link href="/ats-resume-checker" onClick={closeDrawer} {...exactProps('/ats-resume-checker')}>ATS Check</Link>
+          <Link href="/pricing" onClick={closeDrawer} {...exactProps('/pricing')}>Pricing</Link>
+          <Link href="/compare" onClick={closeDrawer} {...exactProps('/compare')}>Why CallbackCV</Link>
           <Link href="/auth/login" onClick={closeDrawer} {...exactProps('/auth/login')}>Login</Link>
           <Link href="/auth/register" onClick={closeDrawer} {...exactProps('/auth/register')}>Register</Link>
         </>
