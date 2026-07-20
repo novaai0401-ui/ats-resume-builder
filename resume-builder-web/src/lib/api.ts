@@ -281,6 +281,7 @@ const REFRESH_GRACE_MS = 2 * 60 * 1000;
 const ACTIVITY_WRITE_THROTTLE_MS = 5_000;
 let silentRefreshInFlight: Promise<AuthResponse | null> | null = null;
 let sessionHeartbeatStarted = false;
+let sessionHeartbeatArmListenerAttached = false;
 
 export function getAccessToken() {
   if (typeof window === 'undefined') return '';
@@ -542,6 +543,23 @@ async function ensureSessionActive() {
 
 export function startSessionHeartbeat() {
   if (typeof window === 'undefined' || sessionHeartbeatStarted) return;
+  // Logged-out visitors (marketing pages, public gallery) must not fire
+  // session upkeep: no ensureSessionActive(), no /auth/heartbeat ping, no
+  // interval, no activity listeners. Instead, arm a single cheap listener
+  // that re-invokes this function the moment auth state changes (login in
+  // this tab dispatches 'auth-state-changed'; login in another tab surfaces
+  // via the 'storage' event) and a token actually exists.
+  if (!getAccessToken()) {
+    if (!sessionHeartbeatArmListenerAttached) {
+      sessionHeartbeatArmListenerAttached = true;
+      const rearm = () => {
+        if (!sessionHeartbeatStarted && getAccessToken()) startSessionHeartbeat();
+      };
+      window.addEventListener(AUTH_STATE_CHANGED_EVENT, rearm);
+      window.addEventListener('storage', rearm);
+    }
+    return;
+  }
   sessionHeartbeatStarted = true;
   const onActivity = () => {
     markSessionActivity();

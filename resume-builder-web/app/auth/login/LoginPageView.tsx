@@ -14,6 +14,7 @@ import {
 import { PrivacyBadge } from '@/src/components/PrivacyBadge';
 import { readPendingReferralCode, storePendingReferralCode } from '@/src/lib/referral';
 import { SupportHelpLink } from '@/src/components/SupportHelpLink';
+import { readNextParamFromLocation } from '../next-param';
 
 type RouterLike = {
   push: (href: string) => Promise<boolean> | void;
@@ -60,6 +61,10 @@ export function LoginPageView({ apiClient = api, routerOverride, defaultMode = '
   }, []);
 
   async function navigateAfterAuth() {
+    // An explicit, validated ?next=<path> wins: it captures the intent
+    // that sent the user here (e.g. gallery "Use this template" CTA).
+    const next = readNextParamFromLocation();
+    if (next) { await router.push(next); return; }
     const returnTo = typeof window !== 'undefined' ? sessionStorage.getItem('rb_return_to') : null;
     if (returnTo) { sessionStorage.removeItem('rb_return_to'); await router.push(returnTo); }
     else { await router.push('/dashboard'); }
@@ -111,7 +116,7 @@ export function LoginPageView({ apiClient = api, routerOverride, defaultMode = '
         clearPendingReferralCode();
       } catch { /* non-critical */ }
       setStatus('Account created! Redirecting...');
-      await router.push('/dashboard');
+      await navigateAfterAuth();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Registration failed');
     } finally {

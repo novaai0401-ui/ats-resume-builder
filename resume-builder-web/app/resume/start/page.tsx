@@ -1,15 +1,15 @@
 import { Suspense } from 'react';
-import AuthGate from '@/src/components/AuthGate';
 import ResumeStartClient from './ResumeStartClient';
 
 export const dynamic = 'force-dynamic';
 
+// Guest resume drafting: /resume/start is usable without a token so a
+// visitor can try the builder before signing up. Template query params
+// (?template=<id>) carry into the guest draft via the editor.
 export default function ResumeStartPage() {
   return (
-    <AuthGate>
-      <Suspense fallback={<div className="card">Loading resume start...</div>}>
-        <ResumeStartClient />
-      </Suspense>
-    </AuthGate>
+    <Suspense fallback={<div className="card">Loading resume start...</div>}>
+      <ResumeStartClient />
+    </Suspense>
   );
 }

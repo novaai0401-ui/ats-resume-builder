@@ -153,11 +153,12 @@ export default function TemplatePreviewPageClient({
   if (isSampleMode) {
     const sample = getSampleResumeForIndustry();
     const isGuest = authState === 'guest';
-    // Register page doesn't consume a `next` query param today, so we link
-    // to plain /auth/register (the login flow's rb_return_to handles the
-    // signed-in return path separately).
+    // Register/login honour a validated ?next=<path>, so a fresh sign-up
+    // lands straight in the editor with this template preselected instead
+    // of on the dashboard.
+    const authNext = encodeURIComponent(`/resume/start?template=${templateId}`);
     const primaryCta = isGuest
-      ? { href: '/auth/register', label: 'Use this template — free' }
+      ? { href: `/auth/register?next=${authNext}`, label: 'Use this template — free' }
       : { href: `/resume/start?template=${encodeURIComponent(templateId)}`, label: 'Use this template' };
     return (
       <main className="grid template-grid-layout">
@@ -167,8 +168,8 @@ export default function TemplatePreviewPageClient({
               You&apos;re previewing with sample data — sign up free to build your own resume with this template.
             </p>
             <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
-              <Link className="btn" href="/auth/register">Start my resume — free</Link>
-              <Link className="btn secondary" href="/auth/login">Sign in</Link>
+              <Link className="btn" href={`/auth/register?next=${authNext}`}>Start my resume — free</Link>
+              <Link className="btn secondary" href={`/auth/login?next=${authNext}`}>Sign in</Link>
             </div>
           </section>
         ) : (

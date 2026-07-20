@@ -34,6 +34,13 @@ import {
   type UploadSummary as UploadSummaryState,
 } from '@/src/lib/resume-flow';
 import { ingestResumeFile } from '@/src/lib/resume-ingest';
+import {
+  clearGuestDraft,
+  readGuestDraft,
+  saveGuestDraft,
+  shouldImportGuestDraft,
+  shouldRestoreGuestDraft,
+} from '@/src/lib/guest-draft';
 import { parseAddKeyword } from '@/src/lib/bullet-deeplink';
 import { buildReviewAtsAttentionItems, REVIEW_ATS_DEBOUNCE_MS } from '@/src/lib/review-ats';
 import { checkAtsScore } from '@/src/lib/review-ats-action';
@@ -312,10 +319,22 @@ export function shouldShowQuotaBanner(paymentFeatureEnabled: boolean, message: s
   return paymentFeatureEnabled && Boolean(String(message || '').trim());
 }
 
+// Same test-mode escape hatch as LoginPageView / DashboardPageView:
+// node:test renders have no Next app-router context, so the navigation
+// hooks would throw. The env flag is constant for the process lifetime,
+// so hook order is stable.
+const IS_MOCK_ROUTER = process.env.NEXT_TEST_MOCK_ROUTER === '1';
+
 export default function ResumeEditor() {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+  /* eslint-disable react-hooks/rules-of-hooks */
+  const router = IS_MOCK_ROUTER
+    ? ({ push: () => {}, replace: () => {} } as unknown as ReturnType<typeof useRouter>)
+    : useRouter();
+  const pathname = IS_MOCK_ROUTER ? '/resume' : usePathname();
+  const searchParams = IS_MOCK_ROUTER
+    ? ({ get: () => null } as unknown as ReturnType<typeof useSearchParams>)
+    : useSearchParams();
+  /* eslint-enable react-hooks/rules-of-hooks */
   const requestedResumeId = searchParams.get('id') || '';
   const templateParam = searchParams.get('template') || '';
   const normalizedTemplateParam = String(templateParam || '').trim();
@@ -372,6 +391,23 @@ export default function ResumeEditor() {
   }, []);
   const licensureExpected = LICENSURE_EXPECTED_INDUSTRIES.has(selectedIndustryId);
   const [message, setMessage] = useState('');
+  // Guest resume drafting: true once we know (client-side) there is no
+  // access token. Drives the "saved on this device only" banner. Kept in
+  // state (not read inline) so SSR markup matches the first client render.
+  const [isGuestMode, setIsGuestMode] = useState(false);
+  // Signup-gate dialog for account-only actions (AI, ATS, export, share).
+  const [guestGateOpen, setGuestGateOpen] = useState(false);
+  useEffect(() => {
+    setIsGuestMode(!getAccessToken());
+  }, []);
+  // Returns true (and opens the signup dialog) when the visitor has no
+  // account. Every account-only click handler calls this first so guest
+  // clicks never silently no-op and never fire authed API calls.
+  function guardGuestAction(): boolean {
+    if (getAccessToken()) return false;
+    setGuestGateOpen(true);
+    return true;
+  }
   // True while api.getResume is in flight on initial mount. Prevents
   // the "blank fields with validation warnings" flash users reported
   // immediately after upload. Default true when we have a resume id
@@ -418,6 +454,8 @@ export default function ResumeEditor() {
   // so a mid-load Export never opens a modal the server would reject.
   const [downloadChargeEnabled, setDownloadChargeEnabled] = useState(false);
   useEffect(() => {
+    // Guest mode: no API calls fire from the editor.
+    if (!getAccessToken()) return;
     let cancelled = false;
     api.getDownloadChargeConfig()
       .then((cfg) => { if (!cancelled) setDownloadChargeEnabled(Boolean(cfg?.enabled)); })
@@ -684,8 +722,57 @@ export default function ResumeEditor() {
   };
 
   useEffect(() => {
-    if (!getAccessToken()) {
-      setMessage('Please sign in to edit resumes.');
+    const hasToken = Boolean(getAccessToken());
+    const hasPendingUpload = Boolean(readPendingUploadSession());
+    if (!hasToken) {
+      // Guest mode: hydrate the editor from the local guest draft when
+      // nothing else (scratch flow, pending upload, explicit id) claims
+      // the surface. No API calls fire on this path.
+      const draft = readGuestDraft();
+      if (
+        shouldRestoreGuestDraft({
+          hasToken,
+          resumeId: effectiveResumeId,
+          flowParam,
+          hasPendingUpload,
+          hasDraft: Boolean(draft),
+        }) && draft
+      ) {
+        setResume(() => ({
+          ...draft.resume,
+          ...(normalizedTemplateParam ? { templateId: normalizedTemplateParam } : {}),
+        }) as ResumeDraft);
+      }
+      return;
+    }
+    // Draft handoff: the visitor drafted as a guest, then registered or
+    // signed in. Import the draft as the working resume via the normal
+    // create path, then clear the guest key so it is not re-imported.
+    const guestDraft = readGuestDraft();
+    if (
+      shouldImportGuestDraft({
+        hasToken,
+        resumeId: effectiveResumeId,
+        hasDraft: Boolean(guestDraft),
+        hasPendingUpload,
+      }) && guestDraft
+    ) {
+      setResume(() => guestDraft.resume as ResumeDraft);
+      api.createResume(buildResumePayload(guestDraft.resume as ResumeDraft, getDefaultSections()))
+        .then((created) => {
+          clearGuestDraft();
+          setResumeId(created.id);
+          persistActiveResumeSelection(created.id);
+          locallySettledResumeIdRef.current = created.id;
+          setResume(() => resumeFromImportedApi(created) as ResumeDraft);
+          setMessage('Your guest draft is now saved to your account.');
+        })
+        .catch(() => {
+          // Keep the draft (locally and in the store) so nothing is
+          // lost; the user can press "Save changes" to retry.
+          dirtyRef.current = true;
+          setMessage('We restored your draft — press "Save changes" to save it to your account.');
+        });
       return;
     }
     if (effectiveResumeId) {
@@ -985,6 +1072,22 @@ export default function ResumeEditor() {
     });
   }, [actionVerbRule.passes, lastValidationCode]);
 
+  // Guest resume drafting: debounced LOCAL autosave. Guests never hit
+  // the server — edits persist to localStorage (rb_guest_draft) so the
+  // draft survives reloads and follows the visitor through signup.
+  useEffect(() => {
+    if (getAccessToken()) return;
+    if (!hasResumeDraftContent(resume) && !String(resume.templateId || '').trim()) return;
+    const timer = setTimeout(() => {
+      if (saveGuestDraft(resume as ResumeDraft)) {
+        setLastSavedAt(new Date().toLocaleTimeString());
+        setStatus('saved');
+        dirtyRef.current = false;
+      }
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [resume, sections]);
+
   useEffect(() => {
     if (!dirtyRef.current) return;
     if (!getAccessToken()) return;
@@ -1060,6 +1163,11 @@ export default function ResumeEditor() {
   // here is safe.
   const requestBulletRewrite = useCallback(
     async (expIdx: number, highlightIdx: number) => {
+      // Guest mode: AI rewrites are signup-gated (no silent no-op).
+      if (!getAccessToken()) {
+        setGuestGateOpen(true);
+        return;
+      }
       const key = `${expIdx}-${highlightIdx}`;
       const exp = resume.experience[expIdx];
       const bullet = (exp?.highlights ?? [])[highlightIdx] ?? '';
@@ -1331,6 +1439,12 @@ export default function ResumeEditor() {
   }, [fieldErrors]);
 
   async function saveDraft(isAuto = false) {
+    // Guest mode: account save is a signup-gated action. The local
+    // draft autosave (above) already persisted the content.
+    if (!getAccessToken()) {
+      setGuestGateOpen(true);
+      throw new Error('Create a free account to save your resume to your account.');
+    }
     setStatus('saving');
     setMessage('');
     if (!isAuto) {
@@ -1502,6 +1616,7 @@ export default function ResumeEditor() {
   }
 
   async function score() {
+    if (guardGuestAction()) return;
     if (!resumeId) {
       setMessage('Save first to score');
       return;
@@ -1551,6 +1666,7 @@ export default function ResumeEditor() {
   }
 
   async function parseJd() {
+    if (guardGuestAction()) return;
     if (!jdText.trim()) {
       setMessage('Paste a job description first.');
       return;
@@ -1574,6 +1690,7 @@ export default function ResumeEditor() {
   }
 
   function critique() {
+    if (guardGuestAction()) return;
     void runCritique(false);
   }
 
@@ -1638,6 +1755,7 @@ export default function ResumeEditor() {
   }
 
   function analyzeTechGap() {
+    if (guardGuestAction()) return;
     void runTechGap(false);
   }
 
@@ -1738,6 +1856,7 @@ export default function ResumeEditor() {
   }
 
   async function exportPdf() {
+    if (guardGuestAction()) return;
     if (!resumeId) {
       setMessage('Save first to export.');
       return;
@@ -1812,6 +1931,7 @@ export default function ResumeEditor() {
   }
 
   async function continueToAts() {
+    if (guardGuestAction()) return;
     if (!requiredSectionsValid) return;
     setLoadingAtsNavigation(true);
     setMessage('');
@@ -2021,6 +2141,30 @@ export default function ResumeEditor() {
 
   return (
     <main className={isReviewAtsPage ? 'grid review-grid' : 'grid'}>
+      {isGuestMode && (
+        <section
+          className="card col-12"
+          data-testid="guest-draft-banner"
+          style={{
+            marginBottom: 12,
+            borderLeft: '4px solid #f0a11b',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: 12,
+            flexWrap: 'wrap',
+            padding: '10px 14px',
+          }}
+        >
+          <p className="small" style={{ margin: 0 }}>
+            Draft saved on this device only — create a free account to save it to your
+            account and download.
+          </p>
+          <Link className="btn" href="/auth/register">
+            Create free account
+          </Link>
+        </section>
+      )}
       {addKeyword && !addKeywordDismissed && (
         <section
           className="card col-12"
@@ -4917,6 +5061,28 @@ export default function ResumeEditor() {
             <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
               <button className="btn secondary" onClick={handleTemplatePromptClose}>Not now</button>
               <button className="btn" onClick={handleTemplatePromptConfirm} disabled={!templatePromptHref}>OK</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {guestGateOpen && (
+        <div className="modal" data-testid="guest-gate-dialog" role="dialog" aria-modal="true">
+          <div className="modal-card">
+            <div className="modal-header">
+              <div>
+                <h3 style={{ margin: 0 }}>Create your free account to unlock this</h3>
+                <p className="small">
+                  Create your free account to unlock this — your draft comes with you.
+                </p>
+              </div>
+            </div>
+            <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button className="btn secondary" onClick={() => setGuestGateOpen(false)}>
+                Keep editing
+              </button>
+              <Link className="btn" href="/auth/register">
+                Create free account
+              </Link>
             </div>
           </div>
         </div>
