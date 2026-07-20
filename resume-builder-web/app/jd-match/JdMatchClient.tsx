@@ -65,6 +65,16 @@ export default function JdMatchClient() {
   useEffect(() => {
     setAuthed(Boolean(getAccessToken()));
     setActiveResumeId(readActiveResumeSelection() || null);
+    // Home-page quick start hands off a pasted JD via localStorage.
+    // Consume it once (read + remove) so a stale JD never reappears on
+    // a later visit. Guarded: localStorage can throw in private mode/SSR.
+    try {
+      const pending = window.localStorage.getItem('rb_pending_jd');
+      if (pending) {
+        window.localStorage.removeItem('rb_pending_jd');
+        setJdText(pending);
+      }
+    } catch { /* private mode / restricted storage — ignore */ }
   }, []);
 
   const resumeText = buildResumeText(resume as never);
@@ -124,12 +134,75 @@ export default function JdMatchClient() {
   }
 
   if (!authed) {
+    // Logged-out: show a static worked example of the report so the page
+    // sells the feature instead of dead-ending at a sign-in sentence.
+    // Pure JSX — no API calls fire from this state.
+    const sampleMatched = ['React', 'TypeScript', 'CSS', 'REST APIs'];
+    const sampleMissing = ['Next.js', 'Accessibility (WCAG)', 'CI/CD'];
+    const sampleBullet =
+      'Migrated a legacy React app to Next.js with server-side rendering, cutting first-paint time by 40%.';
     return (
       <main className="grid">
         <section className="card col-12">
-          <h1>JD Match Score</h1>
-          <p className="small">Sign in to compare your resume against a job description.</p>
-          <Link className="btn" href="/auth/login">Sign in</Link>
+          <h1 style={{ marginBottom: 4 }}>JD Match Score</h1>
+          <p className="small" style={{ margin: 0, color: 'var(--muted)' }}>
+            Paste a job description, and we&rsquo;ll compare it against your resume: the keywords
+            you cover, the ones you don&rsquo;t, and bullets you could add to close the gap.
+            Here&rsquo;s what a report looks like:
+          </p>
+        </section>
+
+        <section className="card col-12" data-testid="jd-match-sample" aria-label="Sample JD match report">
+          <p className="small" style={{ margin: '0 0 10px', color: 'var(--muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            Sample output — Frontend Developer @ Acme (sample)
+          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
+            <div
+              className="match-score-ring"
+              style={{ borderColor: scoreColor(68), color: scoreColor(68) }}
+              aria-label="Sample match score 68 out of 100"
+            >
+              <strong>68</strong>
+              <small>%</small>
+            </div>
+            <div style={{ flex: 1, minWidth: 220 }}>
+              <h2 style={{ marginTop: 0, marginBottom: 6 }}>Decent fit, room to grow</h2>
+              <p className="small" style={{ margin: 0, color: 'var(--muted)', lineHeight: 1.55 }}>
+                Based on the keywords in this JD, the sample resume covers <strong>4</strong> of{' '}
+                <strong>7</strong> expected skills.
+              </p>
+            </div>
+          </div>
+          <h3 style={{ marginBottom: 6 }}>Already covered</h3>
+          <div className="keyword-chips">
+            {sampleMatched.map((kw) => (
+              <span key={kw} className="ats-chip ats-chip--match">{kw}</span>
+            ))}
+          </div>
+          <h3 style={{ marginBottom: 6 }}>Missing — work these in</h3>
+          <div className="keyword-chips">
+            {sampleMissing.map((kw) => (
+              <span key={kw} className="ats-chip ats-chip--missing">{kw}</span>
+            ))}
+          </div>
+          <h3 style={{ marginBottom: 6 }}>Suggested bullet to add</h3>
+          <ul style={{ paddingLeft: 0, listStyle: 'none', margin: 0 }}>
+            <li className="bullet-rewrite-option">
+              <span style={{ flex: 1 }}>{sampleBullet}</span>
+            </li>
+          </ul>
+        </section>
+
+        <section className="card col-12">
+          <h2 style={{ marginTop: 0 }}>See this for YOUR resume — free</h2>
+          <p className="small" style={{ marginTop: 0, color: 'var(--muted)' }}>
+            Sign in (or create a free account) and we&rsquo;ll score any job description against
+            your saved resume.
+          </p>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <Link className="btn" href="/auth/register?next=%2Fjd-match">Create free account</Link>
+            <Link className="btn ghost" href="/auth/login?next=%2Fjd-match">Sign in</Link>
+          </div>
         </section>
       </main>
     );

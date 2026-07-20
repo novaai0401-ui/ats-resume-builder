@@ -108,12 +108,89 @@ export default function InterviewPrepClient() {
   }
 
   if (!authed) {
+    // Logged-out: two static sample cards show exactly what the feature
+    // produces (question + why it's asked + answer outline) before the
+    // sign-in CTA. Pure JSX — no API calls fire from this state.
+    const sampleCards: Card[] = [
+      {
+        category: 'behavioral',
+        question: 'Tell me about a time you disagreed with a teammate about a technical decision.',
+        whyAsked:
+          'Interviewers use this to see how you handle conflict — whether you argue from evidence, listen, and commit to the outcome.',
+        answerOutline: [
+          'Set the scene: the decision at stake and why you disagreed (one sentence).',
+          'Show your process: the data or prototype you brought to the discussion.',
+          'Land the result: what the team chose, and what you learned either way.',
+        ],
+      },
+      {
+        category: 'technical',
+        question: 'How would you improve the load time of a slow React page?',
+        whyAsked:
+          'A frontend staple: it reveals whether you can diagnose before optimizing, and whether you know the modern performance toolbox.',
+        answerOutline: [
+          'Measure first: Lighthouse / the Performance panel to find the actual bottleneck.',
+          'Common wins: code-splitting, lazy-loading below-the-fold, memoizing hot renders.',
+          'Verify: re-measure and watch Core Web Vitals, not just bundle size.',
+        ],
+      },
+    ];
     return (
       <main className="grid">
         <section className="card col-12">
-          <h1>Interview Prep Cards</h1>
-          <p className="small">Sign in to generate interview prep cards from your resume.</p>
-          <Link className="btn" href="/auth/login">Sign in</Link>
+          <h1 style={{ marginBottom: 4 }}>
+            Interview Prep Cards{' '}
+            <span className="plan-badge plan-badge--pro" style={{ fontSize: 11 }}>AI</span>
+          </h1>
+          <p className="small" style={{ margin: 0, color: 'var(--muted)' }}>
+            We generate 8 likely interview questions from your resume — each with why it&rsquo;s
+            asked and a 3-bullet answer outline drawn from your actual experience. Two sample
+            cards, for a frontend role:
+          </p>
+        </section>
+
+        <section className="card col-12" data-testid="interview-prep-sample" aria-label="Sample interview prep cards">
+          <p className="small" style={{ margin: '0 0 10px', color: 'var(--muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            Sample
+          </p>
+          <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 10 }}>
+            {sampleCards.map((card, i) => (
+              <li key={i} className="prep-card" data-open="true">
+                <div className="prep-card__head">
+                  <span
+                    className="prep-card__category"
+                    style={{ background: CATEGORY_COLOR[card.category] }}
+                  >
+                    {CATEGORY_LABEL[card.category]}
+                  </span>
+                  <span className="prep-card__question">{card.question}</span>
+                </div>
+                <div className="prep-card__body">
+                  <p className="small" style={{ margin: '0 0 8px', color: '#5a6778' }}>
+                    <strong>Why this is asked:</strong> {card.whyAsked}
+                  </p>
+                  <p style={{ margin: '0 0 6px', fontWeight: 600 }}>Answer outline:</p>
+                  <ul style={{ paddingLeft: 18, lineHeight: 1.6, margin: 0 }}>
+                    {card.answerOutline.map((bullet, b) => (
+                      <li key={b}>{bullet}</li>
+                    ))}
+                  </ul>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="card col-12">
+          <h2 style={{ marginTop: 0 }}>See this for YOUR resume — free</h2>
+          <p className="small" style={{ marginTop: 0, color: 'var(--muted)' }}>
+            Sign in (or create a free account) to generate prep cards from your own resume and
+            target role.
+          </p>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <Link className="btn" href="/auth/register?next=%2Finterview-prep">Create free account</Link>
+            <Link className="btn ghost" href="/auth/login?next=%2Finterview-prep">Sign in</Link>
+          </div>
         </section>
       </main>
     );

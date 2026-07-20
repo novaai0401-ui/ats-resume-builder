@@ -134,10 +134,13 @@ test('logged-out visitor gets the sample gallery + sign-up banner and NO getResu
     screen.getByText(/previewing with sample data/i),
     'Banner should explain the sample-data preview',
   );
+  // Auth CTAs carry a validated ?next=<path> so a fresh sign-up returns
+  // to the editor with this template preselected (see app/auth/next-param.ts).
   const registerLink = screen.getByRole('link', { name: /start my resume/i }) as HTMLAnchorElement;
-  assert(registerLink.getAttribute('href')?.startsWith('/auth/register'), 'Banner should link to register');
+  assert(registerLink.getAttribute('href')?.startsWith('/auth/register?next='), 'Banner should link to register with next=');
+  assert(registerLink.getAttribute('href')?.includes(encodeURIComponent('/resume/start?template=')), 'next= should target the editor start path');
   const loginLink = screen.getByRole('link', { name: /^sign in$/i }) as HTMLAnchorElement;
-  assert.equal(loginLink.getAttribute('href'), '/auth/login', 'Banner should link to login');
+  assert(loginLink.getAttribute('href')?.startsWith('/auth/login?next='), 'Banner should link to login with next=');
 
   // Full gallery renders — one selectable card per registered template.
   const cards = document.querySelectorAll('button.template-gallery-card');

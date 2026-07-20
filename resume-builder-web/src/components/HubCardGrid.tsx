@@ -55,6 +55,13 @@ export default function HubCardGrid({
               <p className="small" style={{ margin: '6px 0 0', color: 'var(--ink)', lineHeight: 1.5 }}>
                 {tool.blurb}
               </p>
+              {tool.planBadge === 'AI' ? (
+                // R-090 — cost clarity (critique: paid surfaces showed no
+                // price). One honest line: what "AI" costs on this card.
+                <p className="small" style={{ margin: '6px 0 0', color: 'var(--muted)', fontSize: 11 }}>
+                  Free with your own AI key · included in Plus (₹499/mo)
+                </p>
+              ) : null}
               <span style={arrowStyle} aria-hidden="true">→</span>
             </Link>
           ))}

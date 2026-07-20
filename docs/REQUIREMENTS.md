@@ -1458,6 +1458,37 @@ and every external call still feeds the Outcome Graph.
 
 ---
 
+### R-090 · The journey: guest drafting, JD quick start, worked-example empty states
+
+- Status: **DONE** (this commit)
+- Depends-on: R-089 (public funnel)
+- Acceptance
+  - [x] Guest resume drafting: /resume/start and the editor work WITHOUT an
+    account — drafts autosave to localStorage (`rb_guest_draft`) with an
+    honest "on this device only" banner; gated actions (export/AI/ATS)
+    show a signup dialog instead of silently failing; after signup/login
+    the draft is imported into a real resume and the key cleared. No
+    authed API calls fire in guest mode. Pinned by tests/guest-draft (7).
+  - [x] Home-page "Paste a JD" quick start → /jd-match consumes
+    `rb_pending_jd` once on mount (read + remove).
+  - [x] Logged-out /jd-match and /interview-prep render labeled worked
+    examples (sample match report / sample question cards) above the
+    sign-up CTA instead of one-sentence dead ends; zero API calls.
+    Pinned by tests/logged-out-samples (3).
+  - [x] /auth register+login honor a validated ?next= param (must start
+    with '/', open-redirect guarded) and the public gallery CTAs carry
+    next=/resume/start&template=<id>. Pinned by tests/auth-next-param (5).
+  - [x] Anonymous pages no longer fire doomed authed calls: the session
+    heartbeat starts only with a token and re-arms on auth-state-changed.
+    Pinned by tests/session-heartbeat-guard.
+  - [x] AI hub cards state cost honestly ("Free with your own AI key ·
+    included in Plus ₹499/mo").
+  - [x] Scope decision: Coach+Applications hub merge intentionally NOT
+    done (zero overlapping tools; pinned R-036 IA; an 11-card mega-hub
+    would worsen the complaint). Revisit only on founder call.
+
+---
+
 ## §6. Cross-cutting constants
 
 These are constraints that every requirement must respect. Violations
@@ -1525,6 +1556,7 @@ do not break it.
 | Date | Decision | Reason | Affected IDs |
 |---|---|---|---|
 | 2026-07-16 | Rebrand to CallbackCV (by Tekivex): all user-facing copy renamed from "Pocket Resume" to "CallbackCV" (house brand Tekivex, tagline "CallbackCV by Tekivex") — web copy/metadata/SEO landers/PWA manifest, plan name "CallbackCV Plus", support/track emails moved to @tekivex.com, PDF/CSS watermark "CALLBACKCV", MCP package renamed `@tekivex/callbackcv-mcp` (bin `callbackcv-mcp`), extension renamed "CallbackCV — Job Hunt Companion". Internal doc bodies (strategy/requirements text) intentionally left as-is. | Name-collision research: "Pocket Resume" apps have existed since 2010 plus current Play Store listings; a distinct, ownable brand was needed before launch. | R-088 |
+| 2026-07-20 | The journey batch (R-090): guest drafting end-to-end (localStorage draft, signup-gated actions, post-auth import), home-page Paste-a-JD quick start wired into /jd-match, worked-example empty states for jd-match/interview-prep, validated ?next= auth redirects, anonymous-page 401s eliminated (token-guarded heartbeat), AI-card cost lines. Hub merge deliberately skipped (see R-090). | Critique Week 2-3 plan; founder approved starting the sequence. | R-090, R-089, R-036 |
 | 2026-07-19 | Pre-signup funnel opened (R-089): product critique (Playwright walkthrough + market research) found the funnel died at the first click — templates auth-walled, no try-before-signup, differentiator buried, no public pricing, trust-copy contradictions. Shipped: public sample-data template gallery, anonymous rate-limited ATS check (reuses scoreFreeText, no storage), public /pricing page, callback-first hero, public nav links, and five truth fixes to privacy/pricing copy. | Founder: "make this the top choice for job hunters — test it like a critic." | R-089, R-088, R-041, C-003 |
 | 2026-07-15 | Launch-readiness batch (R-087): turned the "unshipped uniqueness" into shipped surface — Adzuna admin diagnostics + env plumbing (feed was fully built but keys were never declared), TWO render.yaml cron services so outcome nudges + job-alert digests actually fire in prod (endpoints existed since R-031/032, nothing triggered them), WhatsApp channel (R-043 PARTIAL: env-gated, per-user opt-in still required before enabling — Meta consent policy), benchmark insights Phase 1 (R-050 DONE: median response-rate card, ≥5-apps/≥10-users privacy gate), "no fake numbers" AI trust note (verified against prompts, C-003), dashboard lift headline, MCP publish metadata, extension store runbook. | Founder: execute research points 1–8 pre-launch; market data shows ghosting (55%), fabricated AI metrics, and WhatsApp-first alerts are the wedge. | R-087, R-050, R-043, R-040, R-033, R-031 |
 | 2026-07-14 | Resume-page AI on our key, free + daily-capped (R-086): OUR Groq key is now spent ONLY on the Edit Resume page, where AI Critique / Rewrite / JD-match / Tech Gap / Tailor run for ALL users — free users included — with NO ₹20 fee and NO subscribe wall, protected by a per-user cap of 10 our-AI actions/day (shared across all resume AI buttons; `AI_FREE_MAX_REQUESTS_PER_DAY`). Removed the ₹20 opt-in fee + dialog. Off the resume page (Mentor/Interview/Mock/Recruiter/Skill-demand/Cover-letter/Sahaayak) our key stays BYOK-or-plan only — free users get rule-based/upsell (verified, no leak). New shared helper `ai/resume-ai-access.ts` reuses `AiCritiqueLog` (no migration). | Founder: make the resume page the free AI hook on our cheap Groq key; everywhere else require the user's own key or a subscription; hard daily cap so free Groq data isn't exhausted. Decisions (free-not-fee, 10/day) approved by founder. | R-086, R-084, R-071 |
