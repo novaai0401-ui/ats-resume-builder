@@ -449,3 +449,25 @@ export type NetworkContactInput = {
   lastContactedAt?: string | null;
   nextFollowUpAt?: string | null;
 };
+
+/// R-093 — flat profile the browser extension uses to autofill ATS
+/// application forms. Derived from the user's most-recently-updated resume.
+export type AutofillProfile = {
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  location: string;
+  city: string;
+  state: string;
+  country: string;
+  linkedinUrl: string;
+  websiteUrl: string;
+  currentTitle: string;
+  currentCompany: string;
+  school: string;
+  degree: string;
+  skills: string[];
+  summary: string;
+};
