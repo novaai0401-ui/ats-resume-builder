@@ -61,7 +61,9 @@ const FEATURES: { emoji: string; title: string; body: string; tag: string }[] = 
   {
     emoji: '🔒',
     tag: 'Private',
-    title: "Privacy that's actually true",
+    // Curly apostrophe (’) on purpose: tekivex text components HTML-escape a
+    // plain ASCII ' into a literal "&#39;". The typographic ’ renders cleanly.
+    title: 'Privacy that’s actually true',
     body:
       'Your resume is stored securely in your account so it is on every device ' +
       'you sign in from. We never sell your data and never train AI on your ' +
@@ -74,7 +76,7 @@ const FEATURES: { emoji: string; title: string; body: string; tag: string }[] = 
     body:
       'Build on your laptop in the morning, polish on your phone over chai, ' +
       'export the PDF or Word file when a recruiter asks. Same login on every ' +
-      "device — install CallbackCV from your browser's home-screen menu.",
+      'device — install CallbackCV from your browser’s home-screen menu.',
   },
 ];
 
@@ -135,7 +137,7 @@ export default function HomeLanding({ faq }: { faq: Faq[] }) {
         <TkxRow gutter={16} style={{ marginTop: 8 }}>
           <TkxCol span={24} sm={8}>
             <TkxCard variant="glass" padding="md">
-              <TkxStatistic title="To build & edit — forever" value={0} prefix="₹" />
+              <TkxStatistic title="To build and edit — forever" value={0} prefix="₹" />
             </TkxCard>
           </TkxCol>
           <TkxCol span={24} sm={8}>
@@ -187,7 +189,7 @@ export default function HomeLanding({ faq }: { faq: Faq[] }) {
       {/* -------------------------------------------------- What's in the free tier */}
       <section style={{ marginTop: 32 }}>
         <TkxCard variant="glass" padding="lg">
-          <TkxCardHeader title={<TkxTitle level={2}>What's inside the free tier</TkxTitle>} />
+          <TkxCardHeader title={<TkxTitle level={2}>What’s inside the free tier</TkxTitle>} />
           <TkxCardBody>
             <TkxRow gutter={[12, 12]}>
               {FREE_TIER.map((item) => (

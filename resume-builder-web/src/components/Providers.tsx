@@ -7,7 +7,21 @@ import {
   TkxToastProvider,
   I18nProvider,
   auroraLight,
+  createTheme,
 } from 'tekivex-ui';
+
+/**
+ * Brand theme. tekivex ships `auroraLight` with a green primary (#0d7c5f),
+ * which clashed with the CallbackCV brand indigo used by the logo, nav, and
+ * every `globals.css` surface (--primary: #4f46e5). Overriding the theme's
+ * primary/secondary makes all tekivex components (buttons, badges, stats,
+ * tags) render in the brand colour on EVERY page — so the home page and the
+ * rest of the app read as one product. `success` stays green on purpose.
+ */
+const brandTheme = createTheme(auroraLight, {
+  primary: '#4f46e5',
+  secondary: '#7c3aed',
+});
 
 /**
  * Client-side wrapper that installs the tekivex-ui providers for the whole app.
@@ -40,7 +54,7 @@ export default function Providers({ children }: { children: ReactNode }) {
 
   return (
     <I18nProvider>
-      <ThemeProvider theme={auroraLight}>
+      <ThemeProvider theme={brandTheme}>
         <TkxConfigProvider>
           {mounted ? (
             <TkxToastProvider>{children}</TkxToastProvider>
