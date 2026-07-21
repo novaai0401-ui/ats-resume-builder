@@ -78,6 +78,9 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         case 'SAHAAYAK_PROFILE':
           sendResponse({ ok: true, data: await api.sahaayakProfile() });
           break;
+        case 'GET_AUTOFILL_PROFILE':
+          sendResponse({ ok: true, data: await api.getAutofillProfile() });
+          break;
         default:
           sendResponse({ ok: false, error: `unknown message type: ${msg?.type}` });
       }

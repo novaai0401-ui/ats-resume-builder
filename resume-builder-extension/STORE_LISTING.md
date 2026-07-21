@@ -1,20 +1,36 @@
 # Chrome Web Store — publishing runbook (R-033)
 
-Status: code complete (6/6 tests green), ONE blocker before store submission.
+Status: code complete (tests green). Auth handshake IMPLEMENTED (R-093) —
+no remaining pre-submission blockers.
 
-## The one blocker: auth polish
+## Auth handshake — DONE (R-093)
 
-Today the options page asks the user to paste their JWT from DevTools
-(`options.html` → "Paste your JWT here"). That is fine for internal use and
-will fail Chrome review UX expectations (and the token expires in 7 days).
+The paste-your-JWT flow is no longer required. The extension now connects
+via a safe, publish-friendly handshake (no extension ID / externally_connectable
+needed):
 
-Required change before submitting (small, ~1 day):
-1. API: `POST /auth/extension-token` (JWT-guarded) → issues a long-lived,
-   scoped token (extension: read resume list, create job applications only).
-2. Web: `/settings/extension` page with a "Connect extension" button that
-   sends the token to the extension via `chrome.runtime.sendMessage`
-   (externally_connectable) or a copy-once code.
-3. Extension: replace the paste field with "Sign in via pocketresume.app".
+1. Web: `/extension/connect` page. A logged-in user clicks "Connect my
+   extension"; the page hands the current access token to the extension's
+   `content/connect.js` content script via `window.postMessage`
+   (same-origin, verified) plus a `data-callbackcv-token` hidden-div
+   fallback. The token is exposed ONLY on that explicit click.
+2. Extension: `content/connect.js` (matched only on the CallbackCV connect
+   URLs) verifies `event.origin` + `data.source === 'callbackcv-connect'`
+   and stores `{ accessToken, apiBase }` in `chrome.storage.local`.
+3. Options page now leads with "Open the Connect page"; the manual
+   token/API-base fields remain under a "power users" disclosure.
+
+## Autofill — INCLUDED
+
+The extension now injects an "Autofill with CallbackCV" button on ATS
+application pages (Greenhouse, Lever, Workable, SmartRecruiters, Ashby,
+Workday). On click it fetches the user's autofill profile
+(`GET /me/autofill-profile`, via the background worker) and fills only
+EMPTY fields using label/name/id/aria/autocomplete heuristics
+(`content/field-map.js`, unit-tested). It never auto-submits, never
+clobbers user input, and never touches password/file/hidden inputs.
+Declare this in the store privacy tab as an additional single-purpose
+feature ("fill job application forms with the user's own profile data").
 
 ## Founder steps to publish (once auth lands)
 

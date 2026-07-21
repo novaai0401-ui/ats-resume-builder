@@ -13,6 +13,11 @@
     "https://boards.greenhouse.io/*",
     "https://*.workable.com/*",
     "https://*.smartrecruiters.com/*",
+    "https://*.ashbyhq.com/*",
+    "https://jobs.ashbyhq.com/*",
+    "https://*.myworkdayjobs.com/*",
+    "https://ats-rb-web.onrender.com/*",
+    "http://localhost:4000/*",
     "http://localhost:4001/*",
     "https://*/*"
   ],
@@ -38,6 +43,28 @@
       ],
       "js": ["content/job-board.js"],
       "css": ["content/overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://ats-rb-web.onrender.com/extension/connect*",
+        "http://localhost:4000/extension/connect*"
+      ],
+      "js": ["content/connect.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://boards.greenhouse.io/*",
+        "https://*.greenhouse.io/*",
+        "https://*.lever.co/*",
+        "https://*.workable.com/*",
+        "https://*.smartrecruiters.com/*",
+        "https://*.ashbyhq.com/*",
+        "https://jobs.ashbyhq.com/*",
+        "https://*.myworkdayjobs.com/*"
+      ],
+      "js": ["content/field-map.js", "content/autofill.js"],
       "run_at": "document_idle"
     }
   ]

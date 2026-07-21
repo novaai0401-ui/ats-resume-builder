@@ -23,11 +23,13 @@ async function init() {
   const cfg = await sendMessage({ type: 'IS_CONFIGURED' });
   if (!cfg.ok || !cfg.configured) {
     notConfigured.hidden = false;
+    setupAutofill(false);
     return;
   }
   // Live openings work whenever the user is signed in — independent of the
   // Sahaayak opt-in gate below.
   setupOpenings();
+  setupAutofill(Boolean(cfg.configured));
   const profile = await sendMessage({ type: 'SAHAAYAK_PROFILE' });
   if (!profile.ok || !profile.data?.optedIn) {
     notOptedIn.hidden = false;
@@ -104,6 +106,35 @@ function setupOpenings() {
   btn.addEventListener('click', search);
   qEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') search(); });
   locEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') search(); });
+}
+
+// ── Application autofill ────────────────────────────────────────────
+function setupAutofill(connected) {
+  const box = document.getElementById('autofill-box');
+  const status = document.getElementById('autofill-status');
+  const btn = document.getElementById('autofill-btn');
+  if (!box || !btn) return;
+  box.hidden = false;
+  status.textContent = connected
+    ? 'Connected. Open a job application, then autofill.'
+    : 'Not connected — click Connect on the website first.';
+  btn.disabled = !connected;
+
+  btn.addEventListener('click', () => {
+    btn.disabled = true;
+    const prev = btn.textContent;
+    btn.textContent = 'Filling…';
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const tab = tabs && tabs[0];
+      if (!tab) { btn.disabled = false; btn.textContent = prev; return; }
+      chrome.tabs.sendMessage(tab.id, { type: 'TRIGGER_AUTOFILL' }, () => {
+        btn.textContent = chrome.runtime.lastError
+          ? 'Not an application page'
+          : 'Triggered — review the page';
+        setTimeout(() => { btn.textContent = prev; btn.disabled = false; }, 2500);
+      });
+    });
+  });
 }
 
 function renderOpening(job) {

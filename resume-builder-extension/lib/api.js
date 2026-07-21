@@ -48,6 +48,8 @@ export const api = {
   sahaayakChat: (message) =>
     request('/sahaayak/chat', { method: 'POST', body: JSON.stringify({ message, region: 'IN' }) }),
   sahaayakProfile: () => request('/sahaayak/profile'),
+
+  getAutofillProfile: () => request('/me/autofill-profile'),
 };
 
 export async function isConfigured() {

@@ -1540,6 +1540,34 @@ and every external call still feeds the Outcome Graph.
 
 ---
 
+### R-093 · Browser extension: auth handshake + ATS form autofill
+
+- Status: **DONE** (code; Chrome Web Store submission is a founder step)
+- Depends-on: R-033 (extension MVP), R-090 (autofill data)
+- Source: Month-2 of the critique — autofill is the #1 workflow feature in
+  2026 (Simplify Copilot); our extension only tracked, didn't fill.
+- Acceptance
+  - [x] `GET /me/autofill-profile` (JWT): flat AutofillProfile from the
+    user's latest resume (pure `buildAutofillProfile`, defensive). Pinned by
+    `tests/autofill-profile.unit.test.cjs` (4).
+  - [x] Auth handshake replaces paste-your-JWT (the R-033 blocker): a
+    `/extension/connect` web page hands the token to `content/connect.js`
+    via same-origin-verified `postMessage` (origin + source + data.source
+    checks) + a hidden-div fallback, stored in `chrome.storage.local`. No
+    extension ID / `externally_connectable` needed — works pre-publish.
+  - [x] Autofill: a floating "Autofill with CallbackCV" button on ATS
+    application hosts (Greenhouse, Lever, Workable, SmartRecruiters, Ashby,
+    Workday) fills ONLY empty fields via label/name/id/aria/autocomplete
+    heuristics (`content/field-map.js`, DOM-free + unit-tested, 8 cases),
+    never auto-submits, never clobbers input, skips password/file/hidden.
+    Conservative: a bare "Company" field maps to null (may be the employer).
+  - [x] Options/popup reworked to connect-first; STORE_LISTING.md updated
+    (auth blocker removed). Extension tests 14/14.
+  - [ ] Founder steps: sideload-test on a real ATS form, then Chrome Web
+    Store submission ($5 dev account) per STORE_LISTING.md.
+
+---
+
 ## §6. Cross-cutting constants
 
 These are constraints that every requirement must respect. Violations
@@ -1608,6 +1636,7 @@ do not break it.
 |---|---|---|---|
 | 2026-07-16 | Rebrand to CallbackCV (by Tekivex): all user-facing copy renamed from "Pocket Resume" to "CallbackCV" (house brand Tekivex, tagline "CallbackCV by Tekivex") — web copy/metadata/SEO landers/PWA manifest, plan name "CallbackCV Plus", support/track emails moved to @tekivex.com, PDF/CSS watermark "CALLBACKCV", MCP package renamed `@tekivex/callbackcv-mcp` (bin `callbackcv-mcp`), extension renamed "CallbackCV — Job Hunt Companion". Internal doc bodies (strategy/requirements text) intentionally left as-is. | Name-collision research: "Pocket Resume" apps have existed since 2010 plus current Play Store listings; a distinct, ownable brand was needed before launch. | R-088 |
 | 2026-07-20 | The journey batch (R-090): guest drafting end-to-end (localStorage draft, signup-gated actions, post-auth import), home-page Paste-a-JD quick start wired into /jd-match, worked-example empty states for jd-match/interview-prep, validated ?next= auth redirects, anonymous-page 401s eliminated (token-guarded heartbeat), AI-card cost lines. Hub merge deliberately skipped (see R-090). | Critique Week 2-3 plan; founder approved starting the sequence. | R-090, R-089, R-036 |
+| 2026-07-20 | Browser extension autofill + auth handshake (R-093): GET /me/autofill-profile flattens the latest resume into a form-ready profile; a /extension/connect page hands the token to the extension via origin-verified postMessage (replacing paste-your-JWT, the R-033 blocker); a floating "Autofill" button fills empty fields on 6 ATS hosts with unit-tested label heuristics (never clobbers, never auto-submits). Chrome Web Store submission remains a founder step. | Founder: finish Month-2 (autofill was the #1 workflow gap vs Simplify Copilot). | R-093, R-033, R-090 |
 | 2026-07-20 | Networking/referral mini-CRM (R-092): NetworkContact model + migration + module + /contacts page. Track recruiters/referrers/alumni per company, link a contact to a tracked application, and get a "follow up this week" queue — referrals are the strongest hiring signal in India. Per-user scoped; jobApplicationId ownership verified so referral links can't cross users. Relationship enum + input shape single-sourced in resume-builder-shared. | Founder: continue Month-2 (LinkedIn optimizer done; contacts CRM next). | R-092, R-031 |
 | 2026-07-19 | LinkedIn Profile Optimizer (R-091): first Month-2 feature — paste your LinkedIn profile, get a section-by-section score + honest AI rewrites (grounded, never fabricated). Reuses the R-086 AI gating + action-verb rule; rule-based baseline always available. Chosen first because it is self-contained (no auth handshake / DB migration / store review), highest differentiation, and plays to the honesty moat. | Founder: "start with next step" (Month-2 queue: LinkedIn optimizer, contacts CRM, extension autofill). | R-091, R-086, R-088 |
 | 2026-07-19 | Pre-signup funnel opened (R-089): product critique (Playwright walkthrough + market research) found the funnel died at the first click — templates auth-walled, no try-before-signup, differentiator buried, no public pricing, trust-copy contradictions. Shipped: public sample-data template gallery, anonymous rate-limited ATS check (reuses scoreFreeText, no storage), public /pricing page, callback-first hero, public nav links, and five truth fixes to privacy/pricing copy. | Founder: "make this the top choice for job hunters — test it like a critic." | R-089, R-088, R-041, C-003 |
