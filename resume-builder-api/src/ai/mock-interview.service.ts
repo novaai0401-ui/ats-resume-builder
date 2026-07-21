@@ -93,6 +93,8 @@ export class MockInterviewService {
         maxTokens: 700,
         temperature: 0.6,
         timeoutMs,
+        // Conversational reply, not JSON — see AiCompletionOptions.json.
+        json: false,
       });
       const reply = String(raw || '').trim();
       if (!reply) {

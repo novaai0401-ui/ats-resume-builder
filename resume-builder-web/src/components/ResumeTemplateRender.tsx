@@ -63,34 +63,12 @@ export default function ResumeTemplateRender({
   const resumeLabel = String(resolvedResume.title || resolvedResume.contact?.fullName || '').trim();
   const resumeSource = resumeData ? 'prop' : 'api';
 
-  // Thumbnail mode: render the template at the container's natural width.
-  // No scaling — the template uses width:100% so text stays readable (11px).
-  // The parent container's aspect-ratio + overflow:hidden clips to show
-  // the top portion of the resume (header, summary, skills, etc.).
-  if (mode === 'thumbnail') {
-    return (
-      <div
-        className={renderModeClassName}
-        data-renderer="resume-template-render"
-        data-render-component="ResumeTemplateRender"
-        data-render-mode="thumbnail"
-        data-template-id={String(templateId || '').trim()}
-        data-resume-label={resumeLabel}
-        data-resume-source={resumeSource}
-        aria-hidden={true}
-      >
-        <TemplatePreview
-          templateId={templateId}
-          resume={resolvedResume}
-          compact={compact}
-          accentOverride={accentOverride}
-          fontOverride={fontOverride}
-          spacing={spacing}
-        />
-      </div>
-    );
-  }
-
+  // Both modes render the full A4 page through TemplatePreviewFrame, which
+  // scales the whole 794×1123 page down to fit its container. A thumbnail is
+  // therefore a true miniature of the ENTIRE resume — the same layout the
+  // large preview shows, just smaller — not a top-cropped slice. The parent
+  // supplies the box (aspect-ratio 794/1123); the frame does the scaling.
+  const isThumbnail = mode === 'thumbnail';
   return (
     <div
       className={renderModeClassName}
@@ -100,8 +78,9 @@ export default function ResumeTemplateRender({
       data-template-id={String(templateId || '').trim()}
       data-resume-label={resumeLabel}
       data-resume-source={resumeSource}
+      aria-hidden={isThumbnail ? true : undefined}
     >
-      <TemplatePreviewFrame mode="full" pageWidth={TEMPLATE_PAGE_WIDTH} pageHeight={TEMPLATE_PAGE_HEIGHT}>
+      <TemplatePreviewFrame mode={mode} pageWidth={TEMPLATE_PAGE_WIDTH} pageHeight={TEMPLATE_PAGE_HEIGHT}>
         <TemplatePreview
           templateId={templateId}
           resume={resolvedResume}

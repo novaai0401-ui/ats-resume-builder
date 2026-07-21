@@ -1540,6 +1540,69 @@ and every external call still feeds the Outcome Graph.
 
 ---
 
+### R-093 · Home landing rebuilt on the tekivex-ui design system
+
+- Status: **DONE** (this commit)
+- Depends-on: R-089 (the callback-first hero copy + pre-signup funnel),
+  R-090 (JdQuickStart "Paste a JD" entry point)
+- Source: founder review — the public home page was still raw
+  `<section>`/`<article>` markup styled by a handful of `globals.css`
+  classes (`.hero`, `.card`, `.btn`, `.grid`), so it read as a plain
+  HTML page next to the tekivex-styled authenticated app (billing,
+  outcomes, dashboard already use `TkxCard`/`TkxButton`/`TkxStatistic`).
+  Competitor-landing research (the callback/ATS category) reinforced a
+  card-led hero + honest stat strip + accordion FAQ.
+- Acceptance
+  - [x] The visible home UI is a client component
+    (`src/components/HomeLanding.tsx`) built entirely on tekivex-ui
+    (`TkxBadge`, `TkxTitle`, `TkxParagraph`, `TkxButton`, `TkxCard`,
+    `TkxRow`/`TkxCol`, `TkxStatistic`, `TkxTag`, `TkxDivider`,
+    `TkxAccordion`) — no `.hero`/`.card`/`.btn` markup in the rebuilt
+    hero/feature/CTA regions.
+  - [x] SEO surface preserved: `app/page.tsx` stays a server component
+    that keeps the page `metadata` export and the FAQPage JSON-LD, and
+    feeds the SAME `FAQ` array to both the JSON-LD and the on-page
+    `TkxAccordion` (Next SSRs the client component, so every heading and
+    FAQ answer is in the initial HTML). Exactly one real `<h1>`.
+  - [x] Honesty (C-003): the hero stat strip uses only substantiated
+    values (₹0 to build, 10+ templates, ₹49/download) — no fabricated
+    user counts or aggregate callback-rate numbers. "Popular guides"
+    internal links kept as crawlable `<Link>`s for link equity.
+  - [x] Pinned by `tests/home-landing.test.tsx` (5): server-page SEO
+    invariants, tekivex-ui render (tkx- classed CTA buttons, no legacy
+    `.btn` in CTA rows), on-page FAQ parity with the JSON-LD, and a
+    no-fabricated-metrics guard on the stat strip.
+
+---
+
+### R-094 · Preview/AI regressions batch (full-resume thumbnails, Groq chat, skill hydration)
+
+- Status: **DONE** (this commit)
+- Depends-on: R-089 (public gallery), R-086 (app-key AI), R-081/R-045 (templates)
+- Source: founder review of prod (ats-rb-web) — three independent defects.
+- Acceptance
+  - [x] Template thumbnails show the WHOLE resume (a true miniature), not
+    a top-cropped header slice. `ResumeTemplateRender` renders both `full`
+    and `thumbnail` through `TemplatePreviewFrame` (which scales the entire
+    794×1123 page to fit); thumbnail CSS lets the frame fill the parent's
+    A4 box. Fixed everywhere the format is used (public `/templates/preview`
+    gallery, `TemplateCatalogGrid` cards). The prior `maxHeight:200 +
+    overflow:hidden` crop on the gallery cell is removed.
+  - [x] Groq chat no longer fails every turn. `GroqProvider` hardcoded
+    `response_format: json_object`, which Groq rejects (HTTP 400) unless
+    the prompt contains "json" — breaking the conversational Mentor and
+    mock-interview endpoints ("the AI service had a hiccup"). `response_format`
+    is now opt-in via `AiCompletionOptions.json` (defaults true, preserving
+    all structured callers + Sahaayak's json path); Mentor and mock-interview
+    pass `json: false`. Pinned by `tests/groq-json-format.unit.test.cjs` (3).
+  - [x] Skill-Demand resolves "your current resume" even when the in-memory
+    resume store is empty (user opened a resume elsewhere then navigated
+    here): it hydrates skills from the active-selection resume id, else the
+    most recent saved resume, via the existing API. No more false "No skills
+    on your resume yet" when a saved resume exists.
+
+---
+
 ## §6. Cross-cutting constants
 
 These are constraints that every requirement must respect. Violations

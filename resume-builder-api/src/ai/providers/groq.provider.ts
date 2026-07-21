@@ -24,22 +24,31 @@ export class GroqProvider implements AiProvider {
     const timer = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
+      // Only request a JSON object when the caller wants one. Groq returns
+      // HTTP 400 if response_format=json_object but the prompt never mentions
+      // "json" — which is exactly the case for conversational endpoints
+      // (Mentor, mock interview). Those pass { json: false } and get text.
+      const wantJson = opts?.json !== false;
+      const body: Record<string, unknown> = {
+        model: this.model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        max_tokens: opts?.maxTokens ?? DEFAULT_MAX_TOKENS,
+        temperature: opts?.temperature ?? 0.3,
+      };
+      if (wantJson) {
+        body.response_format = { type: 'json_object' };
+      }
+
       const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${this.apiKey}`,
         },
-        body: JSON.stringify({
-          model: this.model,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt },
-          ],
-          max_tokens: opts?.maxTokens ?? DEFAULT_MAX_TOKENS,
-          temperature: opts?.temperature ?? 0.3,
-          response_format: { type: 'json_object' },
-        }),
+        body: JSON.stringify(body),
         signal: controller.signal,
       });
 
