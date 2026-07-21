@@ -1515,6 +1515,31 @@ and every external call still feeds the Outcome Graph.
 
 ---
 
+### R-092 · Networking / referral mini-CRM
+
+- Status: **DONE** (this commit)
+- Depends-on: R-031 (job tracker / Outcome Loop)
+- Source: Month-2 of the critique + market research (Huntr/Teal have a
+  contacts layer; we lacked one, and in India a referral is the strongest
+  hiring signal).
+- Acceptance
+  - [x] `NetworkContact` model + migration `20260720_add_network_contact`
+    + shared types (`NetworkContact`, `NetworkContactInput`,
+    `CONTACT_RELATIONSHIPS`). Plain per-user `userId` scoping.
+  - [x] `contacts` module: JWT-guarded, all queries scoped to the caller —
+    `GET /contacts`, `GET /contacts/upcoming?days=7` (the follow-up queue),
+    `POST`, `PATCH /:id`, `DELETE /:id`. Cross-user id → 404 (no leak).
+  - [x] Referral-link integrity: a supplied `jobApplicationId` is verified
+    to belong to the same user (400 otherwise), so the contact→application
+    link stays honest. Inputs sanitized (length caps, empty→null,
+    relationship validated to the shared enum).
+  - [x] `/contacts` page (in the Jobs hub): contact cards with relationship
+    badge + email/LinkedIn links + a due/overdue follow-up chip, a "follow
+    up with these people" section, add/edit with an optional link to a
+    tracked job. Pinned by `tests/contacts.unit.test.cjs` (10).
+
+---
+
 ## §6. Cross-cutting constants
 
 These are constraints that every requirement must respect. Violations
@@ -1583,6 +1608,7 @@ do not break it.
 |---|---|---|---|
 | 2026-07-16 | Rebrand to CallbackCV (by Tekivex): all user-facing copy renamed from "Pocket Resume" to "CallbackCV" (house brand Tekivex, tagline "CallbackCV by Tekivex") — web copy/metadata/SEO landers/PWA manifest, plan name "CallbackCV Plus", support/track emails moved to @tekivex.com, PDF/CSS watermark "CALLBACKCV", MCP package renamed `@tekivex/callbackcv-mcp` (bin `callbackcv-mcp`), extension renamed "CallbackCV — Job Hunt Companion". Internal doc bodies (strategy/requirements text) intentionally left as-is. | Name-collision research: "Pocket Resume" apps have existed since 2010 plus current Play Store listings; a distinct, ownable brand was needed before launch. | R-088 |
 | 2026-07-20 | The journey batch (R-090): guest drafting end-to-end (localStorage draft, signup-gated actions, post-auth import), home-page Paste-a-JD quick start wired into /jd-match, worked-example empty states for jd-match/interview-prep, validated ?next= auth redirects, anonymous-page 401s eliminated (token-guarded heartbeat), AI-card cost lines. Hub merge deliberately skipped (see R-090). | Critique Week 2-3 plan; founder approved starting the sequence. | R-090, R-089, R-036 |
+| 2026-07-20 | Networking/referral mini-CRM (R-092): NetworkContact model + migration + module + /contacts page. Track recruiters/referrers/alumni per company, link a contact to a tracked application, and get a "follow up this week" queue — referrals are the strongest hiring signal in India. Per-user scoped; jobApplicationId ownership verified so referral links can't cross users. Relationship enum + input shape single-sourced in resume-builder-shared. | Founder: continue Month-2 (LinkedIn optimizer done; contacts CRM next). | R-092, R-031 |
 | 2026-07-19 | LinkedIn Profile Optimizer (R-091): first Month-2 feature — paste your LinkedIn profile, get a section-by-section score + honest AI rewrites (grounded, never fabricated). Reuses the R-086 AI gating + action-verb rule; rule-based baseline always available. Chosen first because it is self-contained (no auth handshake / DB migration / store review), highest differentiation, and plays to the honesty moat. | Founder: "start with next step" (Month-2 queue: LinkedIn optimizer, contacts CRM, extension autofill). | R-091, R-086, R-088 |
 | 2026-07-19 | Pre-signup funnel opened (R-089): product critique (Playwright walkthrough + market research) found the funnel died at the first click — templates auth-walled, no try-before-signup, differentiator buried, no public pricing, trust-copy contradictions. Shipped: public sample-data template gallery, anonymous rate-limited ATS check (reuses scoreFreeText, no storage), public /pricing page, callback-first hero, public nav links, and five truth fixes to privacy/pricing copy. | Founder: "make this the top choice for job hunters — test it like a critic." | R-089, R-088, R-041, C-003 |
 | 2026-07-15 | Launch-readiness batch (R-087): turned the "unshipped uniqueness" into shipped surface — Adzuna admin diagnostics + env plumbing (feed was fully built but keys were never declared), TWO render.yaml cron services so outcome nudges + job-alert digests actually fire in prod (endpoints existed since R-031/032, nothing triggered them), WhatsApp channel (R-043 PARTIAL: env-gated, per-user opt-in still required before enabling — Meta consent policy), benchmark insights Phase 1 (R-050 DONE: median response-rate card, ≥5-apps/≥10-users privacy gate), "no fake numbers" AI trust note (verified against prompts, C-003), dashboard lift headline, MCP publish metadata, extension store runbook. | Founder: execute research points 1–8 pre-launch; market data shows ghosting (55%), fabricated AI metrics, and WhatsApp-first alerts are the wedge. | R-087, R-050, R-043, R-040, R-033, R-031 |
