@@ -20,6 +20,7 @@ import { MentorChatService, type MentorChatInput } from './mentor-chat.service';
 import { RecruiterSimService, type RecruiterSimInput } from './recruiter-sim.service';
 import { SkillDemandService, type SkillDemandInput } from './skill-demand.service';
 import { MockInterviewService, type MockInterviewInput } from './mock-interview.service';
+import { LinkedInOptimizeService, type LinkedInOptimizeInput } from './linkedin-optimize.service';
 
 /** Request shape with optional BYOK headers (X-User-AI-Provider / X-User-AI-Key). */
 type AuthedAiReq = { user: { userId: string }; headers?: Record<string, string | string[] | undefined> };
@@ -54,7 +55,25 @@ export class AiController {
     private readonly recruiterSimService: RecruiterSimService,
     private readonly skillDemandService: SkillDemandService,
     private readonly mockInterviewService: MockInterviewService,
+    private readonly linkedInOptimizeService: LinkedInOptimizeService,
   ) {}
+
+  /**
+   * LinkedIn Profile Optimizer — paste your LinkedIn profile text, get a
+   * section-by-section scorecard + honest AI rewrites. Editor-adjacent AI
+   * feature: same gating/daily bucket as Tech Gap / JD Match. Rule-based
+   * baseline always available; AI suggestions are strictly grounded.
+   */
+  @Post('linkedin-optimize')
+  linkedinOptimize(
+    @Req() req: AuthedAiReq,
+    @Body() body: LinkedInOptimizeInput,
+  ) {
+    if (!body || typeof body !== 'object' || typeof body.profileText !== 'string') {
+      throw new BadRequestException('profileText is required');
+    }
+    return this.linkedInOptimizeService.optimize(req.user.userId, body, byokFromReq(req));
+  }
 
   /**
    * Mock Interview — the AI plays the interviewer for a target role,
