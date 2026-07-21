@@ -4178,3 +4178,46 @@ a:hover { color: var(--primary-700); }
 .month-year-picker__select {
   min-width: 0;
 }
+
+/* ------------------------------------------------------------------ *
+ * Home landing (R-093) — layout scaffolding for the tekivex-ui home
+ * page. Visual styling (cards, buttons, typography, badges) comes from
+ * tekivex-ui's own stylesheet; these rules only handle page rhythm and
+ * the hero's vertical stack, which are page-specific.
+ * ------------------------------------------------------------------ */
+.home-landing {
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
+.home-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  align-items: flex-start;
+  padding: 24px 0 8px;
+}
+
+.home-hero > h1 {
+  margin: 0;
+  max-width: 18ch;
+  line-height: 1.1;
+}
+
+/* Row of primary/secondary calls to action; wraps on narrow screens. */
+.home-cta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+@media (max-width: 640px) {
+  .home-hero {
+    align-items: stretch;
+    text-align: left;
+  }
+  .home-cta-row {
+    width: 100%;
+  }
+}

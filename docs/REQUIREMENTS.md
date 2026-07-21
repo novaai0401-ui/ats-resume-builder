@@ -1540,6 +1540,41 @@ and every external call still feeds the Outcome Graph.
 
 ---
 
+### R-093 · Home landing rebuilt on the tekivex-ui design system
+
+- Status: **DONE** (this commit)
+- Depends-on: R-089 (the callback-first hero copy + pre-signup funnel),
+  R-090 (JdQuickStart "Paste a JD" entry point)
+- Source: founder review — the public home page was still raw
+  `<section>`/`<article>` markup styled by a handful of `globals.css`
+  classes (`.hero`, `.card`, `.btn`, `.grid`), so it read as a plain
+  HTML page next to the tekivex-styled authenticated app (billing,
+  outcomes, dashboard already use `TkxCard`/`TkxButton`/`TkxStatistic`).
+  Competitor-landing research (the callback/ATS category) reinforced a
+  card-led hero + honest stat strip + accordion FAQ.
+- Acceptance
+  - [x] The visible home UI is a client component
+    (`src/components/HomeLanding.tsx`) built entirely on tekivex-ui
+    (`TkxBadge`, `TkxTitle`, `TkxParagraph`, `TkxButton`, `TkxCard`,
+    `TkxRow`/`TkxCol`, `TkxStatistic`, `TkxTag`, `TkxDivider`,
+    `TkxAccordion`) — no `.hero`/`.card`/`.btn` markup in the rebuilt
+    hero/feature/CTA regions.
+  - [x] SEO surface preserved: `app/page.tsx` stays a server component
+    that keeps the page `metadata` export and the FAQPage JSON-LD, and
+    feeds the SAME `FAQ` array to both the JSON-LD and the on-page
+    `TkxAccordion` (Next SSRs the client component, so every heading and
+    FAQ answer is in the initial HTML). Exactly one real `<h1>`.
+  - [x] Honesty (C-003): the hero stat strip uses only substantiated
+    values (₹0 to build, 10+ templates, ₹49/download) — no fabricated
+    user counts or aggregate callback-rate numbers. "Popular guides"
+    internal links kept as crawlable `<Link>`s for link equity.
+  - [x] Pinned by `tests/home-landing.test.tsx` (5): server-page SEO
+    invariants, tekivex-ui render (tkx- classed CTA buttons, no legacy
+    `.btn` in CTA rows), on-page FAQ parity with the JSON-LD, and a
+    no-fabricated-metrics guard on the stat strip.
+
+---
+
 ## §6. Cross-cutting constants
 
 These are constraints that every requirement must respect. Violations
