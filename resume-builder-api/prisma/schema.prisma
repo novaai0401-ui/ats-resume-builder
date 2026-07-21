@@ -288,6 +288,36 @@ model JobApplication {
   @@index([resumeVersionId])
 }
 
+/// R-092 — networking / referral mini-CRM. In the Indian job market a
+/// referral is the single strongest signal, yet nothing tracked who the
+/// user knows at each company. A NetworkContact is a person (recruiter,
+/// referrer, alumni, ex-colleague…) who can optionally be linked to a
+/// tracked JobApplication, with a follow-up reminder date so warm leads
+/// don't go cold. Plain userId (no FK) matches JobApplication/JobAlert.
+model NetworkContact {
+  id               String   @id @default(uuid())
+  userId           String
+  name             String
+  company          String?
+  title            String?
+  email            String?
+  linkedinUrl      String?
+  phone            String?
+  /// recruiter | referrer | colleague | manager | alumni | friend | other
+  relationship     String   @default("other")
+  /// Optional link to a JobApplication this contact can refer the user into.
+  jobApplicationId String?
+  notes            String?
+  lastContactedAt  DateTime?
+  nextFollowUpAt   DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([userId])
+  @@index([userId, nextFollowUpAt])
+  @@index([userId, jobApplicationId])
+}
+
 /// Snapshot of a resume at a point in time. Lets users branch / restore
 /// before risky AI rewrites and A/B-test multiple variants per role.
 model ResumeVersion {
