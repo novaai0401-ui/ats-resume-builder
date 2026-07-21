@@ -1033,6 +1033,27 @@ export const api = {
       provider: 'groq' | 'rule-based';
     }>(`/ai/jd-match`, { method: 'POST', headers: { ...(getByokHeader() || {}) }, body: JSON.stringify(input) }),
 
+  /**
+   * LinkedIn Profile Optimizer. Paste LinkedIn profile text, get an overall
+   * score + per-section scorecard with findings, plus (when AI is available)
+   * an honest suggested headline/About/skills. Server always returns a
+   * rule-based baseline; AI suggestions are strictly grounded — never invented.
+   */
+  linkedInOptimize: (input: { profileText: string }) =>
+    request<{
+      overallScore: number;
+      band: 'strong' | 'decent' | 'needs-work';
+      sections: Array<{
+        name: 'Headline' | 'About' | 'Experience' | 'Skills';
+        score: number;
+        findings: Array<{ severity: 'good' | 'warn' | 'critical'; message: string; fix: string }>;
+      }>;
+      suggestedHeadline?: string;
+      suggestedAbout?: string;
+      suggestedSkills?: string[];
+      provider: 'groq' | 'rule-based';
+    }>(`/ai/linkedin-optimize`, { method: 'POST', headers: { ...(getByokHeader() || {}) }, body: JSON.stringify(input) }),
+
   /** R-034 step 1: propose tailored rewrites against a JD. */
   tailorPropose: (resumeId: string, jdText: string) =>
     request<{

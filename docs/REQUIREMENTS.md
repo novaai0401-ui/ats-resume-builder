@@ -1489,6 +1489,32 @@ and every external call still feeds the Outcome Graph.
 
 ---
 
+### R-091 · LinkedIn Profile Optimizer
+
+- Status: **DONE** (this commit)
+- Depends-on: R-086 (resume-page AI gating), R-088 (honesty prompts)
+- Source: Month-2 of the critique plan + market research — the signature
+  feature of Careerflow that we lacked; we differentiate on honesty
+  (competitors' optimizers fabricate achievements).
+- Acceptance
+  - [x] `POST /ai/linkedin-optimize` (JWT-guarded, BYOK headers honored):
+    paste LinkedIn profile text → section-by-section scorecard (Headline,
+    About, Experience, Skills) with severity-tagged findings + fixes.
+  - [x] Rule-based baseline always available (reuses `analyzeActionVerbRule`
+    for bullet strength + quantification); AI enhancement adds a stronger
+    headline, a rewritten About, and 5 evidenced skills under an absolute
+    "do not invent employers/titles/metrics/skills" system rule — the brand
+    promise, enforced in the prompt. Clean fallback to rule-based on any
+    provider/parse failure.
+  - [x] Gated identically to the other editor AI features via
+    `resolveResumeAiProvider` (free → our key, shared daily cap; BYOK →
+    own key; plan → uncapped). Input capped 15k chars; 20/min rate limit.
+  - [x] `/linkedin` page with score ring + per-section cards + copyable AI
+    rewrites + the `AiTrustNote` honesty badge; added to the Career (coach)
+    hub. Pinned by `tests/linkedin-optimize.unit.test.cjs` (9).
+
+---
+
 ## §6. Cross-cutting constants
 
 These are constraints that every requirement must respect. Violations
@@ -1557,6 +1583,7 @@ do not break it.
 |---|---|---|---|
 | 2026-07-16 | Rebrand to CallbackCV (by Tekivex): all user-facing copy renamed from "Pocket Resume" to "CallbackCV" (house brand Tekivex, tagline "CallbackCV by Tekivex") — web copy/metadata/SEO landers/PWA manifest, plan name "CallbackCV Plus", support/track emails moved to @tekivex.com, PDF/CSS watermark "CALLBACKCV", MCP package renamed `@tekivex/callbackcv-mcp` (bin `callbackcv-mcp`), extension renamed "CallbackCV — Job Hunt Companion". Internal doc bodies (strategy/requirements text) intentionally left as-is. | Name-collision research: "Pocket Resume" apps have existed since 2010 plus current Play Store listings; a distinct, ownable brand was needed before launch. | R-088 |
 | 2026-07-20 | The journey batch (R-090): guest drafting end-to-end (localStorage draft, signup-gated actions, post-auth import), home-page Paste-a-JD quick start wired into /jd-match, worked-example empty states for jd-match/interview-prep, validated ?next= auth redirects, anonymous-page 401s eliminated (token-guarded heartbeat), AI-card cost lines. Hub merge deliberately skipped (see R-090). | Critique Week 2-3 plan; founder approved starting the sequence. | R-090, R-089, R-036 |
+| 2026-07-19 | LinkedIn Profile Optimizer (R-091): first Month-2 feature — paste your LinkedIn profile, get a section-by-section score + honest AI rewrites (grounded, never fabricated). Reuses the R-086 AI gating + action-verb rule; rule-based baseline always available. Chosen first because it is self-contained (no auth handshake / DB migration / store review), highest differentiation, and plays to the honesty moat. | Founder: "start with next step" (Month-2 queue: LinkedIn optimizer, contacts CRM, extension autofill). | R-091, R-086, R-088 |
 | 2026-07-19 | Pre-signup funnel opened (R-089): product critique (Playwright walkthrough + market research) found the funnel died at the first click — templates auth-walled, no try-before-signup, differentiator buried, no public pricing, trust-copy contradictions. Shipped: public sample-data template gallery, anonymous rate-limited ATS check (reuses scoreFreeText, no storage), public /pricing page, callback-first hero, public nav links, and five truth fixes to privacy/pricing copy. | Founder: "make this the top choice for job hunters — test it like a critic." | R-089, R-088, R-041, C-003 |
 | 2026-07-15 | Launch-readiness batch (R-087): turned the "unshipped uniqueness" into shipped surface — Adzuna admin diagnostics + env plumbing (feed was fully built but keys were never declared), TWO render.yaml cron services so outcome nudges + job-alert digests actually fire in prod (endpoints existed since R-031/032, nothing triggered them), WhatsApp channel (R-043 PARTIAL: env-gated, per-user opt-in still required before enabling — Meta consent policy), benchmark insights Phase 1 (R-050 DONE: median response-rate card, ≥5-apps/≥10-users privacy gate), "no fake numbers" AI trust note (verified against prompts, C-003), dashboard lift headline, MCP publish metadata, extension store runbook. | Founder: execute research points 1–8 pre-launch; market data shows ghosting (55%), fabricated AI metrics, and WhatsApp-first alerts are the wedge. | R-087, R-050, R-043, R-040, R-033, R-031 |
 | 2026-07-14 | Resume-page AI on our key, free + daily-capped (R-086): OUR Groq key is now spent ONLY on the Edit Resume page, where AI Critique / Rewrite / JD-match / Tech Gap / Tailor run for ALL users — free users included — with NO ₹20 fee and NO subscribe wall, protected by a per-user cap of 10 our-AI actions/day (shared across all resume AI buttons; `AI_FREE_MAX_REQUESTS_PER_DAY`). Removed the ₹20 opt-in fee + dialog. Off the resume page (Mentor/Interview/Mock/Recruiter/Skill-demand/Cover-letter/Sahaayak) our key stays BYOK-or-plan only — free users get rule-based/upsell (verified, no leak). New shared helper `ai/resume-ai-access.ts` reuses `AiCritiqueLog` (no migration). | Founder: make the resume page the free AI hook on our cheap Groq key; everywhere else require the user's own key or a subscription; hard daily cap so free Groq data isn't exhausted. Decisions (free-not-fee, 10/day) approved by founder. | R-086, R-084, R-071 |

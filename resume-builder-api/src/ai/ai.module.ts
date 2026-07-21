@@ -12,6 +12,7 @@ import { MentorChatService } from './mentor-chat.service';
 import { RecruiterSimService } from './recruiter-sim.service';
 import { SkillDemandService } from './skill-demand.service';
 import { MockInterviewService } from './mock-interview.service';
+import { LinkedInOptimizeService } from './linkedin-optimize.service';
 import { SettingsModule } from '../settings/settings.module';
 import { LiveJobsModule } from '../live-jobs/live-jobs.module';
 
@@ -30,6 +31,7 @@ import { LiveJobsModule } from '../live-jobs/live-jobs.module';
     MentorChatService,
     RecruiterSimService,
     SkillDemandService,
+    LinkedInOptimizeService,
   ],
   exports: [CoverLetterService],
 })

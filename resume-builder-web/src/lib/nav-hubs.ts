@@ -108,6 +108,7 @@ export const NAV_HUBS: Hub[] = [
       '/career',
       '/skill-demand',
       '/sahaayak',
+      '/linkedin',
     ],
     tools: [
       { href: '/mentor', label: 'Mentor', blurb: 'Curated tech/keyword/learning playlist for your role.', planBadge: 'AI' },
@@ -115,6 +116,7 @@ export const NAV_HUBS: Hub[] = [
       { href: '/interview-prep', label: 'Interview Prep', blurb: '8 likely questions per role with answer outlines.', planBadge: 'AI' },
       { href: '/career', label: 'Career Navigator', blurb: 'Tech-gap and role-readiness analysis.', planBadge: 'AI' },
       { href: '/skill-demand', label: 'Skill Demand', blurb: 'Which of your skills are in demand, what to learn next, who is hiring.' },
+      { href: '/linkedin', label: 'LinkedIn Optimizer', blurb: 'Paste your LinkedIn profile — get a section-by-section score and honest rewrites.', planBadge: 'AI' },
       { href: '/sahaayak', label: 'Sahaayak', blurb: 'A quiet companion for the job-search journey.' },
     ],
   },
