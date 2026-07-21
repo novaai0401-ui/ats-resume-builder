@@ -227,8 +227,12 @@ export default function TemplatePreviewPageClient({
                   padding: 0,
                 }}
               >
-                <div style={{ background: '#f5f8fc', padding: 8, maxHeight: 200, overflow: 'hidden' }}>
-                  <ResumeTemplateRender templateId={tpl.id} resumeData={sample} mode="thumbnail" />
+                {/* A4-proportioned box; the frame scales the whole resume to
+                    fit, so the card shows a full miniature, not a cropped top. */}
+                <div style={{ background: '#f5f8fc', padding: 8 }}>
+                  <div style={{ width: '100%', aspectRatio: '794 / 1123', overflow: 'hidden', borderRadius: 6 }}>
+                    <ResumeTemplateRender templateId={tpl.id} resumeData={sample} mode="thumbnail" />
+                  </div>
                 </div>
                 <div style={{ padding: '8px 10px' }}>
                   <strong style={{ color: '#1a3a5c', fontSize: 13 }}>{tpl.name}</strong>

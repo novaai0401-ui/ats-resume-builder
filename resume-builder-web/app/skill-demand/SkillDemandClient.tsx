@@ -7,10 +7,11 @@
  * analysis.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { api, type SkillDemandResult, type SkillDemandItem } from '@/src/lib/api';
+import { api, getAccessToken, type SkillDemandResult, type SkillDemandItem } from '@/src/lib/api';
 import { useResumeStore } from '@/src/lib/resume-store';
+import { resolveCurrentSessionResumeId, resumeFromApi } from '@/src/lib/resume-flow';
 
 const DEMAND_COLOR: Record<SkillDemandItem['demand'], string> = {
   'very-high': '#147a3a',
@@ -28,8 +29,38 @@ export default function SkillDemandClient() {
   const [location, setLocation] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  // The resume store is in-memory and only populated inside the editor, so a
+  // user who opened a resume elsewhere and navigated straight here would see
+  // an empty skill list. Hydrate from the saved resume (the active selection,
+  // else the most recent) so "your current resume" actually resolves.
+  const [hydratedSkills, setHydratedSkills] = useState<string[]>([]);
 
-  const skills = resume?.skills ?? [];
+  const storeSkills = resume?.skills ?? [];
+  const skills = storeSkills.length ? storeSkills : hydratedSkills;
+
+  useEffect(() => {
+    if (storeSkills.length || hydratedSkills.length) return;
+    if (!getAccessToken()) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        let id = resolveCurrentSessionResumeId();
+        if (!id) {
+          const list = await api.listResumes();
+          id = list?.[0]?.id ?? '';
+        }
+        if (!id) return;
+        const full = await api.getResume(id);
+        const draft = resumeFromApi(full);
+        if (!cancelled) setHydratedSkills(draft.skills ?? []);
+      } catch {
+        // Non-fatal: fall back to the "no skills / open a resume" hint.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [storeSkills.length, hydratedSkills.length]);
 
   async function run() {
     setError('');

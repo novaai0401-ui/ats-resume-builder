@@ -1575,6 +1575,34 @@ and every external call still feeds the Outcome Graph.
 
 ---
 
+### R-094 · Preview/AI regressions batch (full-resume thumbnails, Groq chat, skill hydration)
+
+- Status: **DONE** (this commit)
+- Depends-on: R-089 (public gallery), R-086 (app-key AI), R-081/R-045 (templates)
+- Source: founder review of prod (ats-rb-web) — three independent defects.
+- Acceptance
+  - [x] Template thumbnails show the WHOLE resume (a true miniature), not
+    a top-cropped header slice. `ResumeTemplateRender` renders both `full`
+    and `thumbnail` through `TemplatePreviewFrame` (which scales the entire
+    794×1123 page to fit); thumbnail CSS lets the frame fill the parent's
+    A4 box. Fixed everywhere the format is used (public `/templates/preview`
+    gallery, `TemplateCatalogGrid` cards). The prior `maxHeight:200 +
+    overflow:hidden` crop on the gallery cell is removed.
+  - [x] Groq chat no longer fails every turn. `GroqProvider` hardcoded
+    `response_format: json_object`, which Groq rejects (HTTP 400) unless
+    the prompt contains "json" — breaking the conversational Mentor and
+    mock-interview endpoints ("the AI service had a hiccup"). `response_format`
+    is now opt-in via `AiCompletionOptions.json` (defaults true, preserving
+    all structured callers + Sahaayak's json path); Mentor and mock-interview
+    pass `json: false`. Pinned by `tests/groq-json-format.unit.test.cjs` (3).
+  - [x] Skill-Demand resolves "your current resume" even when the in-memory
+    resume store is empty (user opened a resume elsewhere then navigated
+    here): it hydrates skills from the active-selection resume id, else the
+    most recent saved resume, via the existing API. No more false "No skills
+    on your resume yet" when a saved resume exists.
+
+---
+
 ## §6. Cross-cutting constants
 
 These are constraints that every requirement must respect. Violations
