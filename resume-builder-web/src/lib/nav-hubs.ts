@@ -83,6 +83,7 @@ export const NAV_HUBS: Hub[] = [
     routesUnder: [
       '/applications',
       '/jobs',
+      '/contacts',
       '/jd-match',
       '/recruiter-sim',
       '/resume/outcomes',
@@ -90,6 +91,7 @@ export const NAV_HUBS: Hub[] = [
     ],
     tools: [
       { href: '/jobs', label: 'Job tracker', blurb: 'Kanban of every role you have applied to. Statuses + reminders.' },
+      { href: '/contacts', label: 'Contacts', blurb: 'Your referral network: recruiters, referrers, and alumni — with follow-up reminders so no warm intro goes cold.' },
       { href: '/jd-match', label: 'JD Match', blurb: 'Paste a job description, see what your resume covers and what to add.' },
       { href: '/recruiter-sim', label: 'Recruiter AI', blurb: 'See the verdict an AI hiring screen would give you against a JD.', planBadge: 'AI' },
       { href: '/resume/outcomes', label: 'Outcomes', blurb: 'Real response, interview, and offer rates for each resume version.' },

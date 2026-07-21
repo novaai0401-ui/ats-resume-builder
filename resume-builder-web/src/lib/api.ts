@@ -12,6 +12,8 @@ import type {
   JobApplicationInput,
   JobStats,
   JobStatus,
+  NetworkContact,
+  NetworkContactInput,
   Resume,
   ResumeCritiqueResult,
   ResumeImportResult,
@@ -33,6 +35,8 @@ export type {
   JobApplicationInput,
   JobStats,
   JobStatus,
+  NetworkContact,
+  NetworkContactInput,
   Resume,
   ResumeCritiqueResult,
   ResumeImportResult,
@@ -1462,6 +1466,27 @@ export const api = {
 
   deleteJob: (id: string) =>
     request<{ ok: boolean }>(`/jobs/${id}`, { method: 'DELETE' }),
+
+  // ─── Networking / referral mini-CRM (R-092) ────────────────────────────
+  listContacts: () => request<NetworkContact[]>('/contacts'),
+
+  upcomingContacts: (days = 7) =>
+    request<NetworkContact[]>(`/contacts/upcoming?days=${days}`),
+
+  createContact: (payload: NetworkContactInput) =>
+    request<NetworkContact>('/contacts', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  updateContact: (id: string, payload: NetworkContactInput) =>
+    request<NetworkContact>(`/contacts/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+
+  deleteContact: (id: string) =>
+    request<{ ok: boolean }>(`/contacts/${id}`, { method: 'DELETE' }),
 
   generateCoverLetter: (payload: CoverLetterGenerateRequest) =>
     request<CoverLetterGenerateResponse>('/ai/cover-letter', {

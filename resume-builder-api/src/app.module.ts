@@ -16,6 +16,7 @@ import { MailModule } from './mail/mail.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { JobAlertsModule } from './job-alerts/job-alerts.module';
 import { JobsModule } from './jobs/jobs.module';
+import { ContactsModule } from './contacts/contacts.module';
 import { AppMetaModule } from './app-meta/app-meta.module';
 import { PatternLearnerModule } from './pattern-learner/pattern-learner.module';
 import { SahaayakModule } from './sahaayak/sahaayak.module';
@@ -53,6 +54,7 @@ import { ThrottleModule } from './throttle/throttle.module';
     CompaniesModule,
     MetaModule,
     JobsModule,
+    ContactsModule,
     AppMetaModule,
     PatternLearnerModule,
     SahaayakModule,

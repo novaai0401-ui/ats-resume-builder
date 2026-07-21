@@ -405,3 +405,47 @@ export type CoverLetterGenerateResponse = {
   company: string;
   role: string;
 };
+
+/// R-092 — networking / referral mini-CRM.
+export const CONTACT_RELATIONSHIPS = [
+  'recruiter',
+  'referrer',
+  'colleague',
+  'manager',
+  'alumni',
+  'friend',
+  'other',
+] as const;
+export type ContactRelationship = (typeof CONTACT_RELATIONSHIPS)[number];
+
+export type NetworkContact = {
+  id: string;
+  userId: string;
+  name: string;
+  company: string | null;
+  title: string | null;
+  email: string | null;
+  linkedinUrl: string | null;
+  phone: string | null;
+  relationship: ContactRelationship;
+  jobApplicationId: string | null;
+  notes: string | null;
+  lastContactedAt: string | null;
+  nextFollowUpAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type NetworkContactInput = {
+  name: string;
+  company?: string | null;
+  title?: string | null;
+  email?: string | null;
+  linkedinUrl?: string | null;
+  phone?: string | null;
+  relationship?: ContactRelationship;
+  jobApplicationId?: string | null;
+  notes?: string | null;
+  lastContactedAt?: string | null;
+  nextFollowUpAt?: string | null;
+};
