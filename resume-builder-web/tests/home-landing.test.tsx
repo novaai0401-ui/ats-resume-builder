@@ -106,6 +106,20 @@ test('home page.tsx passes the same FAQ array to the JSON-LD and to the visible 
 
 // --- Render: the landing is built on tekivex-ui and stays honest ----------
 
+test('HomeLanding renders no literal HTML entities (tekivex text double-escape guard)', async () => {
+  // tekivex text components (TkxTitle/TkxParagraph/TkxStatistic) HTML-escape
+  // an ASCII apostrophe/ampersand into a literal "&#39;" / "&amp;" that shows
+  // on screen. Source strings feeding those components must use the curly ’
+  // and the word "and" so nothing leaks. This asserts the RENDERED, visible
+  // text (textContent) never contains a raw entity.
+  const faq = [{ q: 'Is CallbackCV free?', a: 'Yes — it’s free to build.' }];
+  const { container } = await renderLanding(faq);
+  const text = container.textContent ?? '';
+  for (const entity of ['&#39;', '&amp;', '&#96;', '&quot;', '&lt;', '&gt;']) {
+    assert(!text.includes(entity), `visible text must not contain the literal entity ${entity}`);
+  }
+});
+
 test('HomeLanding renders the tekivex-ui design system, not raw .btn/.card markup', async () => {
   const faq = [{ q: 'Is CallbackCV free?', a: 'Yes, building and editing is free forever.' }];
 

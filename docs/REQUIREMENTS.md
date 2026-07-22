@@ -1568,10 +1568,19 @@ and every external call still feeds the Outcome Graph.
     values (₹0 to build, 10+ templates, ₹49/download) — no fabricated
     user counts or aggregate callback-rate numbers. "Popular guides"
     internal links kept as crawlable `<Link>`s for link equity.
-  - [x] Pinned by `tests/home-landing.test.tsx` (5): server-page SEO
+  - [x] Pinned by `tests/home-landing.test.tsx` (6): server-page SEO
     invariants, tekivex-ui render (tkx- classed CTA buttons, no legacy
-    `.btn` in CTA rows), on-page FAQ parity with the JSON-LD, and a
-    no-fabricated-metrics guard on the stat strip.
+    `.btn` in CTA rows), on-page FAQ parity with the JSON-LD, a
+    no-fabricated-metrics guard on the stat strip, and a no-literal-HTML-
+    entity guard (see below).
+  - [x] Follow-up polish: (a) the tekivex theme primary is overridden to
+    the brand indigo (#4f46e5) in `Providers.tsx` via `createTheme` —
+    `auroraLight`'s green primary clashed with the CallbackCV brand/nav;
+    this recolours tekivex components on EVERY page to match. (b) Fixed a
+    tekivex text double-escape: `TkxTitle`/`TkxParagraph`/`TkxStatistic`
+    render a raw ASCII `'`/`&` as a literal `&#39;`/`&amp;`, so home copy
+    uses the typographic `’` and the word "and". (c) Template gallery
+    thumbnails enlarged (min 240px) for legibility.
 
 ---
 
