@@ -11,21 +11,22 @@ const globalsPath = path.join(__dirname, '..', 'app', 'globals.css');
 
 // ── Issue 1: Template thumbnails must show actual readable resume content ──
 
-test('thumbnail mode renders TemplatePreview directly without TemplatePreviewFrame (no scaling)', () => {
+test('thumbnail mode scales the whole page through TemplatePreviewFrame (R-094)', () => {
   const src = readFileSync(renderPath, 'utf-8');
-  // The thumbnail branch should render TemplatePreview but NOT TemplatePreviewFrame
-  // We check that there's a thumbnail code path that returns <TemplatePreview without <TemplatePreviewFrame
+  // R-094 contract: thumbnails are true miniatures of the ENTIRE resume, so
+  // there is no longer a separate no-frame thumbnail branch that renders
+  // TemplatePreview at natural width and top-crops it. Both modes render the
+  // full page through TemplatePreviewFrame (which scales it to fit), keeping
+  // TemplatePreview wrapped by exactly one frame.
   assert(
-    src.includes("if (mode === 'thumbnail')"),
-    'Should have a dedicated thumbnail branch',
+    !src.includes("if (mode === 'thumbnail')"),
+    'The old no-frame thumbnail branch must be gone — thumbnails now scale the whole page',
   );
-  // Count occurrences: TemplatePreview should appear more times than TemplatePreviewFrame
-  // because the thumbnail branch uses TemplatePreview directly (no frame)
-  const previewCount = (src.match(/<TemplatePreview/g) || []).length;
+  const previewCount = (src.match(/<TemplatePreview\b/g) || []).length;
   const frameCount = (src.match(/<TemplatePreviewFrame/g) || []).length;
   assert(
-    previewCount > frameCount,
-    `Thumbnail renders TemplatePreview directly (${previewCount} previews vs ${frameCount} frames)`,
+    previewCount >= 1 && previewCount === frameCount,
+    `Every TemplatePreview should be wrapped in a frame (${previewCount} previews vs ${frameCount} frames)`,
   );
 });
 
@@ -39,18 +40,25 @@ test('thumbnail renders the actual template component (same as live preview)', (
   );
 });
 
-test('thumbnail CSS allows template to render at container natural width', () => {
+test('thumbnail fills its box so the frame can scale the WHOLE page (R-094)', () => {
   const css = readFileSync(globalsPath, 'utf-8');
-  // .resume-template-render--thumbnail should not force height: 100%
-  // which would compress content — height should be auto
+  // New contract (R-094): a thumbnail is a true miniature of the entire
+  // resume, produced by TemplatePreviewFrame scaling the full 794×1123 page
+  // down to fit — NOT a top-cropped slice. So the thumbnail wrapper fills the
+  // parent's A4 box (height:100%) and the frame's own aspect-ratio is
+  // neutralised so it fills that box instead of imposing its own height.
   const thumbnailRule = css.split('.resume-template-render--thumbnail')[1]?.split('}')[0] || '';
   assert(
-    thumbnailRule.includes('height: auto'),
-    'Thumbnail renderer should use height:auto so template flows naturally',
+    thumbnailRule.includes('height: 100%'),
+    'Thumbnail renderer should fill its box (height:100%) so the frame scales the whole page',
   );
   assert(
     thumbnailRule.includes('overflow: hidden'),
-    'Thumbnail renderer should clip overflow to show only top portion',
+    'Thumbnail renderer should clip overflow to the card bounds',
+  );
+  assert(
+    css.includes('.resume-template-render--thumbnail .template-preview-frame__container'),
+    'Thumbnail should override the frame container so it fills the A4 box',
   );
 });
 
@@ -78,15 +86,17 @@ test('thumbnail removes ats-template border to avoid double border inside card',
   );
 });
 
-test('full mode still uses TemplatePreviewFrame for proper page scaling', () => {
+test('both modes render through TemplatePreviewFrame for proper page scaling (R-094)', () => {
   const src = readFileSync(renderPath, 'utf-8');
   assert(
     src.includes('<TemplatePreviewFrame'),
-    'Full mode should use TemplatePreviewFrame for page-level scaling',
+    'Renderer should use TemplatePreviewFrame for page-level scaling',
   );
+  // R-094: thumbnail and full share one code path — the frame receives the
+  // current mode so a thumbnail scales the same whole page, just smaller.
   assert(
-    src.includes('mode="full"'),
-    'Full mode should pass mode="full" to TemplatePreviewFrame',
+    src.includes('mode={mode}'),
+    'Frame should receive mode={mode} so both thumbnail and full scale the full page',
   );
 });
 
