@@ -23,8 +23,9 @@ export const metadata: Metadata = {
     template: '%s · CallbackCV',
   },
   description:
-    'Free ATS-friendly resume builder. Build, score, and export resumes that actually pass ' +
-    'applicant tracking systems. Local-first privacy: your resume stays on your device.',
+    'Free ATS-friendly resume builder that measures your real callback rate per resume version. ' +
+    'Build, score, and export resumes that actually pass applicant tracking systems. Your resume ' +
+    'is stored in your account, encrypted in transit and at rest, and never sold.',
   keywords: [
     'ATS resume builder',
     'free resume builder',
@@ -56,8 +57,8 @@ export const metadata: Metadata = {
     siteName: 'CallbackCV',
     title: 'CallbackCV — ATS-optimized resume builder',
     description:
-      'Build, score, and export resumes that pass ATS. Free to start, local-first privacy, ' +
-      'works on web and mobile with one account.',
+      'Build, score, and export resumes that pass ATS — and measure your real callback rate per ' +
+      'version. Free to start; your data is encrypted and never sold. Works on web and mobile with one account.',
     url: SITE_URL,
     locale: 'en_US',
     images: [{ url: '/icons/icon.svg', width: 512, height: 512, alt: 'CallbackCV' }],
@@ -66,7 +67,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'CallbackCV — ATS-optimized resume builder',
     description:
-      'Build, score, and export resumes that pass ATS. Local-first privacy. Free to start.',
+      'Build, score, and export resumes that pass ATS — and measure your real callback rate. Encrypted, never sold. Free to start.',
     images: ['/icons/icon.svg'],
   },
   formatDetection: { email: false, address: false, telephone: false },
@@ -109,7 +110,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                   operatingSystem: 'Web, iOS, Android',
                   url: SITE_URL,
                   description:
-                    'ATS-optimized resume builder. Build, score, and export resumes that pass applicant tracking systems. Local-first privacy.',
+                    'ATS-optimized resume builder that measures your real callback rate per resume version. Build, score, and export resumes that pass applicant tracking systems. Resumes are stored in your account, encrypted in transit and at rest, never sold, and never used to train AI without your explicit opt-in.',
                   offers: { '@type': 'Offer', price: '0', priceCurrency: 'INR' },
                   aggregateRating: undefined,
                 },

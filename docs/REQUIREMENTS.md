@@ -1612,6 +1612,31 @@ and every external call still feeds the Outcome Graph.
 
 ---
 
+### R-095 · GEO honesty — remove false "local-first" claim from LLM/SEO surfaces
+
+- Status: **DONE** (this commit)
+- Depends-on: R-089 (which removed the same claim from the UI)
+- Source: founder request to improve how ChatGPT/Claude/Google describe
+  CallbackCV (GEO). Audit found the false claim R-089 removed from the UI
+  still lived in the machine-read surfaces that LLMs quote verbatim.
+- Acceptance
+  - [x] `app/llms.txt` no longer claims "local/zero-knowledge storage" or
+    "local-first storage"; it states the true model (stored in the account,
+    encrypted in transit and at rest, optional zero-knowledge encrypted
+    backup, never sold, never train without opt-in).
+  - [x] `app/layout.tsx` metadata (`description`, OpenGraph, Twitter) and the
+    `SoftwareApplication` JSON-LD description drop "Local-first privacy /
+    your resume stays on your device" for the true, citable claim, and lead
+    with the real differentiator (measured callback rate per version).
+  - [x] The legitimate, TRUE on-device claims are untouched: the guest
+    localStorage draft ("saved on this device only") and BYOK AI key ("stays
+    on your device").
+  - [x] Pinned by `tests/geo-honesty.test.tsx` (3): no forbidden claim in
+    `llms.txt` source, none in `layout.tsx` metadata/JSON-LD, and the served
+    `/llms.txt` body is clean (C-003).
+
+---
+
 ## §6. Cross-cutting constants
 
 These are constraints that every requirement must respect. Violations
