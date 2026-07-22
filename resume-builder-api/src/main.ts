@@ -7,6 +7,7 @@ import { PrismaExceptionFilter } from './prisma/prisma-exception.filter';
 import { validateProductionEnv } from './env-validation';
 import { initSentry, flushSentry, captureException } from './observability/sentry';
 import { SentryInterceptor } from './observability/sentry.interceptor';
+import { parseAllowedOrigins, isOriginAllowed } from './cors-origins';
 
 async function bootstrap() {
   // Error tracking first so anything below (incl. boot failures and
@@ -120,33 +121,3 @@ bootstrap().catch(async (error: unknown) => {
   process.exit(1);
 });
 
-function parseAllowedOrigins(value?: string) {
-  const fromEnv = (value || '')
-    .split(',')
-    .map((origin) => origin.trim())
-    .filter(Boolean);
-  if (fromEnv.length) return fromEnv;
-  return ['http://localhost:4000', 'http://localhost:4001'];
-}
-
-/** Check if an origin is allowed — supports exact match and Render preview patterns. */
-function isOriginAllowed(origin: string, allowedOrigins: string[]): boolean {
-  if (allowedOrigins.includes(origin)) return true;
-
-  // Allow Render preview/PR deployments matching any configured .onrender.com origin
-  // Pattern: <service-name>-<pr-id>.onrender.com or <service-name>-<hash>.onrender.com
-  if (allowedOrigins.some((o) => o.endsWith('.onrender.com')) && origin.endsWith('.onrender.com')) {
-    for (const allowed of allowedOrigins) {
-      try {
-        const allowedHost = new URL(allowed).hostname;
-        const originHost = new URL(origin).hostname;
-        const slug = allowedHost.replace('.onrender.com', '');
-        if (originHost === allowedHost || originHost.startsWith(`${slug}-`)) {
-          return true;
-        }
-      } catch { /* skip invalid URLs */ }
-    }
-  }
-
-  return false;
-}
