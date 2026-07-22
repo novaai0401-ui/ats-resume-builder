@@ -16,12 +16,12 @@
 <body>
   <h1>CallbackCV — Extension Settings</h1>
   <label>API base URL</label>
-  <input id="apiBase" placeholder="http://localhost:4001">
-  <p class="muted">The URL of the CallbackCV API server. Production deployments use the public HTTPS URL.</p>
+  <input id="apiBase" placeholder="https://ats-rb-api.onrender.com">
+  <p class="muted">The URL of the CallbackCV API server. Leave as the default unless you self-host.</p>
 
   <label>Access token</label>
   <input id="accessToken" type="password" placeholder="Paste your JWT here">
-  <p class="muted">In the web app: DevTools → Application → Local Storage → key <code>accessToken</code>. The token stays in chrome.storage.local and never leaves your machine except to authenticate API calls.</p>
+  <p class="muted">Get it from the web app: <strong>Settings → API access → Copy token</strong>. It stays in chrome.storage.local and never leaves your machine except to authenticate CallbackCV API calls. The token expires (~7 days); paste a fresh one if requests start failing.</p>
 
   <button id="save">Save</button>
   <div id="status" class="status"></div>
