@@ -4,7 +4,7 @@
  * loads in service workers without bundling.
  */
 
-const DEFAULT_BASE = 'http://localhost:4001';
+const DEFAULT_BASE = 'https://ats-rb-api.onrender.com';
 
 async function getAuth() {
   const { apiBase, accessToken } = await chrome.storage.local.get(['apiBase', 'accessToken']);

@@ -1,9 +1,9 @@
 # @tekivex/callbackcv-mcp
 
-MCP server for [CallbackCV](https://pocketresume.app). Lets AI
-agents (Claude Desktop, Claude Code, any MCP host) read your resumes,
-tailor them to job descriptions, log applications, and query which
-resume version actually gets replies.
+MCP server for [CallbackCV](https://ats-rb-web.onrender.com). Lets AI
+agents (Claude Desktop, Claude Code, ChatGPT, any MCP host) read your
+resumes, tailor them to job descriptions, log applications, and query
+which resume version actually gets replies.
 
 Every agent action goes through the same REST API as the web app with
 **your** token — plan gates, AI-token quotas, and rate limits apply
@@ -11,7 +11,23 @@ identically to agents and humans. Tailored versions and logged
 applications feed the same Outcome Graph, so "did the agent's
 tailoring work?" is answerable in your Outcomes dashboard.
 
-## Setup (Claude Desktop / Claude Code)
+## 1. Get your token
+
+1. Sign in to CallbackCV on the web.
+2. Go to **Settings → API access**.
+3. Click **Copy token**.
+
+That token is a ~7-day access token — the same one the web app uses, not
+a separate long-lived key. When it expires, your assistant will report an
+auth error; come back to Settings and copy a fresh one. Treat it like a
+password: anyone holding it can act as you until it expires, and logging
+out invalidates it.
+
+## 2. Connect your assistant
+
+### Claude Desktop
+
+Edit `claude_desktop_config.json` (Settings → Developer → Edit Config) and add:
 
 ```json
 {
@@ -20,16 +36,46 @@ tailoring work?" is answerable in your Outcomes dashboard.
       "command": "npx",
       "args": ["-y", "@tekivex/callbackcv-mcp"],
       "env": {
-        "POCKET_RESUME_TOKEN": "<your token — Settings → API access>",
-        "POCKET_RESUME_API_URL": "https://api.pocketresume.app"
+        "POCKET_RESUME_TOKEN": "<paste your token>",
+        "POCKET_RESUME_API_URL": "https://ats-rb-api.onrender.com"
       }
     }
   }
 }
 ```
 
-Config is env-only (no CLI flags) so tokens never appear in `ps`
-output. When the token expires, tools return a clear re-auth message.
+Restart Claude Desktop. You'll see the `callbackcv` tools in the tools menu.
+
+### Claude Code (CLI)
+
+```bash
+claude mcp add callbackcv \
+  --env POCKET_RESUME_TOKEN=<paste your token> \
+  --env POCKET_RESUME_API_URL=https://ats-rb-api.onrender.com \
+  -- npx -y @tekivex/callbackcv-mcp
+```
+
+### ChatGPT (Developer mode / custom connectors)
+
+ChatGPT connectors talk to a **remote** MCP endpoint over HTTP, not a
+locally-spawned command, so run the server in HTTP mode and point ChatGPT
+at its URL:
+
+```bash
+MCP_TRANSPORT=http MCP_PORT=8941 \
+POCKET_RESUME_TOKEN=<paste your token> \
+POCKET_RESUME_API_URL=https://ats-rb-api.onrender.com \
+npx -y @tekivex/callbackcv-mcp
+```
+
+Expose that port over HTTPS (a tunnel like `cloudflared`/`ngrok`, or any
+host) and add the resulting `https://…/` URL as a custom connector in
+ChatGPT (Settings → Connectors → Advanced → Developer mode). The token is
+baked into the running process, so **one server instance = one user** —
+don't share the URL. Multi-tenant hosting (a URL per user with its own
+auth) is future work, tracked with the public-API-key milestone.
+
+Config is env-only (no CLI flags) so tokens never appear in `ps` output.
 
 ## Tools
 
@@ -52,9 +98,10 @@ log_application   → with that versionId
 
 ## Transports
 
-- **stdio** (default) — what MCP hosts spawn.
+- **stdio** (default) — what Claude Desktop / Claude Code spawn.
 - **HTTP** — `MCP_TRANSPORT=http MCP_PORT=8941` runs a Streamable-HTTP
-  endpoint (stateless; one server per user token).
+  endpoint (stateless; one server per user token). Used for ChatGPT and
+  other remote hosts.
 
 ## Development
 
@@ -62,4 +109,16 @@ log_application   → with that versionId
 npm install
 npm run build
 POCKET_RESUME_TOKEN=... POCKET_RESUME_API_URL=http://localhost:4001 node dist/index.js
+```
+
+## Publishing (maintainer)
+
+The package is publish-ready (`files: ["dist","README.md"]`, `bin`,
+`publishConfig.access: public`). To release:
+
+```bash
+npm install
+npm run build          # emits dist/
+npm pack --dry-run     # inspect the tarball contents
+npm publish            # requires npm auth for the @tekivex scope
 ```

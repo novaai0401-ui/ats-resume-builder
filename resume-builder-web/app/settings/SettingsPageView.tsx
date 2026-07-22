@@ -6,6 +6,7 @@ import ByokKeyCard from '@/src/components/ByokKeyCard';
 import EncryptedBackupCard from '@/src/components/EncryptedBackupCard';
 import ShareLinksCard from '@/src/components/ShareLinksCard';
 import ReferralCard from '@/src/components/ReferralCard';
+import ApiAccessCard from '@/src/components/ApiAccessCard';
 
 /**
  * User settings.
@@ -52,6 +53,8 @@ export default function SettingsPageView() {
       <div style={{ marginTop: 16 }}>
         <ByokKeyCard />
       </div>
+
+      <ApiAccessCard />
 
       <div style={{ marginTop: 16 }}>
         <TrainingConsentCard />

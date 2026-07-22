@@ -3,7 +3,7 @@ const token = document.getElementById('accessToken');
 const status = document.getElementById('status');
 
 chrome.storage.local.get(['apiBase', 'accessToken'], (cur) => {
-  apiBase.value = cur.apiBase || 'http://localhost:4001';
+  apiBase.value = cur.apiBase || 'https://ats-rb-api.onrender.com';
   token.value = cur.accessToken || '';
 });
 

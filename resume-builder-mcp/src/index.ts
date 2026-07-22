@@ -27,7 +27,7 @@ function fatal(message: string): never {
 }
 
 const token = String(process.env.POCKET_RESUME_TOKEN || '').trim();
-const baseUrl = String(process.env.POCKET_RESUME_API_URL || 'https://api.pocketresume.app').trim();
+const baseUrl = String(process.env.POCKET_RESUME_API_URL || 'https://ats-rb-api.onrender.com').trim();
 if (!token) {
   fatal(
     'POCKET_RESUME_TOKEN is required. Get a token from CallbackCV → Settings → API access, then set it in your MCP host config.',

@@ -1,27 +1,36 @@
-# Chrome Web Store — publishing runbook (R-033)
+# Chrome Web Store — publishing runbook (R-033, R-096)
 
-Status: code complete (6/6 tests green), ONE blocker before store submission.
+Status: **store-ready.** The prior blockers are resolved (see below). What
+remains is only what requires your Google account: create the developer
+account, take screenshots, upload the zip, submit.
 
-## The one blocker: auth polish
+## Resolved blockers (R-096)
 
-Today the options page asks the user to paste their JWT from DevTools
-(`options.html` → "Paste your JWT here"). That is fine for internal use and
-will fail Chrome review UX expectations (and the token expires in 7 days).
+- **Auth UX** — the options page no longer tells users to dig a JWT out of
+  DevTools. The web app now has **Settings → API access → Copy token**
+  (`ApiAccessCard`), and the options page + extension README point there. The
+  token is the normal ~7-day access token; the copy states it expires and to
+  paste a fresh one when it does. (A long-lived scoped extension token is a
+  nice future improvement but is no longer required to submit.)
+- **Icons** — real 16/48/128 PNGs added under `icons/` and declared in
+  `manifest.json` (`icons` + `action.default_icon`).
+- **Host permissions** — removed the broad `https://*/*` and the
+  `http://localhost:4001/*` dev entry (the two most common review rejections).
+  The extension now requests only the supported job boards + the CallbackCV
+  API host `https://ats-rb-api.onrender.com/*`.
+- **Privacy policy** — a real page now exists at
+  `https://ats-rb-web.onrender.com/privacy` covering the web app AND the
+  extension's data handling.
+- **Branding** — `action.default_title` is now "CallbackCV" (was "ATS
+  Builder"); default API base is the production HTTPS URL.
 
-Required change before submitting (small, ~1 day):
-1. API: `POST /auth/extension-token` (JWT-guarded) → issues a long-lived,
-   scoped token (extension: read resume list, create job applications only).
-2. Web: `/settings/extension` page with a "Connect extension" button that
-   sends the token to the extension via `chrome.runtime.sendMessage`
-   (externally_connectable) or a copy-once code.
-3. Extension: replace the paste field with "Sign in via pocketresume.app".
-
-## Founder steps to publish (once auth lands)
+## Founder steps to publish
 
 1. Create a Chrome Web Store developer account:
    https://chrome.google.com/webstore/devconsole — one-time $5 fee,
    use the company Google account.
-2. `cd resume-builder-extension && zip -r ../callbackcv-extension.zip . -x "tests/*" "*.md"`
+2. Build the upload zip (excludes tests, docs, and npm metadata):
+   `cd resume-builder-extension && zip -r ../callbackcv-extension.zip . -x "tests/*" "*.md" "package.json" "package-lock.json" "node_modules/*"`
 3. Dev console → New item → upload the zip.
 4. Listing content (draft):
    - Name: **CallbackCV — Job Hunt Companion**

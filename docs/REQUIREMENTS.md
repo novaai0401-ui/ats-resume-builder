@@ -1637,6 +1637,37 @@ and every external call still feeds the Outcome Graph.
 
 ---
 
+### R-096 · Ship the AI-assistant surface: MCP connector + store-ready extension
+
+- Status: **DONE** (this commit)
+- Depends-on: R-040 (MCP server), R-033 (extension), R-095 (GEO honesty)
+- Source: founder priority — "let people use CallbackCV from inside ChatGPT/
+  Claude, and get the Chrome extension one upload from the store."
+- Acceptance
+  - [x] **Settings → API access** (`ApiAccessCard`) surfaces the signed-in
+    user's access token (reveal / copy, with the ~7-day expiry + treat-like-a-
+    password note). This makes the token flow real — the MCP README and the
+    extension options page point here instead of "dig it out of DevTools"
+    (was a C-003 gap: both referenced a non-existent Settings page).
+  - [x] MCP (`@tekivex/callbackcv-mcp`): default API URL corrected from the
+    dead `api.pocketresume.app` to `https://ats-rb-api.onrender.com`; README
+    rewritten with real token steps + connector install docs for Claude
+    Desktop, Claude Code, and ChatGPT (remote HTTP), plus publish steps.
+    Publish-ready (`npm pack --dry-run` clean: dist + README only). Pinned by
+    `tests/server.test.mjs` (2 — tool-set contract + buildServer smoke).
+    NOT auto-published (requires the @tekivex npm auth).
+  - [x] Extension made store-ready: real 16/48/128 PNG icons added +
+    declared; removed the broad `https://*/*` and `http://localhost:4001/*`
+    host permissions (top Chrome-review rejections), added the API host;
+    default API base → production HTTPS; `default_title` → "CallbackCV";
+    options-page token copy points at Settings → API access.
+  - [x] Privacy policy page created at `/privacy` (covers web app, extension,
+    and MCP) — the URL the store listing requires; previously missing (404).
+  - [x] `STORE_LISTING.md` updated: prior blockers marked resolved; founder
+    submission steps + zip command refreshed. Extension tests still green (6).
+
+---
+
 ## §6. Cross-cutting constants
 
 These are constraints that every requirement must respect. Violations
