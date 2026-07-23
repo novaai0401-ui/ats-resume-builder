@@ -18,7 +18,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { api, getAccessToken } from '@/src/lib/api';
-import { useResumeStore } from '@/src/lib/resume-store';
+import { useSavedResumeFallback } from '@/src/lib/use-saved-resume-fallback';
 import { loadByokKey } from '@/src/lib/byok-storage';
 
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
@@ -42,7 +42,10 @@ function buildResumeText(resume: { summary?: string; skills?: string[]; experien
 }
 
 export default function MentorChatClient() {
-  const resume = useResumeStore((state) => state.resume);
+  // Store draft when the editor populated it; otherwise the user's saved
+  // resume (active selection, else most recent) — so Mentor knows the
+  // resume even when this page is opened cold. Null for guests/no resumes.
+  const resume = useSavedResumeFallback();
   const [authed, setAuthed] = useState(false);
   const [plan, setPlan] = useState<'FREE' | 'STUDENT' | 'PRO'>('FREE');
   const [messages, setMessages] = useState<ChatMessage[]>([]);

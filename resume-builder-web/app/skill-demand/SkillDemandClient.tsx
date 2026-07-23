@@ -7,11 +7,10 @@
  * analysis.
  */
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
-import { api, getAccessToken, type SkillDemandResult, type SkillDemandItem } from '@/src/lib/api';
-import { useResumeStore } from '@/src/lib/resume-store';
-import { resolveCurrentSessionResumeId, resumeFromApi } from '@/src/lib/resume-flow';
+import { api, type SkillDemandResult, type SkillDemandItem } from '@/src/lib/api';
+import { useSavedResumeFallback } from '@/src/lib/use-saved-resume-fallback';
 
 const DEMAND_COLOR: Record<SkillDemandItem['demand'], string> = {
   'very-high': '#147a3a',
@@ -24,43 +23,15 @@ const DEMAND_LABEL: Record<SkillDemandItem['demand'], string> = {
 };
 
 export default function SkillDemandClient() {
-  const resume = useResumeStore((s) => s.resume);
+  // Store draft when the editor populated it, else the saved resume
+  // (active selection → most recent) via the shared fallback hook.
+  const resume = useSavedResumeFallback();
   const [result, setResult] = useState<SkillDemandResult | null>(null);
   const [location, setLocation] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  // The resume store is in-memory and only populated inside the editor, so a
-  // user who opened a resume elsewhere and navigated straight here would see
-  // an empty skill list. Hydrate from the saved resume (the active selection,
-  // else the most recent) so "your current resume" actually resolves.
-  const [hydratedSkills, setHydratedSkills] = useState<string[]>([]);
 
-  const storeSkills = resume?.skills ?? [];
-  const skills = storeSkills.length ? storeSkills : hydratedSkills;
-
-  useEffect(() => {
-    if (storeSkills.length || hydratedSkills.length) return;
-    if (!getAccessToken()) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        let id = resolveCurrentSessionResumeId();
-        if (!id) {
-          const list = await api.listResumes();
-          id = list?.[0]?.id ?? '';
-        }
-        if (!id) return;
-        const full = await api.getResume(id);
-        const draft = resumeFromApi(full);
-        if (!cancelled) setHydratedSkills(draft.skills ?? []);
-      } catch {
-        // Non-fatal: fall back to the "no skills / open a resume" hint.
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [storeSkills.length, hydratedSkills.length]);
+  const skills = resume?.skills ?? [];
 
   async function run() {
     setError('');

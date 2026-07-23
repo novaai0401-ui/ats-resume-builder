@@ -55,25 +55,34 @@ claude mcp add callbackcv \
   -- npx -y @tekivex/callbackcv-mcp
 ```
 
-### ChatGPT (Developer mode / custom connectors)
+### ChatGPT / remote hosts (HTTP transport — multi-tenant)
 
-ChatGPT connectors talk to a **remote** MCP endpoint over HTTP, not a
-locally-spawned command, so run the server in HTTP mode and point ChatGPT
-at its URL:
+Remote MCP hosts talk to an HTTP endpoint instead of spawning a local
+command. HTTP mode is **multi-tenant**: one hosted URL serves many users,
+and every request authenticates itself with the caller's own token via
+`Authorization: Bearer <token>` (from Settings → API access). A request
+with no token gets a 401. `POCKET_RESUME_TOKEN` in the environment is
+optional here — it only acts as a fallback identity for header-less
+requests (handy for a personal tunnel).
 
 ```bash
 MCP_TRANSPORT=http MCP_PORT=8941 \
-POCKET_RESUME_TOKEN=<paste your token> \
 POCKET_RESUME_API_URL=https://ats-rb-api.onrender.com \
 npx -y @tekivex/callbackcv-mcp
 ```
 
-Expose that port over HTTPS (a tunnel like `cloudflared`/`ngrok`, or any
-host) and add the resulting `https://…/` URL as a custom connector in
-ChatGPT (Settings → Connectors → Advanced → Developer mode). The token is
-baked into the running process, so **one server instance = one user** —
-don't share the URL. Multi-tenant hosting (a URL per user with its own
-auth) is future work, tracked with the public-API-key milestone.
+Expose the port over HTTPS (any host, or a tunnel like `cloudflared`)
+and connect with an MCP client that can send an Authorization header
+(Claude Code: `claude mcp add --transport http callbackcv <url> --header
+"Authorization: Bearer <token>"`).
+
+Honest caveat for ChatGPT specifically: ChatGPT's custom-connector UI
+authenticates connectors via OAuth (or no auth) and does not let a user
+type a bearer token, so a smooth public ChatGPT experience additionally
+needs an OAuth layer in front of this endpoint — not built yet. Until
+then, ChatGPT works through an authenticated proxy the user runs (e.g.
+`mcp-remote` with a header), or by self-hosting with the env-token
+fallback.
 
 Config is env-only (no CLI flags) so tokens never appear in `ps` output.
 
