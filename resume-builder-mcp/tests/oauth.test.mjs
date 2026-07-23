@@ -126,3 +126,57 @@ test('discovery metadata advertises PKCE + registration', async () => {
   assert.deepEqual(meta.code_challenge_methods_supported, ['S256']);
   assert.equal(meta.registration_endpoint, `${CFG.issuer}/oauth/register`);
 });
+
+test('authorize supports real email+password sign-in via /auth/login', async () => {
+  const redirect = 'https://chatgpt.com/cb2';
+  const clientId = makeClientId(CFG.secret, [redirect]);
+  const verifier = randomBytes(32).toString('base64url');
+  const challenge = createHash('sha256').update(verifier).digest('base64url');
+  const q = `client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirect)}&code_challenge=${challenge}&code_challenge_method=S256`;
+
+  const realFetch = global.fetch;
+  const calls = [];
+  global.fetch = async (url, init) => {
+    calls.push({ url: String(url), body: init?.body });
+    return { ok: true, json: async () => ({ accessToken: 'jwt-from-login' }) };
+  };
+  const res = mockRes();
+  await handleOAuth(mockReq({
+    method: 'POST', url: '/oauth/authorize',
+    body: `${q}&email=${encodeURIComponent('user@example.com')}&password=${encodeURIComponent('s3cret!')}`,
+  }), res, CFG);
+  global.fetch = realFetch;
+
+  assert.equal(res.out.status, 302, 'successful login redirects with a code');
+  assert.match(calls[0].url, /\/auth\/login$/, 'credentials go to the first-party login endpoint');
+  const code = new URL(res.out.headers.location).searchParams.get('code');
+
+  // The issued code exchanges into a wrapped token containing the login JWT.
+  const res2 = mockRes();
+  await handleOAuth(mockReq({
+    method: 'POST', url: '/oauth/token',
+    body: new URLSearchParams({ grant_type: 'authorization_code', code, code_verifier: verifier, redirect_uri: redirect, client_id: clientId }).toString(),
+  }), res2, CFG);
+  const tok = JSON.parse(res2.out.body);
+  assert.equal(unwrapAccessToken(CFG.secret, tok.access_token), 'jwt-from-login');
+});
+
+test('authorize rejects failed sign-in and empty submissions', async () => {
+  const redirect = 'https://chatgpt.com/cb3';
+  const clientId = makeClientId(CFG.secret, [redirect]);
+  const challenge = createHash('sha256').update('v'.repeat(43)).digest('base64url');
+  const q = `client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirect)}&code_challenge=${challenge}&code_challenge_method=S256`;
+
+  const realFetch = global.fetch;
+  global.fetch = async () => ({ ok: false, json: async () => ({}) });
+  let res = mockRes();
+  await handleOAuth(mockReq({ method: 'POST', url: '/oauth/authorize', body: `${q}&email=a@b.c&password=wrong` }), res, CFG);
+  global.fetch = realFetch;
+  assert.equal(res.out.status, 200);
+  assert.match(res.out.body, /Sign-in failed/);
+
+  res = mockRes();
+  await handleOAuth(mockReq({ method: 'POST', url: '/oauth/authorize', body: q }), res, CFG);
+  assert.equal(res.out.status, 200);
+  assert.match(res.out.body, /Enter your email and password/);
+});

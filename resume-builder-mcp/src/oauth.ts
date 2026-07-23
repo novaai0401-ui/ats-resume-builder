@@ -149,17 +149,24 @@ function authorizeForm(params: URLSearchParams, error = ''): string {
     .join('\n');
   return `<!doctype html><html><head><meta charset="utf-8"><title>Connect CallbackCV</title>
 <style>body{font-family:system-ui,sans-serif;max-width:460px;margin:48px auto;padding:0 16px;color:#1a1815}
-input[type=password]{width:100%;padding:10px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box}
-button{margin-top:14px;padding:10px 18px;background:#4f46e5;color:#fff;border:0;border-radius:6px;font-weight:600;cursor:pointer}
-.err{color:#a8412c}.muted{color:#6b6560;font-size:13px}</style></head><body>
+input[type=password],input[type=email]{width:100%;padding:10px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;margin-bottom:10px}
+button{margin-top:8px;padding:10px 18px;background:#4f46e5;color:#fff;border:0;border-radius:6px;font-weight:600;cursor:pointer}
+.err{color:#a8412c}.muted{color:#6b6560;font-size:13px}
+details{margin-top:22px}summary{cursor:pointer;color:#4f46e5;font-size:14px}</style></head><body>
 <h1>Connect CallbackCV</h1>
 <p>Your AI assistant is asking to use your CallbackCV account (resumes, tailoring, job tracking — only what you can do yourself).</p>
 ${error ? `<p class="err">${esc(error)}</p>` : ''}
 <form method="POST">
 ${hidden}
-<label for="token"><strong>Your CallbackCV token</strong></label>
+<label for="email"><strong>Sign in to allow access</strong></label>
+<p class="muted">Your credentials go directly to the CallbackCV API over HTTPS and are never stored here.</p>
+<input type="email" id="email" name="email" placeholder="Email" autocomplete="username">
+<input type="password" id="password" name="password" placeholder="Password" autocomplete="current-password">
+<details>
+<summary>Signed up with LinkedIn / no password? Use a token instead</summary>
 <p class="muted">Sign in to CallbackCV → <strong>Settings → API access</strong> → Copy token, then paste it here. It is verified and never shown to the assistant.</p>
-<input type="password" id="token" name="token" placeholder="Paste your token" required>
+<input type="password" id="token" name="token" placeholder="Paste your token">
+</details>
 <button type="submit">Allow access</button>
 </form></body></html>`;
 }
@@ -245,19 +252,49 @@ export async function handleOAuth(req: IncomingMessage, res: ServerResponse, cfg
       html(res, 200, authorizeForm(params));
       return true;
     }
-    const token = (params.get('token') || '').trim();
-    // Verify the pasted token against the CallbackCV API before issuing a code.
-    let valid = false;
-    try {
-      const check = await fetch(`${cfg.apiBaseUrl.replace(/\/+$/, '')}/resumes`, {
-        headers: { authorization: `Bearer ${token}` },
-      });
-      valid = check.ok;
-    } catch {
-      valid = false;
-    }
-    if (!token || !valid) {
-      html(res, 200, authorizeForm(params, 'That token was rejected by CallbackCV — copy a fresh one from Settings → API access.'));
+    const api = cfg.apiBaseUrl.replace(/\/+$/, '');
+    const email = (params.get('email') || '').trim();
+    const password = params.get('password') || '';
+    let token = (params.get('token') || '').trim();
+
+    if (!token && email && password) {
+      // Primary path: real sign-in. The credentials go straight to the
+      // first-party CallbackCV API and are never stored or logged here; we
+      // keep only the short-lived access token (deliberately NOT the
+      // refresh token — when it expires the user simply reconnects).
+      try {
+        const login = await fetch(`${api}/auth/login`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
+        if (login.ok) {
+          const data = (await login.json()) as { accessToken?: string };
+          token = String(data.accessToken || '');
+        }
+      } catch {
+        token = '';
+      }
+      if (!token) {
+        html(res, 200, authorizeForm(params, 'Sign-in failed — check your email and password, or use a token instead.'));
+        return true;
+      }
+    } else if (token) {
+      // Fallback path: pasted Settings → API access token. Verify it
+      // against the API before issuing a code.
+      let valid = false;
+      try {
+        const check = await fetch(`${api}/resumes`, { headers: { authorization: `Bearer ${token}` } });
+        valid = check.ok;
+      } catch {
+        valid = false;
+      }
+      if (!valid) {
+        html(res, 200, authorizeForm(params, 'That token was rejected by CallbackCV — copy a fresh one from Settings → API access.'));
+        return true;
+      }
+    } else {
+      html(res, 200, authorizeForm(params, 'Enter your email and password, or paste a token.'));
       return true;
     }
     const code = seal(cfg.secret, { t: token, c: challenge, i: clientId, r: redirectUri, e: Date.now() + CODE_TTL_MS });

@@ -30,3 +30,13 @@ test('privacy policy page exists and covers the extension + MCP data flow', () =
   assert(/do not sell your data/i.test(privacy), 'privacy policy states no data sale');
   assert(privacy.includes("canonical: '/privacy'"), 'privacy page is canonical at /privacy');
 });
+
+test('privacy policy states retention timelines (app-store/directory review requirement)', () => {
+  // Both Chrome Web Store and the ChatGPT app directory review privacy
+  // disclosures for retention. Pin the section so it cannot silently vanish.
+  const privacy = read('app', 'privacy', 'page.tsx');
+  assert(/Data retention/i.test(privacy), 'has a Data retention section');
+  assert(/as long as your account exists/i.test(privacy), 'states account-lifetime retention for resume data');
+  assert(/expire automatically/i.test(privacy), 'states token expiry');
+  assert(/accounting, tax, and legal/i.test(privacy), 'states the payment-record legal-retention carve-out');
+});

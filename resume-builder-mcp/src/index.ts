@@ -47,6 +47,12 @@ async function main() {
   if (transportKind === 'http') {
     const port = Number(process.env.MCP_PORT || 8941);
     const httpServer = createServer(async (req, res) => {
+      // Unauthenticated liveness probe for the hosting platform.
+      if (req.url === '/health') {
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ ok: true, oauth: Boolean(oauthCfg) }));
+        return;
+      }
       // OAuth endpoints (discovery, register, authorize, token) first.
       if (await handleOAuth(req, res, oauthCfg)) return;
 

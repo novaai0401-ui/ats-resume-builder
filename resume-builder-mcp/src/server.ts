@@ -28,7 +28,7 @@ import { ApiError, PocketResumeClient } from './api-client.js';
 export function buildServer(client: PocketResumeClient): McpServer {
   const server = new McpServer({
     name: 'callbackcv',
-    version: '0.3.0',
+    version: '0.3.1',
   });
 
   const ok = (data: unknown) => ({
@@ -53,6 +53,7 @@ export function buildServer(client: PocketResumeClient): McpServer {
     'list_resumes',
     'List the user\'s saved resumes (id + title). Start here to find the resumeId other tools need.',
     {},
+    { title: 'List resumes', readOnlyHint: true, openWorldHint: false },
     async () => {
       try {
         return ok(await client.listResumes());
@@ -66,6 +67,7 @@ export function buildServer(client: PocketResumeClient): McpServer {
     'get_resume',
     'Get the full structured resume (contact, summary, skills, experience, education, projects, achievements, certifications, languages) as JSON.',
     { resumeId: z.string().describe('Resume id from list_resumes') },
+    { title: 'Get resume', readOnlyHint: true, openWorldHint: false },
     async ({ resumeId }) => {
       try {
         return ok(await client.getResume(resumeId));
@@ -79,6 +81,7 @@ export function buildServer(client: PocketResumeClient): McpServer {
     'list_versions',
     'List the saved snapshots/versions of a resume. Tailored variants created by tailor_resume appear here, labelled "Tailored: <role> @ <company>".',
     { resumeId: z.string() },
+    { title: 'List resume versions', readOnlyHint: true, openWorldHint: false },
     async ({ resumeId }) => {
       try {
         return ok(await client.listVersions(resumeId));
@@ -105,6 +108,7 @@ export function buildServer(client: PocketResumeClient): McpServer {
       company: z.string().optional().describe('Company name for the version label'),
       role: z.string().optional().describe('Role title for the version label'),
     },
+    { title: 'Tailor resume to a JD', readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     async ({ resumeId, jdText, company, role }) => {
       try {
         const proposal = await client.tailorPropose(resumeId, jdText);
@@ -160,6 +164,7 @@ export function buildServer(client: PocketResumeClient): McpServer {
       status: z.enum(['wishlist', 'applied']).default('applied'),
       notes: z.string().optional(),
     },
+    { title: 'Log a job application', readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     async (input) => {
       try {
         const created = await client.createJobApplication({
@@ -177,6 +182,7 @@ export function buildServer(client: PocketResumeClient): McpServer {
     'get_outcome_stats',
     'Per-version response/interview/offer rates for a resume — which variant actually gets replies. Use this to pick the best base version before tailoring.',
     { resumeId: z.string() },
+    { title: 'Get callback stats', readOnlyHint: true, openWorldHint: false },
     async ({ resumeId }) => {
       try {
         return ok(await client.getOutcomes(resumeId));

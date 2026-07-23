@@ -1724,6 +1724,33 @@ and every external call still feeds the Outcome Graph.
 
 ---
 
+### R-099 · ChatGPT app-directory readiness + hosted MCP service
+
+- Status: **DONE** (this commit; hosting deploy + submission are founder steps)
+- Depends-on: R-098 (OAuth)
+- Source: OpenAI's app-directory review checklist (privacy retention,
+  tool annotations, working auth flow, production MCP reachability).
+- Acceptance
+  - [x] `/privacy` gains a Data retention section (account-lifetime data,
+    ~7-day tokens, legal carve-out for payment records, brief logs) —
+    pinned by `tests/api-access-and-privacy.test.ts` (now 3).
+  - [x] All 6 MCP tools carry ToolAnnotations: the four readers
+    `readOnlyHint: true`; tailor_resume + log_application declared as
+    additive, non-destructive writes. Pinned in `tests/server.test.mjs`.
+  - [x] OAuth authorize page is a real sign-in: email+password POSTed
+    directly to the first-party `/auth/login` (never stored; refresh token
+    deliberately not kept), with the Settings → API access token paste as
+    the fallback for social-login accounts. Pinned by two new oauth tests
+    (suite 15/15). Version 0.3.1.
+  - [x] `render.yaml` gains the opt-in `ats-rb-mcp` web service (HTTP
+    transport, auto-generated `MCP_OAUTH_SECRET`, `MCP_PUBLIC_URL` set
+    post-deploy) + an unauthenticated `/health` probe in the server.
+  - [x] `SUBMISSION.md` runbook: Route A (unlisted connector, no review)
+    and Route B (directory submission) with the founder checklist
+    (domain verification, reviewer test account, assets, starter prompts).
+
+---
+
 ## §6. Cross-cutting constants
 
 These are constraints that every requirement must respect. Violations
