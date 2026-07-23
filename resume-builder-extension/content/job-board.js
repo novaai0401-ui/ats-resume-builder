@@ -3,7 +3,7 @@
  *
  *   1. Detect the job description text and the apply-button click so we
  *      can offer to attribute the application to a resume version.
- *   2. Inject a small "ATS Builder" floating action button that lets the
+ *   2. Inject a small "CallbackCV" floating action button that lets the
  *      user manually trigger JD capture or recruiter-view overlay.
  *   3. Carry no auth state in-page. All API calls go through the
  *      background service worker via chrome.runtime.sendMessage.
@@ -23,13 +23,13 @@
     const fab = document.createElement('div');
     fab.className = 'atsb-fab';
     fab.innerHTML = `
-      <button class="atsb-fab-btn" title="ATS Builder">
-        <span>ATS</span>
+      <button class="atsb-fab-btn" title="CallbackCV">
+        <span>CV</span>
       </button>
       <div class="atsb-fab-menu" hidden>
         <button data-action="overlay">Recruiter view vs this JD</button>
         <button data-action="track">Track this application</button>
-        <button data-action="open-app">Open ATS Builder</button>
+        <button data-action="open-app">Open CallbackCV</button>
       </div>
     `;
     document.body.appendChild(fab);
@@ -109,7 +109,7 @@
 
     const resumesResp = await sendMessage({ type: 'LIST_RESUMES' });
     if (!resumesResp.ok || !Array.isArray(resumesResp.data) || resumesResp.data.length === 0) {
-      atsbToast('No resumes found. Add one in the ATS Builder app first.', 'error');
+      atsbToast('No resumes found. Add one in the CallbackCV app first.', 'error');
       return;
     }
     const resume = resumesResp.data[0];
@@ -195,7 +195,7 @@
           ${match ? `
             <section>
               <h4>Vs this JD</h4>
-              <p class="atsb-jdmatch">${match.summary ? escapeHtml(match.summary) : 'See ATS Builder for full match.'}</p>
+              <p class="atsb-jdmatch">${match.summary ? escapeHtml(match.summary) : 'See CallbackCV for full match.'}</p>
             </section>` : ''}
         </div>
       </div>
@@ -214,7 +214,7 @@
     const resumesResp = await sendMessage({ type: 'LIST_RESUMES' });
     if (!resumesResp.ok) { atsbToast(resumesResp.error || 'Failed to load resumes.', 'error'); return; }
     const resumes = resumesResp.data || [];
-    if (resumes.length === 0) { atsbToast('Add a resume in the ATS Builder app first.', 'error'); return; }
+    if (resumes.length === 0) { atsbToast('Add a resume in the CallbackCV app first.', 'error'); return; }
 
     closeOverlay();
     const root = document.createElement('div');
@@ -284,7 +284,7 @@
     const t = document.createElement('div');
     t.className = 'atsb-apply-toast';
     t.innerHTML = `
-      <span>Track this application in ATS Builder?</span>
+      <span>Track this application in CallbackCV?</span>
       <button class="atsb-primary" data-action="yes">Yes</button>
       <button data-action="no">Not now</button>
     `;

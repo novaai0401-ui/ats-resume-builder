@@ -39,7 +39,7 @@ account, take screenshots, upload the zip, submit.
    - Category: Productivity → Tools. Language: English (India available).
    - Screenshots needed: popup on a job page; the "which version?" prompt;
      the tracker showing the saved job. 1280×800 PNG, min 1.
-   - Privacy tab: declare storage + activeTab + scripting + contextMenus;
+   - Privacy tab: declare storage + activeTab + contextMenus;
      single purpose = "track job applications the user explicitly saves";
      data use = auth token stored locally, job data sent only to the
      user's own CallbackCV account. No sale of data.
