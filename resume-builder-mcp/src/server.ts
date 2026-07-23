@@ -28,7 +28,7 @@ import { ApiError, PocketResumeClient } from './api-client.js';
 export function buildServer(client: PocketResumeClient): McpServer {
   const server = new McpServer({
     name: 'callbackcv',
-    version: '0.2.0',
+    version: '0.3.0',
   });
 
   const ok = (data: unknown) => ({

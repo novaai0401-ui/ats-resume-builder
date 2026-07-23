@@ -1693,6 +1693,37 @@ and every external call still feeds the Outcome Graph.
 
 ---
 
+### R-098 · OAuth for ChatGPT/Claude connectors (stateless, in the MCP server)
+
+- Status: **DONE** (this commit)
+- Depends-on: R-097 (multi-tenant HTTP transport)
+- Source: founder priority — ChatGPT/Claude connector UIs authenticate via
+  OAuth only (no bearer-token field), so the hosted MCP endpoint needed an
+  OAuth layer to be publicly connectable.
+- Acceptance
+  - [x] Stateless OAuth 2.1 provider in `resume-builder-mcp/src/oauth.ts`
+    (zero new deps, node:crypto only): authorization-code + PKCE (S256
+    required), RFC 7591 dynamic client registration (client_id = HMAC-signed
+    redirect_uris), RFC 8414 + 9728 discovery, 401s carry
+    `WWW-Authenticate: resource_metadata` for automatic client discovery.
+  - [x] No database: auth codes are AES-256-GCM blobs (10-min TTL, bound to
+    client + redirect_uri + PKCE challenge); the issued access token is an
+    encrypted wrapper (`cbcv.…`) around the user's CallbackCV token — the
+    raw JWT is never handed to the connector. Rotating `MCP_OAUTH_SECRET`
+    revokes everything at once.
+  - [x] The authorize page asks the user to paste their Settings → API
+    access token and validates it live against the API — the MCP layer
+    never handles passwords (trust layer intact).
+  - [x] Opt-in via `MCP_OAUTH_SECRET` + `MCP_PUBLIC_URL`; when unset the
+    OAuth paths 404 and plain Bearer auth is unchanged. Wrapped, expired,
+    or wrong-secret tokens are refused (forces re-auth); raw bearers still
+    pass through.
+  - [x] Version 0.3.0. Pinned by `tests/oauth.test.mjs` (7 — full
+    register→authorize→code→token→unwrap flow, tamper/expiry/PKCE
+    rejections, disabled-mode 404) + suite total 12/12.
+
+---
+
 ## §6. Cross-cutting constants
 
 These are constraints that every requirement must respect. Violations

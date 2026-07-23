@@ -5,6 +5,7 @@ import { createServer } from 'node:http';
 import { buildServer } from './server.js';
 import { PocketResumeClient } from './api-client.js';
 import { bearerToken } from './http-auth.js';
+import { handleOAuth, unwrapAccessToken, type OAuthConfig } from './oauth.js';
 
 /**
  * Entry point. Two transports per the R-040 acceptance:
@@ -35,21 +36,45 @@ const envToken = String(process.env.POCKET_RESUME_TOKEN || '').trim();
 const baseUrl = String(process.env.POCKET_RESUME_API_URL || 'https://ats-rb-api.onrender.com').trim();
 const transportKind = String(process.env.MCP_TRANSPORT || 'stdio').toLowerCase();
 
+// OAuth for ChatGPT/Claude remote connectors (R-098) — enabled only when
+// both env vars are set; plain Bearer tokens keep working either way.
+const oauthSecret = String(process.env.MCP_OAUTH_SECRET || '').trim();
+const publicUrl = String(process.env.MCP_PUBLIC_URL || '').trim().replace(/\/+$/, '');
+const oauthCfg: OAuthConfig | null =
+  oauthSecret && publicUrl ? { secret: oauthSecret, issuer: publicUrl, apiBaseUrl: baseUrl } : null;
+
 async function main() {
   if (transportKind === 'http') {
     const port = Number(process.env.MCP_PORT || 8941);
     const httpServer = createServer(async (req, res) => {
+      // OAuth endpoints (discovery, register, authorize, token) first.
+      if (await handleOAuth(req, res, oauthCfg)) return;
+
       // Multi-tenant + stateless: a fresh server/transport per request,
       // bound to the CALLER's token. No cross-user state can leak because
-      // nothing outlives the request.
-      const token = bearerToken(req) || envToken;
+      // nothing outlives the request. The bearer may be an OAuth-wrapped
+      // token (cbcv.…) or a raw CallbackCV token; env token is the
+      // single-user fallback for header-less personal tunnels.
+      const rawBearer = bearerToken(req);
+      let token = rawBearer || envToken;
+      if (oauthCfg && rawBearer) {
+        const unwrapped = unwrapAccessToken(oauthCfg.secret, rawBearer);
+        if (unwrapped === null) token = ''; // wrapped but invalid/expired → force re-auth
+        else if (unwrapped) token = unwrapped;
+      }
       if (!token) {
-        res.writeHead(401, { 'content-type': 'application/json' });
+        const headers: Record<string, string> = { 'content-type': 'application/json' };
+        if (oauthCfg) {
+          // RFC 9728: point MCP clients at the resource metadata so they
+          // can discover the OAuth flow automatically.
+          headers['www-authenticate'] = `Bearer resource_metadata="${oauthCfg.issuer}/.well-known/oauth-protected-resource"`;
+        }
+        res.writeHead(401, headers);
         res.end(
           JSON.stringify({
             error: 'unauthorized',
             message:
-              'Send your CallbackCV token as "Authorization: Bearer <token>" (Settings → API access).',
+              'Send your CallbackCV token as "Authorization: Bearer <token>" (Settings → API access), or connect via OAuth.',
           }),
         );
         return;

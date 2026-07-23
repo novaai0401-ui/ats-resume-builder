@@ -76,13 +76,35 @@ and connect with an MCP client that can send an Authorization header
 (Claude Code: `claude mcp add --transport http callbackcv <url> --header
 "Authorization: Bearer <token>"`).
 
-Honest caveat for ChatGPT specifically: ChatGPT's custom-connector UI
-authenticates connectors via OAuth (or no auth) and does not let a user
-type a bearer token, so a smooth public ChatGPT experience additionally
-needs an OAuth layer in front of this endpoint — not built yet. Until
-then, ChatGPT works through an authenticated proxy the user runs (e.g.
-`mcp-remote` with a header), or by self-hosting with the env-token
-fallback.
+#### OAuth for ChatGPT / Claude connectors
+
+ChatGPT's custom-connector UI (and Claude's remote connectors) authenticate
+via OAuth — there is no "paste a bearer token" field. The server ships a
+built-in, **stateless** OAuth 2.1 provider (authorization-code + PKCE,
+dynamic client registration, RFC 8414/9728 discovery). Enable it with two
+extra env vars on the hosted instance:
+
+```bash
+MCP_TRANSPORT=http MCP_PORT=8941 \
+MCP_PUBLIC_URL=https://mcp.your-domain.com \
+MCP_OAUTH_SECRET=<long random string — openssl rand -hex 32> \
+POCKET_RESUME_API_URL=https://ats-rb-api.onrender.com \
+npx -y @tekivex/callbackcv-mcp
+```
+
+Then add `https://mcp.your-domain.com` as a custom connector in ChatGPT
+(Settings → Connectors → Advanced → Developer mode) or Claude. The
+connector discovers the OAuth endpoints automatically; during connect, the
+user lands on a CallbackCV page asking them to paste their token from
+**Settings → API access** (verified live against the API — no passwords
+ever touch this server). The connector receives an **encrypted wrapper**
+around that token, never the raw JWT, and everything stays stateless — no
+database, nothing to leak across users. When the underlying ~7-day token
+expires, tools return a re-auth message and the user reconnects.
+
+Notes: rotate `MCP_OAUTH_SECRET` to invalidate all issued connector tokens
+at once. If the OAuth env vars are unset, the OAuth endpoints return 404
+and plain `Authorization: Bearer` keeps working unchanged.
 
 Config is env-only (no CLI flags) so tokens never appear in `ps` output.
 

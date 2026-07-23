@@ -23,7 +23,8 @@ test('bearerToken returns empty for missing or malformed headers', () => {
 
 test('HTTP mode is per-request multi-tenant with a 401 when unauthenticated', () => {
   const src = readFileSync(path.join(__dirname, '..', 'src', 'index.ts'), 'utf-8');
-  assert(src.includes('bearerToken(req) || envToken'), 'request token wins; env token is the single-user fallback');
+  assert(src.includes('rawBearer || envToken'), 'request token wins; env token is the single-user fallback');
+  assert(src.includes('unwrapAccessToken('), 'OAuth-wrapped bearers are unwrapped to the inner CallbackCV token');
   assert(src.includes('writeHead(401'), 'requests with no token are rejected with 401');
   // The client must be constructed INSIDE the request handler so no user's
   // token can leak into another user's request.
