@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "CallbackCV — Job Hunt Companion",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Capture job descriptions, auto-track applications with the resume version you used, and reach Sahaayak from any job board.",
-  "permissions": ["storage", "activeTab", "scripting", "contextMenus"],
+  "permissions": ["storage", "activeTab", "contextMenus"],
   "host_permissions": [
     "https://www.linkedin.com/*",
     "https://www.indeed.com/*",

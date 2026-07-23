@@ -54,7 +54,6 @@ production, publish through the Chrome Web Store.
 - `storage` — caches the access token and user prefs.
 - `activeTab` — read the JD on the page when the user explicitly clicks
   the extension.
-- `scripting` — inject the overlay when requested.
 - `contextMenus` — right-click "Send selection to CallbackCV".
 - `host_permissions` — the job boards we add the apply-button hook to.
 
