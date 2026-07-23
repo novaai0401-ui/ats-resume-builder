@@ -54,3 +54,23 @@ export async function isConfigured() {
   const { token } = await getAuth();
   return Boolean(token);
 }
+
+/**
+ * Map the configured API base to the WEB app origin the user should be
+ * sent to (jd-match, sahaayak, dashboard links). The API and web app are
+ * different hosts in prod, so url.origin of the API is never right:
+ *   - unset / prod API  → https://callbackcv.tekivex.com
+ *   - localhost:4001    → http://localhost:3000 (dev pairing)
+ *   - anything else     → prod web (safest visible destination)
+ */
+const PROD_WEB_ORIGIN = 'https://callbackcv.tekivex.com';
+
+export async function webOrigin() {
+  const { apiBase } = await chrome.storage.local.get(['apiBase']);
+  if (!apiBase || apiBase === DEFAULT_BASE) return PROD_WEB_ORIGIN;
+  try {
+    const url = new URL(apiBase);
+    if (url.port === '4001') return `${url.protocol}//${url.hostname}:3000`;
+  } catch { /* fall through */ }
+  return PROD_WEB_ORIGIN;
+}

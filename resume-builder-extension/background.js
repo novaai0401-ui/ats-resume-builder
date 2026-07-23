@@ -4,14 +4,14 @@
  * scripts don't have to carry the auth token in-page.
  */
 
-import { api, isConfigured } from './lib/api.js';
+import { api, isConfigured, webOrigin } from './lib/api.js';
 
-const MENU_ID = 'ats-builder-send-selection';
+const MENU_ID = 'callbackcv-send-selection';
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
     id: MENU_ID,
-    title: 'Send selection to ATS Builder (JD match)',
+    title: 'Send selection to CallbackCV (JD match)',
     contexts: ['selection'],
   });
 });
@@ -22,23 +22,9 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (!text) return;
   await chrome.storage.local.set({ pendingJd: { text, url: tab?.url || '', capturedAt: Date.now() } });
   // Open the web app /jd-match page with the captured JD primed.
-  const { apiBase } = await chrome.storage.local.get(['apiBase']);
-  const webBase = inferWebOrigin(apiBase);
+  const webBase = await webOrigin();
   chrome.tabs.create({ url: `${webBase}/jd-match?source=extension` });
 });
-
-function inferWebOrigin(apiBase) {
-  // In dev the API runs on :4001 and the web on :3000. In prod the web
-  // origin is whatever the user configures in options.
-  if (!apiBase) return 'http://localhost:3000';
-  try {
-    const url = new URL(apiBase);
-    if (url.port === '4001') return `${url.protocol}//${url.hostname}:3000`;
-    return url.origin;
-  } catch {
-    return 'http://localhost:3000';
-  }
-}
 
 // Message channel for content scripts and popup.
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
@@ -48,6 +34,13 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         case 'IS_CONFIGURED':
           sendResponse({ ok: true, configured: await isConfigured() });
           break;
+        case 'OPEN_APP': {
+          // The content-script FAB's "Open CallbackCV" action.
+          const webBase = await webOrigin();
+          chrome.tabs.create({ url: `${webBase}/dashboard` });
+          sendResponse({ ok: true });
+          break;
+        }
         case 'LIST_RESUMES':
           sendResponse({ ok: true, data: await api.listResumes() });
           break;

@@ -55,8 +55,11 @@ production, publish through the Chrome Web Store.
 - `activeTab` — read the JD on the page when the user explicitly clicks
   the extension.
 - `contextMenus` — right-click "Send selection to CallbackCV".
-- `host_permissions` — the job boards we add the apply-button hook to.
+- `host_permissions` — ONLY the CallbackCV API host, for authenticated
+  fetches from the service worker. Job-board pages need no host
+  permission: the content script is injected via `content_scripts.matches`
+  (which grants that by itself) and performs no network calls — it talks
+  to the background worker over `chrome.runtime.sendMessage`.
 
-We do not request `<all_urls>` host_permissions in production — the wildcard
-appears in `manifest.json` here only for local dev convenience and should
-be tightened before publishing.
+Chrome rejects any permission that isn't actively used ("Purple
+Potassium" class), so every entry above must stay justified by code.

@@ -1,18 +1,10 @@
 {
   "manifest_version": 3,
   "name": "CallbackCV — Job Hunt Companion",
-  "version": "0.1.1",
-  "description": "Capture job descriptions, auto-track applications with the resume version you used, and reach Sahaayak from any job board.",
+  "version": "0.2.0",
+  "description": "Capture job descriptions on supported job boards and track applications with the resume version you used — wired to your CallbackCV account.",
   "permissions": ["storage", "activeTab", "contextMenus"],
   "host_permissions": [
-    "https://www.linkedin.com/*",
-    "https://www.indeed.com/*",
-    "https://*.naukri.com/*",
-    "https://*.lever.co/*",
-    "https://*.greenhouse.io/*",
-    "https://boards.greenhouse.io/*",
-    "https://*.workable.com/*",
-    "https://*.smartrecruiters.com/*",
     "https://ats-rb-api.onrender.com/*"
   ],
   "icons": {

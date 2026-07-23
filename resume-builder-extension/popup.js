@@ -1,4 +1,5 @@
 import { openingToApplicationPayload } from './lib/jobs-util.js';
+import { webOrigin } from './lib/api.js';
 
 const thread = document.getElementById('thread');
 const msg = document.getElementById('msg');
@@ -9,12 +10,10 @@ const notOptedIn = document.getElementById('not-opted-in');
 
 document.getElementById('open-options').addEventListener('click', (e) => { e.preventDefault(); chrome.runtime.openOptionsPage(); });
 document.getElementById('open-options-2')?.addEventListener('click', (e) => { e.preventDefault(); chrome.runtime.openOptionsPage(); });
-document.getElementById('open-sahaayak')?.addEventListener('click', (e) => {
+document.getElementById('open-sahaayak')?.addEventListener('click', async (e) => {
   e.preventDefault();
-  chrome.storage.local.get(['apiBase'], ({ apiBase }) => {
-    const base = (apiBase || 'http://localhost:4001').replace(/:4001$/, ':3000');
-    chrome.tabs.create({ url: `${base}/sahaayak` });
-  });
+  const base = await webOrigin();
+  chrome.tabs.create({ url: `${base}/sahaayak` });
 });
 
 init();
