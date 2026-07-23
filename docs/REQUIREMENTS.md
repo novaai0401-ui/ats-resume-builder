@@ -1668,6 +1668,31 @@ and every external call still feeds the Outcome Graph.
 
 ---
 
+### R-097 · Distribution polish: integration links, saved-resume fallback, multi-tenant MCP HTTP
+
+- Status: **DONE** (this commit)
+- Depends-on: R-096 (MCP + extension), R-086 (AI pages)
+- Acceptance
+  - [x] Env-gated integration links (C-003: never a dead link): Settings
+    gains `IntegrationsCard` ("Get the Chrome extension" / "Use CallbackCV
+    in Claude") rendered ONLY when `NEXT_PUBLIC_CHROME_EXTENSION_URL` /
+    `NEXT_PUBLIC_MCP_NPM_URL` are set post-publication; `ApiAccessCard`'s
+    hardcoded npm URL (a 404 until publish) is gated the same way.
+    Config single-sourced in `src/lib/integrations.ts`.
+  - [x] Saved-resume fallback extracted to `useSavedResumeFallback()`
+    (store draft → active session selection → most recent saved resume):
+    Mentor now knows the resume when opened cold, and Skill-Demand is
+    refactored onto the same hook (its bespoke copy removed).
+  - [x] MCP HTTP transport is multi-tenant: each request authenticates via
+    `Authorization: Bearer <token>`, a per-request client is constructed
+    inside the handler (no cross-user leakage), no token → 401; the env
+    token remains the single-user fallback; stdio unchanged. README states
+    the honest ChatGPT caveat (their connector UI needs OAuth, not built).
+    Package + server version 0.2.0. Pinned by `tests/http-auth.test.mjs`
+    (3) + existing suite (5 total).
+
+---
+
 ## §6. Cross-cutting constants
 
 These are constraints that every requirement must respect. Violations

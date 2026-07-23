@@ -1,21 +1,43 @@
 {
   "name": "@tekivex/callbackcv-mcp",
-  "version": "0.1.0",
-  "description": "MCP server for CallbackCV — lets AI agents read resumes, tailor them per JD, log applications, and query outcome stats. Every agent action feeds the same Outcome Graph as the web app.",
+  "version": "0.2.0",
+  "description": "MCP server for CallbackCV \u2014 lets AI agents read resumes, tailor them per JD, log applications, and query outcome stats. Every agent action feeds the same Outcome Graph as the web app.",
   "license": "MIT",
   "type": "module",
-  "publishConfig": { "access": "public" },
-  "repository": { "type": "git", "url": "https://github.com/novaai0401-ui/ats-resume-builder", "directory": "resume-builder-mcp" },
-  "keywords": ["mcp", "model-context-protocol", "resume", "ats", "job-search", "career", "claude", "ai-agents"],
-  "bin": { "callbackcv-mcp": "dist/index.js" },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/novaai0401-ui/ats-resume-builder",
+    "directory": "resume-builder-mcp"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "resume",
+    "ats",
+    "job-search",
+    "career",
+    "claude",
+    "ai-agents"
+  ],
+  "bin": {
+    "callbackcv-mcp": "dist/index.js"
+  },
   "main": "dist/index.js",
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "test": "node --test tests/*.test.mjs"
   },
-  "engines": { "node": ">=18" },
+  "engines": {
+    "node": ">=18"
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "zod": "^3.23.0"

@@ -7,6 +7,7 @@ import EncryptedBackupCard from '@/src/components/EncryptedBackupCard';
 import ShareLinksCard from '@/src/components/ShareLinksCard';
 import ReferralCard from '@/src/components/ReferralCard';
 import ApiAccessCard from '@/src/components/ApiAccessCard';
+import IntegrationsCard from '@/src/components/IntegrationsCard';
 
 /**
  * User settings.
@@ -55,6 +56,8 @@ export default function SettingsPageView() {
       </div>
 
       <ApiAccessCard />
+
+      <IntegrationsCard />
 
       <div style={{ marginTop: 16 }}>
         <TrainingConsentCard />

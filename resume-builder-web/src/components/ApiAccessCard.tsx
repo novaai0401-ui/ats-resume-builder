@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { getAccessToken } from '@/src/lib/api';
+import { MCP_NPM_URL } from '@/src/lib/integrations';
 
 /**
  * Settings → API access.
@@ -52,9 +53,11 @@ export default function ApiAccessCard() {
       <h2 style={{ marginTop: 0 }}>API access (for Claude / ChatGPT)</h2>
       <p className="small" style={{ color: 'var(--muted)', marginTop: 0 }}>
         Use CallbackCV from inside your AI assistant via the{' '}
-        <a href="https://www.npmjs.com/package/@tekivex/callbackcv-mcp" target="_blank" rel="noreferrer">
-          CallbackCV MCP server
-        </a>
+        {MCP_NPM_URL ? (
+          <a href={MCP_NPM_URL} target="_blank" rel="noreferrer">CallbackCV MCP server</a>
+        ) : (
+          <span>CallbackCV MCP server</span>
+        )}
         . Paste the token below as <code>POCKET_RESUME_TOKEN</code> in your MCP host config.
         An assistant using it can do only what you can — your plan limits and AI quotas still apply.
       </p>
