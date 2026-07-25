@@ -16,11 +16,12 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 });
 
-chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+chrome.contextMenus.onClicked.addListener(async (info) => {
   if (info.menuItemId !== MENU_ID) return;
   const text = String(info.selectionText || '').trim();
   if (!text) return;
-  await chrome.storage.local.set({ pendingJd: { text, url: tab?.url || '', capturedAt: Date.now() } });
+  // info.pageUrl comes from the contextMenus API itself — no tab permission needed.
+  await chrome.storage.local.set({ pendingJd: { text, url: info.pageUrl || '', capturedAt: Date.now() } });
   // Open the web app /jd-match page with the captured JD primed.
   const webBase = await webOrigin();
   chrome.tabs.create({ url: `${webBase}/jd-match?source=extension` });

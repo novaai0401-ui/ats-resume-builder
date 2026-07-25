@@ -1,9 +1,12 @@
 {
   "manifest_version": 3,
-  "name": "CallbackCV — Job Hunt Companion",
-  "version": "0.2.0",
+  "name": "CallbackCV \u2014 Job Hunt Companion",
+  "version": "0.3.0",
   "description": "Capture job descriptions on supported job boards and track applications with the resume version you used, in CallbackCV.",
-  "permissions": ["storage", "activeTab", "contextMenus"],
+  "permissions": [
+    "storage",
+    "contextMenus"
+  ],
   "host_permissions": [
     "https://ats-rb-api.onrender.com/*"
   ],
@@ -37,8 +40,12 @@
         "https://*.workable.com/*",
         "https://*.smartrecruiters.com/*"
       ],
-      "js": ["content/job-board.js"],
-      "css": ["content/overlay.css"],
+      "js": [
+        "content/job-board.js"
+      ],
+      "css": [
+        "content/overlay.css"
+      ],
       "run_at": "document_idle"
     }
   ]

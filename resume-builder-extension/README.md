@@ -52,9 +52,10 @@ production, publish through the Chrome Web Store.
 ## Permissions explained
 
 - `storage` — caches the access token and user prefs.
-- `activeTab` — read the JD on the page when the user explicitly clicks
-  the extension.
-- `contextMenus` — right-click "Send selection to CallbackCV".
+- `contextMenus` — right-click "Send selection to CallbackCV". The page
+  URL of a captured JD comes from `info.pageUrl`, which the contextMenus
+  API provides by itself — no tab permission needed. The JD text itself is
+  read by the declarative content script (`content_scripts.matches`).
 - `host_permissions` — ONLY the CallbackCV API host, for authenticated
   fetches from the service worker. Job-board pages need no host
   permission: the content script is injected via `content_scripts.matches`
