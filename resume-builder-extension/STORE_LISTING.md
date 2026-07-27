@@ -24,6 +24,15 @@ account, take screenshots, upload the zip, submit.
 - **Branding** — `action.default_title` is now "CallbackCV" (was "ATS
   Builder"); default API base is the production HTTPS URL.
 
+
+## ⚠️ Description rules (learned from rejection "Yellow Argon", Jul 2026)
+
+Chrome's spam policy treats ENUMERATING BRAND NAMES in the description as
+keyword stuffing. Never list the job boards (LinkedIn, Indeed, Naukri, …)
+in the store description, title, or summary — say "supported job boards"
+and point at the extension's site-access list instead. Keep our own brand
+name to a few natural mentions. The final approved copy lives below.
+
 ## Founder steps to publish
 
 1. Create a Chrome Web Store developer account:
