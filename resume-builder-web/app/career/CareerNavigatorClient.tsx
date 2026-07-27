@@ -6,6 +6,7 @@ import { PROFESSION_INDUSTRIES, getIndustryById, getRoleById } from 'resume-buil
 import { api, type Resume, type TechGapResult } from '@/src/lib/api';
 import FreeAiNotice from '@/src/components/FreeAiNotice';
 import { buildSkillsPlaceholder, getSkillHintsForIndustry } from '@/src/lib/profession-skill-hints';
+import { handleFreeTrialError } from '@/src/lib/free-trial';
 
 type Status = 'idle' | 'analyzing' | 'error';
 
@@ -169,6 +170,11 @@ export default function CareerNavigatorClient() {
       setResult(analysis);
       setStatus('idle');
     } catch (err: unknown) {
+      // R-098 — a spent free run opens the app-wide popup, not an inline error.
+      if (handleFreeTrialError(err)) {
+        setStatus('idle');
+        return;
+      }
       setError(err instanceof Error ? err.message : 'Analysis failed. Please try again.');
       setStatus('error');
     }

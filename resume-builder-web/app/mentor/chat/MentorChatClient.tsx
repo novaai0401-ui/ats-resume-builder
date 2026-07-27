@@ -20,6 +20,7 @@ import Link from 'next/link';
 import { api, getAccessToken } from '@/src/lib/api';
 import { useSavedResumeFallback } from '@/src/lib/use-saved-resume-fallback';
 import { loadByokKey } from '@/src/lib/byok-storage';
+import { handleFreeTrialError } from '@/src/lib/free-trial';
 
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
 
@@ -100,7 +101,11 @@ export default function MentorChatClient() {
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Send failed';
-      if (/PRO_PLAN_REQUIRED/i.test(message)) {
+      // R-098 — a spent free run opens the app-wide popup; roll back the
+      // optimistic user message so it doesn't sit there with no reply.
+      if (handleFreeTrialError(err)) {
+        setMessages((m) => m.slice(0, -1));
+      } else if (/PRO_PLAN_REQUIRED/i.test(message)) {
         setPaywall(true);
         // Roll back the optimistic user message so it doesn't sit there
         // with no reply.

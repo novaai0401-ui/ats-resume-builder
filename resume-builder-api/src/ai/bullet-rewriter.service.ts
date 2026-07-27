@@ -91,7 +91,7 @@ export class BulletRewriterService {
       };
     }
     if (freeDaily) {
-      await enforceResumeAiFreeDaily(this.prisma, this.config, userId);
+      await enforceResumeAiFreeDaily(this.prisma, this.config, userId, 'bullet-rewrite');
     }
 
     const role = String(input.role || '').trim().slice(0, 80);
@@ -132,7 +132,7 @@ export class BulletRewriterService {
         };
       }
       if (freeDaily) {
-        await recordResumeAiFreeUsage(this.prisma, userId);
+        await recordResumeAiFreeUsage(this.prisma, userId, 'bullet-rewrite');
       }
       return {
         alternatives: parsed.slice(0, 3),

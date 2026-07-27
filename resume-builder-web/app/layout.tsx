@@ -6,6 +6,7 @@ import TopNav from '@/src/components/TopNav';
 import MobileBottomNav from '@/src/components/MobileBottomNav';
 import { NavigationProgress } from '@/src/components/NavigationProgress';
 import Providers from '@/src/components/Providers';
+import FreeTrialLimitModalHost from '@/src/components/FreeTrialLimitModalHost';
 import PwaInstaller from '@/src/components/PwaInstaller';
 import SkipToContent from '@/src/components/SkipToContent';
 import TrainingConsentModal from '@/src/components/TrainingConsentModal';
@@ -160,6 +161,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <MobileBottomNav />
           <PwaInstaller />
           <TrainingConsentModal />
+          {/* R-098: app-wide "you've used your one free AI run" popup. */}
+          <FreeTrialLimitModalHost />
         </Providers>
       </body>
     </html>

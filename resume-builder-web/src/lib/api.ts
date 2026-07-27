@@ -45,6 +45,7 @@ export type {
   User,
 } from 'resume-builder-shared';
 import { getByokHeader } from './byok-storage';
+import type { FreeTrialStatus } from './free-trial';
 
 export type AuthResponse = { user: User; accessToken: string; refreshToken: string; expiresAt?: string };
 export type RegisterResponse = AuthResponse;
@@ -914,6 +915,16 @@ export const api = {
   },
 
   getFeatureFlags: () => request<FeatureFlagsResponse>('/settings/public'),
+
+  /**
+   * R-098 — the free-trial ledger: which AI features this account has spent
+   * its single free run on. `trialApplies: false` for BYOK / plan users.
+   */
+  aiFreeTrialStatus: () =>
+    request<FreeTrialStatus>('/ai/free-trial', {
+      method: 'GET',
+      headers: { ...(getByokHeader() || {}) },
+    }),
 
   listResumes: () => request<Resume[]>('/resumes'),
 

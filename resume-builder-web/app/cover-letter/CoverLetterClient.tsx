@@ -8,6 +8,7 @@ import type {
 } from 'resume-builder-shared';
 import { api } from '@/src/lib/api';
 import AiTrustNote from '@/src/components/AiTrustNote';
+import { handleFreeTrialError } from '@/src/lib/free-trial';
 
 const TONES: Array<{ id: CoverLetterTone; label: string; description: string }> = [
   { id: 'professional', label: 'Professional', description: 'Warm, polished, confident.' },
@@ -99,6 +100,11 @@ export default function CoverLetterClient() {
       setLetters(refreshed);
       setState('idle');
     } catch (err: unknown) {
+      // R-098 — a spent free run opens the app-wide popup, not an inline error.
+      if (handleFreeTrialError(err)) {
+        setState('ready');
+        return;
+      }
       setError(err instanceof Error ? err.message : 'Failed to generate cover letter');
       setState('error');
     }

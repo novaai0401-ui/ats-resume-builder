@@ -11,6 +11,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { api, type SkillDemandResult, type SkillDemandItem } from '@/src/lib/api';
 import { useSavedResumeFallback } from '@/src/lib/use-saved-resume-fallback';
+import { handleFreeTrialError } from '@/src/lib/free-trial';
 
 const DEMAND_COLOR: Record<SkillDemandItem['demand'], string> = {
   'very-high': '#147a3a',
@@ -44,6 +45,8 @@ export default function SkillDemandClient() {
     try {
       setResult(await api.skillDemand(skills, location.trim() || undefined));
     } catch (err) {
+      // R-098 — a spent free run opens the app-wide popup, not an inline error.
+      if (handleFreeTrialError(err)) return;
       setError(err instanceof Error ? err.message : 'Could not analyze skills.');
     } finally {
       setLoading(false);

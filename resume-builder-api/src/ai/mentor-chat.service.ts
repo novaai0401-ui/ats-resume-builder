@@ -8,6 +8,7 @@ import type { AiProvider } from './providers/ai-provider.interface';
 import { GroqProvider } from './providers/groq.provider';
 import { buildByokProvider } from './providers/byok-factory';
 import { isPlanActive, NON_RESUME_AI_UPSELL } from './server-provider';
+import { enforceFreeTrialOrThrow, recordFreeTrialUse, type AiFeatureKey } from './free-trial';
 
 /**
  * Mentor Chat — Pro only, the marquee Pro differentiator.
@@ -95,16 +96,24 @@ export class MentorChatService {
     if (!dbUser) throw new ForbiddenException('User not found');
     const byokProvider = buildByokProvider(byok?.provider, byok?.key);
     const planActive = isPlanActive(dbUser.plan);
+    // R-098 — one free real AI mentor turn for a free, key-less user; the
+    // second attempt throws the structured trial error (client shows the popup).
+    let trialFeature: AiFeatureKey | null = null;
     if (!byokProvider && !planActive) {
-      return {
-        reply: `Mentor Chat runs on AI. ${NON_RESUME_AI_UPSELL}`,
-        provider: 'unavailable',
-        tokensUsed: 0,
-      };
+      if (!this.resolveProvider()) {
+        return {
+          reply: `Mentor Chat runs on AI. ${NON_RESUME_AI_UPSELL}`,
+          provider: 'unavailable',
+          tokensUsed: 0,
+        };
+      }
+      await enforceFreeTrialOrThrow(this.prisma, userId, 'mentor-chat');
+      trialFeature = 'mentor-chat';
     }
 
-    // Only OUR AI (the plan path) spends app tokens; BYOK is on the user.
-    if (!byokProvider) {
+    // Only the PLAN path spends the subscriber token budget; BYOK is on the
+    // user, and the single free trial turn is metered by the trial ledger.
+    if (!byokProvider && planActive) {
       await this.chargePlanTokens(userId, APPROX_TOKENS_PER_TURN);
     }
 
@@ -144,6 +153,7 @@ export class MentorChatService {
           tokensUsed: APPROX_TOKENS_PER_TURN,
         };
       }
+      if (trialFeature) await recordFreeTrialUse(this.prisma, userId, trialFeature);
       return { reply, provider: 'groq', tokensUsed: APPROX_TOKENS_PER_TURN };
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);

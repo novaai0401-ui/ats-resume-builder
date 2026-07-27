@@ -58,6 +58,7 @@ import DownloadChargeModal from '@/src/components/DownloadChargeModal';
 import ShareInExportModal from '@/src/components/ShareInExportModal';
 import { applySinglePresentRule, compareYearMonth, isPresentToken, isYearMonth, toMonthInputValue, toYearMonth } from '@/src/lib/date-utils';
 import { detectIncompleteText } from '@/src/lib/text-completeness';
+import { handleFreeTrialError } from '@/src/lib/free-trial';
 import { shouldSkipServerHydration } from '@/src/lib/load-effect-gate';
 import {
   buildCompanySuggestions,
@@ -1193,6 +1194,16 @@ export default function ResumeEditor() {
         }));
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Rewrite failed';
+        // R-098 — a spent free run opens the app-wide popup; clear the
+        // per-bullet spinner so the row isn't stuck loading.
+        if (handleFreeTrialError(err)) {
+          setBulletRewrites((prev) => {
+            const next = { ...prev };
+            delete next[key];
+            return next;
+          });
+          return;
+        }
         // Free users hit FREE_PLAN_AI_BLOCKED when payment-feature
         // is enabled. Surface a paywall card rather than a red error.
         if (/FREE_PLAN_AI_BLOCKED/i.test(message)) {
@@ -1737,6 +1748,13 @@ export default function ResumeEditor() {
         showSnackbar('success', 'AI critique ready.');
       }
     } catch (err: unknown) {
+      // R-098 — a spent free run opens the app-wide popup; no rule-based
+      // fallback here, because that would quietly answer a request the user
+      // was just told costs a plan (C-004: no silent bypass either way).
+      if (handleFreeTrialError(err)) {
+        setAiCritiqueLoading(false);
+        return;
+      }
       // Fallback: call original rule-based critique
       const errorMsg = err instanceof Error ? err.message : 'AI critique failed';
       setAiCritiqueError(errorMsg);
@@ -1786,6 +1804,8 @@ export default function ResumeEditor() {
       setTechGapResult(result);
       showSnackbar('success', 'Technology gap analysis complete.');
     } catch (err: unknown) {
+      // R-098 — a spent free run opens the app-wide popup, not a red snackbar.
+      if (handleFreeTrialError(err)) return;
       showSnackbar('error', err instanceof Error ? err.message : 'Technology gap analysis failed.');
     } finally {
       setTechGapLoading(false);

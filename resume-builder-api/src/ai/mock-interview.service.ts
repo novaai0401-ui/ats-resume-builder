@@ -5,6 +5,7 @@ import { rateLimitOrThrow } from '../limits/rate-limit';
 import type { AiProvider } from './providers/ai-provider.interface';
 import { buildByokProvider } from './providers/byok-factory';
 import { serverGroqProvider, isPlanActive, NON_RESUME_AI_UPSELL } from './server-provider';
+import { enforceFreeTrialOrThrow, recordFreeTrialUse, type AiFeatureKey } from './free-trial';
 
 /**
  * Mock Interview — a chat where the AI plays the INTERVIEWER for a target
@@ -68,10 +69,21 @@ export class MockInterviewService {
 
     const byokProvider = buildByokProvider(byok?.provider, byok?.key);
     let provider: AiProvider | null = byokProvider;
+    // R-098 — one free real AI mock-interview turn for a free, key-less user.
+    let trialFeature: AiFeatureKey | null = null;
     if (!provider) {
       const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { plan: true } });
       if (!user) throw new ForbiddenException('User not found');
-      if (isPlanActive(user.plan)) provider = serverGroqProvider(this.config);
+      if (isPlanActive(user.plan)) {
+        provider = serverGroqProvider(this.config);
+      } else {
+        const ourProvider = serverGroqProvider(this.config);
+        if (ourProvider) {
+          await enforceFreeTrialOrThrow(this.prisma, userId, 'mock-interview');
+          provider = ourProvider;
+          trialFeature = 'mock-interview';
+        }
+      }
     }
     if (!provider) {
       return {
@@ -100,6 +112,7 @@ export class MockInterviewService {
       if (!reply) {
         return { reply: 'Let me rephrase — could you walk me through that again?', provider: 'groq' };
       }
+      if (trialFeature) await recordFreeTrialUse(this.prisma, userId, trialFeature);
       return { reply, provider: 'groq' };
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);

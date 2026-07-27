@@ -6,6 +6,7 @@ import { SettingsService } from '../settings/settings.service';
 import { buildByokProvider } from './providers/byok-factory';
 import { serverGroqProvider, isPlanActive } from './server-provider';
 import { computeRuleBasedMatch, clampPercent } from './jd-match.service';
+import { enforceFreeTrialOrThrow, recordFreeTrialUse, type AiFeatureKey } from './free-trial';
 
 /** Optional bring-your-own-key headers forwarded from the request. */
 export type ByokOptions = { provider?: string | null; key?: string | null };
@@ -85,9 +86,22 @@ export class RecruiterSimService {
     // spent for a free, key-less, plan-less user.
     const byokProvider = buildByokProvider(byok?.provider, byok?.key);
     let provider = byokProvider;
+    // R-098 — one free real AI screen for a free, key-less user; the second
+    // attempt throws the structured trial error instead of silently
+    // downgrading to the rule-based verdict.
+    let trialFeature: AiFeatureKey | null = null;
     if (!provider) {
       const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { plan: true } });
-      if (isPlanActive(user?.plan)) provider = serverGroqProvider(this.config);
+      if (isPlanActive(user?.plan)) {
+        provider = serverGroqProvider(this.config);
+      } else {
+        const ourProvider = serverGroqProvider(this.config);
+        if (ourProvider) {
+          await enforceFreeTrialOrThrow(this.prisma, userId, 'recruiter-sim');
+          provider = ourProvider;
+          trialFeature = 'recruiter-sim';
+        }
+      }
     }
     if (!provider) return baseline;
 
@@ -124,6 +138,7 @@ export class RecruiterSimService {
       });
       const parsed = parseRecruiterSimResponse(raw);
       if (!parsed) return baseline;
+      if (trialFeature) await recordFreeTrialUse(this.prisma, userId, trialFeature);
       return {
         verdict: parsed.verdict ?? baseline.verdict,
         score: clampPercent(parsed.score ?? baseline.score),

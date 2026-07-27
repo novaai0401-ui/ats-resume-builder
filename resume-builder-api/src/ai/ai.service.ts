@@ -147,7 +147,7 @@ export class AiService {
     // Only the FREE-on-our-key path is metered. BYOK (user's own key) and plan
     // users are never day-capped here. Enforce BEFORE spending a call.
     if (freeDaily) {
-      await enforceResumeAiFreeDaily(this.prisma, this.config, userId);
+      await enforceResumeAiFreeDaily(this.prisma, this.config, userId, 'ats-critique');
     }
 
     if (!provider) {
@@ -192,7 +192,7 @@ export class AiService {
       // Count one free action against today's cap only on the free path.
       // BYOK / plan users are not metered here.
       if (freeDaily) {
-        await recordResumeAiFreeUsage(this.prisma, userId);
+        await recordResumeAiFreeUsage(this.prisma, userId, 'ats-critique');
       }
 
       return {

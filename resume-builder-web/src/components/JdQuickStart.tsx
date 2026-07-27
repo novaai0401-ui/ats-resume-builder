@@ -30,11 +30,19 @@ export default function JdQuickStart() {
   };
 
   return (
-    <section className="card" style={{ marginTop: 18 }} aria-labelledby="jd-quickstart-heading">
-      <h2 id="jd-quickstart-heading" style={{ marginBottom: 4 }}>Have a job description? Start there.</h2>
+    <section
+      className="card"
+      style={{ marginTop: 18, borderLeft: '4px solid var(--primary)' }}
+      aria-labelledby="jd-quickstart-heading"
+      data-testid="jd-quick-start"
+    >
+      <h2 id="jd-quickstart-heading" style={{ marginBottom: 4 }}>
+        Which skills is your resume missing for this job?
+      </h2>
       <p className="small" style={{ margin: '0 0 10px', color: 'var(--muted)' }}>
-        Paste the JD and we&rsquo;ll show which keywords your resume covers, which it misses,
-        and the bullets that would close the gap.
+        Paste the job description. We compare it against your resume and show the skills you
+        already cover, the ones this job wants that you don&rsquo;t show — each with a one-tap
+        <strong> + Add</strong> button — and the bullets that would close the gap.
       </p>
       <textarea
         className="input"
@@ -46,8 +54,11 @@ export default function JdQuickStart() {
         style={{ width: '100%', resize: 'vertical' }}
       />
       <button className="btn" type="button" onClick={go} disabled={!jd.trim()} style={{ marginTop: 10 }}>
-        Match my resume to this job
+        Show my missing skills
       </button>
+      <p className="small" style={{ margin: '8px 0 0', color: 'var(--muted)' }}>
+        Free for your first run — every AI feature here is free once.
+      </p>
     </section>
   );
 }
