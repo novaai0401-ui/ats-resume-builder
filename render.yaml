@@ -348,7 +348,10 @@ services:
     region: singapore
     numInstances: 1
     healthCheckPath: /health
-    buildCommand: npm install && npm run build
+    # --include=dev is REQUIRED: Render sets NODE_ENV=production (below),
+    # which makes npm skip devDependencies — and typescript + @types/node
+    # live there, so the tsc build fails with "Cannot find name 'process'".
+    buildCommand: npm ci --include=dev && npm run build
     startCommand: node dist/index.js
     envVars:
       - key: NODE_ENV
