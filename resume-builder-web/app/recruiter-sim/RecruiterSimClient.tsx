@@ -13,6 +13,7 @@ import { api, getAccessToken, type RecruiterSimResult } from '@/src/lib/api';
 import { useResumeStore } from '@/src/lib/resume-store';
 import { buildAddKeywordLink } from '@/src/lib/bullet-deeplink';
 import { readActiveResumeSelection } from '@/src/lib/resume-flow';
+import { handleFreeTrialError } from '@/src/lib/free-trial';
 
 function buildResumeText(resume: { summary?: string; skills?: string[]; experience?: Array<{ company?: string; role?: string; highlights?: string[] }> } | null): string {
   if (!resume) return '';
@@ -73,6 +74,8 @@ export default function RecruiterSimClient() {
       });
       setResult(data);
     } catch (err: unknown) {
+      // R-098 — a spent free run opens the app-wide popup, not an inline error.
+      if (handleFreeTrialError(err)) return;
       const message = err instanceof Error ? err.message : 'Simulation failed';
       setError(message);
     } finally {

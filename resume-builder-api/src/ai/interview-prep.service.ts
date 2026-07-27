@@ -8,6 +8,7 @@ import type { AiProvider } from './providers/ai-provider.interface';
 import { GroqProvider } from './providers/groq.provider';
 import { buildByokProvider } from './providers/byok-factory';
 import { isPlanActive } from './server-provider';
+import { enforceFreeTrialOrThrow, recordFreeTrialUse, type AiFeatureKey } from './free-trial';
 
 /**
  * Interview Prep Cards — Pro only.
@@ -80,13 +81,22 @@ export class InterviewPrepService {
     if (!user) throw new ForbiddenException('User not found');
     const byokProvider = buildByokProvider(byok?.provider, byok?.key);
     const planActive = isPlanActive(user.plan);
+    // R-098 — a free, key-less, plan-less user gets ONE real AI interview-prep
+    // run on our key; the second attempt throws the structured trial error.
+    let trialFeature: AiFeatureKey | null = null;
     if (!byokProvider && !planActive) {
-      return {
-        questions: ruleBasedInterviewQuestions(targetRole, resumeText),
-        provider: 'rule-based',
-      };
+      if (!this.resolveProvider()) {
+        return {
+          questions: ruleBasedInterviewQuestions(targetRole, resumeText),
+          provider: 'rule-based',
+        };
+      }
+      await enforceFreeTrialOrThrow(this.prisma, userId, 'interview-prep');
+      trialFeature = 'interview-prep';
     }
-    if (!byokProvider) {
+    // The plan path spends the subscriber token budget; the one free trial
+    // run does not (it is metered by the trial ledger instead).
+    if (!byokProvider && planActive) {
       await this.chargePlanTokens(userId, APPROX_TOKENS);
     }
 
@@ -132,6 +142,7 @@ export class InterviewPrepService {
           provider: 'rule-based',
         };
       }
+      if (trialFeature) await recordFreeTrialUse(this.prisma, userId, trialFeature);
       return { questions: parsed.slice(0, 8), provider: 'groq' };
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);

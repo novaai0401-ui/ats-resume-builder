@@ -22,6 +22,7 @@ import { useResumeStore } from '@/src/lib/resume-store';
 import { readActiveResumeSelection } from '@/src/lib/resume-flow';
 import TailorDiffPanel from './TailorDiffPanel';
 import AiTrustNote from '@/src/components/AiTrustNote';
+import { handleFreeTrialError } from '@/src/lib/free-trial';
 
 type MatchResult = {
   matchPercent: number;
@@ -50,6 +51,7 @@ function scoreColor(percent: number): string {
 
 export default function JdMatchClient() {
   const resume = useResumeStore((state) => state.resume);
+  const setResume = useResumeStore((state) => state.setResume);
   const [authed, setAuthed] = useState(false);
   // R-034: the tailor flow needs the persisted resumeId (the same one
   // the editor uses) so it can write back a tailored ResumeVersion.
@@ -61,6 +63,10 @@ export default function JdMatchClient() {
   const [paywall, setPaywall] = useState(false);
   const [result, setResult] = useState<MatchResult | null>(null);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
+  // R-098/R-099 — skills the user has pulled from the gap list into their
+  // resume during this session, so the chip can confirm the write.
+  const [addedSkills, setAddedSkills] = useState<string[]>([]);
+  const [skillSaveError, setSkillSaveError] = useState('');
 
   useEffect(() => {
     setAuthed(Boolean(getAccessToken()));
@@ -102,13 +108,50 @@ export default function JdMatchClient() {
       setResult(data);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Match failed';
-      if (/FREE_PLAN_AI_BLOCKED/i.test(message)) {
+      // R-098 — a spent free run opens the popup instead of an inline error.
+      if (handleFreeTrialError(err)) {
+        // The app-wide popup explains it — no inline error needed.
+      } else if (/FREE_PLAN_AI_BLOCKED/i.test(message)) {
         setPaywall(true);
       } else {
         setError(message);
       }
     } finally {
       setLoading(false);
+    }
+  }
+
+  /**
+   * R-099 — close the loop the JD-match report opens: a missing skill goes
+   * into the resume in one tap instead of "now go type this yourself".
+   *
+   * The write is local-first (store update, so the editor and preview see it
+   * immediately) and then persisted to the saved resume when one is active.
+   * Truthfulness stays the user's call — the button is per-skill and the
+   * copy says to add only what's actually true.
+   */
+  async function addSkill(skill: string) {
+    const clean = skill.trim();
+    if (!clean) return;
+    setSkillSaveError('');
+    const existing = resume?.skills ?? [];
+    const already = existing.some((s) => s.trim().toLowerCase() === clean.toLowerCase());
+    const nextSkills = already ? existing : [...existing, clean];
+    if (!already) {
+      setResume((prev) => ({ ...prev, skills: nextSkills }));
+    }
+    setAddedSkills((prev) => (prev.includes(clean) ? prev : [...prev, clean]));
+    if (!activeResumeId || already) return;
+    try {
+      await api.updateResume(activeResumeId, { skills: nextSkills });
+    } catch (err: unknown) {
+      // The store already has it, so the editor still shows the skill — say
+      // plainly that only the saved copy is behind (C-003).
+      setSkillSaveError(
+        err instanceof Error
+          ? `Added here, but saving to your stored resume failed: ${err.message}`
+          : 'Added here, but saving to your stored resume failed.',
+      );
     }
   }
 
@@ -211,14 +254,15 @@ export default function JdMatchClient() {
   return (
     <main className="grid">
       <section className="card col-12">
-        <h1 style={{ marginBottom: 4 }}>JD Match Score</h1>
+        <h1 style={{ marginBottom: 4 }}>Skill gap: your resume vs. this job</h1>
         <p className="small" style={{ margin: '0 0 6px', color: 'var(--ink)', fontWeight: 600 }}>
-          Does your resume match <em>this specific job</em>?
+          Paste the description for <em>this specific job</em> → see exactly which skills you&rsquo;re
+          missing → add them in one tap.
         </p>
         <p className="small" style={{ margin: 0, color: 'var(--muted)' }}>
-          Paste a job description below. We&rsquo;ll compare it against your saved resume and show
-          you the keywords you cover, the ones you don&rsquo;t, and three bullets you could add
-          to close the gap.{' '}
+          We compare the JD against your saved resume and show the keywords you cover, the ones
+          you don&rsquo;t (each with an <strong>+ Add</strong> button that writes it into your
+          resume), and three bullets you could add to close the gap.{' '}
           <span style={{ color: 'var(--muted)' }}>
             Different from <a href="/resume/ats" style={{ color: 'var(--primary)' }}>ATS Score</a>, which checks whether your resume <em>format</em> parses cleanly — no JD needed for that.
           </span>
@@ -308,13 +352,41 @@ export default function JdMatchClient() {
           ) : null}
 
           {result.missingKeywords.length > 0 ? (
-            <section className="card col-12">
-              <h3 style={{ marginTop: 0 }}>Missing — work these in</h3>
+            <section className="card col-12" data-testid="jd-missing-skills">
+              <h3 style={{ marginTop: 0 }}>
+                Missing skills — {result.missingKeywords.length} this job asks for that your resume doesn&rsquo;t show
+              </h3>
+              <p className="small" style={{ color: 'var(--muted)', marginTop: 0 }}>
+                Tap <strong>+ Add</strong> to put a skill straight into your resume&rsquo;s skills
+                section — add only the ones you can actually back up in an interview.
+              </p>
               <div className="keyword-chips">
-                {result.missingKeywords.map((kw) => (
-                  <span key={kw} className="ats-chip ats-chip--missing">{kw}</span>
-                ))}
+                {result.missingKeywords.map((kw) => {
+                  const added = addedSkills.includes(kw.trim());
+                  return (
+                    <button
+                      key={kw}
+                      type="button"
+                      className={`ats-chip ${added ? 'ats-chip--match' : 'ats-chip--missing'}`}
+                      onClick={() => addSkill(kw)}
+                      disabled={added}
+                      aria-label={added ? `${kw} added to your resume skills` : `Add ${kw} to your resume skills`}
+                      style={{ cursor: added ? 'default' : 'pointer', border: 'none', font: 'inherit' }}
+                    >
+                      {added ? `✓ ${kw} added` : `+ Add ${kw}`}
+                    </button>
+                  );
+                })}
               </div>
+              {addedSkills.length > 0 ? (
+                <p className="small" style={{ marginBottom: 0 }}>
+                  {addedSkills.length} skill{addedSkills.length === 1 ? '' : 's'} added
+                  {activeResumeId ? ' and saved to your resume' : ''}.{' '}
+                  <Link href="/resume" style={{ color: 'var(--primary)' }}>Open the editor</Link> to
+                  back each one up with a bullet.
+                </p>
+              ) : null}
+              {skillSaveError ? <p className="hint error" style={{ marginBottom: 0 }}>{skillSaveError}</p> : null}
             </section>
           ) : null}
 

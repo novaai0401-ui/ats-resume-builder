@@ -5,6 +5,7 @@ import { rateLimitOrThrow } from '../limits/rate-limit';
 import { SettingsService } from '../settings/settings.service';
 import type { AiProvider } from './providers/ai-provider.interface';
 import { GroqProvider } from './providers/groq.provider';
+import { enforceFreeTrialOrThrow, recordFreeTrialUse, type AiFeatureKey } from './free-trial';
 import { buildByokProvider } from './providers/byok-factory';
 import { serverGroqProvider, isPlanActive } from './server-provider';
 import { XaiProvider } from './providers/xai.provider';
@@ -85,7 +86,19 @@ export class CoverLetterService {
     // Non-resume AI model: BYOK drives the LLM for free; the ₹499/mo plan
     // unlocks OUR AI. With neither, the rule-based letter is the deliverable.
     const byokProvider = buildByokProvider(byok?.provider, byok?.key);
-    const provider = byokProvider || (isPlanActive(user.plan) ? serverGroqProvider(this.config) : null);
+    let provider = byokProvider || (isPlanActive(user.plan) ? serverGroqProvider(this.config) : null);
+    // R-098 — a free, key-less, plan-less user gets ONE real AI cover letter
+    // on our key. The second attempt throws the structured trial error the
+    // client turns into the "used once" popup.
+    let trialFeature: AiFeatureKey | null = null;
+    if (!provider) {
+      const ourProvider = serverGroqProvider(this.config);
+      if (ourProvider) {
+        await enforceFreeTrialOrThrow(this.prisma, userId, 'cover-letter');
+        provider = ourProvider;
+        trialFeature = 'cover-letter';
+      }
+    }
     let providerName = 'fallback';
     let body: string;
     let wordCount: number;
@@ -103,6 +116,8 @@ export class CoverLetterService {
         body = parsed.body;
         wordCount = parsed.wordCount || countWords(parsed.body);
         providerName = provider.name;
+        // Burn the free run only when the AI actually produced a letter.
+        if (trialFeature) await recordFreeTrialUse(this.prisma, userId, trialFeature);
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         this.logger.warn(`Cover letter provider failed (${provider.name}): ${msg}`);

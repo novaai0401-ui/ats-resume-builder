@@ -115,7 +115,7 @@ export class TechGapService {
     }
 
     if (freeDaily) {
-      await enforceResumeAiFreeDaily(this.prisma, this.config, userId);
+      await enforceResumeAiFreeDaily(this.prisma, this.config, userId, 'tech-gap');
     }
 
     const userPrompt = this.buildPrompt(input);
@@ -128,7 +128,7 @@ export class TechGapService {
       });
       const result = this.parseResponse(raw);
       if (freeDaily) {
-        await recordResumeAiFreeUsage(this.prisma, userId);
+        await recordResumeAiFreeUsage(this.prisma, userId, 'tech-gap');
       }
       return result;
     } catch (err: unknown) {

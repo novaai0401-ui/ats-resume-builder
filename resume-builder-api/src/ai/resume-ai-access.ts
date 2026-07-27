@@ -1,6 +1,7 @@
 import { ForbiddenException } from '@nestjs/common';
 import type { ConfigService } from '@nestjs/config';
 import type { PrismaService } from '../prisma/prisma.service';
+import { enforceFreeTrialOrThrow, recordFreeTrialUse, type AiFeatureKey } from './free-trial';
 import type { AiProvider } from './providers/ai-provider.interface';
 import { buildByokProvider } from './providers/byok-factory';
 import { isPlanActive } from './server-provider';
@@ -91,7 +92,13 @@ export async function enforceResumeAiFreeDaily(
   prisma: PrismaService,
   config: ConfigService,
   userId: string,
+  feature: AiFeatureKey,
 ): Promise<void> {
+  // R-098 — the per-feature lifetime trial is checked FIRST: it is the
+  // stricter of the two caps for a free user, and it is the one with a
+  // structured payload the client turns into the "used once" popup.
+  await enforceFreeTrialOrThrow(prisma, userId, feature);
+
   const max = resumeAiFreeDailyLimit(config);
   const count = await prisma.aiCritiqueLog.count({
     where: { userId, createdAt: { gte: startOfToday() } },
@@ -108,7 +115,14 @@ export async function enforceResumeAiFreeDaily(
  * Record one free our-AI action against today's quota. Best-effort: never
  * fail the AI response over the usage log. Only call on the free path.
  */
-export async function recordResumeAiFreeUsage(prisma: PrismaService, userId: string): Promise<void> {
+export async function recordResumeAiFreeUsage(
+  prisma: PrismaService,
+  userId: string,
+  feature: AiFeatureKey,
+): Promise<void> {
+  // R-098 — burn this feature's single lifetime free run as well as the
+  // day bucket. Both are best-effort; neither may fail the response.
+  await recordFreeTrialUse(prisma, userId, feature);
   try {
     await prisma.aiCritiqueLog.create({ data: { userId } });
   } catch {
