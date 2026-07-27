@@ -102,7 +102,7 @@ export default function CoverLetterClient() {
     } catch (err: unknown) {
       // R-098 — a spent free run opens the app-wide popup, not an inline error.
       if (handleFreeTrialError(err)) {
-        setState('ready');
+        setState('idle');
         return;
       }
       setError(err instanceof Error ? err.message : 'Failed to generate cover letter');
