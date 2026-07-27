@@ -110,7 +110,7 @@ export class JdMatchService {
       };
     }
     if (freeDaily) {
-      await enforceResumeAiFreeDaily(this.prisma, this.config, userId);
+      await enforceResumeAiFreeDaily(this.prisma, this.config, userId, 'jd-match');
     }
 
     const system = [
@@ -143,7 +143,7 @@ export class JdMatchService {
         return { ...baseline, bulletSuggestions: ruleBasedBulletSuggestions(baseline.missingKeywords), provider: 'rule-based' };
       }
       if (freeDaily) {
-        await recordResumeAiFreeUsage(this.prisma, userId);
+        await recordResumeAiFreeUsage(this.prisma, userId, 'jd-match');
       }
       return {
         matchPercent: clampPercent(parsed.matchPercent ?? baseline.matchPercent),

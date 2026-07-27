@@ -41,6 +41,16 @@ type Faq = { q: string; a: string };
 
 const FEATURES: { emoji: string; title: string; body: string; tag: string }[] = [
   {
+    emoji: '🧠',
+    tag: 'Skill gap',
+    title: 'Paste a job description — see the skills you’re missing',
+    body:
+      'Drop in any JD and CallbackCV compares it against your resume: the skills ' +
+      'you already cover, the ones the job asks for that you don’t show, and a ' +
+      'one-tap button to add each missing skill straight into your resume. ' +
+      'No guessing which keyword the screener wanted.',
+  },
+  {
     emoji: '🎯',
     tag: 'The moat',
     title: 'Measures real callbacks, not a guess',
@@ -83,8 +93,8 @@ const FEATURES: { emoji: string; title: string; body: string; tag: string }[] = 
 const FREE_TIER = [
   'Unlimited resume creation and editing',
   '10+ ATS-safe templates across industries',
-  'AI-powered ATS score, missing keywords, action-verb suggestions',
-  'Cover letter generator',
+  'Every AI feature free once — JD skill gap, resume critique, tailoring, cover letter and more (one free run each)',
+  'Rule-based ATS score, missing keywords and action-verb suggestions — unlimited, no AI needed',
   'Job application tracker (kanban-style)',
   'Resume preview and print (free, watermarked)',
 ];
@@ -153,6 +163,14 @@ export default function HomeLanding({ faq }: { faq: Faq[] }) {
         </TkxRow>
       </section>
 
+      {/* -------------------------------------------------------- Paste-a-JD start
+          Sits directly under the hero on purpose: "I have a JD, what am I
+          missing?" is the task most visitors arrive with, and burying the
+          entry point below the feature grid was why nobody found it. */}
+      <section style={{ marginTop: 32 }}>
+        <JdQuickStart />
+      </section>
+
       {/* ------------------------------------------------------------ Features */}
       <section aria-label="Why CallbackCV" style={{ marginTop: 32 }}>
         <TkxTitle level={2}>Built for the people most resume tools ignore</TkxTitle>
@@ -211,11 +229,6 @@ export default function HomeLanding({ faq }: { faq: Faq[] }) {
             </TkxParagraph>
           </TkxCardBody>
         </TkxCard>
-      </section>
-
-      {/* -------------------------------------------------------- Paste-a-JD start */}
-      <section style={{ marginTop: 32 }}>
-        <JdQuickStart />
       </section>
 
       {/* --------------------------------------------------------------- Final CTA */}

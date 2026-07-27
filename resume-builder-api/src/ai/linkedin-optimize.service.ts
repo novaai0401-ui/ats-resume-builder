@@ -136,7 +136,7 @@ export class LinkedInOptimizeService {
     }
 
     if (freeDaily) {
-      await enforceResumeAiFreeDaily(this.prisma, this.config, userId);
+      await enforceResumeAiFreeDaily(this.prisma, this.config, userId, 'linkedin-optimize');
     }
 
     const userPrompt = [
@@ -159,7 +159,7 @@ export class LinkedInOptimizeService {
         return baseline;
       }
       if (freeDaily) {
-        await recordResumeAiFreeUsage(this.prisma, userId);
+        await recordResumeAiFreeUsage(this.prisma, userId, 'linkedin-optimize');
       }
       return {
         ...baseline,

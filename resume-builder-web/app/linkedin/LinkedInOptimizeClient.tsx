@@ -18,6 +18,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api, getAccessToken } from '@/src/lib/api';
 import AiTrustNote from '@/src/components/AiTrustNote';
+import { handleFreeTrialError } from '@/src/lib/free-trial';
 
 type Finding = { severity: 'good' | 'warn' | 'critical'; message: string; fix: string };
 type Section = {
@@ -99,7 +100,10 @@ export default function LinkedInOptimizeClient() {
       setResult(data);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Analysis failed';
-      if (/rate limit/i.test(message) || /429/.test(message)) {
+      // R-098 — a spent free run opens the app-wide popup, not an inline error.
+      if (handleFreeTrialError(err)) {
+        // handled by the popup
+      } else if (/rate limit/i.test(message) || /429/.test(message)) {
         setRateLimited(true);
       } else {
         setError(message);

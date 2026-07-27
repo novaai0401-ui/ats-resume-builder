@@ -1693,7 +1693,77 @@ and every external call still feeds the Outcome Graph.
 
 ---
 
-### R-098 · OAuth for ChatGPT/Claude connectors (stateless, in the MCP server)
+### R-098 · Free trial: every AI feature free exactly once, tracked per user
+
+- Status: **DONE** (this commit)
+- Depends-on: R-086 (resume-page AI access), R-071 (₹499 plan), R-084 (BYOK)
+- Why: the free tier leaked our AI unevenly — 10 actions/day across the
+  resume-page features, nothing at all on the rest — so a free user could
+  neither *feel* the paid features nor understand what upgrading buys.
+  Founder call: give every AI feature away ONCE, track it, and make the
+  second attempt an explicit, honest ask.
+- Acceptance
+  - [x] `AiFeatureTrial` (unique on `userId + feature`) is the lifetime
+    ledger; migration `20260727120000_add_ai_feature_trial`. The R-086
+    `AiCritiqueLog` day bucket stays for its own purpose — this cap is
+    lifetime and per-feature, so it needs a different key.
+  - [x] `src/ai/free-trial.ts` owns the catalogue (12 features, JD skill gap
+    first), the availability check, the refusal payload, and the recorder.
+    A recorder write failure never fails the AI response.
+  - [x] A FREE user's FIRST run of any feature uses OUR key and produces the
+    real AI output — including the features that previously returned only a
+    rule-based baseline (cover letter, interview prep, mock interview,
+    mentor chat, recruiter sim, skill demand). It is recorded only when the
+    AI actually produced output.
+  - [x] The SECOND attempt at the same feature throws a typed 403 whose body
+    carries `code`, the feature, and the whole ledger:
+    `FREE_TRIAL_FEATURE_USED` while other features remain,
+    `FREE_TRIAL_EXHAUSTED` once all 12 are spent (C-004 — no silent
+    bypass, no string-matching on the client).
+  - [x] BYOK and ₹499-plan users are never counted and never blocked; the
+    one free trial run does NOT spend the subscriber token budget.
+  - [x] `GET /ai/free-trial` returns the ledger, with `trialApplies: false`
+    for exempt users so no UI can claim a trial they don't have (C-003).
+  - [x] Web: `handleFreeTrialError(err)` in every AI page's catch block
+    raises one app-wide popup (`FreeTrialLimitModalHost`, mounted in the
+    root layout) that leads with what is STILL free, lists what is used,
+    and offers both exits — the ₹499 plan and the free own-key route. The
+    exhausted state leads with the upgrade.
+  - [x] Home-page free-tier copy states the real rule ("every AI feature
+    free once"), replacing the copy that implied unlimited AI (C-003).
+  - [x] Pinned by `tests/free-trial.unit.test.cjs` (11) and web
+    `tests/free-trial.test.ts` (7), including a test that every AI page
+    routes refusals through the shared handler.
+
+---
+
+### R-099 · Surface the JD skill-gap flow (and let users act on it)
+
+- Status: **DONE** (this commit)
+- Depends-on: R-090 (JD quick start), R-034 (tailor), R-098 (free trial)
+- Why: competitors (jobsuit.ai and similar) lead with exactly one promise —
+  "paste the JD, see the skills you're missing" — which we already build,
+  three clicks deep, described as "JD Match Score". We were hiding our own
+  headline feature behind an internal name and stopping one step short of
+  the outcome (the user still had to retype the missing skills).
+- Acceptance
+  - [x] `/jd-match` is titled by the job to be done — "Skill gap: your resume
+    vs. this job" — and keeps the ATS-Score cross-link that stops the two
+    pages being confused (pinned by `page-purpose-subtitles.test.ts`).
+  - [x] Each missing skill is a `+ Add` button: writes into the resume store
+    immediately (editor/preview see it) and PATCHes the saved resume when
+    one is active; case-insensitive dedupe; a failed save says exactly what
+    did not persist rather than showing a false success (C-003). Copy tells
+    the user to add only what's true — we never auto-apply.
+  - [x] The home-page paste-a-JD box moves directly under the hero (above
+    the feature grid), names the outcome ("Which skills is your resume
+    missing for this job?"), and states the free-run rule. A skill-gap
+    feature card leads the home feature grid.
+  - [x] Pinned by `tests/jd-skill-gap.test.ts` (6).
+
+---
+
+### R-100 · OAuth for ChatGPT/Claude connectors (stateless, in the MCP server)
 
 - Status: **DONE** (this commit)
 - Depends-on: R-097 (multi-tenant HTTP transport)
@@ -1724,10 +1794,10 @@ and every external call still feeds the Outcome Graph.
 
 ---
 
-### R-099 · ChatGPT app-directory readiness + hosted MCP service
+### R-101 · ChatGPT app-directory readiness + hosted MCP service
 
 - Status: **DONE** (this commit; hosting deploy + submission are founder steps)
-- Depends-on: R-098 (OAuth)
+- Depends-on: R-100 (OAuth)
 - Source: OpenAI's app-directory review checklist (privacy retention,
   tool annotations, working auth flow, production MCP reachability).
 - Acceptance
@@ -1817,6 +1887,10 @@ do not break it.
 
 | Date | Decision | Reason | Affected IDs |
 |---|---|---|---|
+| 2026-07-27 | ID collision resolved on merge: the MCP connector work on `claude/festive-newton-hpmyag` was written as R-098/R-099 while the AI free-trial + JD skill-gap work landed on `main` under those same IDs first. `main` keeps R-098/R-099 (already merged and released); the connector entries were renumbered to **R-100** (stateless OAuth) and **R-101** (ChatGPT app-directory readiness + hosted MCP service), and the R-098/R-099 references in `oauth.ts`, `index.ts`, `SUBMISSION.md` and `render.yaml` were updated to match. No acceptance criteria changed. | Two branches allocated the next free ID in parallel; renumbering the unmerged side keeps every shipped ID stable (§8 — don't rewrite history). | R-098, R-099, R-100, R-101 |
+| 2026-07-27 | Free-tier model replaced (R-098): every AI feature is now free exactly ONCE per user, tracked in `AiFeatureTrial`, instead of the R-086 "10 resume-page AI actions/day, nothing elsewhere" split. The first run of ANY feature — including the six that previously returned only a rule-based baseline for free users (cover letter, interview prep, mock interview, mentor chat, recruiter sim, skill demand) — spends OUR key and returns real AI output; the second attempt is refused with a typed 403 carrying the whole ledger, which the client renders as one app-wide popup listing what is still free, then the upgrade ask once all 12 are spent. BYOK/plan users are exempt and the free run does not touch the subscriber token budget. | Founder: free users could neither feel the paid features nor see what upgrading buys; a per-feature taste is the cheapest honest demo and makes the upgrade ask concrete. | R-098, R-086, R-071, C-003, C-004 |
+| 2026-07-27 | Accepted with R-098: once a feature's free run is spent, the free user gets the typed refusal INSTEAD of the silent rule-based downgrade some endpoints used to return (jd-match, recruiter-sim, skill-demand, interview-prep, cover letter). Silently answering with a weaker engine after telling the user AI costs money is the confusing half-state trust-over-polish exists to prevent; the rule-based path remains the response only when no server AI key is configured at all. | Founder ask: "if user tries to use any feature twice, show the popup" — a downgraded answer is not a popup. | R-098, C-003, C-004 |
+| 2026-07-27 | JD skill-gap promoted to the headline flow (R-099): `/jd-match` retitled "Skill gap: your resume vs. this job", missing keywords became one-tap `+ Add` buttons that write into the resume (store first, then the saved copy), and the home-page paste-a-JD box moved above the feature grid with outcome-first copy. | Competitor research (jobsuit.ai): the whole product is one promise we already deliver but had buried under an internal name — and we stopped one step short by making users retype the missing skills. | R-099, R-090, R-034 |
 | 2026-07-16 | Rebrand to CallbackCV (by Tekivex): all user-facing copy renamed from "Pocket Resume" to "CallbackCV" (house brand Tekivex, tagline "CallbackCV by Tekivex") — web copy/metadata/SEO landers/PWA manifest, plan name "CallbackCV Plus", support/track emails moved to @tekivex.com, PDF/CSS watermark "CALLBACKCV", MCP package renamed `@tekivex/callbackcv-mcp` (bin `callbackcv-mcp`), extension renamed "CallbackCV — Job Hunt Companion". Internal doc bodies (strategy/requirements text) intentionally left as-is. | Name-collision research: "Pocket Resume" apps have existed since 2010 plus current Play Store listings; a distinct, ownable brand was needed before launch. | R-088 |
 | 2026-07-20 | The journey batch (R-090): guest drafting end-to-end (localStorage draft, signup-gated actions, post-auth import), home-page Paste-a-JD quick start wired into /jd-match, worked-example empty states for jd-match/interview-prep, validated ?next= auth redirects, anonymous-page 401s eliminated (token-guarded heartbeat), AI-card cost lines. Hub merge deliberately skipped (see R-090). | Critique Week 2-3 plan; founder approved starting the sequence. | R-090, R-089, R-036 |
 | 2026-07-20 | Networking/referral mini-CRM (R-092): NetworkContact model + migration + module + /contacts page. Track recruiters/referrers/alumni per company, link a contact to a tracked application, and get a "follow up this week" queue — referrals are the strongest hiring signal in India. Per-user scoped; jobApplicationId ownership verified so referral links can't cross users. Relationship enum + input shape single-sourced in resume-builder-shared. | Founder: continue Month-2 (LinkedIn optimizer done; contacts CRM next). | R-092, R-031 |

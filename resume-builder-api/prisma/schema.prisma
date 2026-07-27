@@ -192,6 +192,19 @@ model AiCritiqueLog {
   @@index([userId, createdAt])
 }
 
+/// R-098 — lifetime "one free run per AI feature" ledger for FREE users.
+/// One row per (user, feature) the first time that feature runs on OUR key.
+/// BYOK and plan users never get a row (they're exempt from the trial).
+model AiFeatureTrial {
+  id        String   @id @default(uuid())
+  userId    String
+  feature   String
+  usedAt    DateTime @default(now())
+
+  @@unique([userId, feature])
+  @@index([userId])
+}
+
 model PaymentHistory {
   id                String   @id @default(uuid())
   userId            String

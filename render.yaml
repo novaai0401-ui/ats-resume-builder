@@ -332,7 +332,7 @@ services:
 
 
   # ─────────────────────────────────────────────────────────────────────
-  # MCP — hosted CallbackCV connector for ChatGPT / Claude (R-099).
+  # MCP — hosted CallbackCV connector for ChatGPT / Claude (R-101).
   # Multi-tenant: users authenticate per-request (OAuth or Bearer), so one
   # instance serves everyone. OPT-IN COST: a separate always-on service.
   # After first deploy: set MCP_PUBLIC_URL to this service's public URL

@@ -36,7 +36,7 @@ const envToken = String(process.env.POCKET_RESUME_TOKEN || '').trim();
 const baseUrl = String(process.env.POCKET_RESUME_API_URL || 'https://ats-rb-api.onrender.com').trim();
 const transportKind = String(process.env.MCP_TRANSPORT || 'stdio').toLowerCase();
 
-// OAuth for ChatGPT/Claude remote connectors (R-098) — enabled only when
+// OAuth for ChatGPT/Claude remote connectors (R-100) — enabled only when
 // both env vars are set; plain Bearer tokens keep working either way.
 const oauthSecret = String(process.env.MCP_OAUTH_SECRET || '').trim();
 const publicUrl = String(process.env.MCP_PUBLIC_URL || '').trim().replace(/\/+$/, '');

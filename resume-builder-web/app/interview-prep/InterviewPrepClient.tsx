@@ -17,6 +17,7 @@ import Link from 'next/link';
 import { api, getAccessToken } from '@/src/lib/api';
 import { useResumeStore } from '@/src/lib/resume-store';
 import { loadByokKey } from '@/src/lib/byok-storage';
+import { handleFreeTrialError } from '@/src/lib/free-trial';
 
 type Card = {
   category: 'behavioral' | 'technical' | 'role-specific';
@@ -97,7 +98,10 @@ export default function InterviewPrepClient() {
       setOpenIdx(0);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Generation failed';
-      if (/PRO_PLAN_REQUIRED/i.test(message)) {
+      // R-098 — a spent free run opens the app-wide popup, not an inline error.
+      if (handleFreeTrialError(err)) {
+        // handled by the popup
+      } else if (/PRO_PLAN_REQUIRED/i.test(message)) {
         setPaywall(true);
       } else {
         setError(message);
@@ -346,6 +350,7 @@ function MockInterviewPanel({ resumeText, targetRole, jdText }: { resumeText: st
       const res = await api.mockInterview({ messages: history, resumeText, targetRole: targetRole || undefined, jdText: jdText || undefined });
       setMessages([...history, { role: 'assistant', content: res.reply }]);
     } catch (e: unknown) {
+      if (handleFreeTrialError(e)) return;
       setErr(e instanceof Error ? e.message : 'Mock interview failed.');
     } finally {
       setBusy(false);

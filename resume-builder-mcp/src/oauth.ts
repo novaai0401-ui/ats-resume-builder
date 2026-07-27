@@ -1,5 +1,5 @@
 /**
- * Stateless OAuth 2.1 provider for the hosted MCP endpoint (R-098).
+ * Stateless OAuth 2.1 provider for the hosted MCP endpoint (R-100).
  *
  * ChatGPT / Claude remote connectors authenticate MCP servers via OAuth
  * (authorization-code + PKCE, dynamic client registration, RFC 8414/9728

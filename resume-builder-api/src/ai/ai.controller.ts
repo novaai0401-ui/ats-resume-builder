@@ -8,6 +8,9 @@ import {
   type AiSkillGapDto,
 } from 'resume-builder-shared';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { PrismaService } from '../prisma/prisma.service';
+import { getFreeTrialStatus } from './free-trial';
+import { isPlanActive } from './server-provider';
 import { AiService } from './ai.service';
 import type { AiCritiqueInput } from './ai.service';
 import { TechGapService, type TechGapInput } from './tech-gap.service';
@@ -56,7 +59,25 @@ export class AiController {
     private readonly skillDemandService: SkillDemandService,
     private readonly mockInterviewService: MockInterviewService,
     private readonly linkedInOptimizeService: LinkedInOptimizeService,
+    private readonly prisma: PrismaService,
   ) {}
+
+  /**
+   * R-098 — the free-trial ledger: which AI features this user has already
+   * spent their single free run on, and which are still unused. Powers the
+   * "you've used this one" popup and the free-tier copy, so the UI never has
+   * to guess (C-003). BYOK / plan users get `trialApplies: false`.
+   */
+  @Get('free-trial')
+  async freeTrial(@Req() req: AuthedAiReq) {
+    const byok = byokFromReq(req);
+    const user = await this.prisma.user.findUnique({
+      where: { id: req.user.userId },
+      select: { plan: true },
+    });
+    const exempt = Boolean(byok.key && byok.provider) || isPlanActive(user?.plan);
+    return getFreeTrialStatus(this.prisma, req.user.userId, { trialApplies: !exempt });
+  }
 
   /**
    * LinkedIn Profile Optimizer — paste your LinkedIn profile text, get a

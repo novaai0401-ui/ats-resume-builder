@@ -9,6 +9,7 @@ import type { JobOpening } from '../live-jobs/adzuna.util';
 import type { AiProvider } from './providers/ai-provider.interface';
 import { GroqProvider } from './providers/groq.provider';
 import { buildByokProvider } from './providers/byok-factory';
+import { enforceFreeTrialOrThrow, recordFreeTrialUse, type AiFeatureKey } from './free-trial';
 import {
   analyzeSkillsRuleBased,
   TOP_IN_DEMAND_2026,
@@ -99,14 +100,27 @@ export class SkillDemandService {
     // unlocks OUR AI. With neither, the curated snapshot is the deliverable.
     const byokProvider = buildByokProvider(byok?.provider, byok?.key);
     let provider = byokProvider;
-    if (!provider && (await this.isPaidUser(userId))) {
+    const paidUser = !byokProvider ? await this.isPaidUser(userId) : false;
+    if (!provider && paidUser) {
       provider = this.resolveProvider();
+    }
+    // R-098 — one free real AI demand analysis for a free, key-less user; the
+    // second attempt throws the structured trial error (client shows the popup).
+    let trialFeature: AiFeatureKey | null = null;
+    if (!provider && !byokProvider && !paidUser) {
+      const ourProvider = this.resolveProvider();
+      if (ourProvider) {
+        await enforceFreeTrialOrThrow(this.prisma, userId, 'skill-demand');
+        provider = ourProvider;
+        trialFeature = 'skill-demand';
+      }
     }
     if (!provider) {
       return { realtime: liveOpeningsAvailable, message: liveMsg, topInDemand: TOP_IN_DEMAND_2026, yourSkills: baseline, liveOpenings, liveOpeningsAvailable, provider: 'rule-based' };
     }
-    // Only OUR AI (the plan path) spends app tokens; BYOK is on the user.
-    if (!byokProvider) {
+    // Only the PLAN path spends the subscriber token budget; BYOK is on the
+    // user, and the single free trial run is metered by the trial ledger.
+    if (!byokProvider && paidUser) {
       await this.chargeTokens(userId, 1100);
     }
 
@@ -132,6 +146,7 @@ export class SkillDemandService {
       if (!parsed || !parsed.yourSkills?.length) {
         return { realtime: liveOpeningsAvailable, message: liveMsg, topInDemand: TOP_IN_DEMAND_2026, yourSkills: baseline, liveOpenings, liveOpeningsAvailable, provider: 'rule-based' };
       }
+      if (trialFeature) await recordFreeTrialUse(this.prisma, userId, trialFeature);
       return {
         realtime: true,
         message: liveMsg,
