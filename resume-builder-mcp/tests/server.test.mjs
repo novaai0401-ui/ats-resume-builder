@@ -36,3 +36,14 @@ test('buildServer constructs without a live API (smoke)', () => {
   assert.ok(server, 'buildServer should return an McpServer instance');
   assert.equal(typeof server.connect, 'function', 'server exposes an MCP connect()');
 });
+
+test('every tool carries review-grade annotations (Apps SDK directory requirement)', () => {
+  const src = readFileSync(path.join(__dirname, '..', 'src', 'server.ts'), 'utf-8');
+  // One annotations object per registered tool.
+  const annotationCount = (src.match(/readOnlyHint:/g) || []).length;
+  assert.equal(annotationCount, EXPECTED_TOOLS.length, 'each of the 6 tools declares annotations');
+  // The four pure readers are marked read-only…
+  assert.equal((src.match(/readOnlyHint: true/g) || []).length, 4, 'list/get/versions/outcomes are read-only');
+  // …and the two writers are additive, never destructive.
+  assert.equal((src.match(/readOnlyHint: false, destructiveHint: false/g) || []).length, 2, 'tailor + log are non-destructive writes');
+});

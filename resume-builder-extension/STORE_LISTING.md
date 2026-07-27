@@ -24,6 +24,15 @@ account, take screenshots, upload the zip, submit.
 - **Branding** — `action.default_title` is now "CallbackCV" (was "ATS
   Builder"); default API base is the production HTTPS URL.
 
+
+## ⚠️ Description rules (learned from rejection "Yellow Argon", Jul 2026)
+
+Chrome's spam policy treats ENUMERATING BRAND NAMES in the description as
+keyword stuffing. Never list the job boards (LinkedIn, Indeed, Naukri, …)
+in the store description, title, or summary — say "supported job boards"
+and point at the extension's site-access list instead. Keep our own brand
+name to a few natural mentions. The final approved copy lives below.
+
 ## Founder steps to publish
 
 1. Create a Chrome Web Store developer account:
@@ -39,7 +48,7 @@ account, take screenshots, upload the zip, submit.
    - Category: Productivity → Tools. Language: English (India available).
    - Screenshots needed: popup on a job page; the "which version?" prompt;
      the tracker showing the saved job. 1280×800 PNG, min 1.
-   - Privacy tab: declare storage + activeTab + contextMenus;
+   - Privacy tab: declare storage + contextMenus;
      single purpose = "track job applications the user explicitly saves";
      data use = auth token stored locally, job data sent only to the
      user's own CallbackCV account. No sale of data.

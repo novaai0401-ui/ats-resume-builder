@@ -1763,6 +1763,64 @@ and every external call still feeds the Outcome Graph.
 
 ---
 
+### R-100 · OAuth for ChatGPT/Claude connectors (stateless, in the MCP server)
+
+- Status: **DONE** (this commit)
+- Depends-on: R-097 (multi-tenant HTTP transport)
+- Source: founder priority — ChatGPT/Claude connector UIs authenticate via
+  OAuth only (no bearer-token field), so the hosted MCP endpoint needed an
+  OAuth layer to be publicly connectable.
+- Acceptance
+  - [x] Stateless OAuth 2.1 provider in `resume-builder-mcp/src/oauth.ts`
+    (zero new deps, node:crypto only): authorization-code + PKCE (S256
+    required), RFC 7591 dynamic client registration (client_id = HMAC-signed
+    redirect_uris), RFC 8414 + 9728 discovery, 401s carry
+    `WWW-Authenticate: resource_metadata` for automatic client discovery.
+  - [x] No database: auth codes are AES-256-GCM blobs (10-min TTL, bound to
+    client + redirect_uri + PKCE challenge); the issued access token is an
+    encrypted wrapper (`cbcv.…`) around the user's CallbackCV token — the
+    raw JWT is never handed to the connector. Rotating `MCP_OAUTH_SECRET`
+    revokes everything at once.
+  - [x] The authorize page asks the user to paste their Settings → API
+    access token and validates it live against the API — the MCP layer
+    never handles passwords (trust layer intact).
+  - [x] Opt-in via `MCP_OAUTH_SECRET` + `MCP_PUBLIC_URL`; when unset the
+    OAuth paths 404 and plain Bearer auth is unchanged. Wrapped, expired,
+    or wrong-secret tokens are refused (forces re-auth); raw bearers still
+    pass through.
+  - [x] Version 0.3.0. Pinned by `tests/oauth.test.mjs` (7 — full
+    register→authorize→code→token→unwrap flow, tamper/expiry/PKCE
+    rejections, disabled-mode 404) + suite total 12/12.
+
+---
+
+### R-101 · ChatGPT app-directory readiness + hosted MCP service
+
+- Status: **DONE** (this commit; hosting deploy + submission are founder steps)
+- Depends-on: R-100 (OAuth)
+- Source: OpenAI's app-directory review checklist (privacy retention,
+  tool annotations, working auth flow, production MCP reachability).
+- Acceptance
+  - [x] `/privacy` gains a Data retention section (account-lifetime data,
+    ~7-day tokens, legal carve-out for payment records, brief logs) —
+    pinned by `tests/api-access-and-privacy.test.ts` (now 3).
+  - [x] All 6 MCP tools carry ToolAnnotations: the four readers
+    `readOnlyHint: true`; tailor_resume + log_application declared as
+    additive, non-destructive writes. Pinned in `tests/server.test.mjs`.
+  - [x] OAuth authorize page is a real sign-in: email+password POSTed
+    directly to the first-party `/auth/login` (never stored; refresh token
+    deliberately not kept), with the Settings → API access token paste as
+    the fallback for social-login accounts. Pinned by two new oauth tests
+    (suite 15/15). Version 0.3.1.
+  - [x] `render.yaml` gains the opt-in `ats-rb-mcp` web service (HTTP
+    transport, auto-generated `MCP_OAUTH_SECRET`, `MCP_PUBLIC_URL` set
+    post-deploy) + an unauthenticated `/health` probe in the server.
+  - [x] `SUBMISSION.md` runbook: Route A (unlisted connector, no review)
+    and Route B (directory submission) with the founder checklist
+    (domain verification, reviewer test account, assets, starter prompts).
+
+---
+
 ## §6. Cross-cutting constants
 
 These are constraints that every requirement must respect. Violations
@@ -1829,6 +1887,7 @@ do not break it.
 
 | Date | Decision | Reason | Affected IDs |
 |---|---|---|---|
+| 2026-07-27 | ID collision resolved on merge: the MCP connector work on `claude/festive-newton-hpmyag` was written as R-098/R-099 while the AI free-trial + JD skill-gap work landed on `main` under those same IDs first. `main` keeps R-098/R-099 (already merged and released); the connector entries were renumbered to **R-100** (stateless OAuth) and **R-101** (ChatGPT app-directory readiness + hosted MCP service), and the R-098/R-099 references in `oauth.ts`, `index.ts`, `SUBMISSION.md` and `render.yaml` were updated to match. No acceptance criteria changed. | Two branches allocated the next free ID in parallel; renumbering the unmerged side keeps every shipped ID stable (§8 — don't rewrite history). | R-098, R-099, R-100, R-101 |
 | 2026-07-27 | Free-tier model replaced (R-098): every AI feature is now free exactly ONCE per user, tracked in `AiFeatureTrial`, instead of the R-086 "10 resume-page AI actions/day, nothing elsewhere" split. The first run of ANY feature — including the six that previously returned only a rule-based baseline for free users (cover letter, interview prep, mock interview, mentor chat, recruiter sim, skill demand) — spends OUR key and returns real AI output; the second attempt is refused with a typed 403 carrying the whole ledger, which the client renders as one app-wide popup listing what is still free, then the upgrade ask once all 12 are spent. BYOK/plan users are exempt and the free run does not touch the subscriber token budget. | Founder: free users could neither feel the paid features nor see what upgrading buys; a per-feature taste is the cheapest honest demo and makes the upgrade ask concrete. | R-098, R-086, R-071, C-003, C-004 |
 | 2026-07-27 | Accepted with R-098: once a feature's free run is spent, the free user gets the typed refusal INSTEAD of the silent rule-based downgrade some endpoints used to return (jd-match, recruiter-sim, skill-demand, interview-prep, cover letter). Silently answering with a weaker engine after telling the user AI costs money is the confusing half-state trust-over-polish exists to prevent; the rule-based path remains the response only when no server AI key is configured at all. | Founder ask: "if user tries to use any feature twice, show the popup" — a downgraded answer is not a popup. | R-098, C-003, C-004 |
 | 2026-07-27 | JD skill-gap promoted to the headline flow (R-099): `/jd-match` retitled "Skill gap: your resume vs. this job", missing keywords became one-tap `+ Add` buttons that write into the resume (store first, then the saved copy), and the home-page paste-a-JD box moved above the feature grid with outcome-first copy. | Competitor research (jobsuit.ai): the whole product is one promise we already deliver but had buried under an internal name — and we stopped one step short by making users retype the missing skills. | R-099, R-090, R-034 |

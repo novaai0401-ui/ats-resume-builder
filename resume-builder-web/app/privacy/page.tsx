@@ -80,6 +80,27 @@ export default function PrivacyPolicyPage() {
         MCP host&rsquo;s configuration on your device.
       </p>
 
+      <h2>Data retention</h2>
+      <ul>
+        <li>
+          <strong>Resume and job-search data:</strong> kept for as long as your account exists.
+          Deleting a resume removes it; deleting your account removes your account data.
+        </li>
+        <li>
+          <strong>Access tokens:</strong> expire automatically (about 7 days). Logging out
+          invalidates active tokens immediately.
+        </li>
+        <li>
+          <strong>Payment records:</strong> retained as required for accounting, tax, and legal
+          obligations, even after account deletion. Card details are held by the payment
+          provider (Razorpay/Stripe), never by us.
+        </li>
+        <li>
+          <strong>Operational logs:</strong> kept only briefly for security and debugging, then
+          discarded.
+        </li>
+      </ul>
+
       <h2>Your controls</h2>
       <ul>
         <li>Delete any resume, or your entire account, at any time.</li>
