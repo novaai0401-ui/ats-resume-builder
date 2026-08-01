@@ -263,7 +263,10 @@ services:
 
       # ── Cron trigger secret — R-087 ─────────────────────────────────
       # Shared secret the cron services below send as `x-cron-secret`.
-      # Generate any long random string; must match the cron services.
+      # THIS is the single source of truth: set it here (any long random
+      # string) and the cron services copy it via fromService. If it is
+      # unset here, every cron run fails — confirm with
+      # GET /admin/jobs/status (`cronSecretConfigured`).
       - key: CRON_SECRET
         sync: false
 
@@ -381,7 +384,10 @@ services:
   #    dockerCommand: Render exec-parses that field without a real shell,
   #    which mangled the previous quoted curl one-liner into a single
   #    "command not found" token (exit 127, Jul 19 failed runs).
-  #    Set the SAME CRON_SECRET here and on ats-rb-api.
+  #    CRON_SECRET is COPIED from ats-rb-api via fromService, so it is
+  #    entered once (on the API) and can never drift out of sync here —
+  #    an unset/mismatched secret is what made every run fail with
+  #    "CRON_SECRET env var is not set on THIS cron service" (Aug 1).
   # ─────────────────────────────────────────────────────────────────────
   - type: cron
     name: ats-rb-cron-nudges
@@ -396,7 +402,10 @@ services:
       - key: CRON_TARGET_URL
         value: https://ats-rb-api.onrender.com/outcome-nudge/run
       - key: CRON_SECRET
-        sync: false
+        fromService:
+          type: web
+          name: ats-rb-api
+          envVarKey: CRON_SECRET
 
   # ─────────────────────────────────────────────────────────────────────
   # 4. CRON — job-alert email digests (needs Adzuna keys on the API to
@@ -416,4 +425,7 @@ services:
       - key: CRON_TARGET_URL
         value: https://ats-rb-api.onrender.com/job-alerts/run-cron
       - key: CRON_SECRET
-        sync: false
+        fromService:
+          type: web
+          name: ats-rb-api
+          envVarKey: CRON_SECRET
