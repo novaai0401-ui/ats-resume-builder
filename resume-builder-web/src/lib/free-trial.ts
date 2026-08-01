@@ -14,6 +14,8 @@ import { isApiRequestError } from './api';
 
 export const FREE_TRIAL_FEATURE_USED_CODE = 'FREE_TRIAL_FEATURE_USED';
 export const FREE_TRIAL_EXHAUSTED_CODE = 'FREE_TRIAL_EXHAUSTED';
+/** R-103 — AI is unlocked on one resume; this call named a different one. */
+export const FREE_AI_RESUME_LOCKED_CODE = 'FREE_AI_RESUME_LOCKED';
 
 export type FreeTrialFeature = {
   key: string;
@@ -35,11 +37,21 @@ export type FreeTrialStatus = {
 
 /** What the popup needs: why it opened, plus the ledger to render. */
 export type FreeTrialBlock = FreeTrialStatus & {
-  code: typeof FREE_TRIAL_FEATURE_USED_CODE | typeof FREE_TRIAL_EXHAUSTED_CODE;
+  code:
+    | typeof FREE_TRIAL_FEATURE_USED_CODE
+    | typeof FREE_TRIAL_EXHAUSTED_CODE
+    | typeof FREE_AI_RESUME_LOCKED_CODE;
   message: string;
   /** The feature the user just tried to run a second time. */
   feature: string;
   featureLabel: string;
+  /**
+   * R-103 — set when the refusal is "AI is unlocked on a different resume".
+   * The popup names that resume so the user knows exactly where their free
+   * AI lives, instead of a vague "another resume".
+   */
+  claimedResumeId?: string;
+  claimedResumeTitle?: string | null;
 };
 
 /** Browser event the app-wide modal host listens for. */
@@ -72,9 +84,12 @@ function asFeatureList(value: unknown): FreeTrialFeature[] {
  */
 export function parseFreeTrialError(error: unknown): FreeTrialBlock | null {
   if (!isApiRequestError(error)) return null;
-  if (error.code !== FREE_TRIAL_FEATURE_USED_CODE && error.code !== FREE_TRIAL_EXHAUSTED_CODE) {
-    return null;
-  }
+  const known = [
+    FREE_TRIAL_FEATURE_USED_CODE,
+    FREE_TRIAL_EXHAUSTED_CODE,
+    FREE_AI_RESUME_LOCKED_CODE,
+  ];
+  if (!error.code || !known.includes(error.code)) return null;
   const raw = (error.raw && typeof error.raw === 'object' ? error.raw : {}) as Record<string, unknown>;
   const features = asFeatureList(raw.features);
   const usedCount = typeof raw.usedCount === 'number' ? raw.usedCount : features.filter((f) => f.used).length;
@@ -91,6 +106,8 @@ export function parseFreeTrialError(error: unknown): FreeTrialBlock | null {
     remainingCount:
       typeof raw.remainingCount === 'number' ? raw.remainingCount : Math.max(0, totalCount - usedCount),
     exhausted: raw.exhausted === true || error.code === FREE_TRIAL_EXHAUSTED_CODE,
+    claimedResumeId: typeof raw.claimedResumeId === 'string' ? raw.claimedResumeId : undefined,
+    claimedResumeTitle: typeof raw.claimedResumeTitle === 'string' ? raw.claimedResumeTitle : null,
   };
 }
 

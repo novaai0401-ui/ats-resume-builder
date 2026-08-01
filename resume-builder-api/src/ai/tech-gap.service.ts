@@ -115,7 +115,8 @@ export class TechGapService {
     }
 
     if (freeDaily) {
-      await enforceResumeAiFreeDaily(this.prisma, this.config, userId, 'tech-gap');
+      // R-103 — same one-free-AI-resume rule as the rest of the editor.
+      await enforceResumeAiFreeDaily(this.prisma, this.config, userId, 'tech-gap', input.resumeId);
     }
 
     const userPrompt = this.buildPrompt(input);
@@ -128,7 +129,7 @@ export class TechGapService {
       });
       const result = this.parseResponse(raw);
       if (freeDaily) {
-        await recordResumeAiFreeUsage(this.prisma, userId, 'tech-gap');
+        await recordResumeAiFreeUsage(this.prisma, userId, 'tech-gap', input.resumeId);
       }
       return result;
     } catch (err: unknown) {

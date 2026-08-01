@@ -5,6 +5,7 @@ import path from 'node:path';
 
 import { ApiRequestError } from '@/src/lib/api';
 import {
+  FREE_AI_RESUME_LOCKED_CODE,
   FREE_TRIAL_BLOCK_EVENT,
   FREE_TRIAL_EXHAUSTED_CODE,
   FREE_TRIAL_FEATURE_USED_CODE,
@@ -154,4 +155,46 @@ test('the popup offers both paths out: the plan and the free own-key route (C-00
   assert.ok(modal.includes('href="/pricing"'), 'upgrade path');
   assert.ok(modal.includes('href="/settings"'), 'own-AI-key path stays visible');
   assert.ok(/Still free for you/.test(modal), 'leads with what the user can still run free');
+});
+
+// ── R-103: AI is unlocked on ONE resume ───────────────────────────────────
+
+test('the resume-locked refusal parses with the resume it is bound to', () => {
+  const raw = {
+    statusCode: 403,
+    code: FREE_AI_RESUME_LOCKED_CODE,
+    message: 'Your free AI is unlocked on “Senior Consultant CV”.',
+    claimedResumeId: 'resume-1',
+    claimedResumeTitle: 'Senior Consultant CV',
+    upgradeHref: '/pricing',
+    byokHref: '/settings',
+  };
+  const block = parseFreeTrialError(
+    new ApiRequestError({
+      status: 403,
+      code: FREE_AI_RESUME_LOCKED_CODE,
+      message: String(raw.message),
+      errors: [],
+      fields: [],
+      raw,
+    }),
+  );
+  assert.ok(block, 'the new code is recognised');
+  assert.equal(block.code, FREE_AI_RESUME_LOCKED_CODE);
+  assert.equal(block.claimedResumeId, 'resume-1');
+  assert.equal(block.claimedResumeTitle, 'Senior Consultant CV');
+});
+
+test('the popup names the resume and never claims a run was "used up"', () => {
+  const modal = read('src/components/FreeTrialLimitModal.tsx');
+  assert.ok(modal.includes('FREE_AI_RESUME_LOCKED_CODE'), 'the modal branches on the new code');
+  assert.ok(/Your free AI is on/.test(modal), 'it names where the free AI lives');
+  assert.ok(/unlimited/.test(modal), 'and says AI stays unlimited on that resume');
+});
+
+test('the editor and JD match bind their AI calls to a resume', () => {
+  assert.ok(
+    read('app/jd-match/JdMatchClient.tsx').includes('resumeId: activeResumeId || undefined'),
+    'JD match sends the active resume so matching stays free on it',
+  );
 });

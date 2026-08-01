@@ -192,6 +192,20 @@ model AiCritiqueLog {
   @@index([userId, createdAt])
 }
 
+/// R-103 — the ONE resume a FREE user gets full AI on.
+/// The first resume-bound AI call (rewrite, ATS critique, tech gap, tailor,
+/// JD match, cover letter) claims that resume; every AI feature is then
+/// unlimited on it, so a whole resume can be built with AI help. AI on any
+/// OTHER resume needs the plan. One row per user (userId is unique).
+model AiFreeResume {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  resumeId  String
+  claimedAt DateTime @default(now())
+
+  @@index([resumeId])
+}
+
 /// R-098 — lifetime "one free run per AI feature" ledger for FREE users.
 /// One row per (user, feature) the first time that feature runs on OUR key.
 /// BYOK and plan users never get a row (they're exempt from the trial).

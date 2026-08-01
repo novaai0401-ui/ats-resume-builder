@@ -93,7 +93,8 @@ const FEATURES: { emoji: string; title: string; body: string; tag: string }[] = 
 const FREE_TIER = [
   'Unlimited resume creation and editing',
   '10+ ATS-safe templates across industries',
-  'Every AI feature free once — JD skill gap, resume critique, tailoring, cover letter and more (one free run each)',
+  'Full AI on your first resume — unlimited bullet rewrites, ATS critique, tech gap, JD skill gap and tailoring on it',
+  'Every standalone AI tool free once each — cover letter, LinkedIn optimizer, interview prep, mentor chat and more',
   'Rule-based ATS score, missing keywords and action-verb suggestions — unlimited, no AI needed',
   'Job application tracker (kanban-style)',
   'Resume preview and print (free, watermarked)',

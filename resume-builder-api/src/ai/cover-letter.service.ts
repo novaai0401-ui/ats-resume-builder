@@ -5,7 +5,7 @@ import { rateLimitOrThrow } from '../limits/rate-limit';
 import { SettingsService } from '../settings/settings.service';
 import type { AiProvider } from './providers/ai-provider.interface';
 import { GroqProvider } from './providers/groq.provider';
-import { enforceFreeTrialOrThrow, recordFreeTrialUse, type AiFeatureKey } from './free-trial';
+import { enforceFreeAiResume, enforceFreeTrialOrThrow, recordFreeTrialUse, type AiFeatureKey } from './free-trial';
 import { buildByokProvider } from './providers/byok-factory';
 import { serverGroqProvider, isPlanActive } from './server-provider';
 import { XaiProvider } from './providers/xai.provider';
@@ -94,9 +94,17 @@ export class CoverLetterService {
     if (!provider) {
       const ourProvider = serverGroqProvider(this.config);
       if (ourProvider) {
-        await enforceFreeTrialOrThrow(this.prisma, userId, 'cover-letter');
+        // R-103 — a letter written FROM a saved resume binds to that resume:
+        // unlimited on the user's one free-AI resume, plan required on any
+        // other. A letter with no resumeId (pasted candidate details) keeps
+        // the R-098 one-free-run rule.
+        if (input.resumeId) {
+          await enforceFreeAiResume(this.prisma, userId, input.resumeId);
+        } else {
+          await enforceFreeTrialOrThrow(this.prisma, userId, 'cover-letter');
+          trialFeature = 'cover-letter';
+        }
         provider = ourProvider;
-        trialFeature = 'cover-letter';
       }
     }
     let providerName = 'fallback';

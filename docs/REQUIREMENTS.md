@@ -1695,7 +1695,10 @@ and every external call still feeds the Outcome Graph.
 
 ### R-098 · Free trial: every AI feature free exactly once, tracked per user
 
-- Status: **DONE** (this commit)
+- Status: **DONE** — but SUPERSEDED for resume-bound AI by R-103, which gives
+  a free user unlimited AI on one resume. This rule still governs the
+  standalone tools (mentor chat, mock interview, interview prep, LinkedIn
+  optimizer, recruiter sim, skill demand, resume-less cover letter).
 - Depends-on: R-086 (resume-page AI access), R-071 (₹499 plan), R-084 (BYOK)
 - Why: the free tier leaked our AI unevenly — 10 actions/day across the
   resume-page features, nothing at all on the rest — so a free user could
@@ -1856,6 +1859,41 @@ and every external call still feeds the Outcome Graph.
 
 ---
 
+### R-103 · Full AI on ONE resume (supersedes per-run metering for resume work)
+
+- Status: **DONE** (this commit)
+- Depends-on: R-098 (free-trial ledger), R-086 (resume-page AI access)
+- Why: R-098 metered AI per run, which is the wrong shape for the resume
+  itself. Rewriting bullets is how a resume gets BUILT — a user spent their
+  one free run on bullet #1 and hit the popup with a half-finished resume.
+  Founder call: a free user gets every AI feature, unlimited, on ONE resume;
+  the same buttons on a second resume ask for the plan.
+- Acceptance
+  - [x] `AiFreeResume` (unique on `userId`) records the one resume a free
+    user's AI is bound to; migration `20260801120000_add_ai_free_resume`.
+    The FIRST resume-bound AI call claims it; a unique-collision race
+    re-reads and applies the same rule, so a race can't hand out a second.
+  - [x] Every resume-bound AI call — bullet rewrite, ATS critique, tech gap,
+    tailor, JD match, cover-letter-from-a-resume — passes its `resumeId` and
+    is unlimited on the claimed resume. None of them burn a per-feature run.
+  - [x] The same call naming a DIFFERENT resume throws
+    `FREE_AI_RESUME_LOCKED`, carrying the claimed resume's id and title so
+    the popup can name it. Copy offers both exits: the ₹499/mo plan and the
+    free own-key route (C-003).
+  - [x] Anti-abuse only: the resume path is ceilinged at 6× the metered daily
+    allowance (60/day default) instead of the 10/day metered cap, so a
+    20-bullet resume never meets a wall. Per-endpoint rate limits unchanged.
+  - [x] Bullet rewrite is removed from the R-098 per-feature catalogue
+    entirely. An unsaved draft (no resumeId yet) runs on the ceiling alone
+    rather than being refused mid-build.
+  - [x] Standalone, non-resume AI (mentor chat, mock interview, interview
+    prep, LinkedIn optimizer, recruiter sim, skill demand, and a cover letter
+    written without a resume) keeps the R-098 one-free-run-each rule.
+  - [x] Pinned by 5 new cases in `tests/resume-ai-access.unit.test.cjs` (21)
+    and 3 in web `tests/free-trial.test.ts` (10).
+
+---
+
 ## §6. Cross-cutting constants
 
 These are constraints that every requirement must respect. Violations
@@ -1922,6 +1960,7 @@ do not break it.
 
 | Date | Decision | Reason | Affected IDs |
 |---|---|---|---|
+| 2026-08-01 | Free AI re-scoped from per-run to per-RESUME (R-103, supersedes the R-098 metering for resume work): a free user now gets every AI feature UNLIMITED on the first resume they use AI on, and the plan is asked for only when they point those same buttons at a second resume. Bullet rewrite leaves the metered catalogue entirely — it is how a resume gets written, not a feature you sample. Standalone tools with no resume context (mentor, mock interview, skill demand, LinkedIn, recruiter sim) keep one free run each. | Founder: metering per run meant the free run was spent on bullet #1 and the user could never finish a resume — "for one resume we will allow to use AI feature fully, and when user wanted to use same rewrite feature [on another resume] then we will ask for subscription". | R-103, R-098, R-086, C-003, C-004 |
 | 2026-08-01 | Anonymous resume parsing opened up (R-102): `POST /public/parse-upload` parses an uploaded file for a signed-out visitor (extraction only, nothing stored, 5/day per IP), and the editor's guest gate now offers sign-in as well as signup with `?next=` back to the same page. Previously the only pre-signup paths were start-from-scratch and the anonymous ATS text check; uploading — the most common first action — returned a bare 401. | Founder: none of the first-run features worked signed-out. Decision: let people edit and parse freely, and ask for login at the moment they use a button that genuinely needs an account. | R-102, R-090, R-089, C-004 |
 | 2026-08-01 | Cron secret is now single-sourced (R-087/R-088): both Render cron services (`ats-rb-cron-nudges`, `ats-rb-cron-job-alerts`) pull `CRON_SECRET` from `ats-rb-api` via `fromService.envVarKey` instead of each declaring its own `sync: false` entry. Three separate manual entries meant a missed one silently killed a cron — which is exactly what happened: every `ats-rb-cron-job-alerts` run exited 1 with "CRON_SECRET env var is not set on THIS cron service". The API keeps the only `sync: false` declaration and is documented as the source of truth. Note: existing dashboard-created services adopt this only on the next Blueprint sync. | Founder: cron job failing in prod. The script's guard was working as designed — the config was the bug, and the shape of the config made the bug likely. | R-087, R-088, R-031 |
 | 2026-07-27 | ID collision resolved on merge: the MCP connector work on `claude/festive-newton-hpmyag` was written as R-098/R-099 while the AI free-trial + JD skill-gap work landed on `main` under those same IDs first. `main` keeps R-098/R-099 (already merged and released); the connector entries were renumbered to **R-100** (stateless OAuth) and **R-101** (ChatGPT app-directory readiness + hosted MCP service), and the R-098/R-099 references in `oauth.ts`, `index.ts`, `SUBMISSION.md` and `render.yaml` were updated to match. No acceptance criteria changed. | Two branches allocated the next free ID in parallel; renumbering the unmerged side keeps every shipped ID stable (§8 — don't rewrite history). | R-098, R-099, R-100, R-101 |

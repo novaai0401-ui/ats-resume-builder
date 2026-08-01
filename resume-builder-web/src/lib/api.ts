@@ -1049,7 +1049,7 @@ export const api = {
    * keywords, and 3 bullet suggestions to close the gap. Plan-gated;
    * server falls back to rule-based output when LLM is unavailable.
    */
-  jdMatch: (input: { resumeText: string; jdText: string; currentSkills?: string[] }) =>
+  jdMatch: (input: { resumeText: string; jdText: string; currentSkills?: string[]; resumeId?: string }) =>
     request<{
       matchPercent: number;
       matchedKeywords: string[];

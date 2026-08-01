@@ -27,6 +27,14 @@ export type JdMatchInput = {
   resumeText: string;
   jdText: string;
   currentSkills?: string[];
+  /**
+   * R-103 — the resume being matched. When the editor/JD page knows which
+   * saved resume the text came from it sends the id, which binds this call
+   * to the user's one free-AI resume (unlimited there). Optional: a match
+   * run against pasted text with no saved resume falls back to the
+   * per-feature free run.
+   */
+  resumeId?: string;
 };
 
 export type JdMatchResult = {
@@ -110,7 +118,7 @@ export class JdMatchService {
       };
     }
     if (freeDaily) {
-      await enforceResumeAiFreeDaily(this.prisma, this.config, userId, 'jd-match');
+      await enforceResumeAiFreeDaily(this.prisma, this.config, userId, 'jd-match', input.resumeId);
     }
 
     const system = [
@@ -143,7 +151,7 @@ export class JdMatchService {
         return { ...baseline, bulletSuggestions: ruleBasedBulletSuggestions(baseline.missingKeywords), provider: 'rule-based' };
       }
       if (freeDaily) {
-        await recordResumeAiFreeUsage(this.prisma, userId, 'jd-match');
+        await recordResumeAiFreeUsage(this.prisma, userId, 'jd-match', input.resumeId);
       }
       return {
         matchPercent: clampPercent(parsed.matchPercent ?? baseline.matchPercent),
