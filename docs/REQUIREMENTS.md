@@ -1821,6 +1821,41 @@ and every external call still feeds the Outcome Graph.
 
 ---
 
+### R-102 · First-run without an account: parse works, everything else asks you to sign in
+
+- Status: **DONE** (this commit)
+- Depends-on: R-090 (guest drafting), R-089 (pre-signup funnel)
+- Why: a signed-out visitor hit raw 401s instead of a product. `/resume/start`
+  probed `/me/training-consent` with no token, the editor's Upload button
+  called the auth-only `/resumes/parse-upload` and rendered the server's bare
+  "Unauthorized", and the start page refused uploads outright. The first
+  thing a new user tried was also the first thing that broke.
+- Acceptance
+  - [x] `POST /public/parse-upload` — anonymous, no guard, extraction only:
+    no Resume row, no training-dataset or pattern-learner capture (both are
+    `userId`-gated and an anonymous caller has none). IP rate limited to 5/day
+    with a message naming the limit and the remedy (C-004).
+  - [x] Upload validation is shared by both routes via
+    `src/resume/upload-validation.ts` (formats, magic bytes, 6 MB cap,
+    filename sanitisation) so the public route can never be laxer than the
+    authed one.
+  - [x] `api.uploadResume` picks the route by auth state; identical response
+    shape, so no caller branches. `/resume/start` no longer blocks guests —
+    upload, LinkedIn paste, and start-from-scratch all work signed-out.
+  - [x] Editing stays free and local (R-090 guest draft). Every account-only
+    action — Save, ATS Score, Continue to ATS, Export, Scan Job Skills, AI
+    Critique, Tech Gap, per-bullet rewrite — opens the sign-in gate and fires
+    NO authed request.
+  - [x] The gate offers BOTH sign-in and signup, each carrying `?next=` back
+    to the exact editor URL, so the visitor returns mid-task and the draft is
+    imported on arrival.
+  - [x] `TrainingConsentModal` skips its probe without a token — no 401 on
+    anonymous page loads.
+  - [x] Pinned by `tests/public-parse-upload.unit.test.cjs` (9) and web
+    `tests/guest-first-run.test.ts` (6).
+
+---
+
 ## §6. Cross-cutting constants
 
 These are constraints that every requirement must respect. Violations
@@ -1887,6 +1922,7 @@ do not break it.
 
 | Date | Decision | Reason | Affected IDs |
 |---|---|---|---|
+| 2026-08-01 | Anonymous resume parsing opened up (R-102): `POST /public/parse-upload` parses an uploaded file for a signed-out visitor (extraction only, nothing stored, 5/day per IP), and the editor's guest gate now offers sign-in as well as signup with `?next=` back to the same page. Previously the only pre-signup paths were start-from-scratch and the anonymous ATS text check; uploading — the most common first action — returned a bare 401. | Founder: none of the first-run features worked signed-out. Decision: let people edit and parse freely, and ask for login at the moment they use a button that genuinely needs an account. | R-102, R-090, R-089, C-004 |
 | 2026-08-01 | Cron secret is now single-sourced (R-087/R-088): both Render cron services (`ats-rb-cron-nudges`, `ats-rb-cron-job-alerts`) pull `CRON_SECRET` from `ats-rb-api` via `fromService.envVarKey` instead of each declaring its own `sync: false` entry. Three separate manual entries meant a missed one silently killed a cron — which is exactly what happened: every `ats-rb-cron-job-alerts` run exited 1 with "CRON_SECRET env var is not set on THIS cron service". The API keeps the only `sync: false` declaration and is documented as the source of truth. Note: existing dashboard-created services adopt this only on the next Blueprint sync. | Founder: cron job failing in prod. The script's guard was working as designed — the config was the bug, and the shape of the config made the bug likely. | R-087, R-088, R-031 |
 | 2026-07-27 | ID collision resolved on merge: the MCP connector work on `claude/festive-newton-hpmyag` was written as R-098/R-099 while the AI free-trial + JD skill-gap work landed on `main` under those same IDs first. `main` keeps R-098/R-099 (already merged and released); the connector entries were renumbered to **R-100** (stateless OAuth) and **R-101** (ChatGPT app-directory readiness + hosted MCP service), and the R-098/R-099 references in `oauth.ts`, `index.ts`, `SUBMISSION.md` and `render.yaml` were updated to match. No acceptance criteria changed. | Two branches allocated the next free ID in parallel; renumbering the unmerged side keeps every shipped ID stable (§8 — don't rewrite history). | R-098, R-099, R-100, R-101 |
 | 2026-07-27 | Free-tier model replaced (R-098): every AI feature is now free exactly ONCE per user, tracked in `AiFeatureTrial`, instead of the R-086 "10 resume-page AI actions/day, nothing elsewhere" split. The first run of ANY feature — including the six that previously returned only a rule-based baseline for free users (cover letter, interview prep, mock interview, mentor chat, recruiter sim, skill demand) — spends OUR key and returns real AI output; the second attempt is refused with a typed 403 carrying the whole ledger, which the client renders as one app-wide popup listing what is still free, then the upgrade ask once all 12 are spent. BYOK/plan users are exempt and the free run does not touch the subscriber token budget. | Founder: free users could neither feel the paid features nor see what upgrading buys; a per-feature taste is the cheapest honest demo and makes the upgrade ask concrete. | R-098, R-086, R-071, C-003, C-004 |

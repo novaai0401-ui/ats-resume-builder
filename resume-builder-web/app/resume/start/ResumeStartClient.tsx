@@ -16,7 +16,6 @@ import {
   stagePendingUploadInStore,
 } from '@/src/lib/resume-flow';
 import { ingestResumeFile } from '@/src/lib/resume-ingest';
-import { getAccessToken } from '@/src/lib/api';
 import { useResumeStore } from '@/src/lib/resume-store';
 import { PrivacyBadge } from '@/src/components/PrivacyBadge';
 import DataLoader from '@/src/components/DataLoader';
@@ -66,14 +65,11 @@ export default function ResumeStartClient() {
 
   async function onUpload(file?: File) {
     if (!file) return;
-    // Guest mode (R-090): the parse-upload endpoint is auth-only, so a
-    // tokenless upload would surface a raw 401. Show the same honest
-    // signup nudge the editor's gated actions use instead — building
-    // from scratch stays fully available without an account.
-    if (!getAccessToken()) {
-      setError('Uploading & parsing a resume file needs a free account — create one and your work comes with you. Or start from scratch below, no account needed.');
-      return;
-    }
+    // R-102: uploading + parsing now works signed-out — api.uploadResume
+    // routes guests to the anonymous /public/parse-upload endpoint, which
+    // extracts and returns the resume without storing anything. The parsed
+    // draft lives on this device until the visitor creates an account;
+    // saving, ATS, AI and export stay signup-gated in the editor.
     setPendingFileName(file.name);
     setLoadingUpload(true);
     setError('');

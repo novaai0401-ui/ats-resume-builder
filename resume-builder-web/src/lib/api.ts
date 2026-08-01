@@ -956,10 +956,20 @@ export const api = {
       body: JSON.stringify({ jdText }),
     }),
 
+  /**
+   * Parse a resume file into editable JSON.
+   *
+   * R-102 — a signed-out visitor uses the anonymous `/public/parse-upload`
+   * route (extraction only, IP rate limited, nothing stored) so uploading
+   * works before signup; signed-in users keep the authed route, which also
+   * carries the consent-gated training capture. Same response shape either
+   * way, so no caller has to branch.
+   */
   uploadResume: (file: File) => {
     const data = new FormData();
     data.append('file', file);
-    return upload<UploadResumeResponse>('/resumes/parse-upload', data);
+    const path = getAccessToken() ? '/resumes/parse-upload' : '/public/parse-upload';
+    return upload<UploadResumeResponse>(path, data);
   },
 
   ingestResume: (id: string, file: File) => {

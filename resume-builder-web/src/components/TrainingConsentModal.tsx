@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import {
   acknowledgeTrainingNotice,
+  getAccessToken,
   getTrainingConsent,
   setTrainingConsent,
   type TrainingConsentState,
@@ -30,6 +31,11 @@ export default function TrainingConsentModal() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
+    // R-102: don't call an authed endpoint with no token. The catch below
+    // already swallowed the failure, but the request still fired on every
+    // anonymous page load and surfaced a 401 in the visitor's network tab
+    // (and our logs) for a modal that can never show them anything.
+    if (!getAccessToken()) return;
     let cancelled = false;
     getTrainingConsent()
       .then((s) => {
