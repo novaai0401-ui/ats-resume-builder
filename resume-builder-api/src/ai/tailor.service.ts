@@ -122,7 +122,8 @@ export class TailorService {
       );
     }
     if (freeDaily) {
-      await enforceResumeAiFreeDaily(this.prisma, this.config, userId, 'tailor');
+      // R-103 — tailoring always names its resume, so it always binds.
+      await enforceResumeAiFreeDaily(this.prisma, this.config, userId, 'tailor', resumeId);
     }
 
     const experience = Array.isArray(resume.experience) ? (resume.experience as any[]) : [];
@@ -180,7 +181,7 @@ export class TailorService {
 
     const parsed = parseTailorResponse(raw, bulletsCatalog);
     if (freeDaily) {
-      await recordResumeAiFreeUsage(this.prisma, userId, 'tailor');
+      await recordResumeAiFreeUsage(this.prisma, userId, 'tailor', resumeId);
     }
     return {
       summary: parsed.summary && parsed.summary !== String(resume.summary || '').trim()

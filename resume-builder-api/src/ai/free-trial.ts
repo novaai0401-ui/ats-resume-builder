@@ -27,10 +27,14 @@ import type { PrismaService } from '../prisma/prisma.service';
 
 /** Stable identifiers for every AI feature that participates in the trial. */
 export type AiFeatureKey =
+  // NOTE: 'bullet-rewrite' is a valid key but deliberately absent from
+  // AI_TRIAL_FEATURES below — rewriting bullets is how a resume gets built,
+  // so it is never metered per-feature (R-103). It appears here only so the
+  // resume-bound call sites can name themselves.
+  | 'bullet-rewrite'
   | 'ats-critique'
   | 'jd-match'
   | 'tech-gap'
-  | 'bullet-rewrite'
   | 'tailor'
   | 'linkedin-optimize'
   | 'cover-letter'
@@ -79,12 +83,6 @@ export const AI_TRIAL_FEATURES: AiFeatureDescriptor[] = [
     label: 'Tech gap analysis',
     blurb: 'The skills your target role expects that your resume does not show.',
     href: '/career',
-  },
-  {
-    key: 'bullet-rewrite',
-    label: 'AI bullet rewrite',
-    blurb: 'Turn one weak bullet into an impact-first, ATS-friendly line.',
-    href: '/resume',
   },
   {
     key: 'cover-letter',
@@ -276,4 +274,106 @@ export async function recordFreeTrialUse(
   } catch {
     // Non-critical — see doc comment.
   }
+}
+
+// ── R-103 · Full AI on ONE resume ─────────────────────────────────────────
+//
+// The per-feature trial above metes out ONE RUN of each standalone AI tool.
+// That is the wrong shape for the resume itself: rewriting bullets is how a
+// resume gets built, so a single free run meant a user burned their AI on
+// bullet #1 and could never finish. Founder call:
+//
+//   A free user gets EVERY AI feature, UNLIMITED, on ONE resume.
+//   The same buttons on a second resume ask for the plan.
+//
+// The first resume-bound AI call claims that resume; from then on the claim
+// is the entitlement. Nothing else changes for BYOK (own key) or plan users,
+// who are never claimed and never blocked.
+
+export const FREE_AI_RESUME_LOCKED_CODE = 'FREE_AI_RESUME_LOCKED';
+
+export type FreeAiResumeClaim = {
+  resumeId: string;
+  claimedAt: string;
+};
+
+/** The resume this user's free AI is bound to, or null if unclaimed. */
+export async function getFreeAiResume(
+  prisma: PrismaService,
+  userId: string,
+): Promise<FreeAiResumeClaim | null> {
+  const row = await prisma.aiFreeResume.findUnique({
+    where: { userId },
+    select: { resumeId: true, claimedAt: true },
+  });
+  return row ? { resumeId: row.resumeId, claimedAt: row.claimedAt.toISOString() } : null;
+}
+
+/**
+ * Allow AI on `resumeId` for a FREE user, claiming it if this is their first
+ * resume-bound AI call. Throws the structured 403 when the user's free AI is
+ * already bound to a DIFFERENT resume.
+ *
+ * Only call on the free path — never for BYOK or plan users.
+ */
+export async function enforceFreeAiResume(
+  prisma: PrismaService,
+  userId: string,
+  resumeId: string,
+  options: { resumeTitle?: string | null } = {},
+): Promise<void> {
+  const claimed = await getFreeAiResume(prisma, userId);
+  if (claimed) {
+    if (claimed.resumeId === resumeId) return;
+    throw new ForbiddenException(await buildResumeLockedPayload(prisma, userId, claimed));
+  }
+
+  try {
+    await prisma.aiFreeResume.create({ data: { userId, resumeId } });
+  } catch {
+    // Unique(userId) collision: two AI calls raced on the user's first
+    // resume. Re-read and apply the same rule against whichever won, so a
+    // race can never hand out a second free resume.
+    const settled = await getFreeAiResume(prisma, userId);
+    if (!settled || settled.resumeId === resumeId) return;
+    throw new ForbiddenException(await buildResumeLockedPayload(prisma, userId, settled));
+  }
+  void options;
+}
+
+/**
+ * The 403 body for "AI is already bound to another resume". Carries the
+ * claimed resume's id and title so the popup can name it — being vague
+ * ("some other resume") would leave the user unable to act on it.
+ */
+async function buildResumeLockedPayload(
+  prisma: PrismaService,
+  userId: string,
+  claim: FreeAiResumeClaim,
+): Promise<Record<string, unknown>> {
+  let claimedResumeTitle: string | null = null;
+  try {
+    const resume = await prisma.resume.findFirst({
+      where: { id: claim.resumeId, userId },
+      select: { title: true },
+    });
+    claimedResumeTitle = resume?.title ?? null;
+  } catch {
+    // Title is a nicety; never fail the refusal over it.
+  }
+  const named = claimedResumeTitle ? `“${claimedResumeTitle}”` : 'your first resume';
+  return {
+    statusCode: 403,
+    code: FREE_AI_RESUME_LOCKED_CODE,
+    error: 'Forbidden',
+    message:
+      `Your free AI is unlocked on ${named} — every AI feature stays unlimited there. ` +
+      'To use AI on another resume, get the ₹499/mo plan (AI on every resume), ' +
+      'or add your own AI key in Settings (free, unlimited on your key).',
+    claimedResumeId: claim.resumeId,
+    claimedResumeTitle,
+    claimedAt: claim.claimedAt,
+    upgradeHref: '/pricing',
+    byokHref: '/settings',
+  };
 }

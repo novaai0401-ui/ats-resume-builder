@@ -104,6 +104,9 @@ export default function JdMatchClient() {
         resumeText,
         jdText: jdText.trim(),
         currentSkills: resume?.skills ?? [],
+        // R-103: naming the resume binds this run to the user's one free-AI
+        // resume, so matching stays unlimited on the resume they're working on.
+        resumeId: activeResumeId || undefined,
       });
       setResult(data);
     } catch (err: unknown) {

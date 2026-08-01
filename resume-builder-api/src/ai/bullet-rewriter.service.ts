@@ -10,7 +10,13 @@ import { rateLimitOrThrow } from '../limits/rate-limit';
 import { SettingsService } from '../settings/settings.service';
 import type { AiProvider } from './providers/ai-provider.interface';
 import { GroqProvider } from './providers/groq.provider';
-import { enforceResumeAiFreeDaily, recordResumeAiFreeUsage, resolveResumeAiProvider } from './resume-ai-access';
+import {
+  enforceResumeAiFreeDaily,
+  enforceResumeBuildAssistDaily,
+  recordResumeAiFreeUsage,
+  recordResumeBuildAssistUsage,
+  resolveResumeAiProvider,
+} from './resume-ai-access';
 
 /**
  * AI Bullet Rewriter — Student/Pro feature.
@@ -75,9 +81,11 @@ export class BulletRewriterService {
       message: 'Rate limit exceeded for bullet rewriter. Try again shortly.',
     });
 
-    // Resume-page AI access (R-086): OUR Groq key powers Rewrite for every
-    // user — BYOK (own key) / ₹499 plan (uncapped) / FREE (our key, capped to
-    // N actions/user/day, shared across all resume AI buttons).
+    // Resume-page AI access (R-086/R-103): OUR Groq key powers Rewrite for
+    // every user — BYOK (own key) / ₹499 plan (uncapped) / FREE (our key).
+    // Rewrite is BUILD ASSIST, not a sampled feature: it does NOT consume the
+    // R-098 one-free-run-per-feature trial, because a user must be able to
+    // write a whole resume. Only a generous daily ceiling applies.
     const { provider, source } = await resolveResumeAiProvider(
       this.prisma, userId, byok, () => this.resolveProvider(),
     );
@@ -90,8 +98,17 @@ export class BulletRewriterService {
         tokensUsed: APPROX_TOKENS,
       };
     }
+    // R-103 — a saved resume binds this rewrite to the user's one free-AI
+    // resume: unlimited there, plan required on any other. An unsaved draft
+    // has no id to bind to yet, so it runs on the build-assist ceiling alone
+    // (the user is mid-build; refusing here would strand them).
+    const boundResumeId = String(input.resumeId || '').trim();
     if (freeDaily) {
-      await enforceResumeAiFreeDaily(this.prisma, this.config, userId, 'bullet-rewrite');
+      if (boundResumeId) {
+        await enforceResumeAiFreeDaily(this.prisma, this.config, userId, 'bullet-rewrite', boundResumeId);
+      } else {
+        await enforceResumeBuildAssistDaily(this.prisma, this.config, userId);
+      }
     }
 
     const role = String(input.role || '').trim().slice(0, 80);
@@ -132,7 +149,11 @@ export class BulletRewriterService {
         };
       }
       if (freeDaily) {
-        await recordResumeAiFreeUsage(this.prisma, userId, 'bullet-rewrite');
+        if (boundResumeId) {
+          await recordResumeAiFreeUsage(this.prisma, userId, 'bullet-rewrite', boundResumeId);
+        } else {
+          await recordResumeBuildAssistUsage(this.prisma, userId);
+        }
       }
       return {
         alternatives: parsed.slice(0, 3),

@@ -66,9 +66,9 @@ test('the entry point names the outcome (missing skills), not the mechanism', ()
   assert.ok(/\+ Add/.test(quickStart), 'and tells the user the skills can be added in one tap');
 });
 
-test('the home page free-tier list states the one-free-run-per-feature rule', () => {
-  assert.ok(
-    /free once|one free run each/i.test(home),
-    'the free tier copy matches what the server actually enforces (C-003)',
-  );
+test('the home page free-tier list states the real free-AI rule', () => {
+  // R-103 — full AI on the first resume, one free run each for the
+  // standalone tools. The copy must match what the server enforces (C-003).
+  assert.ok(/Full AI on your first resume/i.test(home), 'the per-resume rule is stated');
+  assert.ok(/free once each/i.test(home), 'the standalone-tool rule is stated');
 });

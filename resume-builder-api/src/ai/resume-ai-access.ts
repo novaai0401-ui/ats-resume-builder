@@ -1,7 +1,7 @@
 import { ForbiddenException } from '@nestjs/common';
 import type { ConfigService } from '@nestjs/config';
 import type { PrismaService } from '../prisma/prisma.service';
-import { enforceFreeTrialOrThrow, recordFreeTrialUse, type AiFeatureKey } from './free-trial';
+import { enforceFreeAiResume, enforceFreeTrialOrThrow, recordFreeTrialUse, type AiFeatureKey } from './free-trial';
 import type { AiProvider } from './providers/ai-provider.interface';
 import { buildByokProvider } from './providers/byok-factory';
 import { isPlanActive } from './server-provider';
@@ -93,10 +93,21 @@ export async function enforceResumeAiFreeDaily(
   config: ConfigService,
   userId: string,
   feature: AiFeatureKey,
+  resumeId?: string | null,
 ): Promise<void> {
-  // R-098 — the per-feature lifetime trial is checked FIRST: it is the
-  // stricter of the two caps for a free user, and it is the one with a
-  // structured payload the client turns into the "used once" popup.
+  const boundResumeId = String(resumeId || '').trim();
+  if (boundResumeId) {
+    // R-103 — the call names a resume, so the per-RESUME rule applies:
+    // unlimited AI on the one resume this user's free AI is bound to (first
+    // one claims it), plan required for any other. The per-feature trial is
+    // deliberately NOT consulted here — that would re-impose the
+    // one-run-then-stuck problem this rule exists to fix.
+    await enforceFreeAiResume(prisma, userId, boundResumeId);
+    await enforceResumeBuildAssistDaily(prisma, config, userId);
+    return;
+  }
+
+  // No resume context (standalone tools): R-098 one free run per feature.
   await enforceFreeTrialOrThrow(prisma, userId, feature);
 
   const max = resumeAiFreeDailyLimit(config);
@@ -119,10 +130,76 @@ export async function recordResumeAiFreeUsage(
   prisma: PrismaService,
   userId: string,
   feature: AiFeatureKey,
+  resumeId?: string | null,
 ): Promise<void> {
-  // R-098 — burn this feature's single lifetime free run as well as the
-  // day bucket. Both are best-effort; neither may fail the response.
+  // R-103 — a resume-bound call spends nothing: the claim IS the
+  // entitlement, and every AI feature stays unlimited on that resume. Only
+  // the day bucket is written (anti-abuse ceiling).
+  if (String(resumeId || '').trim()) {
+    await recordResumeBuildAssistUsage(prisma, userId);
+    return;
+  }
+  // R-098 — standalone tools burn their single lifetime free run as well as
+  // the day bucket. Both are best-effort; neither may fail the response.
   await recordFreeTrialUse(prisma, userId, feature);
+  try {
+    await prisma.aiCritiqueLog.create({ data: { userId } });
+  } catch {
+    // Non-critical — a lost log row just means one uncounted free action.
+  }
+}
+
+// ── R-103 · Build assist (unmetered) ──────────────────────────────────────
+//
+// Writing the resume is not a feature you "try once". Per-bullet AI rewrite
+// is how a first-time user actually produces a resume, and metering it meant
+// they spent their single free AI run on bullet #1 and hit a paywall with a
+// half-finished resume — the opposite of the intent.
+//
+// So the rewrite path is exempt from the R-098 lifetime trial entirely. It
+// keeps ONE guard: a generous per-day ceiling on our key (6× the metered
+// daily allowance, so 60/day by default) purely so a script can't drain the
+// Groq allowance. A real resume is ~15-25 bullets, so a person building — or
+// rebuilding — a whole resume never meets it. The endpoint's 30/min rate
+// limit still applies on top.
+
+/** How much more build-assist a free user gets than metered AI actions. */
+export const RESUME_BUILD_ASSIST_DAILY_MULTIPLIER = 6;
+
+export function resumeBuildAssistDailyLimit(config: ConfigService): number {
+  return resumeAiFreeDailyLimit(config) * RESUME_BUILD_ASSIST_DAILY_MULTIPLIER;
+}
+
+/**
+ * Ceiling check for the unmetered build-assist path. Does NOT touch the
+ * per-feature trial — that is the whole point. Only call on the free path.
+ */
+export async function enforceResumeBuildAssistDaily(
+  prisma: PrismaService,
+  config: ConfigService,
+  userId: string,
+): Promise<void> {
+  const max = resumeBuildAssistDailyLimit(config);
+  const count = await prisma.aiCritiqueLog.count({
+    where: { userId, createdAt: { gte: startOfToday() } },
+  });
+  if (count >= max) {
+    throw new ForbiddenException(
+      `You've used ${max} AI actions today — that's the daily ceiling on our key. ` +
+      'Add your own AI key in Settings (free) for unlimited, get the ₹499/mo plan, or continue tomorrow. ' +
+      'Your resume is saved.',
+    );
+  }
+}
+
+/**
+ * Record one build-assist action against the day bucket only — never the
+ * lifetime trial. Best-effort, like every usage write here.
+ */
+export async function recordResumeBuildAssistUsage(
+  prisma: PrismaService,
+  userId: string,
+): Promise<void> {
   try {
     await prisma.aiCritiqueLog.create({ data: { userId } });
   } catch {

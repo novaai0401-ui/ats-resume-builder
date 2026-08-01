@@ -57,7 +57,7 @@ export default function JdQuickStart() {
         Show my missing skills
       </button>
       <p className="small" style={{ margin: '8px 0 0', color: 'var(--muted)' }}>
-        Free for your first run — every AI feature here is free once.
+        Free on your first resume — every AI feature stays unlimited there.
       </p>
     </section>
   );
