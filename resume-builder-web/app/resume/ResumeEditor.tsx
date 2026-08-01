@@ -398,8 +398,15 @@ export default function ResumeEditor() {
   const [isGuestMode, setIsGuestMode] = useState(false);
   // Signup-gate dialog for account-only actions (AI, ATS, export, share).
   const [guestGateOpen, setGuestGateOpen] = useState(false);
+  // Where auth should send the visitor back to. Read on mount (not inline)
+  // so SSR and the first client render agree; /resume is a safe default
+  // because the guest draft is restored there either way.
+  const [guestReturnPath, setGuestReturnPath] = useState('/resume');
   useEffect(() => {
     setIsGuestMode(!getAccessToken());
+    if (typeof window !== 'undefined') {
+      setGuestReturnPath(`${window.location.pathname}${window.location.search}`);
+    }
   }, []);
   // Returns true (and opens the signup dialog) when the visitor has no
   // account. Every account-only click handler calls this first so guest
@@ -5090,17 +5097,26 @@ export default function ResumeEditor() {
           <div className="modal-card">
             <div className="modal-header">
               <div>
-                <h3 style={{ margin: 0 }}>Create your free account to unlock this</h3>
+                <h3 style={{ margin: 0 }}>Sign in to continue</h3>
                 <p className="small">
-                  Create your free account to unlock this — your draft comes with you.
+                  Editing is free and needs no account — but saving, ATS scoring, AI help and
+                  export run on your account. Sign in (or create a free account) and your draft
+                  comes with you — we&rsquo;ll bring you straight back to this page.
                 </p>
               </div>
             </div>
-            <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            {/* R-102: both links carry ?next= back to this exact editor URL,
+                so the user returns mid-task instead of landing on the
+                dashboard and having to find their way back. The draft is
+                already stored on this device and is imported on return. */}
+            <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
               <button className="btn secondary" onClick={() => setGuestGateOpen(false)}>
                 Keep editing
               </button>
-              <Link className="btn" href="/auth/register">
+              <Link className="btn ghost" href={`/auth/login?next=${encodeURIComponent(guestReturnPath)}`}>
+                Sign in
+              </Link>
+              <Link className="btn" href={`/auth/register?next=${encodeURIComponent(guestReturnPath)}`}>
                 Create free account
               </Link>
             </div>
