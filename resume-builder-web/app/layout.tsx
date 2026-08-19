@@ -10,6 +10,8 @@ import FreeTrialLimitModalHost from '@/src/components/FreeTrialLimitModalHost';
 import PwaInstaller from '@/src/components/PwaInstaller';
 import SkipToContent from '@/src/components/SkipToContent';
 import TrainingConsentModal from '@/src/components/TrainingConsentModal';
+import ThemeToggle from '@/src/components/ThemeToggle';
+import { themeNoFlashScript } from '@/src/lib/theme';
 
 // Site URL is read from env at build time so we can use staging /
 // production hostnames in OpenGraph and canonical tags. Fallback is
@@ -86,8 +88,14 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
+        {/* Resolve the stored light/dark preference BEFORE first paint and
+         * stamp `data-theme` on <html>. Without this the page renders in the
+         * default theme and then snaps to the chosen one, which reads as a
+         * flash of the wrong colours on every navigation. Must stay the first
+         * thing in <head> and must stay synchronous. */}
+        <script dangerouslySetInnerHTML={{ __html: themeNoFlashScript() }} />
         {/* Hard-coded viewport meta as a belt-and-braces guarantee. Next.js
          * normally injects this via the `viewport` export above, but in some
          * route configurations the streamed metadata can be dropped during
@@ -145,6 +153,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             <header className="topbar">
               <div className="brand">CallbackCV</div>
               <TopNav />
+              <ThemeToggle />
             </header>
             {/* Skip-link target. tabindex="-1" lets us focus a non-interactive
              * wrapper without putting it in the tab order. Most pages render
