@@ -113,8 +113,12 @@ export default function LiveOpeningsPanel({ onTracked }: { onTracked: () => void
       setLocation(res.where || '');
       setPrefilled(false);
       setMatchNote(
-        `Matched from your resume — searched "${res.query}"` +
-          `${res.where ? ` in ${res.where}` : ''}. Edit above to refine.`,
+        (res.broadened
+          ? // Say so explicitly. Silently widening and presenting the results as
+            // an exact profile match would misrepresent how close they are.
+            `Your exact role matched nothing, so this was broadened — searched "${res.query}"`
+          : `Matched from your resume — searched "${res.query}"`) +
+          `${res.where ? ` in ${res.where}` : ' (any location)'}. Edit above to refine.`,
       );
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Could not match jobs to your resume.';

@@ -37,6 +37,17 @@ export interface ProfileQuery {
   where?: string;
   /** True when we found nothing usable — caller should not search. */
   empty: boolean;
+  /**
+   * Progressively broader queries to try when the one above returns nothing,
+   * most specific first.
+   *
+   * Job APIs AND their keywords, so a precise query fails closed: a real resume
+   * produced "AVP HTML5 CSS3 JavaScript" and matched zero openings in a city
+   * where "Senior Frontend Engineer React" matches dozens. One query with no
+   * fallback means the feature silently reports "no jobs" when the truth is
+   * "that phrasing was too narrow".
+   */
+  fallbacks: string[];
 }
 
 function clean(value: unknown): string {
@@ -47,14 +58,30 @@ function clean(value: unknown): string {
 }
 
 /**
- * Strip the bookkeeping people put in resume titles ("Tech Lead Resume v2")
- * so it does not leak into the search terms.
+ * Reduce a resume title to something a job board can match.
+ *
+ * Strips the bookkeeping people add ("Tech Lead Resume v2"), keeps only the
+ * FIRST slash-separated segment, and caps the length.
+ *
+ * The cap is the important part. A real title —
+ * "Assistant Vice President - Engineering / Frontend Platforms / Engineering
+ * Leadership" — is a headline, not a search term. Passed through whole it
+ * becomes a seven-word ANDed query that matches nothing anywhere. The first
+ * segment is the actual role; the rest is scope.
  */
+const MAX_TITLE_WORDS = 4;
+
 function cleanTitle(value: unknown): string {
-  return clean(value)
+  // Slash-separated segments are alternatives/scope; the first is the role.
+  const firstSegment = String(value ?? '').split('/')[0] ?? '';
+  return clean(firstSegment)
+    // A dangling separator survives clean() and would be searched literally.
+    .replace(/[-–—]+/g, ' ')
     .split(' ')
     .filter((word) => word && !NOISE.has(word.toLowerCase()))
+    .slice(0, MAX_TITLE_WORDS)
     .join(' ')
+    .replace(/\s+/g, ' ')
     .trim();
 }
 
@@ -72,12 +99,29 @@ function cityFrom(location: unknown): string {
 }
 
 /**
- * Build the search from a resume.
+ * Is this job title too terse to search on?
  *
- * Role precedence: the most recent job title beats the document title, because
- * the document title is user-authored and often aspirational or administrative,
- * while the experience entry is what they have actually done. Falls back to the
- * document title, then to skills alone.
+ * Internal abbreviations — AVP, SDE, VP, PM, SME — are how people write their
+ * own title, but job boards index the spelled-out form. Searching "AVP" returns
+ * nothing while "Assistant Vice President Engineering" returns plenty, so when
+ * the role looks like an acronym the descriptive document title is the better
+ * lead even though it is user-authored.
+ */
+function isTerseRole(role: string): boolean {
+  if (!role) return true;
+  const words = role.split(' ').filter(Boolean);
+  if (words.length > 1) return false;
+  // A lone word that is short or all-caps reads as an abbreviation.
+  return words[0].length <= 4 || words[0] === words[0].toUpperCase();
+}
+
+/**
+ * Build the search from a resume, plus a ladder of broader retries.
+ *
+ * Role precedence: normally the most recent job title beats the document title,
+ * because the document title is user-authored and often aspirational or
+ * administrative. The exception is a terse role — see isTerseRole — where the
+ * document title carries the words a job board actually indexes.
  */
 export function buildProfileJobQuery(resume: unknown): ProfileQuery {
   const r = (resume ?? {}) as Record<string, unknown>;
@@ -85,7 +129,9 @@ export function buildProfileJobQuery(resume: unknown): ProfileQuery {
   const experience = Array.isArray(r.experience) ? (r.experience as Record<string, unknown>[]) : [];
   const latestRole = cleanTitle(experience[0]?.role);
   const docTitle = cleanTitle(r.title);
-  const role = latestRole || docTitle;
+  // Prefer the descriptive source when the role alone would not match.
+  const role =
+    isTerseRole(latestRole) && docTitle && !isTerseRole(docTitle) ? docTitle : latestRole || docTitle;
 
   const skillPool = [
     ...(Array.isArray(r.technicalSkills) ? (r.technicalSkills as unknown[]) : []),
@@ -111,9 +157,34 @@ export function buildProfileJobQuery(resume: unknown): ProfileQuery {
   const contact = (r.contact ?? {}) as Record<string, unknown>;
   const where = cityFrom(contact.location) || undefined;
 
+  // Ladder from most specific to broadest. Each rung drops a constraint, so a
+  // narrow phrasing degrades to a useful search instead of an empty panel.
+  const ladder = [
+    terms.join(' '),
+    // Role with fewer skills, then the role by itself.
+    [role, ...skills.slice(0, 1)].filter(Boolean).join(' '),
+    role,
+    // The other title source, in case the one we led with is the poor one.
+    role === docTitle ? latestRole : docTitle,
+    // Last resort: the skills alone still describe the kind of work.
+    skills.slice(0, 2).join(' '),
+  ];
+
+  const seenQ = new Set<string>();
+  const fallbacks: string[] = [];
+  for (const candidate of ladder) {
+    const value = (candidate || '').trim();
+    if (!value || seenQ.has(value.toLowerCase())) continue;
+    seenQ.add(value.toLowerCase());
+    fallbacks.push(value);
+  }
+
   return {
-    query: terms.join(' '),
+    // fallbacks[0] is the primary; keep `query` as the same value so existing
+    // callers that only read `query` behave exactly as before.
+    query: fallbacks[0] ?? '',
     where,
-    empty: terms.length === 0,
+    empty: fallbacks.length === 0,
+    fallbacks: fallbacks.slice(1),
   };
 }

@@ -175,3 +175,46 @@ test('buildProfileJobQuery reports empty rather than searching for nothing', () 
   assert.equal(q.empty, true);
   assert.equal(q.query, '');
 });
+
+test('buildProfileJobQuery prefers a descriptive title over a terse role acronym', () => {
+  // A real resume produced "AVP HTML5 CSS3 JavaScript" and matched nothing:
+  // job boards index "Assistant Vice President", not the internal abbreviation.
+  const q = buildProfileJobQuery({
+    title: 'Assistant Vice President - Engineering / Frontend Platforms / Engineering Leadership',
+    experience: [{ role: 'AVP' }],
+    technicalSkills: ['HTML5', 'CSS3', 'JavaScript'],
+    contact: { location: 'Pune, MH 411057' },
+  });
+  assert.ok(q.query.startsWith('Assistant Vice President'), q.query);
+  assert.ok(!q.query.startsWith('AVP'), 'a terse acronym must not lead the query');
+  // A headline is not a search term: only the first slash-segment, capped.
+  assert.ok(!q.query.includes('Leadership'), q.query);
+  assert.ok(!q.query.includes('-'), 'a dangling separator would be searched literally');
+});
+
+test('buildProfileJobQuery keeps a descriptive role ahead of the document title', () => {
+  const q = buildProfileJobQuery({
+    title: 'Tech Lead Resume v2',
+    experience: [{ role: 'Senior Frontend Engineer' }],
+    skills: ['React'],
+  });
+  assert.ok(q.query.startsWith('Senior Frontend Engineer'), q.query);
+});
+
+test('buildProfileJobQuery offers progressively broader fallbacks', () => {
+  // Job APIs AND their keywords, so one precise query fails closed. Each rung
+  // drops a constraint so a narrow phrasing degrades instead of returning [].
+  const q = buildProfileJobQuery({
+    experience: [{ role: 'Senior Frontend Engineer' }],
+    technicalSkills: ['React', 'TypeScript', 'GraphQL'],
+    contact: { location: 'Pune' },
+  });
+  assert.ok(q.fallbacks.length >= 2, JSON.stringify(q.fallbacks));
+  // Broader means fewer terms, so the ladder must not grow.
+  const lengths = [q.query, ...q.fallbacks].map((s) => s.split(' ').length);
+  for (let i = 1; i < lengths.length; i++) {
+    assert.ok(lengths[i] <= lengths[i - 1], `rung ${i} got longer: ${JSON.stringify(q.fallbacks)}`);
+  }
+  // The bare role must be reachable — it is the rung most likely to match.
+  assert.ok([q.query, ...q.fallbacks].includes('Senior Frontend Engineer'));
+});

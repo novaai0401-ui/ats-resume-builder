@@ -1825,9 +1825,15 @@ export type JobMatchesResult = {
   configured: boolean;
   /** Which feeds answered, e.g. ['adzuna', 'careerjet']. */
   sources: string[];
-  /** The query the server derived from the resume ('' when it could not). */
+  /**
+   * The query that actually produced these results — which may be broader than
+   * the first one tried, since the server widens the search rather than
+   * reporting "no jobs" for a phrasing that was merely too narrow.
+   */
   query: string;
   where?: string | null;
+  /** True when the server had to widen the search to find anything. */
+  broadened?: boolean;
   jobs: JobOpening[];
   /** Present when the resume had too little to search on. */
   reason?: string;

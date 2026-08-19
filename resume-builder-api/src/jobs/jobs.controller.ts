@@ -65,18 +65,53 @@ export class JobsController {
     }
 
     const parsed = parseInt(String(limit ?? ''), 10);
+    const resolvedLimit = Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, 20) : 8;
     const resolvedWhere = (where && where.trim()) || profile.where;
-    const jobs = await this.liveJobs.search(profile.query, {
-      where: resolvedWhere,
-      limit: Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, 20) : 8,
-    });
+
+    /**
+     * Walk from the most specific query to the broadest, stopping at the first
+     * that returns anything.
+     *
+     * Job APIs AND their keywords, so one precise query fails closed. A real
+     * resume derived "AVP HTML5 CSS3 JavaScript" and matched nothing in a city
+     * where a broader phrasing matches dozens — the feed was working and the
+     * user saw "no openings". Dropping the location is the last rung, since a
+     * relevant job in the next city beats none at all.
+     */
+    const attempts: Array<{ q: string; where?: string }> = [
+      { q: profile.query, where: resolvedWhere },
+      ...profile.fallbacks.map((q) => ({ q, where: resolvedWhere })),
+      // Same ladder again, unfiltered by location.
+      ...(resolvedWhere
+        ? [profile.query, ...profile.fallbacks].map((q) => ({ q, where: undefined }))
+        : []),
+    ];
+
+    for (const attempt of attempts) {
+      const jobs = await this.liveJobs.search(attempt.q, {
+        where: attempt.where,
+        limit: resolvedLimit,
+      });
+      if (!jobs.length) continue;
+      return {
+        configured: true,
+        sources,
+        // Report what ACTUALLY produced these, not what we hoped would: the UI
+        // shows this back to the user, so it has to be the truth.
+        query: attempt.q,
+        where: attempt.where ?? null,
+        broadened: attempt.q !== profile.query || attempt.where !== resolvedWhere,
+        jobs,
+      };
+    }
 
     return {
       configured: true,
       sources,
       query: profile.query,
       where: resolvedWhere ?? null,
-      jobs,
+      broadened: false,
+      jobs: [],
     };
   }
 
