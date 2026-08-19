@@ -3571,10 +3571,16 @@ html, body { max-width: 100%; overflow-x: hidden; }
   align-items: center;
 }
 .exp-highlight-row > .input { flex: 1 1 auto; min-width: 0; }
+/* The bullet editor is a TkxTextarea wrapped in .hide-field-label (the
+   component requires a visible label; per-bullet headings would be absurd).
+   That wrapper becomes the flex child, so it needs the same sizing the bare
+   .input had — without this the bullet collapses to its content width. */
+.exp-highlight-row > .hide-field-label { flex: 1 1 auto; min-width: 0; }
 .exp-highlight-row > .btn { flex-shrink: 0; }
 @media (max-width: 639.98px) {
   .exp-highlight-row { flex-wrap: wrap; }
   .exp-highlight-row > .input { flex: 1 1 100%; }
+  .exp-highlight-row > .hide-field-label { flex: 1 1 100%; }
   .exp-highlight-row > .btn { margin-left: auto; padding: 4px 12px; font-size: .82rem; }
 }
 

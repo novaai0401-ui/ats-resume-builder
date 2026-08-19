@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { TkxBottomNav, TkxDrawer, TkxSelect } from 'tekivex-ui';
+import { TkxBottomNav, TkxDrawer, TkxSelect, TkxTextarea } from 'tekivex-ui';
 import useFeatureFlags from '@/src/hooks/use-feature-flags';
 import { FONT_OPTIONS, DENSITY_OPTIONS, ACCENT_PRESETS, REORDERABLE_SECTIONS, resolveSectionOrder, getAtsSectionTitle, templateSupportsPhoto, normalizePhotoUrl, isValidEmail, isValidPhone, EMAIL_INVALID_MESSAGE, PHONE_INVALID_MESSAGE } from 'resume-builder-shared';
 import { RESUME_CREATE_RATE_LIMIT_CODE, api, Resume, ResumeImportResult, UploadResumeResponse, getAccessToken, isApiRequestError } from '@/src/lib/api';
@@ -2501,12 +2501,14 @@ export default function ResumeEditor() {
           <div className="card section-card" style={{ marginTop: 16, padding: 16 }}>
             <h3 style={{ marginTop: 0 }}>From Upload (Unsorted)</h3>
             <p className="small">Review this content and paste it into the right section.</p>
-            <textarea
-              className="input"
-              style={{ minHeight: 120 }}
-              value={importNotes}
-              onChange={(e) => setImportNotes(e.target.value)}
-            />
+            <div className="hide-field-label">
+              <TkxTextarea
+                label="Unsorted content from your upload"
+                style={{ minHeight: 120 }}
+                value={importNotes}
+                onChange={(e) => setImportNotes(e.target.value)}
+              />
+            </div>
             <div className="field-meta">
               <button
                 className="btn secondary"
@@ -3008,9 +3010,8 @@ export default function ResumeEditor() {
 
               {section.type === 'summary' && (
                 <div style={{ marginTop: 12 }}>
-                  <label className="label">Summary</label>
-                  <textarea
-                    className="input"
+                  <TkxTextarea
+                    label="Summary"
                     style={{ minHeight: 120 }}
                     value={resume.summary}
                     onChange={(e) => {
@@ -3167,18 +3168,20 @@ export default function ResumeEditor() {
                   </div>
                   {resume.achievements.map((achievement, achIdx) => (
                     <div key={`achievement-${achIdx}`} style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'flex-start' }}>
-                      <textarea
-                        className="input"
-                        style={{ flex: 1, minHeight: 56 }}
-                        value={achievement}
-                        placeholder="e.g. Won the Rising Star award twice for high-impact delivery"
-                        onChange={(e) => {
-                          const copy = [...resume.achievements];
-                          copy[achIdx] = e.target.value;
-                          setResume((prev) => ({ ...prev, achievements: copy }));
-                          markDirty();
-                        }}
-                      />
+                      <div className="hide-field-label" style={{ flex: 1 }}>
+                        <TkxTextarea
+                          label={`Achievement ${achIdx + 1}`}
+                          style={{ minHeight: 56 }}
+                          value={achievement}
+                          placeholder="e.g. Won the Rising Star award twice for high-impact delivery"
+                          onChange={(e) => {
+                            const copy = [...resume.achievements];
+                            copy[achIdx] = e.target.value;
+                            setResume((prev) => ({ ...prev, achievements: copy }));
+                            markDirty();
+                          }}
+                        />
+                      </div>
                       <button
                         type="button"
                         className="btn secondary"
@@ -3410,11 +3413,14 @@ export default function ResumeEditor() {
                                         bullet, not just the first ~30 chars. rows=2 starts compact;
                                         the inline auto-grow handler bumps it as the user types so
                                         we never trap their text behind a horizontal scroll. */}
-                                    <textarea
-                                      className={`input bullet-input${highlightHasInputError ? ' input-error' : ''}`}
+                                    <div className="hide-field-label">
+                                    <TkxTextarea
+                                      label={`Experience bullet ${highlightIdx + 1}`}
+                                      className={`bullet-input${highlightHasInputError ? ' input-error' : ''}`}
+                                      isInvalid={highlightHasInputError}
                                       placeholder="Improved checkout conversion by 18% by redesigning the flow."
                                       value={line}
-                                      rows={2}
+                                      minRows={2}
                                       data-testid={`experience-highlight-${expIdx}-${highlightIdx}`}
                                       data-highlight-id={`experience-highlight-${expIdx}-${highlightIdx}`}
                                       onInput={(e) => {
@@ -3432,6 +3438,7 @@ export default function ResumeEditor() {
                                         markDirty();
                                       }}
                                     />
+                                    </div>
                                     <button
                                       type="button"
                                       className="btn secondary"
@@ -3953,7 +3960,7 @@ export default function ResumeEditor() {
                         </button>
                       </div>
                       <label className="label" style={{ marginTop: 8 }}>Highlights (one per line)</label>
-                      <textarea className="input" style={{ minHeight: 80 }} placeholder="Built a scheduling app used by 200+ users" value={proj.highlights.join('\n')} onChange={(e) => {
+                      <TkxTextarea label="Project highlights (one per line)" style={{ minHeight: 80 }} placeholder="Built a scheduling app used by 200+ users" value={proj.highlights.join('\n')} onChange={(e) => {
                         const copy = [...resume.projects];
                         copy[projIdx] = { ...copy[projIdx], highlights: e.target.value.split('\n') };
                         setResume((prev) => ({ ...prev, projects: copy }));
@@ -4020,7 +4027,7 @@ export default function ResumeEditor() {
                         </div>
                       </div>
                       <label className="label" style={{ marginTop: 8 }}>Details (one per line)</label>
-                      <textarea className="input" style={{ minHeight: 80 }} placeholder="Specialization, score, renewal" value={(cert.details || []).join('\n')} onChange={(e) => {
+                      <TkxTextarea label="Certification details (one per line)" style={{ minHeight: 80 }} placeholder="Specialization, score, renewal" value={(cert.details || []).join('\n')} onChange={(e) => {
                         const copy = [...resume.certifications];
                         copy[certIdx] = { ...copy[certIdx], details: e.target.value.split('\n') };
                         setResume((prev) => ({ ...prev, certifications: copy }));
@@ -4302,7 +4309,9 @@ export default function ResumeEditor() {
             ?
           </span>
         </label>
-        <textarea className="input" style={{ minHeight: 120 }} value={jdText} onChange={(e) => setJdText(e.target.value)} />
+        <div className="hide-field-label">
+          <TkxTextarea label="Job description" style={{ minHeight: 120 }} value={jdText} onChange={(e) => setJdText(e.target.value)} />
+        </div>
         <p className="hint" style={{ marginTop: 8 }}>
           Paste the job description to get ATS match suggestions and tailor AI rewrites + cover letter to this role.
           Hover the <strong>?</strong> above for the full list. Leaving it blank won&apos;t affect your base ATS score.
