@@ -56,7 +56,11 @@ const normalize = (f) => f.split(path.sep).join('/');
 const strictFiles = allFiles.filter((f) => !QUARANTINED_FILES.has(normalize(f)));
 const advisoryFiles = allFiles.filter((f) => QUARANTINED_FILES.has(normalize(f)));
 
-const tsxBin = path.join('node_modules', '.bin', 'tsx');
+// npm writes three shims into .bin: an extensionless shell script plus
+// tsx.cmd / tsx.ps1. Windows cannot execute the extensionless one, so
+// spawning it fails with ENOENT and the whole suite silently refuses to run
+// on a Windows checkout. Pick the shim the platform can actually launch.
+const tsxBin = path.join('node_modules', '.bin', process.platform === 'win32' ? 'tsx.cmd' : 'tsx');
 
 /** Run a group of files under node:test; resolve with the child exit code. */
 function runGroup(files, label) {
