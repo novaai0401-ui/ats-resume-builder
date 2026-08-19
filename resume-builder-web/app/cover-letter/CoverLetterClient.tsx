@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { TkxSelect } from 'tekivex-ui';
+import { TkxTextarea, TkxSelect } from 'tekivex-ui';
 import type {
   CoverLetter,
   CoverLetterTone,
@@ -213,15 +213,15 @@ export default function CoverLetterClient() {
               </label>
             ))}
           </fieldset>
-          <label className="form-full">
-            Job description (optional)
-            <textarea
-              rows={6}
+          <div className="form-full">
+            <TkxTextarea
+              label="Job description (optional)"
+              minRows={6}
               value={form.jdText}
               onChange={(e) => setForm({ ...form, jdText: e.target.value })}
               placeholder="Paste the job description to ground keywords..."
             />
-          </label>
+          </div>
           <button
             type="submit"
             className="btn primary"

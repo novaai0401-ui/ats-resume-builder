@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { TkxSelect } from 'tekivex-ui';
+import { TkxTextarea, TkxSelect } from 'tekivex-ui';
 import type {
   JobApplication,
   NetworkContact,
@@ -394,14 +394,14 @@ export default function ContactsClient() {
                 options={jobs.map((j) => ({ value: j.id, label: `${j.company} — ${j.role}` }))}
                 onChange={(value) => setForm({ ...form, jobApplicationId: String(value || '') })}
               />
-              <label className="form-full">
-                Notes
-                <textarea
-                  rows={4}
+              <div className="form-full">
+                <TkxTextarea
+                  label="Notes"
+                  minRows={4}
                   value={form.notes || ''}
                   onChange={(e) => setForm({ ...form, notes: e.target.value })}
                 />
-              </label>
+              </div>
             </div>
             <div className="form-actions">
               <button type="button" className="btn secondary" onClick={closeForm}>

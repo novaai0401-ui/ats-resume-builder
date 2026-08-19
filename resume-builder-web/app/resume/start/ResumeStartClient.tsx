@@ -19,6 +19,7 @@ import { ingestResumeFile } from '@/src/lib/resume-ingest';
 import { useResumeStore } from '@/src/lib/resume-store';
 import { PrivacyBadge } from '@/src/components/PrivacyBadge';
 import DataLoader from '@/src/components/DataLoader';
+import { TkxTextarea } from 'tekivex-ui';
 
 const SECTION_LABELS: Record<SectionType, string> = {
   contact: 'Header & Contact',
@@ -185,15 +186,17 @@ export default function ResumeStartClient() {
             </p>
             {linkedinOpen ? (
               <div style={{ display: 'grid', gap: 8 }}>
-                <textarea
-                  className="input"
-                  rows={6}
-                  placeholder="Paste your copied LinkedIn PROFILE text here…"
-                  value={linkedinText}
-                  onChange={(e) => setLinkedinText(e.target.value)}
-                  data-testid="linkedin-paste-input"
-                  disabled={loadingUpload}
-                />
+                <div className="hide-field-label">
+                  <TkxTextarea
+                    label="LinkedIn profile text"
+                    minRows={6}
+                    placeholder="Paste your copied LinkedIn PROFILE text here…"
+                    value={linkedinText}
+                    onChange={(e) => setLinkedinText(e.target.value)}
+                    data-testid="linkedin-paste-input"
+                    disabled={loadingUpload}
+                  />
+                </div>
                 {(() => {
                   const t = linkedinText.trim();
                   const looksLikeFeed =

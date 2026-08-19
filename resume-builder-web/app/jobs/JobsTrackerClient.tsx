@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { TkxSelect } from 'tekivex-ui';
+import { TkxTextarea, TkxSelect } from 'tekivex-ui';
 import type { JobApplication, JobApplicationInput, JobStatus } from 'resume-builder-shared';
 import { api } from '@/src/lib/api';
 import DataLoader from '@/src/components/DataLoader';
@@ -384,22 +384,22 @@ export default function JobsTrackerClient() {
                   onChange={(e) => setForm({ ...form, appliedAt: e.target.value })}
                 />
               </label>
-              <label className="form-full">
-                Notes
-                <textarea
-                  rows={4}
+              <div className="form-full">
+                <TkxTextarea
+                  label="Notes"
+                  minRows={4}
                   value={form.notes || ''}
                   onChange={(e) => setForm({ ...form, notes: e.target.value })}
                 />
-              </label>
-              <label className="form-full">
-                Job description (paste for AI matching)
-                <textarea
-                  rows={6}
+              </div>
+              <div className="form-full">
+                <TkxTextarea
+                  label="Job description (paste for AI matching)"
+                  minRows={6}
                   value={form.jdText || ''}
                   onChange={(e) => setForm({ ...form, jdText: e.target.value })}
                 />
-              </label>
+              </div>
             </div>
             <div className="form-actions">
               <button type="button" className="btn secondary" onClick={closeForm}>
