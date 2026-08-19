@@ -18,6 +18,7 @@ import { api, getAccessToken } from '@/src/lib/api';
 import { useResumeStore } from '@/src/lib/resume-store';
 import { loadByokKey } from '@/src/lib/byok-storage';
 import { handleFreeTrialError } from '@/src/lib/free-trial';
+import { TkxTextarea } from 'tekivex-ui';
 
 type Card = {
   category: 'behavioral' | 'technical' | 'role-specific';
@@ -248,11 +249,10 @@ export default function InterviewPrepClient() {
             />
           </div>
           <div style={{ gridColumn: 'span 2' }}>
-            <label className="label" htmlFor="jd-context">Paste a JD (optional)</label>
-            <textarea
+            <TkxTextarea
               id="jd-context"
-              className="input"
-              rows={3}
+              label="Paste a JD (optional)"
+              minRows={3}
               placeholder="Adds JD-specific questions to the cards…"
               value={jdText}
               onChange={(e) => setJdText(e.target.value)}
@@ -391,15 +391,18 @@ function MockInterviewPanel({ resumeText, targetRole, jdText }: { resumeText: st
             ))}
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-            <textarea
-              className="input"
-              rows={3}
-              style={{ flex: 1 }}
-              placeholder="Type your answer… (or ask to stop for a readiness summary)"
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              disabled={busy}
-            />
+            {/* Answer composer — a visible "Your answer" heading above a chat-style
+             * reply box reads as clutter, so the label stays for screen readers only. */}
+            <div className="hide-field-label" style={{ flex: 1 }}>
+              <TkxTextarea
+                label="Your answer"
+                minRows={3}
+                placeholder="Type your answer… (or ask to stop for a readiness summary)"
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                disabled={busy}
+              />
+            </div>
             <button
               className="btn"
               disabled={busy || !draft.trim()}

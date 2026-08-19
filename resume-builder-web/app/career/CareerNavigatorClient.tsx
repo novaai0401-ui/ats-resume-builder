@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { TkxSelect } from 'tekivex-ui';
+import { TkxTextarea, TkxSelect } from 'tekivex-ui';
 import { PROFESSION_INDUSTRIES, getIndustryById, getRoleById } from 'resume-builder-shared';
 import { api, type Resume, type TechGapResult } from '@/src/lib/api';
 import FreeAiNotice from '@/src/components/FreeAiNotice';
@@ -235,11 +235,10 @@ export default function CareerNavigatorClient() {
           </div>
         </div>
 
-        <label style={{ display: 'grid', gap: 6, marginTop: 12 }}>
-          <span className="small">Skills you already have (comma or newline separated)</span>
-          <textarea
-            className="input"
-            rows={4}
+        <div style={{ marginTop: 12 }}>
+          <TkxTextarea
+            label="Skills you already have (comma or newline separated)"
+            minRows={4}
             placeholder={buildSkillsPlaceholder(industryId)}
             value={skillsText}
             onChange={(event) => setSkillsText(event.target.value)}
@@ -280,7 +279,7 @@ export default function CareerNavigatorClient() {
               );
             })}
           </div>
-        </label>
+        </div>
 
         {resumes.length > 0 ? (
           <div style={{ marginTop: 12, border: '1px solid var(--border)', borderRadius: 8, padding: 12 }}>
@@ -354,16 +353,15 @@ export default function CareerNavigatorClient() {
           </div>
         </div>
 
-        <label style={{ display: 'grid', gap: 6, marginTop: 12 }}>
-          <span className="small">Paste a target job description (optional, sharpens analysis)</span>
-          <textarea
-            className="input"
-            rows={4}
+        <div style={{ marginTop: 12 }}>
+          <TkxTextarea
+            label="Paste a target job description (optional, sharpens analysis)"
+            minRows={4}
             placeholder="Paste the JD of the role you want to pivot into..."
             value={jdText}
             onChange={(event) => setJdText(event.target.value)}
           />
-        </label>
+        </div>
 
         <div style={{ marginTop: 16, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           <button
