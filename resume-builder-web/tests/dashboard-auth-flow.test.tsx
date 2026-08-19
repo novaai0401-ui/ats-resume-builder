@@ -41,6 +41,35 @@ if (typeof (dom.window as unknown as { matchMedia?: unknown }).matchMedia !== 'f
 (globalThis as unknown as { matchMedia: typeof window.matchMedia }).matchMedia =
   (dom.window as unknown as { matchMedia: typeof window.matchMedia }).matchMedia;
 
+// TkxSelect's popup listbox observes its trigger with ResizeObserver to keep
+// the menu aligned; jsdom doesn't ship it either, and the bare ReferenceError
+// surfaces as an unrelated-looking render failure. Same treatment as
+// matchMedia above: a no-op stub so the effect mounts and moves on.
+class ResizeObserverStub {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+if (typeof (dom.window as unknown as { ResizeObserver?: unknown }).ResizeObserver !== 'function') {
+  Object.defineProperty(dom.window, 'ResizeObserver', {
+    writable: true,
+    value: ResizeObserverStub,
+  });
+}
+(globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver =
+  (dom.window as unknown as { ResizeObserver: unknown }).ResizeObserver;
+
+// jsdom implements no scrolling, so Element.prototype.scrollIntoView is
+// missing. TkxSelect's listbox calls it to reveal the active option, and the
+// resulting TypeError aborts the render with a message that points at React
+// internals rather than the real cause. No-op stub.
+if (typeof dom.window.Element.prototype.scrollIntoView !== 'function') {
+  Object.defineProperty(dom.window.Element.prototype, 'scrollIntoView', {
+    writable: true,
+    value: () => {},
+  });
+}
+
 // cancelAnimationFrame must mirror the requestAnimationFrame polyfill above so
 // any rAF loop can actually stop (otherwise it reschedules forever in jsdom).
 (globalThis as unknown as { cancelAnimationFrame: (id: number) => void }).cancelAnimationFrame =
