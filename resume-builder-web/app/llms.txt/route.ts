@@ -11,7 +11,7 @@
  * Served as text/markdown at the site root. Also linked from robots.txt.
  */
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://pocketresume.app';
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://callbackcv.tekivex.com';
 
 const BODY = `# CallbackCV
 

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://pocketresume.app';
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://callbackcv.tekivex.com';
 
 export const metadata: Metadata = {
   title: 'Resume Builder for India — ATS-friendly, ₹ pricing — CallbackCV',

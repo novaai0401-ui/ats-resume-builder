@@ -56,11 +56,14 @@ const normalize = (f) => f.split(path.sep).join('/');
 const strictFiles = allFiles.filter((f) => !QUARANTINED_FILES.has(normalize(f)));
 const advisoryFiles = allFiles.filter((f) => QUARANTINED_FILES.has(normalize(f)));
 
-// npm writes three shims into .bin: an extensionless shell script plus
-// tsx.cmd / tsx.ps1. Windows cannot execute the extensionless one, so
-// spawning it fails with ENOENT and the whole suite silently refuses to run
-// on a Windows checkout. Pick the shim the platform can actually launch.
-const tsxBin = path.join('node_modules', '.bin', process.platform === 'win32' ? 'tsx.cmd' : 'tsx');
+// Launching tsx is fiddly on Windows and the suite silently refused to run
+// there. npm writes three shims into .bin - an extensionless shell script
+// plus tsx.cmd / tsx.ps1. Spawning the extensionless one fails with ENOENT,
+// and since Node 18 hardened against CVE-2024-27980, spawning the .cmd
+// directly fails with EINVAL. Going through the shell lets Windows resolve
+// the right shim itself.
+const isWindows = process.platform === 'win32';
+const tsxBin = path.join('node_modules', '.bin', 'tsx');
 
 /** Run a group of files under node:test; resolve with the child exit code. */
 function runGroup(files, label) {
@@ -71,7 +74,10 @@ function runGroup(files, label) {
     }
     console.log(`\n[test] ${label} (${files.length} file${files.length === 1 ? '' : 's'})`);
     const args = ['--test', '--test-force-exit', '--test-timeout=180000', '--test-concurrency=1', ...files];
-    const child = spawn(tsxBin, args, { stdio: ['inherit', 'inherit', 'inherit'] });
+    const child = spawn(tsxBin, args, {
+      stdio: ['inherit', 'inherit', 'inherit'],
+      shell: isWindows,
+    });
     child.on('error', (err) => {
       console.error(`[test] failed to launch tsx for ${label}:`, err.message);
       resolve(1);

@@ -17,7 +17,7 @@ import { themeNoFlashScript } from '@/src/lib/theme';
 // production hostnames in OpenGraph and canonical tags. Fallback is
 // the real prod URL — better to point at production than localhost
 // when the env var is missing in CI.
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://pocketresume.app';
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://callbackcv.tekivex.com';
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

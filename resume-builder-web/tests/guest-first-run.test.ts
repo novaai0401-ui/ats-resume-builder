@@ -20,7 +20,13 @@ import path from 'node:path';
  */
 
 const webRoot = path.resolve(__dirname, '..');
-const read = (rel: string) => readFileSync(path.join(webRoot, rel), 'utf8');
+// Normalise CRLF -> LF. These tests assert on source text, and some
+// assertions embed a literal "\n" (e.g. the saveDraft guard below). On a
+// Windows checkout the files are CRLF, so those matches fail even though the
+// code is correct — a false failure that says "saveDraft opens the gate for
+// guests" is broken when it is not.
+const read = (rel: string) =>
+  readFileSync(path.join(webRoot, rel), 'utf8').replace(/\r\n/g, '\n');
 
 const api = read('src/lib/api.ts');
 const editor = read('app/resume/ResumeEditor.tsx');

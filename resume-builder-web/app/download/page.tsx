@@ -136,7 +136,7 @@ export default async function DownloadPage() {
           <h2 style={cardTitle}>Desktop &amp; web</h2>
         </header>
         <p style={cardBody}>
-          Just visit <a href="/dashboard">pocketresume.app/dashboard</a> in any browser. Same login,
+          Just visit <a href="/dashboard">callbackcv.tekivex.com/dashboard</a> in any browser. Same login,
           same data. You can also install it as an app from Chrome, Edge, or Brave (look for the
           install icon in the address bar).
         </p>

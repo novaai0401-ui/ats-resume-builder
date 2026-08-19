@@ -312,6 +312,15 @@ services:
       - key: NEXT_PUBLIC_API_URL
         sync: false
 
+      # ── Canonical site URL (SEO — build-time) ───────────────────────
+      # Feeds canonical tags, sitemap.xml, robots.txt, og:url and JSON-LD.
+      # This was previously unset, so the code fallback took over and every
+      # page advertised a DIFFERENT domain as canonical, telling Google to
+      # attribute this site's ranking signals elsewhere.
+      # Build-time: changing it requires a manual redeploy.
+      - key: NEXT_PUBLIC_SITE_URL
+        value: https://callbackcv.tekivex.com
+
       # ── Admin config ────────────────────────────────────────────────
       - key: NEXT_PUBLIC_ADMIN_EMAILS
         sync: false

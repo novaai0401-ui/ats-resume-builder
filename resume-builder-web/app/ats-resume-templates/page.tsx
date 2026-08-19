@@ -2,7 +2,7 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 import { TEMPLATE_CATALOG } from 'resume-builder-shared';
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://pocketresume.app';
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://callbackcv.tekivex.com';
 
 export const metadata: Metadata = {
   title: 'ATS Resume Templates (Free, ATS-safe) — CallbackCV',
