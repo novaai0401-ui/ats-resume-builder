@@ -1681,6 +1681,25 @@ export const api = {
       `/ai/live-openings?q=${encodeURIComponent(q)}${location ? `&location=${encodeURIComponent(location)}` : ''}`,
     ),
 
+  /**
+   * Openings matched to a saved resume. The server derives the search from the
+   * resume itself — most recent job title plus a couple of skills, filtered to
+   * the contact city — so the user types nothing.
+   *
+   * `query` and `where` come back so the UI can SHOW what was searched.
+   * Without that the results look arbitrary and there is no way to tell a poor
+   * match from a thin resume.
+   */
+  jobMatches: (resumeId: string, opts?: { limit?: number; where?: string }) => {
+    const params = new URLSearchParams();
+    if (opts?.limit) params.set('limit', String(opts.limit));
+    if (opts?.where) params.set('where', opts.where);
+    const qs = params.toString();
+    return request<JobMatchesResult>(
+      `/jobs/matches/${encodeURIComponent(resumeId)}${qs ? `?${qs}` : ''}`,
+    );
+  },
+
   // ─── Job alerts (saved searches → email on new openings) ───────────────
   listJobAlerts: () =>
     request<Array<{ id: string; query: string; location: string | null; active: boolean; lastRunAt: string | null; lastMatchAt: string | null; createdAt: string }>>(`/job-alerts`),
@@ -1799,6 +1818,19 @@ export type JobOpening = {
   salaryText: string | null;
   postedAt: string | null;
   source: string;
+};
+
+export type JobMatchesResult = {
+  /** False when no jobs provider is configured on the server. */
+  configured: boolean;
+  /** Which feeds answered, e.g. ['adzuna', 'careerjet']. */
+  sources: string[];
+  /** The query the server derived from the resume ('' when it could not). */
+  query: string;
+  where?: string | null;
+  jobs: JobOpening[];
+  /** Present when the resume had too little to search on. */
+  reason?: string;
 };
 
 export type SkillDemandResult = {
