@@ -133,6 +133,13 @@
   --glow-2: #e6fbf3;
   --glow-1-fade: rgba(236, 235, 254, 0);
   --glow-2-fade: rgba(230, 251, 243, 0);
+
+  /* Translucent fill for sticky/blurred chrome. */
+  --surface-glass: rgba(255, 255, 255, 0.72);
+
+  /* Content measure. Without a cap, text lines run the full width of a
+     large monitor and become unreadable. */
+  --shell-max: 1440px;
 }
 
 /* Dark theme, defined twice on purpose: once for viewers whose OS is dark and
@@ -186,6 +193,7 @@
     --glow-2: #052e2b;
     --glow-1-fade: rgba(30, 27, 75, 0);
     --glow-2-fade: rgba(5, 46, 43, 0);
+    --surface-glass: rgba(21, 27, 46, 0.72);
   }
 }
 
@@ -235,6 +243,7 @@
   --glow-2: #052e2b;
   --glow-1-fade: rgba(30, 27, 75, 0);
   --glow-2-fade: rgba(5, 46, 43, 0);
+  --surface-glass: rgba(21, 27, 46, 0.72);
 }
 
 /* Respect a reduced-motion preference across every transition we ship. */
@@ -281,14 +290,14 @@ a {
 
 .main-shell {
   width: 90vw;
-  max-width: none;
+  max-width: var(--shell-max);
   margin: 0 auto;
-  padding: 24px;
+  padding: var(--space-6);
   /* Clear the iOS status bar / notch / Dynamic Island. With
    * viewport-fit=cover the webview extends under the status bar, so without
    * this the top nav (brand + burger) and the editor's action row render
    * UNDER the clock and are untappable. */
-  padding-top: calc(24px + env(safe-area-inset-top, 0px));
+  padding-top: calc(var(--space-6) + env(safe-area-inset-top, 0px));
 }
 
 body.resume-embed-body {
@@ -309,22 +318,22 @@ body.resume-embed-body .main-shell {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 24px;
-  padding: 12px 18px;
-  background: rgba(255, 255, 255, 0.72);
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+  padding: var(--space-3) var(--space-5);
+  background: var(--surface-glass);
   backdrop-filter: saturate(160%) blur(10px);
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   box-shadow: var(--shadow-sm);
   position: sticky;
-  top: 10px;
-  z-index: 40;
+  top: var(--space-2);
+  z-index: var(--z-sticky);
 }
 
 .brand {
-  font-weight: 800;
-  font-size: 21px;
+  font-weight: var(--weight-bold);
+  font-size: var(--text-xl);
   letter-spacing: -0.01em;
   background: var(--grad-primary);
   -webkit-background-clip: text;
