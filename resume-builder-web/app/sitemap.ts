@@ -1,4 +1,5 @@
 import type { MetadataRoute } from 'next';
+import { TEMPLATE_CATALOG } from 'resume-builder-shared';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://callbackcv.tekivex.com';
 
@@ -14,7 +15,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${SITE_URL}/`, lastModified, changeFrequency: 'weekly', priority: 1.0 },
     { url: `${SITE_URL}/auth/login`, lastModified, changeFrequency: 'monthly', priority: 0.8 },
     { url: `${SITE_URL}/auth/register`, lastModified, changeFrequency: 'monthly', priority: 0.8 },
-    { url: `${SITE_URL}/templates`, lastModified, changeFrequency: 'weekly', priority: 0.9 },
+    // /templates only redirects to /templates/preview, so list the destination.
+    // Listing the redirect at priority 0.9 spent the site's strongest template
+    // signal on a URL that immediately bounces.
+    { url: `${SITE_URL}/templates/preview`, lastModified, changeFrequency: 'weekly', priority: 0.9 },
     { url: `${SITE_URL}/ats-resume-templates`, lastModified, changeFrequency: 'weekly', priority: 0.9 },
     { url: `${SITE_URL}/ats-resume-checker`, lastModified, changeFrequency: 'weekly', priority: 0.9 },
     { url: `${SITE_URL}/resume-builder-india`, lastModified, changeFrequency: 'weekly', priority: 0.8 },
@@ -25,5 +29,18 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${SITE_URL}/interview-prep`, lastModified, changeFrequency: 'monthly', priority: 0.6 },
     { url: `${SITE_URL}/mentor/chat`, lastModified, changeFrequency: 'weekly', priority: 0.7 },
     { url: `${SITE_URL}/download`, lastModified, changeFrequency: 'weekly', priority: 0.6 },
+    { url: `${SITE_URL}/pricing`, lastModified, changeFrequency: 'monthly', priority: 0.7 },
+    { url: `${SITE_URL}/skill-demand`, lastModified, changeFrequency: 'weekly', priority: 0.6 },
+    { url: `${SITE_URL}/linkedin`, lastModified, changeFrequency: 'monthly', priority: 0.6 },
+    // One indexable URL per template. The long tail — "executive resume
+    // template", "resume template for career change" — is where a newer domain
+    // can realistically rank, and each query needs its own page to compete for
+    // it. Generated from the catalog so a new template is never left out.
+    ...TEMPLATE_CATALOG.map((template) => ({
+      url: `${SITE_URL}/ats-resume-templates/${template.id}`,
+      lastModified,
+      changeFrequency: 'monthly' as const,
+      priority: 0.8,
+    })),
   ];
 }

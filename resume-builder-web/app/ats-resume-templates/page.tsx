@@ -87,7 +87,13 @@ export default function AtsResumeTemplatesPage() {
       <section className="grid" aria-label="Template list">
         {TEMPLATE_CATALOG.map((t) => (
           <article key={t.id} className="card col-6">
-            <h2 style={{ marginTop: 0, fontSize: 18 }}>{t.name}</h2>
+            {/* Heading links to the template's own page. Without an internal
+                link the 25 detail pages are orphans — present in the sitemap
+                but with nothing pointing at them, which is how pages end up
+                crawled late or not at all. */}
+            <h2 style={{ marginTop: 0, fontSize: 18 }}>
+              <Link href={`/ats-resume-templates/${encodeURIComponent(t.id)}`}>{t.name}</Link>
+            </h2>
             <p className="small">{t.description}</p>
             <p className="small" style={{ color: '#5a6778' }}>
               {(t.tags || []).join(' · ')}
@@ -95,6 +101,9 @@ export default function AtsResumeTemplatesPage() {
             </p>
             <Link className="btn secondary" href={`/resume/start?template=${encodeURIComponent(t.id)}`}>
               Use {t.name}
+            </Link>{' '}
+            <Link className="small" href={`/ats-resume-templates/${encodeURIComponent(t.id)}`}>
+              About the {t.name} template
             </Link>
           </article>
         ))}
