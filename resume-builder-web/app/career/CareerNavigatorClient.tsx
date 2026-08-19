@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { TkxButton, TkxSelect, TkxTextarea } from 'tekivex-ui';
+import { TkxButton, TkxCheckbox, TkxSelect, TkxTextarea } from 'tekivex-ui';
 import { PROFESSION_INDUSTRIES, getIndustryById, getRoleById } from 'resume-builder-shared';
 import { api, type Resume, type TechGapResult } from '@/src/lib/api';
 import FreeAiNotice from '@/src/components/FreeAiNotice';
@@ -283,16 +283,17 @@ export default function CareerNavigatorClient() {
 
         {resumes.length > 0 ? (
           <div style={{ marginTop: 12, border: '1px solid var(--border)', borderRadius: 8, padding: 12 }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-              <input
-                type="checkbox"
+            <div style={{ marginBottom: 8 }}>
+              <TkxCheckbox
                 checked={useResume}
                 onChange={(event) => setUseResume(event.target.checked)}
+                label={
+                  <span className="small" style={{ fontWeight: 600 }}>
+                    Use one of my saved resumes for a deeper analysis
+                  </span>
+                }
               />
-              <span className="small" style={{ fontWeight: 600 }}>
-                Use one of my saved resumes for a deeper analysis
-              </span>
-            </label>
+            </div>
             {useResume ? (
               <TkxSelect
                 label="Resume"

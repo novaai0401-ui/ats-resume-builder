@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { TkxTextarea } from 'tekivex-ui';
+import { TkxButton, TkxInput, TkxTextarea } from 'tekivex-ui';
 
 /**
  * R-038 Phase 2 — contact-relay form on the public share page.
@@ -84,13 +84,13 @@ export default function ContactRelayForm({ slug }: { slug: string }) {
               The owner enabled contact masking. You can still send them a message — we'll forward it.
             </p>
           </div>
-          <button
+          <TkxButton
             type="button"
             onClick={() => setOpen(true)}
             style={primaryBtnStyle}
           >
             Get in touch
-          </button>
+          </TkxButton>
         </div>
       </div>
     );
@@ -103,9 +103,13 @@ export default function ContactRelayForm({ slug }: { slug: string }) {
         you; if they reply, the reply will come from their address directly to yours.
       </p>
       <div style={{ display: 'grid', gap: 8 }}>
-        <input
+        {/* Real field names replace the "Your name *" placeholder-as-label
+         * pattern: the asterisk becomes isRequired, the placeholder stays a
+         * hint rather than doing the label's job. */}
+        <TkxInput
+          label="Your name"
+          isRequired
           type="text"
-          placeholder="Your name *"
           required
           maxLength={120}
           value={name}
@@ -113,9 +117,10 @@ export default function ContactRelayForm({ slug }: { slug: string }) {
           disabled={busy}
           style={inputStyle}
         />
-        <input
+        <TkxInput
+          label="Your email"
+          isRequired
           type="email"
-          placeholder="Your email *"
           required
           maxLength={200}
           value={email}
@@ -123,9 +128,9 @@ export default function ContactRelayForm({ slug }: { slug: string }) {
           disabled={busy}
           style={inputStyle}
         />
-        <input
+        <TkxInput
+          label="Company (optional)"
           type="text"
-          placeholder="Company (optional)"
           maxLength={200}
           value={company}
           onChange={(e) => setCompany(e.target.value)}
@@ -139,7 +144,6 @@ export default function ContactRelayForm({ slug }: { slug: string }) {
           showCount
           maxLength={4000}
           minRows={5}
-          placeholder="Your message *"
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           disabled={busy}
@@ -147,17 +151,17 @@ export default function ContactRelayForm({ slug }: { slug: string }) {
         />
       </div>
       <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-        <button type="submit" disabled={busy} style={primaryBtnStyle}>
+        <TkxButton type="submit" disabled={busy} style={primaryBtnStyle}>
           {busy ? 'Sending…' : 'Send message'}
-        </button>
-        <button
+        </TkxButton>
+        <TkxButton
           type="button"
           onClick={() => setOpen(false)}
           disabled={busy}
           style={{ ...primaryBtnStyle, background: '#ffffff', color: '#1a3a5c', border: '1px solid #cbd5e1' }}
         >
           Cancel
-        </button>
+        </TkxButton>
       </div>
       {status ? (
         <p

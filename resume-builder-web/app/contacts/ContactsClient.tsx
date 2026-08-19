@@ -321,7 +321,7 @@ export default function ContactsClient() {
           <form className="modal card" onSubmit={submitForm}>
             <h2 className="heading-lg">{editing ? 'Edit contact' : 'New contact'}</h2>
             <div className="form-grid">
-              <TkxInput label="Name *"
+              <TkxInput label="Name" isRequired
                   required
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}

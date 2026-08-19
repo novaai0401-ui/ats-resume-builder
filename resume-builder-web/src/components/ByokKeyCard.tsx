@@ -125,23 +125,23 @@ export default function ByokKeyCard() {
           }}
         />
 
-        <label className="label" htmlFor="byok-key">
-          {record ? 'Replace with a different key' : 'API key'}
-        </label>
         <div style={{ display: 'flex', gap: 8, alignItems: 'stretch', flexWrap: 'wrap' }}>
-          <input
-            id="byok-key"
-            className="input"
-            type={shown ? 'text' : 'password'}
-            value={input}
-            autoComplete="off"
-            spellCheck={false}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder={
-              provider === 'groq' ? 'gsk_…' : provider === 'openai' ? 'sk-…' : 'sk-ant-…'
-            }
-            style={{ flex: 1, minWidth: 220 }}
-          />
+          {/* The show/hide toggle drives `type` between text and password —
+           * TkxInput passes type straight through, so the toggle survives. */}
+          <div style={{ flex: 1, minWidth: 220 }}>
+            <TkxInput
+              id="byok-key"
+              label={record ? 'Replace with a different key' : 'API key'}
+              type={shown ? 'text' : 'password'}
+              value={input}
+              autoComplete="off"
+              spellCheck={false}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder={
+                provider === 'groq' ? 'gsk_…' : provider === 'openai' ? 'sk-…' : 'sk-ant-…'
+              }
+            />
+          </div>
           <TkxButton
             type="button"
             variant="outline"

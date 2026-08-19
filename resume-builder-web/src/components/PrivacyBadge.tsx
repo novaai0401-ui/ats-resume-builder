@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { TkxButton } from 'tekivex-ui';
 
 /**
  * Small, dismissable banner that surfaces our privacy promise on
@@ -102,7 +103,7 @@ export function PrivacyBadge({ variant }: { variant: Variant }) {
         <span>{cfg.body}</span>
       </div>
       {cfg.dismissable ? (
-        <button
+        <TkxButton
           onClick={dismiss}
           aria-label="Dismiss privacy notice"
           style={{
@@ -117,7 +118,7 @@ export function PrivacyBadge({ variant }: { variant: Variant }) {
           }}
         >
           {'×'}
-        </button>
+        </TkxButton>
       ) : null}
     </div>
   );

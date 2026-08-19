@@ -309,7 +309,7 @@ function PatternTable({ patterns, onChanged }: { patterns: LearnedPattern[]; onC
 
 function FilterPill({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   return (
-    <button
+    <TkxButton
       onClick={onClick}
       style={{
         marginRight: 6,
@@ -320,7 +320,7 @@ function FilterPill({ label, active, onClick }: { label: string; active: boolean
         fontSize: 12,
         cursor: 'pointer',
       }}
-    >{label}</button>
+    >{label}</TkxButton>
   );
 }
 

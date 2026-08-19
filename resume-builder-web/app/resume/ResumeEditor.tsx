@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { TkxBottomNav, TkxButton, TkxDrawer, TkxSelect, TkxTextarea } from 'tekivex-ui';
+import { TkxBottomNav, TkxButton, TkxCheckbox, TkxColorPicker, TkxDrawer, TkxInput, TkxSelect, TkxTextarea } from 'tekivex-ui';
 import useFeatureFlags from '@/src/hooks/use-feature-flags';
 import { FONT_OPTIONS, DENSITY_OPTIONS, ACCENT_PRESETS, REORDERABLE_SECTIONS, resolveSectionOrder, getAtsSectionTitle, templateSupportsPhoto, normalizePhotoUrl, isValidEmail, isValidPhone, EMAIL_INVALID_MESSAGE, PHONE_INVALID_MESSAGE } from 'resume-builder-shared';
 import { RESUME_CREATE_RATE_LIMIT_CODE, api, Resume, ResumeImportResult, UploadResumeResponse, getAccessToken, isApiRequestError } from '@/src/lib/api';
@@ -2530,9 +2530,7 @@ export default function ResumeEditor() {
         )}
 
         <div className="section-card" style={{ marginTop: 16 }}>
-          <label className="label">Resume title</label>
-          <input
-            className="input"
+          <TkxInput label="Resume title"
             placeholder="e.g., Senior Product Designer Resume"
             value={resume.title}
             onChange={(e) => {
@@ -2578,7 +2576,7 @@ export default function ResumeEditor() {
           <div style={{ marginTop: 12 }}>
             <label className="label" style={{ fontSize: 12 }}>Accent colour</label>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-              <button
+              <TkxButton
                 type="button"
                 aria-label="Default accent (template default)"
                 title="Template default"
@@ -2598,7 +2596,7 @@ export default function ResumeEditor() {
               {ACCENT_PRESETS.map((preset) => {
                 const selected = String(resume.accentColor || '').toLowerCase() === preset.value.toLowerCase();
                 return (
-                  <button
+                  <TkxButton
                     key={preset.id}
                     type="button"
                     aria-label={preset.label}
@@ -2618,17 +2616,19 @@ export default function ResumeEditor() {
                   />
                 );
               })}
-              <input
-                type="color"
-                aria-label="Custom accent colour"
-                value={String(resume.accentColor || '#2563a8')}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setResume((prev) => ({ ...prev, accentColor: value }));
-                  persistDesign({ accentColor: value });
-                }}
-                style={{ width: 34, height: 30, padding: 0, border: '1px solid #cbd5e1', borderRadius: 6, cursor: 'pointer' }}
-              />
+              {/* TkxColorPicker exposes `label`, not aria-label, and this sits in
+               * a row of preset swatches where a visible heading would break the
+               * layout — so the name is kept for screen readers only. */}
+              <div className="hide-field-label">
+                <TkxColorPicker
+                  label="Custom accent colour"
+                  value={String(resume.accentColor || '#2563a8')}
+                  onChange={(value) => {
+                    setResume((prev) => ({ ...prev, accentColor: value }));
+                    persistDesign({ accentColor: value });
+                  }}
+                />
+              </div>
             </div>
           </div>
           {ATS_FAMILY_TEMPLATE_IDS.has(String(normalizedTemplateParam || resume.templateId || 'classic').trim()) ? (
@@ -2764,14 +2764,13 @@ export default function ResumeEditor() {
               <h3 style={{ margin: 0 }}>Guided section flow</h3>
               <p className="small">Complete required sections in order. Next unlocks only after required fields pass validation.</p>
             </div>
-            <label className="small step-nav__toggle">
-              <input
-                type="checkbox"
+            <div className="small step-nav__toggle">
+              <TkxCheckbox
                 checked={guidedNavigation}
                 onChange={(e) => setGuidedNavigation(e.target.checked)}
+                label="Guided mode"
               />
-              Guided mode
-            </label>
+            </div>
           </div>
           <div className="step-nav__steps">
             {REQUIRED_FLOW_SEQUENCE.map((type, idx) => {
@@ -2780,14 +2779,14 @@ export default function ResumeEditor() {
               const isActive = idx === navigationGate.activeStepIndex;
               const stateClass = feedback.level === 'error' ? 'error' : feedback.level === 'warn' ? 'warn' : 'good';
               return (
-                <button
+                <TkxButton
                   key={`required-step-${type}`}
                   className={`step-chip ${isActive ? 'active' : ''} ${stateClass}`}
                   disabled={isLocked}
                   onClick={() => goToRequiredStep(idx)}
                 >
                   {idx + 1}. {SECTION_LABELS[type as SectionType]}
-                </button>
+                </TkxButton>
               );
             })}
           </div>
@@ -2936,9 +2935,7 @@ export default function ResumeEditor() {
               <fieldset className="section-fieldset" disabled={sectionLocked}>
               {section.type === 'contact' && (
                 <div style={{ marginTop: 12 }}>
-                  <label className="label">Full name</label>
-                  <input
-                    className="input"
+                  <TkxInput label="Full name"
                     value={resume.contact.fullName}
                     onChange={(e) => {
                       setResume((prev) => ({ ...prev, contact: { ...prev.contact, fullName: e.target.value } }));
@@ -2950,9 +2947,8 @@ export default function ResumeEditor() {
                   )}
                   <div className="grid" style={{ marginTop: 10 }}>
                     <div className="col-6">
-                      <label className="label">Email</label>
-                      <input
-                        className={`input${contactEmailError ? ' input-error' : ''}`}
+                      <TkxInput label="Email"
+                        isInvalid={!!(contactEmailError)}
                         type="email"
                         inputMode="email"
                         value={resume.contact.email || ''}
@@ -2964,9 +2960,8 @@ export default function ResumeEditor() {
                       {contactEmailError && <p className="hint error">{contactEmailError}</p>}
                     </div>
                     <div className="col-6">
-                      <label className="label">Phone</label>
-                      <input
-                        className={`input${contactPhoneError ? ' input-error' : ''}`}
+                      <TkxInput label="Phone"
+                        isInvalid={!!(contactPhoneError)}
                         type="tel"
                         inputMode="tel"
                         value={resume.contact.phone || ''}
@@ -2982,9 +2977,7 @@ export default function ResumeEditor() {
                   {missingContact && <p className="hint warn">ATS risk: Add at least one direct contact method.</p>}
                   <div className="grid" style={{ marginTop: 10 }}>
                     <div className="col-6">
-                      <label className="label">Location</label>
-                      <input
-                        className="input"
+                      <TkxInput label="Location"
                         value={resume.contact.location || ''}
                         onChange={(e) => {
                           setResume((prev) => ({ ...prev, contact: { ...prev.contact, location: e.target.value } }));
@@ -2993,9 +2986,7 @@ export default function ResumeEditor() {
                       />
                     </div>
                     <div className="col-6">
-                      <label className="label">Links (comma separated)</label>
-                      <input
-                        className="input"
+                      <TkxInput label="Links (comma separated)"
                         value={(resume.contact.links || []).join(', ')}
                         onChange={(e) => {
                           const links = e.target.value.split(',').map((l) => l.trim()).filter(Boolean);
@@ -3140,7 +3131,7 @@ export default function ResumeEditor() {
                     </div>
                     <div className="skills-chips" data-testid="languages-chips">
                       {languages.map((language) => (
-                        <button
+                        <TkxButton
                           type="button"
                           key={`language-${language}`}
                           className="skill-chip soft"
@@ -3148,7 +3139,7 @@ export default function ResumeEditor() {
                           title={`Remove ${language}`}
                         >
                           {language} <span aria-hidden>x</span>
-                        </button>
+                        </TkxButton>
                       ))}
                     </div>
                     {!languages.length && (
@@ -3284,9 +3275,8 @@ export default function ResumeEditor() {
                             {companyError && <p className="hint error">{companyError}</p>}
                           </div>
                           <div className="experience-entry__field">
-                            <label className="label">Role</label>
-                            <input
-                              className={`input${roleError ? ' input-error' : ''}`}
+                            <TkxInput label="Role"
+                              isInvalid={!!(roleError)}
                               value={exp.role}
                               onChange={(e) => {
                                 const copy = [...resume.experience];
@@ -3320,9 +3310,9 @@ export default function ResumeEditor() {
                           <div className="experience-entry__field">
                             <div className="experience-entry__date-head">
                               <label className="label">End month</label>
-                              <label className="small experience-entry__present-toggle">
-                                <input
-                                  type="checkbox"
+                              <div className="small experience-entry__present-toggle">
+                                <TkxCheckbox
+                                  label="Present"
                                   checked={endIsPresent}
                                   onChange={(e) => {
                                     const { experiences: next, clearedIndexes } = applySinglePresentRule(
@@ -3343,8 +3333,7 @@ export default function ResumeEditor() {
                                     }
                                   }}
                                 />
-                                Present
-                              </label>
+                              </div>
                             </div>
                             <MonthYearPicker
                               value={exp.endDate}
@@ -3455,9 +3444,9 @@ export default function ResumeEditor() {
                                     >
                                       Remove
                                     </TkxButton>
-                                    <button
+                                    <TkxButton
                                       type="button"
-                                      className="btn secondary bullet-rewrite-trigger"
+                                      variant="outline" className="bullet-rewrite-trigger"
                                       onClick={() => requestBulletRewrite(expIdx, highlightIdx)}
                                       data-testid={`rewrite-bullet-${expIdx}-${highlightIdx}`}
                                       disabled={
@@ -3469,7 +3458,7 @@ export default function ResumeEditor() {
                                       {bulletRewrites[`${expIdx}-${highlightIdx}`]?.status === 'loading'
                                         ? 'Rewriting…'
                                         : '✨ Rewrite'}
-                                    </button>
+                                    </TkxButton>
                                   </div>
                                   {(() => {
                                     const entry = bulletRewrites[`${expIdx}-${highlightIdx}`];
@@ -3710,9 +3699,8 @@ export default function ResumeEditor() {
                             {eduErrors.institution && <p className="hint error">{eduErrors.institution}</p>}
                           </div>
                           <div className="education-entry__field">
-                            <label className="label">Degree</label>
-                            <input
-                              className={`input${eduErrors.degree ? ' input-error' : ''}`}
+                            <TkxInput label="Degree"
+                              isInvalid={!!(eduErrors.degree)}
                               value={edu.degree}
                               onChange={(e) => {
                                 const copy = [...resume.education];
@@ -3759,9 +3747,8 @@ export default function ResumeEditor() {
                             {eduErrors.endDate && <p className="hint error">{eduErrors.endDate}</p>}
                           </div>
                           <div className="education-entry__field">
-                            <label className="label">GPA (0-10)</label>
-                            <input
-                              className={`input${eduErrors.gpa ? ' input-error' : ''}`}
+                            <TkxInput label="GPA (0-10)"
+                              isInvalid={!!(eduErrors.gpa)}
                               type="number"
                               min={0}
                               max={10}
@@ -3785,9 +3772,8 @@ export default function ResumeEditor() {
                             {eduErrors.gpa && <p className="hint error">{eduErrors.gpa}</p>}
                           </div>
                           <div className="education-entry__field">
-                            <label className="label">Percentage (0-100)</label>
-                            <input
-                              className={`input${eduErrors.percentage ? ' input-error' : ''}`}
+                            <TkxInput label="Percentage (0-100)"
+                              isInvalid={!!(eduErrors.percentage)}
                               type="number"
                               min={0}
                               max={100}
@@ -3884,15 +3870,13 @@ export default function ResumeEditor() {
                           }}>Remove</TkxButton>
                         </div>
                       </div>
-                      <label className="label">Project name</label>
-                      <input className="input" value={proj.name} onChange={(e) => {
+                      <TkxInput label="Project name" value={proj.name} onChange={(e) => {
                         const copy = [...resume.projects];
                         copy[projIdx] = { ...copy[projIdx], name: e.target.value };
                         setResume((prev) => ({ ...prev, projects: copy }));
                         markDirty();
                       }} />
-                      <label className="label" style={{ marginTop: 8 }}>Role (optional)</label>
-                      <input className="input" value={proj.role || ''} onChange={(e) => {
+                      <TkxInput label="Role (optional)" style={{ marginTop: 8 }} value={proj.role || ''} onChange={(e) => {
                         const copy = [...resume.projects];
                         copy[projIdx] = { ...copy[projIdx], role: e.target.value };
                         setResume((prev) => ({ ...prev, projects: copy }));
@@ -3918,9 +3902,10 @@ export default function ResumeEditor() {
                           }}
                         />
                       </div>
-                      <label className="label" style={{ marginTop: 8 }}>Project URL (optional)</label>
-                      <input
-                        className={`input${isValidProjectUrl(proj.url || '') ? '' : (proj.url || '').trim() ? ' input-error' : ''}`}
+                      <TkxInput
+                        label="Project URL (optional)"
+                        style={{ marginTop: 8 }}
+                        isInvalid={!isValidProjectUrl(proj.url || '') && Boolean((proj.url || '').trim())}
                         placeholder="https://github.com/yourname/repo"
                         value={proj.url || ''}
                         onChange={(e) => {
@@ -4005,8 +3990,7 @@ export default function ResumeEditor() {
                       </p>
                       <div className="grid" style={{ marginTop: 8 }}>
                         <div className="col-6">
-                          <label className="label">Issuer</label>
-                          <input className="input" value={cert.issuer || ''} onChange={(e) => {
+                          <TkxInput label="Issuer" value={cert.issuer || ''} onChange={(e) => {
                             const copy = [...resume.certifications];
                             copy[certIdx] = { ...copy[certIdx], issuer: e.target.value };
                             setResume((prev) => ({ ...prev, certifications: copy }));
@@ -4068,8 +4052,7 @@ export default function ResumeEditor() {
             </div>
             {(resume.licenses || []).map((lic, licIdx) => (
               <div key={`lic-${licIdx}`} className="card" style={{ padding: 12, marginBottom: 12 }}>
-                <label className="label">License / registration name</label>
-                <input className="input" placeholder="e.g. Registered Nurse (RN)" value={lic.name} onChange={(e) => {
+                <TkxInput label="License / registration name" placeholder="e.g. Registered Nurse (RN)" value={lic.name} onChange={(e) => {
                   const copy = [...(resume.licenses || [])];
                   copy[licIdx] = { ...copy[licIdx], name: e.target.value };
                   setResume((prev) => ({ ...prev, licenses: copy }));
@@ -4077,8 +4060,7 @@ export default function ResumeEditor() {
                 }} />
                 <div className="grid" style={{ marginTop: 8 }}>
                   <div className="col-6">
-                    <label className="label">Issuing authority</label>
-                    <input className="input" placeholder="e.g. State Nursing Council" value={lic.authority || ''} onChange={(e) => {
+                    <TkxInput label="Issuing authority" placeholder="e.g. State Nursing Council" value={lic.authority || ''} onChange={(e) => {
                       const copy = [...(resume.licenses || [])];
                       copy[licIdx] = { ...copy[licIdx], authority: e.target.value };
                       setResume((prev) => ({ ...prev, licenses: copy }));
@@ -4086,8 +4068,7 @@ export default function ResumeEditor() {
                     }} />
                   </div>
                   <div className="col-6">
-                    <label className="label">License number</label>
-                    <input className="input" value={lic.licenseNumber || ''} onChange={(e) => {
+                    <TkxInput label="License number" value={lic.licenseNumber || ''} onChange={(e) => {
                       const copy = [...(resume.licenses || [])];
                       copy[licIdx] = { ...copy[licIdx], licenseNumber: e.target.value };
                       setResume((prev) => ({ ...prev, licenses: copy }));
@@ -4097,8 +4078,7 @@ export default function ResumeEditor() {
                 </div>
                 <div className="grid" style={{ marginTop: 8 }}>
                   <div className="col-6">
-                    <label className="label">Region / state</label>
-                    <input className="input" placeholder="e.g. Maharashtra" value={lic.region || ''} onChange={(e) => {
+                    <TkxInput label="Region / state" placeholder="e.g. Maharashtra" value={lic.region || ''} onChange={(e) => {
                       const copy = [...(resume.licenses || [])];
                       copy[licIdx] = { ...copy[licIdx], region: e.target.value };
                       setResume((prev) => ({ ...prev, licenses: copy }));
@@ -4164,8 +4144,7 @@ export default function ResumeEditor() {
             </div>
             {(resume.publications || []).map((pub, pubIdx) => (
               <div key={`pub-${pubIdx}`} className="card" style={{ padding: 12, marginBottom: 12 }}>
-                <label className="label">Title</label>
-                <input className="input" placeholder="e.g. Deep Learning for Radiology Triage" value={pub.title} onChange={(e) => {
+                <TkxInput label="Title" placeholder="e.g. Deep Learning for Radiology Triage" value={pub.title} onChange={(e) => {
                   const copy = [...(resume.publications || [])];
                   copy[pubIdx] = { ...copy[pubIdx], title: e.target.value };
                   setResume((prev) => ({ ...prev, publications: copy }));
@@ -4173,8 +4152,7 @@ export default function ResumeEditor() {
                 }} />
                 <div className="grid" style={{ marginTop: 8 }}>
                   <div className="col-6">
-                    <label className="label">Venue / journal</label>
-                    <input className="input" placeholder="e.g. IEEE Access" value={pub.venue || ''} onChange={(e) => {
+                    <TkxInput label="Venue / journal" placeholder="e.g. IEEE Access" value={pub.venue || ''} onChange={(e) => {
                       const copy = [...(resume.publications || [])];
                       copy[pubIdx] = { ...copy[pubIdx], venue: e.target.value };
                       setResume((prev) => ({ ...prev, publications: copy }));
@@ -4182,8 +4160,7 @@ export default function ResumeEditor() {
                     }} />
                   </div>
                   <div className="col-6">
-                    <label className="label">Year</label>
-                    <input className="input" placeholder="e.g. 2024" value={pub.year || ''} onChange={(e) => {
+                    <TkxInput label="Year" placeholder="e.g. 2024" value={pub.year || ''} onChange={(e) => {
                       const copy = [...(resume.publications || [])];
                       copy[pubIdx] = { ...copy[pubIdx], year: e.target.value };
                       setResume((prev) => ({ ...prev, publications: copy }));
@@ -4193,8 +4170,7 @@ export default function ResumeEditor() {
                 </div>
                 <div className="grid" style={{ marginTop: 8 }}>
                   <div className="col-6">
-                    <label className="label">URL (optional)</label>
-                    <input className="input" placeholder="https://doi.org/..." value={pub.url || ''} onChange={(e) => {
+                    <TkxInput label="URL (optional)" placeholder="https://doi.org/..." value={pub.url || ''} onChange={(e) => {
                       const copy = [...(resume.publications || [])];
                       copy[pubIdx] = { ...copy[pubIdx], url: e.target.value };
                       setResume((prev) => ({ ...prev, publications: copy }));
@@ -4619,8 +4595,7 @@ export default function ResumeEditor() {
             )}
 
             <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
-              <button
-                className="btn"
+              <TkxButton
                 style={{ fontSize: '0.8rem' }}
                 onClick={() => {
                   const c = aiCritiqueResult.critique;
@@ -4694,7 +4669,7 @@ export default function ResumeEditor() {
                 }}
               >
                 Apply All Free Suggestions
-              </button>
+              </TkxButton>
               {/*
                 Premium upgrade CTA intentionally removed here. Per product
                 spec the subscription offer is only surfaced through the
@@ -4889,7 +4864,7 @@ export default function ResumeEditor() {
                 const section = sections.find((item) => item.type === type);
                 const enabled = section?.enabled ?? false;
                 return (
-                    <button
+                    <TkxButton
                       key={type}
                       type="button"
                       className={getSectionNavItemClass(type, activeSectionId, enabled)}
@@ -4898,7 +4873,7 @@ export default function ResumeEditor() {
                       disabled={!enabled}
                     >
                       {SECTION_NAV_LABELS[type]}
-                    </button>
+                    </TkxButton>
                   );
                 })}
             </nav>
@@ -4929,14 +4904,13 @@ export default function ResumeEditor() {
                         <li key={`issue-${idx}`} className="small">{issue}</li>
                       ))}
                     </ul>
-                    <label className="export-ack">
-                      <input
-                        type="checkbox"
+                    <div className="export-ack">
+                      <TkxCheckbox
                         checked={exportApproved}
                         onChange={(e) => setExportApproved(e.target.checked)}
+                        label={<span className="small">I understand the risks and want to export anyway.</span>}
                       />
-                      <span className="small">I understand the risks and want to export anyway.</span>
-                    </label>
+                    </div>
                   </div>
                 ) : (
                   <div className="export-issues success">
@@ -5003,8 +4977,8 @@ export default function ResumeEditor() {
                   >
                     Download Word
                   </TkxButton>
-                  <button
-                    className="btn secondary"
+                  <TkxButton
+                    variant="outline"
                     onClick={() => {
                       // Print is rendered through a hidden, off-screen
                       // iframe that loads the template page in print
@@ -5071,7 +5045,7 @@ export default function ResumeEditor() {
                     }}
                   >
                     Print preview
-                  </button>
+                  </TkxButton>
                 </div>
                 <p className="small" style={{ textAlign: 'center', marginTop: 10, color: 'var(--muted)' }}>
                   Download or payment not working?{' '}

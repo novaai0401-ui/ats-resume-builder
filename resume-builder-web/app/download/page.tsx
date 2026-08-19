@@ -67,6 +67,11 @@ export default async function DownloadPage() {
             Download APK ({manifest.android.size ? formatSize(manifest.android.size) : 'signed'})
           </a>
         ) : (
+          // Stays a native <button>: this page is a Server Component (it
+          // exports `metadata`), and importing the tekivex-ui barrel here
+          // calls React.createContext at module scope, which fails the RSC
+          // build. A permanently-disabled placeholder gains nothing from
+          // TkxButton, so a client wrapper would be cost without benefit.
           <button disabled style={disabledBtn}>Build not yet published</button>
         )}
 

@@ -9,7 +9,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { TkxButton } from 'tekivex-ui';
+import { TkxButton, TkxInput } from 'tekivex-ui';
 import { PROFESSION_INDUSTRIES } from 'resume-builder-shared';
 import { api, type JobOpening } from '@/src/lib/api';
 import { openingToJobInput } from '@/src/lib/job-utils';
@@ -92,8 +92,16 @@ export default function LiveOpeningsPanel({ onTracked }: { onTracked: () => void
       <h2 className="heading-md" style={{ marginTop: 0 }}>Find live openings</h2>
       <p className="muted" style={{ marginTop: -4, fontSize: 13 }}>Search real postings and add them to your board in one tap.</p>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
-        <input className="input" placeholder="Role or skill, e.g. React Engineer" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && search()} style={{ flex: '1 1 220px' }} />
-        <input className="input" placeholder="Location (optional)" value={location} onChange={(e) => setLocation(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && search()} style={{ flex: '1 1 160px' }} />
+        {/* Labels hidden visually — the heading directly above already says
+         * "Find live openings", so visible field headings would be noise in a
+         * one-row search bar. Screen readers keep the names. The wrapper divs
+         * carry the flex sizing the bare inputs had. */}
+        <div className="hide-field-label" style={{ flex: '1 1 220px' }}>
+          <TkxInput label="Role or skill" placeholder="Role or skill, e.g. React Engineer" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && search()} />
+        </div>
+        <div className="hide-field-label" style={{ flex: '1 1 160px' }}>
+          <TkxInput label="Location" placeholder="Location (optional)" value={location} onChange={(e) => setLocation(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && search()} />
+        </div>
         <TkxButton variant="solid" colorScheme="primary" onClick={search} disabled={loading}>{loading ? 'Searching…' : 'Search'}</TkxButton>
         <TkxButton
           variant="outline"

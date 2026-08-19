@@ -164,7 +164,7 @@ export default function TopNav() {
       <nav className="nav nav--desktop">{links}</nav>
 
       {/* Mobile burger — hidden at >=768px via .nav-burger in globals.css */}
-      <button
+      <TkxButton
         type="button"
         className="nav-burger"
         aria-label="Open navigation"
@@ -175,7 +175,7 @@ export default function TopNav() {
         <span className="nav-burger__bar" />
         <span className="nav-burger__bar" />
         <span className="nav-burger__bar" />
-      </button>
+      </TkxButton>
 
       {mounted ? (
         <TkxDrawer

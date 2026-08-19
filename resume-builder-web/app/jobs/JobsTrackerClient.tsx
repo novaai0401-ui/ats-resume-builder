@@ -300,12 +300,12 @@ export default function JobsTrackerClient() {
           <form className="modal card" onSubmit={submitForm}>
             <h2 className="heading-lg">{editing ? 'Edit application' : 'New application'}</h2>
             <div className="form-grid">
-              <TkxInput label="Company *"
+              <TkxInput label="Company" isRequired
                   required
                   value={form.company}
                   onChange={(e) => setForm({ ...form, company: e.target.value })}
                 />
-              <TkxInput label="Role *"
+              <TkxInput label="Role" isRequired
                   required
                   value={form.role}
                   onChange={(e) => setForm({ ...form, role: e.target.value })}
@@ -331,9 +331,11 @@ export default function JobsTrackerClient() {
                   setForm({ ...form, status: String(value || '') as JobStatus })
                 }
               />
-              <label>
-                Source
-                <input
+              <div>
+                {/* `list` passes through TkxInput to the real <input>, so the
+                 * native datalist suggestions keep working. */}
+                <TkxInput
+                  label="Source"
                   list="job-sources"
                   value={form.source || ''}
                   onChange={(e) => setForm({ ...form, source: e.target.value })}
@@ -345,7 +347,7 @@ export default function JobsTrackerClient() {
                   <option value="recruiter" />
                   <option value="job-board" />
                 </datalist>
-              </label>
+              </div>
               <TkxInput label="Referral"
                   value={form.referral || ''}
                   onChange={(e) => setForm({ ...form, referral: e.target.value })}

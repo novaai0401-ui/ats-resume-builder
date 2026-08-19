@@ -8,6 +8,7 @@ import {
   setTrainingConsent,
   type TrainingConsentState,
 } from '@/src/lib/api';
+import { TkxButton } from 'tekivex-ui';
 
 /**
  * One-time training-data notice. Shown to every authenticated user the
@@ -115,22 +116,22 @@ export default function TrainingConsentModal() {
         </ul>
 
         <div style={buttonRowStyle}>
-          <button
+          <TkxButton
             type="button"
             onClick={optOut}
             disabled={busy}
             style={{ ...secondaryButtonStyle, ...(busy ? disabledStyle : null) }}
           >
             Opt out
-          </button>
-          <button
+          </TkxButton>
+          <TkxButton
             type="button"
             onClick={close}
             disabled={busy}
             style={{ ...primaryButtonStyle, ...(busy ? disabledStyle : null) }}
           >
             Got it
-          </button>
+          </TkxButton>
         </div>
 
         <p style={footnoteStyle}>You can change this in Account Settings anytime.</p>

@@ -8,7 +8,7 @@ import {
   isCurrentUserAdmin,
   type AdminSettingsResponse,
 } from '@/src/lib/api';
-import { TkxButton } from 'tekivex-ui';
+import { TkxButton, TkxCheckbox } from 'tekivex-ui';
 
 type Toast = { type: 'success' | 'error'; text: string } | null;
 
@@ -119,30 +119,27 @@ export default function AdminSettingsPage() {
         {!loading && hasAccess ? (
           <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
             <div style={{ display: 'grid', gap: 8 }}>
-              <label className="label" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <input
-                  type="checkbox"
-                  checked={rateLimitEnabled}
-                  onChange={(event) => setRateLimitEnabled(event.target.checked)}
-                  disabled={savingRateLimit}
-                />
-                <span>Enable Resume Creation Rate Limit</span>
-              </label>
+              {/* TkxCheckbox renders its own <label>, so the old wrapper label
+               * is absorbed — keeping it would nest labels, the invalid markup
+               * that was breaking hydration on the landing page. */}
+              <TkxCheckbox
+                checked={rateLimitEnabled}
+                onChange={(event) => setRateLimitEnabled(event.target.checked)}
+                disabled={savingRateLimit}
+                label="Enable Resume Creation Rate Limit"
+              />
               <p className="small">Current state: <strong>{rateLimitStatusText}</strong></p>
               <p className="small">
                 Last updated: {updatedAt ? new Date(updatedAt).toLocaleString() : 'Not set'}
               </p>
             </div>
             <div style={{ display: 'grid', gap: 8 }}>
-              <label className="label" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <input
-                  type="checkbox"
-                  checked={paymentEnabled}
-                  onChange={(event) => setPaymentEnabled(event.target.checked)}
-                  disabled={savingPayment}
-                />
-                <span>Enable Payment Feature Enforcement</span>
-              </label>
+              <TkxCheckbox
+                checked={paymentEnabled}
+                onChange={(event) => setPaymentEnabled(event.target.checked)}
+                disabled={savingPayment}
+                label="Enable Payment Feature Enforcement"
+              />
               <p className="small">Current state: <strong>{paymentStatusText}</strong></p>
             </div>
             {forcedDisabled ? (

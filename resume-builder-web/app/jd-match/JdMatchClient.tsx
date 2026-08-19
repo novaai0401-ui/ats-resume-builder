@@ -367,7 +367,7 @@ export default function JdMatchClient() {
                 {result.missingKeywords.map((kw) => {
                   const added = addedSkills.includes(kw.trim());
                   return (
-                    <button
+                    <TkxButton
                       key={kw}
                       type="button"
                       className={`ats-chip ${added ? 'ats-chip--match' : 'ats-chip--missing'}`}
@@ -377,7 +377,7 @@ export default function JdMatchClient() {
                       style={{ cursor: added ? 'default' : 'pointer', border: 'none', font: 'inherit' }}
                     >
                       {added ? `✓ ${kw} added` : `+ Add ${kw}`}
-                    </button>
+                    </TkxButton>
                   );
                 })}
               </div>

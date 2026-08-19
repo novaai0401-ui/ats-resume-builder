@@ -5,6 +5,7 @@ import type { ResumeImportResult } from 'resume-builder-shared';
 import ResumeTemplateRender from '@/src/components/ResumeTemplateRender';
 import type { TemplateRecommendation } from '@/src/lib/template-recommendation';
 import type { TemplateConfig, TemplateId } from '@/shared/templateRegistry';
+import { TkxButton } from 'tekivex-ui';
 
 type TemplateCardThumbnailProps = {
   templateId: TemplateId;
@@ -137,7 +138,7 @@ function TemplateCard({
         }}
       >
         <TemplateCardThumbnail templateId={template.id} previewResume={previewResume} previewLoading={previewLoading} />
-        <button
+        <TkxButton
           type="button"
           className="template-card__preview-overlay template-card__preview-overlay-button"
           onClick={(event) => {
@@ -147,7 +148,7 @@ function TemplateCard({
           disabled={disabled}
         >
           Open preview
-        </button>
+        </TkxButton>
       </div>
       <div className="template-card__meta">
         <div>
@@ -201,9 +202,9 @@ function TemplateCard({
         </div>
         <div className="template-card__actions">
           {showPreviewAction && (
-            <button
+            <TkxButton
               type="button"
-              className="btn secondary template-card__action"
+              variant="outline" className="template-card__action"
               onClick={(event) => {
                 event.stopPropagation();
                 handlePreview();
@@ -211,11 +212,11 @@ function TemplateCard({
               disabled={disabled}
             >
               Preview
-            </button>
+            </TkxButton>
           )}
-          <button
+          <TkxButton
             type="button"
-            className="btn template-card__action"
+            className="template-card__action"
             onClick={(event) => {
               event.stopPropagation();
               handlePrimaryAction();
@@ -223,7 +224,7 @@ function TemplateCard({
             disabled={disabled}
           >
             {primaryActionLabel}
-          </button>
+          </TkxButton>
         </div>
       </div>
     </article>

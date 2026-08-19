@@ -290,7 +290,7 @@ export default function InterviewPrepClient() {
                   className="prep-card"
                   data-open={isOpen ? 'true' : 'false'}
                 >
-                  <button
+                  <TkxButton
                     type="button"
                     className="prep-card__head"
                     onClick={() => setOpenIdx(isOpen ? null : i)}
@@ -304,7 +304,7 @@ export default function InterviewPrepClient() {
                     </span>
                     <span className="prep-card__question">{card.question}</span>
                     <span className="prep-card__chevron" aria-hidden="true">{isOpen ? '−' : '+'}</span>
-                  </button>
+                  </TkxButton>
                   {isOpen ? (
                     <div className="prep-card__body">
                       <p className="small" style={{ margin: '0 0 8px', color: '#5a6778' }}>

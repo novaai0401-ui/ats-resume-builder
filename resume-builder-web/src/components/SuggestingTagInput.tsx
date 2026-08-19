@@ -1,6 +1,7 @@
 'use client';
 
 import { AutocompleteInput } from './AutocompleteInput';
+import { TkxButton } from 'tekivex-ui';
 
 /**
  * Tag input WITH autocomplete suggestions.
@@ -43,7 +44,7 @@ export function SuggestingTagInput({
       {tags.length > 0 ? (
         <div className="tag-input__chips">
           {tags.map((tag) => (
-            <button
+            <TkxButton
               type="button"
               key={`${testId || 'tag'}-${tag}`}
               className={chipClassName}
@@ -52,7 +53,7 @@ export function SuggestingTagInput({
               aria-label={`Remove ${tag}`}
             >
               {tag} <span aria-hidden>×</span>
-            </button>
+            </TkxButton>
           ))}
         </div>
       ) : null}

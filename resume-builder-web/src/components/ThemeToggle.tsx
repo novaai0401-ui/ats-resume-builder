@@ -2,6 +2,7 @@
 
 import { useThemeMode } from './ThemeModeProvider';
 import type { ThemeMode } from '@/src/lib/theme';
+import { TkxButton } from 'tekivex-ui';
 
 const OPTIONS: { mode: ThemeMode; label: string; icon: string }[] = [
   { mode: 'light', label: 'Light', icon: '☀' },
@@ -25,7 +26,7 @@ export default function ThemeToggle() {
   return (
     <div className="theme-toggle" role="radiogroup" aria-label="Colour theme">
       {OPTIONS.map((opt) => (
-        <button
+        <TkxButton
           key={opt.mode}
           type="button"
           role="radio"
@@ -37,7 +38,7 @@ export default function ThemeToggle() {
         >
           <span aria-hidden="true">{opt.icon}</span>
           <span className="theme-toggle__label">{opt.label}</span>
-        </button>
+        </TkxButton>
       ))}
     </div>
   );

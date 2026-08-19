@@ -7,6 +7,7 @@ import {
   setTrainingConsent,
   type TrainingConsentState,
 } from '@/src/lib/api';
+import { TkxButton } from 'tekivex-ui';
 
 /**
  * Account Settings card — lets the user toggle training participation
@@ -60,7 +61,7 @@ export default function TrainingConsentCard() {
         <span style={{ fontSize: 14, color: 'var(--ink)' }}>
           {state.enabled ? 'Currently sharing patterns' : 'Not sharing'}
         </span>
-        <button
+        <TkxButton
           type="button"
           onClick={toggle}
           disabled={busy}
@@ -79,11 +80,11 @@ export default function TrainingConsentCard() {
               transform: state.enabled ? 'translateX(20px)' : 'translateX(2px)',
             }}
           />
-        </button>
+        </TkxButton>
       </div>
 
       <div style={dividerStyle}>
-        <button
+        <TkxButton
           type="button"
           onClick={purge}
           disabled={busy}
@@ -99,7 +100,7 @@ export default function TrainingConsentCard() {
           }}
         >
           Delete all my training samples
-        </button>
+        </TkxButton>
         {purgeResult && (
           <p className="small" style={{ marginTop: 8, color: 'var(--muted)' }}>{purgeResult}</p>
         )}

@@ -15,15 +15,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import DataLoader from '@/src/components/DataLoader';
-import {
-  TkxAlert,
-  TkxButton,
-  TkxCard,
-  TkxCardBody,
-  TkxCardHeader,
-  TkxSelect,
-  TkxTextarea,
-} from 'tekivex-ui';
+import { TkxAlert, TkxButton, TkxCard, TkxCardBody, TkxCardHeader, TkxInput, TkxRadio, TkxSelect, TkxSlider, TkxTextarea } from 'tekivex-ui';
 import {
   api,
   isApiRequestError,
@@ -127,20 +119,25 @@ function OptInGate({ onOptedIn }: { onOptedIn: (p: SahaayakProfile) => void }) {
 
           <div style={{ marginTop: 18 }}>
             <label style={labelStyle}>Choose a mode</label>
+            {/* The card chrome moves to a div: TkxRadio renders its own
+             * <label>, and nesting it inside the old card label would ship
+             * the invalid label-in-label markup. */}
             {(Object.keys(MODE_DESCRIPTIONS) as SahaayakMode[]).map((m) => (
-              <label key={m} style={{ display: 'block', padding: '10px 12px', border: '1px solid var(--border, #ddd)', borderRadius: 8, marginBottom: 8, cursor: 'pointer', background: mode === m ? 'rgba(0,120,255,0.05)' : 'transparent' }}>
-                <input
-                  type="radio"
+              <div key={m} style={{ display: 'block', padding: '10px 12px', border: '1px solid var(--border, #ddd)', borderRadius: 8, marginBottom: 8, background: mode === m ? 'rgba(0,120,255,0.05)' : 'transparent' }}>
+                <TkxRadio
                   name="mode"
                   checked={mode === m}
                   onChange={() => setMode(m)}
-                  style={{ marginRight: 8 }}
+                  label={
+                    <>
+                      <strong style={{ textTransform: 'capitalize' }}>{m}</strong>
+                      <div style={{ color: 'var(--muted, #666)', fontSize: 13, marginTop: 2 }}>
+                        {MODE_DESCRIPTIONS[m]}
+                      </div>
+                    </>
+                  }
                 />
-                <strong style={{ textTransform: 'capitalize' }}>{m}</strong>
-                <div style={{ marginLeft: 22, color: 'var(--muted, #666)', fontSize: 13, marginTop: 2 }}>
-                  {MODE_DESCRIPTIONS[m]}
-                </div>
-              </label>
+              </div>
             ))}
           </div>
 
@@ -384,12 +381,12 @@ function CrisisCard({ crisis, onDismiss }: { crisis: SahaayakChatResult['crisis'
           </li>
         ))}
       </ul>
-      <button
+      <TkxButton
         onClick={onDismiss}
         style={{ marginTop: 6, background: 'transparent', border: 0, color: 'inherit', cursor: 'pointer', textDecoration: 'underline', fontSize: 13 }}
       >
         Acknowledge
-      </button>
+      </TkxButton>
     </TkxAlert>
   );
 }
@@ -443,23 +440,21 @@ function EventSidebar({ events, onChanged }: { events: SahaayakEvent[]; onChange
 
         {(kind === 'rejection' || kind === 'interview' || kind === 'offer' || kind === 'layoff') && (
           <>
-            <label style={labelStyle}>Company</label>
-            <input value={company} onChange={(e) => setCompany(e.target.value)} style={inputStyle} placeholder="Acme Corp" />
+            <TkxInput label="Company" value={company} onChange={(e) => setCompany(e.target.value)} style={inputStyle} placeholder="Acme Corp" />
           </>
         )}
 
         {kind === 'mood' && (
           <>
-            <label style={labelStyle}>Mood (1–5)</label>
-            <input
-              type="range"
+            <TkxSlider
+              label="Mood (1–5)"
               min={1}
               max={5}
+              step={1}
               value={mood}
-              onChange={(e) => setMood(Number(e.target.value))}
-              style={{ width: '100%' }}
+              onChange={(value) => setMood(value)}
+              showValue
             />
-            <div style={{ textAlign: 'center', color: 'var(--muted, #666)', fontSize: 13 }}>{mood}/5</div>
           </>
         )}
 

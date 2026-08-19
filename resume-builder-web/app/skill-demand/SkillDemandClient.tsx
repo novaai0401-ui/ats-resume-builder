@@ -12,7 +12,7 @@ import Link from 'next/link';
 import { api, type SkillDemandResult, type SkillDemandItem } from '@/src/lib/api';
 import { useSavedResumeFallback } from '@/src/lib/use-saved-resume-fallback';
 import { handleFreeTrialError } from '@/src/lib/free-trial';
-import { TkxButton } from 'tekivex-ui';
+import { TkxButton, TkxInput } from 'tekivex-ui';
 
 const DEMAND_COLOR: Record<SkillDemandItem['demand'], string> = {
   'very-high': '#147a3a',
@@ -66,13 +66,14 @@ export default function SkillDemandClient() {
         ) : (
           <p className="small" style={{ color: '#a8412c' }}>No skills on your resume yet. <Link href="/dashboard">Open a resume</Link> first.</p>
         )}
-        <input
-          className="input"
-          placeholder="Location for live openings (optional, e.g. Bengaluru)"
-          value={location}
-          onChange={(e) => setLocation(e.target.value)}
-          style={{ marginTop: 8, maxWidth: 360 }}
-        />
+        <div style={{ marginTop: 8, maxWidth: 360 }}>
+          <TkxInput
+            label="Location (optional)"
+            placeholder="e.g. Bengaluru"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+          />
+        </div>
         {error && <p className="small" style={{ color: '#a8412c' }}>{error}</p>}
         <TkxButton onClick={run} disabled={loading} style={{ marginTop: 8 }}>
           {loading ? 'Analyzing…' : 'Analyze my skills'}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { TkxButton, TkxInput, TkxSelect, TkxTextarea } from 'tekivex-ui';
+import { TkxButton, TkxInput, TkxRadio, TkxSelect, TkxTextarea } from 'tekivex-ui';
 import type {
   CoverLetter,
   CoverLetterTone,
@@ -179,12 +179,12 @@ export default function CoverLetterClient() {
             options={resumes.map((r) => ({ value: r.id, label: r.title }))}
             onChange={(value) => setForm({ ...form, resumeId: String(value || '') })}
           />
-          <TkxInput label="Company *"
+          <TkxInput label="Company" isRequired
               required
               value={form.company}
               onChange={(e) => setForm({ ...form, company: e.target.value })}
             />
-          <TkxInput label="Role *"
+          <TkxInput label="Role" isRequired
               required
               value={form.role}
               onChange={(e) => setForm({ ...form, role: e.target.value })}
@@ -192,19 +192,20 @@ export default function CoverLetterClient() {
           <fieldset className="tone-picker">
             <legend>Tone</legend>
             {TONES.map((t) => (
-              <label key={t.id} className={form.tone === t.id ? 'selected' : ''}>
-                <input
-                  type="radio"
+              <div key={t.id} className={form.tone === t.id ? 'selected' : ''}>
+                <TkxRadio
                   name="tone"
                   value={t.id}
                   checked={form.tone === t.id}
                   onChange={() => setForm({ ...form, tone: t.id })}
+                  label={
+                    <span>
+                      <strong>{t.label}</strong>
+                      <small>{t.description}</small>
+                    </span>
+                  }
                 />
-                <span>
-                  <strong>{t.label}</strong>
-                  <small>{t.description}</small>
-                </span>
-              </label>
+              </div>
             ))}
           </fieldset>
           <div className="form-full">
@@ -253,9 +254,9 @@ export default function CoverLetterClient() {
           <ul>
             {letters.map((l) => (
               <li key={l.id}>
-                <button type="button" className="linklike" onClick={() => openLetter(l.id)}>
+                <TkxButton type="button" className="linklike" onClick={() => openLetter(l.id)}>
                   <strong>{l.company}</strong> — {l.role}
-                </button>
+                </TkxButton>
                 <span className="muted">
                   {' '}
                   · {l.wordCount} words · {new Date(l.createdAt).toLocaleDateString()}

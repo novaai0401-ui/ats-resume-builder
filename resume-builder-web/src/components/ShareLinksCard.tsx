@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { TkxButton, TkxInput, TkxSelect } from 'tekivex-ui';
+import { TkxButton, TkxCheckbox, TkxInput, TkxSelect } from 'tekivex-ui';
 import { getAccessToken } from '@/src/lib/api';
 
 /**
@@ -310,22 +310,20 @@ export default function ShareLinksCard() {
                 {link.enabled ? (
                   <>
                     <div style={{ marginTop: 8, display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-                      <label className="small" style={toggleStyle}>
-                        <input
-                          type="checkbox"
+                      <div className="small" style={toggleStyle}>
+                        <TkxCheckbox
                           checked={link.maskContact}
                           onChange={(e) => patchLink(link.id, { maskContact: e.target.checked })}
+                          label="Mask email + phone"
                         />
-                        Mask email + phone
-                      </label>
-                      <label className="small" style={toggleStyle}>
-                        <input
-                          type="checkbox"
+                      </div>
+                      <div className="small" style={toggleStyle}>
+                        <TkxCheckbox
                           checked={link.allowSearchIndexing}
                           onChange={(e) => patchLink(link.id, { allowSearchIndexing: e.target.checked })}
+                          label="Let search engines index this page"
                         />
-                        Let search engines index this page
-                      </label>
+                      </div>
                       <TkxButton
                         variant="ghost"
                         onClick={() => toggleExpand(link)}

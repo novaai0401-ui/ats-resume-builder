@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { TkxButton } from 'tekivex-ui';
 
 // Chrome / Edge / Samsung Internet expose this; Safari iOS does not — it
 // needs the user to use Share → Add to Home Screen, which we surface as a
@@ -100,19 +101,19 @@ export default function PwaInstaller() {
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
         {!iosHint && (
-          <button
+          <TkxButton
             onClick={install}
             style={{ background: '#fff', color: '#1a3a5c', border: 0, borderRadius: 8, padding: '8px 12px', fontWeight: 600, cursor: 'pointer' }}
           >
             Install
-          </button>
+          </TkxButton>
         )}
-        <button
+        <TkxButton
           onClick={dismiss}
           style={{ background: 'transparent', color: '#fff', border: '1px solid rgba(255,255,255,0.4)', borderRadius: 8, padding: '8px 12px', cursor: 'pointer' }}
         >
           Not now
-        </button>
+        </TkxButton>
       </div>
     </div>
   );

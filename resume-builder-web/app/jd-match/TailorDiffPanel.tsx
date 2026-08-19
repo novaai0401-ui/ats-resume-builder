@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/src/lib/api';
 import OutcomeInsightCallout from '@/src/components/OutcomeInsightCallout';
-import { TkxButton } from 'tekivex-ui';
+import { TkxButton, TkxCheckbox, TkxInput } from 'tekivex-ui';
 
 /**
  * R-034 — Tailor Diff panel.
@@ -218,14 +218,13 @@ export default function TailorDiffPanel({
 
         {proposal.summary ? (
           <div style={blockStyle}>
-            <label style={changeHeaderStyle}>
-              <input
-                type="checkbox"
+            <div style={changeHeaderStyle}>
+              <TkxCheckbox
                 checked={acceptSummary}
                 onChange={(e) => setAcceptSummary(e.target.checked)}
+                label={<strong>Summary rewrite</strong>}
               />
-              <span><strong>Summary rewrite</strong></span>
-            </label>
+            </div>
             <DiffRow before={proposal.summary.before} after={proposal.summary.after} />
           </div>
         ) : null}
@@ -237,16 +236,17 @@ export default function TailorDiffPanel({
             </h3>
             {proposal.bullets.map((b, i) => (
               <div key={i} style={{ marginBottom: 10 }}>
-                <label style={changeHeaderStyle}>
-                  <input
-                    type="checkbox"
+                <div style={changeHeaderStyle}>
+                  <TkxCheckbox
                     checked={acceptedBullets.has(i)}
                     onChange={() => toggleBullet(i)}
+                    label={
+                      <span className="small" style={{ color: 'var(--muted)' }}>
+                        Experience #{b.experienceIndex + 1}, bullet #{b.bulletIndex + 1}
+                      </span>
+                    }
                   />
-                  <span className="small" style={{ color: 'var(--muted)' }}>
-                    Experience #{b.experienceIndex + 1}, bullet #{b.bulletIndex + 1}
-                  </span>
-                </label>
+                </div>
                 <DiffRow before={b.before} after={b.after} />
               </div>
             ))}
@@ -263,12 +263,11 @@ export default function TailorDiffPanel({
             </p>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {proposal.skillsToAdd.map((s) => (
-                <label
+                <div
                   key={s}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: 6,
                     padding: '6px 10px',
                     borderRadius: 6,
                     border: '1px solid var(--border)',
@@ -276,13 +275,13 @@ export default function TailorDiffPanel({
                     fontSize: 13,
                   }}
                 >
-                  <input
-                    type="checkbox"
+                  <TkxCheckbox
+                    size="sm"
                     checked={acceptedSkills.has(s)}
                     onChange={() => toggleSkill(s)}
+                    label={s}
                   />
-                  {s}
-                </label>
+                </div>
               ))}
             </div>
           </div>
@@ -291,35 +290,35 @@ export default function TailorDiffPanel({
         <div style={{ ...blockStyle, background: 'var(--surface-alt)' }}>
           <h3 style={sectionHeadStyle}>Label this version</h3>
           <div className="diff-2col">
-            <input
+            <TkxInput
+              label="Company"
               type="text"
-              placeholder="Company (e.g. BigCo)"
+              placeholder="e.g. BigCo"
               maxLength={60}
               value={jdCompany}
               onChange={(e) => setJdCompany(e.target.value)}
-              className="input"
             />
-            <input
+            <TkxInput
+              label="Role"
               type="text"
-              placeholder="Role (e.g. Senior Frontend Engineer)"
+              placeholder="e.g. Senior Frontend Engineer"
               maxLength={60}
               value={jdRole}
               onChange={(e) => setJdRole(e.target.value)}
-              className="input"
             />
           </div>
-          <label
-            className="small"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 10 }}
-          >
-            <input
-              type="checkbox"
+          <div className="small" style={{ marginTop: 10 }}>
+            <TkxCheckbox
               checked={applyToLive}
               onChange={(e) => setApplyToLive(e.target.checked)}
+              label={
+                <>
+                  Also update my live resume with the accepted changes{' '}
+                  <span style={{ color: 'var(--muted)' }}>(default: keep live as-is)</span>
+                </>
+              }
             />
-            Also update my live resume with the accepted changes
-            <span style={{ color: 'var(--muted)' }}>(default: keep live as-is)</span>
-          </label>
+          </div>
         </div>
 
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>

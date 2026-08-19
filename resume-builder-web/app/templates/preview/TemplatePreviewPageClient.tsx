@@ -208,7 +208,7 @@ export default function TemplatePreviewPageClient({
             }}
           >
             {templates.map((tpl) => (
-              <button
+              <TkxButton
                 key={tpl.id}
                 type="button"
                 onClick={() => setTemplateId(tpl.id)}
@@ -241,7 +241,7 @@ export default function TemplatePreviewPageClient({
                     <div className="small" style={{ color: '#5a6778', marginTop: 2 }}>{tpl.description}</div>
                   ) : null}
                 </div>
-              </button>
+              </TkxButton>
             ))}
           </div>
         </section>
