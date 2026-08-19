@@ -235,7 +235,10 @@ test('template preview frame CSS uses exact page aspect ratio to avoid clipping'
     'Desktop dashboard gallery should use two columns',
   );
   assert(
-    globals.includes('@media (max-width: 900px)') && globals.includes('.template-grid--gallery'),
+    // The gallery collapse point moved 900px -> 1023.98px when the five
+    // ad-hoc breakpoints were folded onto sm/md/lg/xl. Accept either.
+    /@media \(max-width: (?:900|1023\.98)px\)/.test(globals) &&
+      globals.includes('.template-grid--gallery'),
     'Dashboard gallery should collapse to one column below the tablet breakpoint',
   );
 });

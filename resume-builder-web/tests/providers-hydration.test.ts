@@ -39,11 +39,40 @@ test('Providers keeps Theme/Config/I18n providers rendering on SSR', () => {
   // These provide React context that pages rely on from the first render —
   // they must NOT be gated behind mounted, only the portal-based
   // TkxToastProvider.
-  assert.match(providersSource, /<I18nProvider>[\s\S]*<ThemeProvider[\s\S]*<TkxConfigProvider>/);
-  // Sanity: the three always-on providers appear before the
-  // mounted-conditional block.
-  const i18nIdx = providersSource.indexOf('<I18nProvider>');
+  //
+  // Asserted per-component rather than as one source-order regex. The
+  // theme providers now live in a ThemedTekivex helper declared ABOVE the
+  // Providers export (it needs the resolved light/dark mode from context),
+  // so a single regex spanning the whole file encodes declaration order
+  // rather than nesting and breaks on any harmless reshuffle.
   const mountedIdx = providersSource.search(/mounted\s*\?/);
-  assert.ok(i18nIdx !== -1 && mountedIdx !== -1, 'provider wiring missing');
-  assert.ok(i18nIdx < mountedIdx, 'I18n/Theme/Config must wrap the mounted gate');
+  assert.ok(mountedIdx !== -1, 'mounted gate missing');
+
+  // Inspect what the gate actually wraps rather than comparing file offsets.
+  // Declaration order is not nesting order — ThemedTekivex is declared above
+  // the Providers export, so an offset comparison reports I18nProvider as
+  // "inside" the gate when it in fact wraps it.
+  const gate = providersSource.slice(mountedIdx, mountedIdx + 240);
+  assert.match(gate, /<TkxToastProvider/, 'the mounted gate must wrap TkxToastProvider');
+  for (const provider of ['<I18nProvider>', '<ThemeModeProvider>', '<ThemeProvider', '<TkxConfigProvider>']) {
+    assert.ok(providersSource.includes(provider), `${provider} missing from Providers`);
+    assert.ok(
+      !gate.includes(provider),
+      `${provider} must render on SSR, not inside the mounted gate`,
+    );
+  }
+
+  // The outer tree still nests I18n -> ThemeMode -> ThemedTekivex, so locale
+  // and the resolved theme are available to everything below.
+  assert.match(
+    providersSource,
+    /<I18nProvider>[\s\S]*<ThemeModeProvider>[\s\S]*<ThemedTekivex>/,
+    'I18n must wrap ThemeMode must wrap the tekivex theme layer',
+  );
+  // ...and inside that layer, ThemeProvider wraps TkxConfigProvider.
+  assert.match(
+    providersSource,
+    /<ThemeProvider[\s\S]*<TkxConfigProvider>/,
+    'TkxConfigProvider must sit inside ThemeProvider',
+  );
 });

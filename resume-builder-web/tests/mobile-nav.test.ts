@@ -73,7 +73,7 @@ function collectRulesIn(css: string, condition: RegExp): string {
 }
 
 test('desktop nav is hidden below 768px and burger is hidden at >=768px', () => {
-  const below768 = collectRulesIn(globalsCss, /max-width:\s*767px/);
+  const below768 = collectRulesIn(globalsCss, /max-width:\s*767(?:\.98)?px/);
   const above768 = collectRulesIn(globalsCss, /min-width:\s*768px/);
   // Below 768px the desktop nav must disappear and the burger appear.
   assert.match(below768, /\.nav--desktop\s*\{[^}]*display:\s*none/);
@@ -97,9 +97,9 @@ test('burger button hits the 44px WCAG touch-target minimum', () => {
 test('mobile sticky action bar is pinned with safe-area inset padding', () => {
   // The editor's fixed bottom bar is the core Stage 3 win — it must use
   // env(safe-area-inset-bottom) or iOS home indicator overlaps the buttons.
-  const below768 = collectRulesIn(globalsCss, /max-width:\s*767px/);
+  const below768 = collectRulesIn(globalsCss, /max-width:\s*767(?:\.98)?px/);
   const barRule = below768.match(/\.mobile-action-bar\s*\{([^}]+)\}/);
-  assert.ok(barRule, '.mobile-action-bar rule inside max-width:767px missing');
+  assert.ok(barRule, '.mobile-action-bar rule inside the mobile breakpoint missing');
   const body = barRule[1];
   assert.match(body, /position:\s*fixed/);
   assert.match(body, /env\(safe-area-inset-bottom/);
@@ -142,7 +142,7 @@ test('mobile bottom nav is hidden above 767px and pinned bottom-safe-area below'
   assert.match(globalsCss, /\.mobile-bottom-nav\s*\{\s*display:\s*none;?\s*\}/);
   // Phone rule: position fixed + safe-area-inset-bottom (iOS home
   // indicator overlap fix, mirrors .mobile-action-bar).
-  const below768 = collectRulesIn(globalsCss, /max-width:\s*767px/);
+  const below768 = collectRulesIn(globalsCss, /max-width:\s*767(?:\.98)?px/);
   const phoneRule = below768.match(/\.mobile-bottom-nav\s*\{([^}]+)\}/);
   assert.ok(phoneRule, '.mobile-bottom-nav phone rule missing');
   const body = phoneRule[1];
