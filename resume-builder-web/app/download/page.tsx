@@ -158,7 +158,7 @@ export default async function DownloadPage() {
 
 function Code({ label, value, command }: { label: string; value: string; command: string }) {
   return (
-    <div style={{ background: '#0f172a', color: '#e2e8f0', padding: 12, borderRadius: 8, marginTop: 8, fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 12, overflowX: 'auto' }}>
+    <div style={{ background: '#0f172a', color: '#e2e8f0', padding: 12, borderRadius: 8, marginTop: 8, fontFamily: 'var(--font-mono)', fontSize: 12, overflowX: 'auto' }}>
       <div style={{ color: '#94a3b8', marginBottom: 4 }}>{label}</div>
       <div style={{ wordBreak: 'break-all' }}>{value}</div>
       <div style={{ color: '#94a3b8', marginTop: 8 }}>$ {command}</div>

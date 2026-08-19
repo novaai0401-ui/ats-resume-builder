@@ -3685,7 +3685,7 @@ html, body { max-width: 100%; overflow-x: hidden; }
 .tone-picker small { display: block; color: #667085; font-size: .78rem; }
 .cover-letter-preview { border: 1px solid #e5e7eb; border-radius: 10px; padding: .75rem; background: #fafafa; min-height: 320px; display: flex; flex-direction: column; gap: .5rem; }
 .cover-letter-preview__meta { display: flex; gap: .5rem; align-items: center; }
-.cover-letter-body { white-space: pre-wrap; font-family: Georgia, "Times New Roman", serif; font-size: .95rem; line-height: 1.5; margin: 0; background: #fff; padding: 1rem; border-radius: 8px; border: 1px solid #eef2f7; }
+.cover-letter-body { white-space: pre-wrap; font-family: var(--font-serif); font-size: .95rem; line-height: 1.5; margin: 0; background: #fff; padding: 1rem; border-radius: 8px; border: 1px solid #eef2f7; }
 .cover-letter-placeholder { padding: 2rem 1rem; text-align: center; }
 .cover-letter-history { margin-top: 1.25rem; }
 .cover-letter-history ul { list-style: none; padding: 0; margin: .5rem 0 0; }
@@ -3798,7 +3798,7 @@ html, body { max-width: 100%; overflow-x: hidden; }
   display: grid;
   grid-template-columns: 220px 1fr;
   min-height: 100%;
-  font-family: var(--rb-font, 'Segoe UI', system-ui, sans-serif);
+  font-family: var(--rb-font, var(--font-sans));
   font-size: calc(12px * var(--rb-fs-scale, 1));
   line-height: var(--rb-lh, 1.5);
   color: #1a2233;
@@ -4003,7 +4003,7 @@ html, body { max-width: 100%; overflow-x: hidden; }
  * Full-width coloured header band + skill pills + timeline-style experience
  * ─────────────────────────────────────────────────────────────────────── */
 .nb-accent-header {
-  font-family: var(--rb-font, 'Segoe UI', system-ui, sans-serif);
+  font-family: var(--rb-font, var(--font-sans));
   font-size: calc(12px * var(--rb-fs-scale, 1));
   line-height: var(--rb-lh, 1.5);
   color: #1a2233;

@@ -168,7 +168,7 @@ const pageStyle: React.CSSProperties = { padding: '32px 20px', maxWidth: 1160, m
 const selectStyle: React.CSSProperties = { padding: '6px 10px', border: '1px solid var(--border, #ddd)', borderRadius: 6, background: 'var(--surface, #fff)', color: 'var(--ink, #222)' };
 const recruiterPreStyle: React.CSSProperties = {
   whiteSpace: 'pre-wrap',
-  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+  fontFamily: 'var(--font-mono)',
   fontSize: 13,
   lineHeight: 1.6,
   padding: 16,

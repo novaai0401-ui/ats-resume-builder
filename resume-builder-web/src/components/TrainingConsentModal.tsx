@@ -158,7 +158,7 @@ const cardStyle: React.CSSProperties = {
   borderRadius: '16px',
   padding: '28px',
   boxShadow: '0 24px 60px rgba(15, 23, 42, 0.28)',
-  fontFamily: '"Source Sans 3", "IBM Plex Sans", system-ui, -apple-system, sans-serif',
+  fontFamily: 'var(--font-sans)',
   color: '#1b2b3c',
   boxSizing: 'border-box',
 };

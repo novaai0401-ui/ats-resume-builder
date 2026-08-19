@@ -71,7 +71,7 @@ export default function ApiAccessCard() {
           background: 'var(--surface-alt, #f5f5f5)',
           borderRadius: 8,
           padding: '8px 10px',
-          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+          fontFamily: 'var(--font-mono)',
           fontSize: 13,
           wordBreak: 'break-all',
         }}
