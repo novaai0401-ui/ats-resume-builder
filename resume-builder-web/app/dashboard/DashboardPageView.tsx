@@ -436,7 +436,11 @@ export default function DashboardPageView({
                 placeholder="All professions"
                 hint={
                   hasSelectedResume
-                    ? 'Profession is locked while a resume is selected. Click "Create Resume" to start a fresh one.'
+                    // Curly quotes deliberately: tekivex-ui escapes hint text and
+                    // then injects it with innerHTML, so a straight " reaches the
+                    // screen as the literal characters &quot;. Typographic quotes
+                    // pass through untouched, and read better anyway.
+                    ? 'Profession is locked while a resume is selected. Click “Create Resume” to start a fresh one.'
                     : undefined
                 }
                 options={PROFESSION_INDUSTRIES.map((industry) => ({

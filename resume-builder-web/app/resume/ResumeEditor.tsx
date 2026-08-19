@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { TkxBottomNav, TkxButton, TkxCheckbox, TkxColorPicker, TkxDrawer, TkxInput, TkxSelect, TkxTextarea } from 'tekivex-ui';
@@ -326,6 +326,37 @@ export function shouldShowQuotaBanner(paymentFeatureEnabled: boolean, message: s
 // so hook order is stable.
 const IS_MOCK_ROUTER = process.env.NEXT_TEST_MOCK_ROUTER === '1';
 
+/** Tallest a bullet may grow before it scrolls internally, so one long bullet
+ *  cannot push the rest of the form off a phone screen. */
+const BULLET_MAX_HEIGHT = 240;
+
+/**
+ * Grow a textarea to fit its content.
+ *
+ * Two things this has to get right, both found by measuring rather than by
+ * reading the code:
+ *
+ * 1. Where the browser supports `field-sizing: content` (Chrome/Android) the
+ *    element has ALREADY sized itself correctly. Writing an explicit height
+ *    there is not a no-op — it overrides the browser's own sizing and measured
+ *    2px SHORT, which re-introduced the clipping this function exists to fix.
+ *    So do nothing at all when the browser handles it.
+ *
+ * 2. `scrollHeight` excludes borders while `box-sizing: border-box` height
+ *    includes them, so assigning scrollHeight directly leaves the field a
+ *    border's worth too short and still clipping. Add the borders back.
+ */
+function autoSizeTextarea(el: HTMLTextAreaElement) {
+  if (typeof CSS !== 'undefined' && CSS.supports?.('field-sizing', 'content')) return;
+  const cs = getComputedStyle(el);
+  const borders =
+    cs.boxSizing === 'border-box'
+      ? parseFloat(cs.borderTopWidth || '0') + parseFloat(cs.borderBottomWidth || '0')
+      : 0;
+  el.style.height = 'auto';
+  el.style.height = `${Math.min(el.scrollHeight + borders, BULLET_MAX_HEIGHT)}px`;
+}
+
 export default function ResumeEditor() {
   /* eslint-disable react-hooks/rules-of-hooks */
   const router = IS_MOCK_ROUTER
@@ -631,6 +662,7 @@ export default function ResumeEditor() {
       trackedSections.forEach(({ element }) => observer.observe(element));
       return () => observer.disconnect();
     };
+
 
     if ('IntersectionObserver' in win) {
       const cleanup = observeSections();
@@ -1335,6 +1367,23 @@ export default function ResumeEditor() {
 
   // R-045 — persist a design change (font/density). These are
   // presentation-only fields; the API skips ATS re-validation for them.
+  // Auto-size every bullet textarea to its content.
+  //
+  // Bullets already grew while you TYPED (an onInput handler), and Chrome
+  // additionally honours `field-sizing: content` from globals.css. Neither
+  // helps the case users actually hit: opening a SAVED resume. The content
+  // arrives from the server, nobody types, and iOS Safari has no field-sizing,
+  // so every pre-existing bullet sat at its 2-row minimum and clipped
+  // mid-sentence — reported from both Android and iOS.
+  //
+  // Runs after paint so scrollHeight is measurable, and re-runs when the
+  // content feeding these fields changes.
+  useLayoutEffect(() => {
+    document
+      .querySelectorAll<HTMLTextAreaElement>('textarea.bullet-input')
+      .forEach(autoSizeTextarea);
+  }, [resume.experience, resume.achievements, resume.projects, resume.summary]);
+
   const persistDesign = useCallback(
     async (patch: { fontFamily?: string | null; density?: string | null; accentColor?: string | null; sectionOrder?: string[] | null; photoUrl?: string | null }) => {
       if (!resumeId) return;
@@ -2647,12 +2696,16 @@ export default function ResumeEditor() {
                       justifyContent: 'space-between',
                       gap: 8,
                       padding: '6px 10px',
-                      border: '1px solid #e2e8f0',
+                      // Tokens, not literals. Hardcoded #f8fafc kept these rows
+                      // near-white in dark mode while the label colour followed
+                      // the theme, so the section names rendered pale-on-pale and
+                      // were effectively invisible on a phone in dark mode.
+                      border: '1px solid var(--border)',
                       borderRadius: 6,
-                      background: '#f8fafc',
+                      background: 'var(--surface)',
                     }}
                   >
-                    <span style={{ fontSize: 13 }}>{getAtsSectionTitle(key)}</span>
+                    <span style={{ fontSize: 13, color: 'var(--ink)' }}>{getAtsSectionTitle(key)}</span>
                     <span style={{ display: 'flex', gap: 4 }}>
                       <TkxButton
                         type="button"
@@ -3162,7 +3215,11 @@ export default function ResumeEditor() {
                       <div className="hide-field-label" style={{ flex: 1 }}>
                         <TkxTextarea
                           label={`Achievement ${achIdx + 1}`}
-                          style={{ minHeight: 56 }}
+                          // bullet-input carries the auto-grow styling and is what
+                          // the sizing effect looks for. Without it a long
+                          // achievement stayed pinned at 56px and clipped mid-line
+                          // on phones (reported from both Android and iOS).
+                          className="bullet-input"
                           value={achievement}
                           placeholder="e.g. Won the Rising Star award twice for high-impact delivery"
                           onChange={(e) => {
@@ -3412,11 +3469,7 @@ export default function ResumeEditor() {
                                       minRows={2}
                                       data-testid={`experience-highlight-${expIdx}-${highlightIdx}`}
                                       data-highlight-id={`experience-highlight-${expIdx}-${highlightIdx}`}
-                                      onInput={(e) => {
-                                        const el = e.currentTarget;
-                                        el.style.height = 'auto';
-                                        el.style.height = `${Math.min(el.scrollHeight, 240)}px`;
-                                      }}
+                                      onInput={(e) => autoSizeTextarea(e.currentTarget)}
                                       onChange={(e) => {
                                         const copy = [...resume.experience];
                                         const nextHighlights = [...(copy[expIdx].highlights || [])];
@@ -5208,7 +5261,7 @@ export default function ResumeEditor() {
                 goToReviewAts();
               }}
             >
-              Review &amp; ATS
+              Review & ATS
             </TkxButton>
           ) : null}
           <TkxButton

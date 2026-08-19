@@ -2540,6 +2540,13 @@ body.resume-embed-body .main-shell {
   grid-column: span 4;
 }
 
+/* col-3 is used in the app but had no rule, so those cells fell back to
+ * `grid-column: auto` and occupied a single 1/12 track — a sliver instead of a
+ * quarter-width cell. */
+.col-3 {
+  grid-column: span 3;
+}
+
 .col-6 {
   grid-column: span 6;
 }
@@ -3283,13 +3290,18 @@ h2 {
   .grid {
     grid-template-columns: repeat(6, 1fr);
   }
-  .col-7, .col-5 {
-    grid-column: span 6;
-  }
-  .col-4 {
-    grid-column: span 6;
-  }
-  .col-6 {
+  /* EVERY column collapses to full width here, .col-12 included.
+   *
+   * .col-12 was missing from this list, and that is a real overflow rather
+   * than a cosmetic gap. The track count above drops to 6, so
+   * `grid-column: span 12` makes the browser generate six IMPLICIT columns to
+   * satisfy the span, leaving the row about twice the viewport wide. Since
+   * `html, body { overflow-x: hidden }` clips instead of scrolling, the result
+   * on a phone is content sliced off at the right edge with no way to reach it
+   * — reported on /templates/preview and the account page.
+   *
+   * Written as one selector so a column added later cannot be missed again. */
+  .col-3, .col-4, .col-5, .col-6, .col-7, .col-12 {
     grid-column: span 6;
   }
   .preview-pane {
