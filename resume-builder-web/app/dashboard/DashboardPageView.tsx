@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { PROFESSION_INDUSTRIES, TEMPLATE_CATALOG, getIndustryById } from 'resume-builder-shared';
-import { TkxEmpty, TkxSkeleton } from 'tekivex-ui';
+import { TkxEmpty, TkxSelect, TkxSkeleton } from 'tekivex-ui';
 import { api, getAccessToken, type DriveSessionResponse, type Resume } from '@/src/lib/api';
 import TemplateCatalogGrid from '@/src/components/templates/TemplateCatalogGrid';
 import {
@@ -377,36 +377,37 @@ export default function DashboardPageView({
                   />
                 </label>
               ) : null}
-              <label style={{ display: 'grid', gap: 6 }}>
-                <span className="small">Selected resume</span>
-                <select
-                  className="input"
-                  value={selectedResumeId}
-                  onChange={(event) => {
-                    const nextResumeId = String(event.target.value || '').trim();
-                    setSelectedResumeId(nextResumeId);
-                    setStatus('');
-                    setError('');
-                    if (nextResumeId) {
-                      persistActiveResumeSelection(nextResumeId);
-                      return;
-                    }
-                    clearActiveResumeSelection();
-                  }}
-                  data-testid="dashboard-resume-select"
-                >
-                  <option value="">
-                    {filteredResumes.length === 0 && searchQuery
-                      ? 'No resumes match your search'
-                      : 'Select a saved resume'}
-                  </option>
-                  {filteredResumes.map((resume) => (
-                    <option key={resume.id} value={resume.id}>
-                      {resume.title}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              {/* TkxSelect rather than a raw <select>: the native control cannot
+               * be themed (the option list is painted by the OS, so it stayed
+               * light in dark mode) and it has no search. Resume titles are long
+               * and near-identical, so `searchable` matters here. */}
+              <TkxSelect
+                id="dashboard-resume-select"
+                label="Selected resume"
+                searchable
+                clearable
+                value={selectedResumeId}
+                placeholder={
+                  filteredResumes.length === 0 && searchQuery
+                    ? 'No resumes match your search'
+                    : 'Select a saved resume'
+                }
+                options={filteredResumes.map((resume) => ({
+                  value: resume.id,
+                  label: resume.title,
+                }))}
+                onChange={(next) => {
+                  const nextResumeId = String(next || '').trim();
+                  setSelectedResumeId(nextResumeId);
+                  setStatus('');
+                  setError('');
+                  if (nextResumeId) {
+                    persistActiveResumeSelection(nextResumeId);
+                    return;
+                  }
+                  clearActiveResumeSelection();
+                }}
+              />
             </div>
           ) : null}
         </div>
@@ -427,32 +428,34 @@ export default function DashboardPageView({
             </p>
           </div>
           <div className="grid" style={{ gap: 12 }}>
-            <label className="col-6" style={{ display: 'grid', gap: 6, minWidth: 240 }}>
-              <span className="small">Industry</span>
-              <select
-                className="input"
-                data-testid="dashboard-industry-select"
+            <div className="col-6" style={{ minWidth: 240 }}>
+              <TkxSelect
+                id="dashboard-industry-select"
+                label="Industry"
+                searchable
+                clearable
                 value={selectedIndustry}
-                disabled={hasSelectedResume}
-                aria-disabled={hasSelectedResume}
-                title={hasSelectedResume ? 'Profession is locked while a resume is selected. Click "Create Resume" to start a fresh one.' : undefined}
-                onChange={(event) => {
-                  const next = event.target.value;
+                isDisabled={hasSelectedResume}
+                placeholder="All professions"
+                hint={
+                  hasSelectedResume
+                    ? 'Profession is locked while a resume is selected. Click "Create Resume" to start a fresh one.'
+                    : undefined
+                }
+                options={PROFESSION_INDUSTRIES.map((industry) => ({
+                  value: industry.id,
+                  label: industry.label,
+                }))}
+                onChange={(value) => {
+                  const next = String(value || '');
                   setSelectedIndustry(next);
                   if (typeof window !== 'undefined') {
                     if (next) window.localStorage.setItem(PROFESSION_STORAGE_KEY, next);
                     else window.localStorage.removeItem(PROFESSION_STORAGE_KEY);
                   }
                 }}
-              >
-                <option value="">All professions</option>
-                {PROFESSION_INDUSTRIES.map((industry) => (
-                  <option key={industry.id} value={industry.id}>
-                    {industry.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+              />
+            </div>
             {hasSelectedResume ? (
               <p className="small col-6" style={{ margin: 0, alignSelf: 'end' }}>
                 Want a different profession?{' '}

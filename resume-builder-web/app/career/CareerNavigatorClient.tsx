@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { TkxSelect } from 'tekivex-ui';
 import { PROFESSION_INDUSTRIES, getIndustryById, getRoleById } from 'resume-builder-shared';
 import { api, type Resume, type TechGapResult } from '@/src/lib/api';
 import FreeAiNotice from '@/src/components/FreeAiNotice';
@@ -199,42 +200,39 @@ export default function CareerNavigatorClient() {
       <section className="card col-12">
         <h2 style={{ marginTop: 0 }}>Your current profile</h2>
         <div className="grid" style={{ gap: 12 }}>
-          <label className="col-6" style={{ display: 'grid', gap: 6 }}>
-            <span className="small">Industry</span>
-            <select
-              className="input"
+          <div className="col-6">
+            <TkxSelect
+              label="Industry"
+              searchable
               value={industryId}
-              onChange={(event) => {
-                setIndustryId(event.target.value);
+              options={PROFESSION_INDUSTRIES.map((industry) => ({
+                value: industry.id,
+                label: industry.label,
+              }))}
+              onChange={(value) => {
+                setIndustryId(String(value || ''));
                 setRoleId('');
                 resetResults();
               }}
-            >
-              {PROFESSION_INDUSTRIES.map((industry) => (
-                <option key={industry.id} value={industry.id}>
-                  {industry.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="col-6" style={{ display: 'grid', gap: 6 }}>
-            <span className="small">Role</span>
-            <select
-              className="input"
+            />
+          </div>
+          <div className="col-6">
+            <TkxSelect
+              label="Role"
+              searchable
+              clearable
               value={roleId}
-              onChange={(event) => {
-                setRoleId(event.target.value);
+              placeholder="Select a role"
+              options={(currentIndustry?.roles || []).map((role) => ({
+                value: role.id,
+                label: role.label,
+              }))}
+              onChange={(value) => {
+                setRoleId(String(value || ''));
                 resetResults();
               }}
-            >
-              <option value="">Select a role</option>
-              {(currentIndustry?.roles || []).map((role) => (
-                <option key={role.id} value={role.id}>
-                  {role.label}
-                </option>
-              ))}
-            </select>
-          </label>
+            />
+          </div>
         </div>
 
         <label style={{ display: 'grid', gap: 6, marginTop: 12 }}>
@@ -297,20 +295,16 @@ export default function CareerNavigatorClient() {
               </span>
             </label>
             {useResume ? (
-              <label style={{ display: 'grid', gap: 6 }}>
-                <span className="small">Resume</span>
-                <select
-                  className="input"
-                  value={selectedResumeId}
-                  onChange={(event) => setSelectedResumeId(event.target.value)}
-                >
-                  {resumes.map((resume) => (
-                    <option key={resume.id} value={resume.id}>
-                      {resume.title}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <TkxSelect
+                label="Resume"
+                searchable
+                value={selectedResumeId}
+                options={resumes.map((resume) => ({
+                  value: resume.id,
+                  label: resume.title,
+                }))}
+                onChange={(value) => setSelectedResumeId(String(value || ''))}
+              />
             ) : null}
           </div>
         ) : (
@@ -323,43 +317,41 @@ export default function CareerNavigatorClient() {
       <section className="card col-12">
         <h2 style={{ marginTop: 0 }}>Where do you want to go? (optional)</h2>
         <div className="grid" style={{ gap: 12 }}>
-          <label className="col-6" style={{ display: 'grid', gap: 6 }}>
-            <span className="small">Target industry</span>
-            <select
-              className="input"
+          <div className="col-6">
+            <TkxSelect
+              label="Target industry"
+              searchable
+              clearable
               value={targetIndustryId}
-              onChange={(event) => {
-                setTargetIndustryId(event.target.value);
+              placeholder="— same as current —"
+              options={PROFESSION_INDUSTRIES.map((industry) => ({
+                value: industry.id,
+                label: industry.label,
+              }))}
+              onChange={(value) => {
+                setTargetIndustryId(String(value || ''));
                 setTargetRoleId('');
                 resetResults();
               }}
-            >
-              <option value="">— same as current —</option>
-              {PROFESSION_INDUSTRIES.map((industry) => (
-                <option key={industry.id} value={industry.id}>
-                  {industry.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="col-6" style={{ display: 'grid', gap: 6 }}>
-            <span className="small">Target role</span>
-            <select
-              className="input"
+            />
+          </div>
+          <div className="col-6">
+            <TkxSelect
+              label="Target role"
+              searchable
+              clearable
               value={targetRoleId}
-              onChange={(event) => {
-                setTargetRoleId(event.target.value);
+              placeholder="— same as current —"
+              options={(targetIndustry?.roles || []).map((role) => ({
+                value: role.id,
+                label: role.label,
+              }))}
+              onChange={(value) => {
+                setTargetRoleId(String(value || ''));
                 resetResults();
               }}
-            >
-              <option value="">— same as current —</option>
-              {(targetIndustry?.roles || []).map((role) => (
-                <option key={role.id} value={role.id}>
-                  {role.label}
-                </option>
-              ))}
-            </select>
-          </label>
+            />
+          </div>
         </div>
 
         <label style={{ display: 'grid', gap: 6, marginTop: 12 }}>
