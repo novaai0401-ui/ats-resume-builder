@@ -31,6 +31,16 @@
   --space-20: 80px;
   --space-24: 96px;
 
+  /* ---- App chrome: the sticky .topbar, named so full-height panes can
+     subtract it instead of guessing. Locked with a matching min-height on
+     .topbar below, otherwise the token drifts from reality per page. ---- */
+  --app-header-h: 74px;
+  --app-chrome-h: calc(var(--app-header-h) + var(--space-6));
+  /* Space a viewport-height pane may occupy: everything the chrome leaves,
+     less a bottom gap so the pane does not butt against the window edge. */
+  --app-pane-h: calc(100vh - var(--app-chrome-h) - var(--space-6));
+  --app-pane-top: calc(var(--app-header-h) + var(--space-2));
+
   /* ---- Type: 1.2 minor third ---- */
   --text-xs: 0.75rem;
   --text-sm: 0.875rem;
@@ -327,6 +337,7 @@ body.resume-embed-body .main-shell {
 
 .topbar {
   display: flex;
+  min-height: var(--app-header-h);
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
@@ -1649,8 +1660,9 @@ body.resume-embed-body .main-shell {
 .preview-pane {
   align-self: start;
   position: sticky;
-  top: 20px;
-  max-height: calc(100vh - 40px);
+  /* top: 20px put the pane UNDER the 74px sticky topbar once the page moved. */
+  top: var(--app-pane-top);
+  max-height: var(--app-pane-h);
   overflow-y: auto;
 }
 
@@ -2506,7 +2518,12 @@ body.resume-embed-body .main-shell {
 /* Left: catalog list scrolls inside itself so the preview panel on the
    right stays permanently in view without the user scrolling back up. */
 .template-grid-layout > .col-7 {
-  max-height: calc(100vh - 80px);
+  align-self: start;
+  position: sticky;
+  top: var(--app-pane-top);
+  /* Was 100vh - 80px while the preview used 100vh - 40px: the columns were
+     40px out of step and together overflowed the viewport. */
+  max-height: var(--app-pane-h);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
@@ -3290,6 +3307,8 @@ h2 {
   /* On mobile the two-column template layout stacks; reset the left-panel
      scroll constraint so it grows naturally inside the stacked flow. */
   .template-grid-layout > .col-7 {
+    /* Drop the desktop sticky too, so both columns flow in one document scroll. */
+    position: static;
     max-height: none;
     overflow-y: visible;
   }
