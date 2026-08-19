@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { TkxTextarea } from 'tekivex-ui';
 
 /**
  * R-038 Phase 2 — contact-relay form on the public share page.
@@ -131,15 +132,18 @@ export default function ContactRelayForm({ slug }: { slug: string }) {
           disabled={busy}
           style={inputStyle}
         />
-        <textarea
-          placeholder="Your message *"
+        <TkxTextarea
+          label="Your message"
+          isRequired
           required
+          showCount
           maxLength={4000}
-          rows={5}
+          minRows={5}
+          placeholder="Your message *"
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           disabled={busy}
-          style={{ ...inputStyle, fontFamily: 'inherit', resize: 'vertical' }}
+          style={{ ...inputStyle, resize: 'vertical' }}
         />
       </div>
       <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>

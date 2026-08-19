@@ -8,6 +8,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { TkxTextarea } from 'tekivex-ui';
 import { presentVerdict } from 'resume-builder-shared';
 import { api, getAccessToken, type RecruiterSimResult } from '@/src/lib/api';
 import { useResumeStore } from '@/src/lib/resume-store';
@@ -94,14 +95,14 @@ export default function RecruiterSimClient() {
       </section>
 
       <section className="card col-12">
-        <label className="small" htmlFor="jd">Job description</label>
-        <textarea
+        <TkxTextarea
           id="jd"
+          label="Job description"
           value={jdText}
           onChange={(e) => setJdText(e.target.value)}
-          rows={10}
+          minRows={10}
           placeholder="Paste the full job description here…"
-          style={{ width: '100%', marginTop: 6, fontFamily: 'inherit', fontSize: 14, padding: 10 }}
+          style={{ width: '100%', marginTop: 6 }}
         />
         {!hasResume && (
           <p className="small" style={{ color: '#a8412c' }}>

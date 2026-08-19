@@ -17,6 +17,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { TkxTextarea } from 'tekivex-ui';
 import { api, getAccessToken } from '@/src/lib/api';
 import { useSavedResumeFallback } from '@/src/lib/use-saved-resume-fallback';
 import { loadByokKey } from '@/src/lib/byok-storage';
@@ -211,21 +212,25 @@ export default function MentorChatClient() {
           className="mentor-chat-form"
           onSubmit={(e) => { e.preventDefault(); void send(); }}
         >
-          <textarea
-            className="input"
-            rows={2}
-            placeholder={canUseAi ? 'Ask the mentor anything career-related…' : 'Add your AI key (free) or get Plus to chat'}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                void send();
-              }
-            }}
-            disabled={!canUseAi || busy}
-            style={{ resize: 'vertical', minHeight: 60 }}
-          />
+          {/* Label is hidden visually: this is a chat composer, so a "Message"
+           * heading above the box would be noise. Screen readers still get it. */}
+          <div className="hide-field-label">
+            <TkxTextarea
+              label="Message the mentor"
+              minRows={2}
+              placeholder={canUseAi ? 'Ask the mentor anything career-related…' : 'Add your AI key (free) or get Plus to chat'}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  void send();
+                }
+              }}
+              disabled={!canUseAi || busy}
+              style={{ resize: 'vertical', minHeight: 60 }}
+            />
+          </div>
           <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             <button type="submit" className="btn" disabled={!canSend}>
               {busy ? 'Sending…' : 'Send'}

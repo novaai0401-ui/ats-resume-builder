@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { TkxTextarea } from 'tekivex-ui';
 
 /**
  * R-090 — home-page "Paste a JD" quick start. The critique found the core
@@ -44,13 +45,12 @@ export default function JdQuickStart() {
         already cover, the ones this job wants that you don&rsquo;t show — each with a one-tap
         <strong> + Add</strong> button — and the bullets that would close the gap.
       </p>
-      <textarea
-        className="input"
-        rows={4}
+      <TkxTextarea
+        label="Job description"
+        minRows={4}
         value={jd}
         onChange={(e) => setJd(e.target.value)}
         placeholder="Paste the job description here…"
-        aria-label="Job description"
         style={{ width: '100%', resize: 'vertical' }}
       />
       <button className="btn" type="button" onClick={go} disabled={!jd.trim()} style={{ marginTop: 10 }}>

@@ -4426,11 +4426,27 @@ a:hover { color: var(--primary-700); }
   min-width: 0;
 }
 
-/* TkxSelect exposes no aria-label prop, so the accessible name has to come
-   from its visible `label`. "Month" / "Year" is already stated by the
-   placeholder, and two stacked labels would double the height of every date
-   row in the editor — so hide the label visually but keep it for screen
-   readers, which is what the old aria-label did. */
+/* tekivex-ui form controls take their accessible name from a REQUIRED, visible
+   `label` prop — there is no aria-label. Where the surrounding UI already makes
+   the field obvious (a chat composer, a two-up month/year row), showing that
+   label would be redundant or would wreck the layout. Wrap the control in this
+   class to hide the label visually while screen readers keep it, which is what
+   the aria-label these controls replaced already did.
+
+   Do NOT use display:none or visibility:hidden here — both remove the label
+   from the accessibility tree, which is the whole thing we are preserving. */
+.hide-field-label label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .month-year-picker__select label {
   position: absolute;
   width: 1px;

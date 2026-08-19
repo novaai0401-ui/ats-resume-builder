@@ -16,6 +16,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { TkxTextarea } from 'tekivex-ui';
 import { api, getAccessToken } from '@/src/lib/api';
 import AiTrustNote from '@/src/components/AiTrustNote';
 import { handleFreeTrialError } from '@/src/lib/free-trial';
@@ -146,11 +147,10 @@ export default function LinkedInOptimizeClient() {
       </section>
 
       <section className="card col-12">
-        <label className="label" htmlFor="li-text">Your LinkedIn profile</label>
-        <textarea
+        <TkxTextarea
           id="li-text"
-          className="input"
-          rows={12}
+          label="Your LinkedIn profile"
+          minRows={12}
           placeholder="Paste your full LinkedIn profile text here…"
           value={profileText}
           onChange={(e) => setProfileText(e.target.value)}
