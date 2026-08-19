@@ -69,6 +69,54 @@ function getTestingLib() {
   return testingLibPromise;
 }
 
+/**
+ * The resume picker is a TkxSelect, not a native <select>.
+ *
+ * TkxSelect renders `button[role="combobox"]` plus a popup listbox, so
+ * `fireEvent.change` is a silent no-op on it and `.value` does not exist.
+ * Drive it the way a user does: open the combobox, then click the option.
+ * Options carry a stable id of `${selectId}-opt-${value}`.
+ */
+const RESUME_SELECT_ID = 'dashboard-resume-select';
+
+async function pickResume(value: string) {
+  const { fireEvent, waitFor } = await getTestingLib();
+  const combo = await waitFor(
+    () => {
+      const el = document.getElementById(RESUME_SELECT_ID);
+      if (!el) throw new Error(`combobox #${RESUME_SELECT_ID} not mounted yet`);
+      return el;
+    },
+    { timeout: 15_000 },
+  );
+  fireEvent.click(combo);
+  const option = await waitFor(
+    () => {
+      const el = document.getElementById(`${RESUME_SELECT_ID}-opt-${value}`);
+      if (!el) throw new Error(`option "${value}" not in the open listbox`);
+      return el;
+    },
+    { timeout: 15_000 },
+  );
+  fireEvent.click(option);
+}
+
+/**
+ * Assert nothing is selected. The native version checked `select.value === ''`;
+ * the combobox instead shows its placeholder as its label.
+ */
+async function assertNoResumeSelected() {
+  const { waitFor } = await getTestingLib();
+  await waitFor(
+    () => {
+      const combo = document.getElementById(RESUME_SELECT_ID);
+      if (!combo) throw new Error(`combobox #${RESUME_SELECT_ID} not mounted yet`);
+      assert.match(combo.textContent || '', /Select a saved resume|No resumes match your search/i);
+    },
+    { timeout: 15_000 },
+  );
+}
+
 function getDashboardPageModule() {
   if (!dashboardPagePromise) {
     dashboardPagePromise = import('@/app/dashboard/DashboardPageView');
@@ -226,8 +274,7 @@ test('dashboard renders template grid with at least 6 templates when a resume ex
   render(React.createElement(DashboardPage, { apiClient: createApiClient() as any }));
 
   const profilePreview = await screen.findByTestId('dashboard-preview-profile', undefined, { timeout: 15_000 });
-  const select = await screen.findByTestId('dashboard-resume-select', undefined, { timeout: 15_000 }) as HTMLSelectElement;
-  fireEvent.change(select, { target: { value: 'resume-db-1' } });
+  await pickResume('resume-db-1');
   await waitFor(() => {
     assert.match(profilePreview.textContent || '', /Database User/i);
   }, { timeout: 15_000 });
@@ -285,15 +332,14 @@ test('dashboard thumbnails always follow the currently selected resume data', as
     }) as any,
   }));
 
-  const select = await screen.findByTestId('dashboard-resume-select', undefined, { timeout: 15_000 }) as HTMLSelectElement;
-  fireEvent.change(select, { target: { value: 'resume-db-1' } });
+  await pickResume('resume-db-1');
 
   const templateGrid = await screen.findByTestId('dashboard-template-grid', undefined, { timeout: 15_000 });
   await waitFor(() => {
     assertLiveResumeThumbnails(templateGrid, 'DB Resume');
   }, { timeout: 15_000 });
 
-  fireEvent.change(select, { target: { value: 'resume-db-2' } });
+  await pickResume('resume-db-2');
 
   await waitFor(() => {
     assertLiveResumeThumbnails(templateGrid, 'Ops Resume');
@@ -324,8 +370,7 @@ test('consent modal appears once per session and Later keeps the explicitly sele
   await new Promise((resolve) => setTimeout(resolve, 250));
   assert.equal(screen.queryByTestId('drive-consent-modal'), null);
   const profilePreview = await screen.findByTestId('dashboard-preview-profile', undefined, { timeout: 15_000 });
-  const select = await screen.findByTestId('dashboard-resume-select', undefined, { timeout: 15_000 }) as HTMLSelectElement;
-  fireEvent.change(select, { target: { value: 'resume-db-1' } });
+  await pickResume('resume-db-1');
   await waitFor(() => {
     assert.match(profilePreview.textContent || '', /Database User/i);
   }, { timeout: 15_000 });
@@ -387,8 +432,7 @@ test('dashboard template Preview click persists and navigates to /resume/templat
     }),
   );
 
-  const select = await screen.findByTestId('dashboard-resume-select', undefined, { timeout: 15_000 }) as HTMLSelectElement;
-  fireEvent.change(select, { target: { value: 'resume-db-1' } });
+  await pickResume('resume-db-1');
 
   const grid = await screen.findByTestId('dashboard-template-grid', undefined, { timeout: 15_000 });
   const firstCard = grid.querySelector('[data-template-id]') as HTMLElement | null;
@@ -410,8 +454,7 @@ test('dashboard gallery uses compact gallery variant for template cards', async 
 
   render(React.createElement(DashboardPage, { apiClient: createApiClient() as any }));
 
-  const select = await screen.findByTestId('dashboard-resume-select', undefined, { timeout: 15_000 }) as HTMLSelectElement;
-  fireEvent.change(select, { target: { value: 'resume-db-1' } });
+  await pickResume('resume-db-1');
   const templateGrid = await screen.findByTestId('dashboard-template-grid', undefined, { timeout: 15_000 });
   assert.equal(templateGrid.getAttribute('data-layout-variant'), 'gallery');
   assert.ok(templateGrid.querySelector('[data-render-mode="thumbnail"]'));
@@ -429,8 +472,7 @@ test('dashboard does not auto-select a saved resume in a fresh session', async (
   const profilePreview = await screen.findByTestId('dashboard-preview-profile', undefined, { timeout: 15_000 });
   assert.match(profilePreview.textContent || '', /No resume selected/i);
   assert.doesNotMatch(profilePreview.textContent || '', /Database User/i);
-  const select = await screen.findByTestId('dashboard-resume-select', undefined, { timeout: 15_000 }) as HTMLSelectElement;
-  assert.equal(select.value, '');
+  await assertNoResumeSelected();
 });
 
 test('dashboard ignores stale session resume ids until a user explicitly selects a resume', async () => {
@@ -444,8 +486,7 @@ test('dashboard ignores stale session resume ids until a user explicitly selects
   const profilePreview = await screen.findByTestId('dashboard-preview-profile', undefined, { timeout: 15_000 });
   assert.match(profilePreview.textContent || '', /No resume selected/i);
   assert.doesNotMatch(profilePreview.textContent || '', /Database User/i);
-  const select = await screen.findByTestId('dashboard-resume-select', undefined, { timeout: 15_000 }) as HTMLSelectElement;
-  assert.equal(select.value, '');
+  await assertNoResumeSelected();
 });
 
 test('dashboard highlights the saved template only after explicit resume selection', async () => {
@@ -477,9 +518,8 @@ test('dashboard highlights the saved template only after explicit resume selecti
     }) as any,
   }));
 
-  const select = await screen.findByTestId('dashboard-resume-select', undefined, { timeout: 15_000 }) as HTMLSelectElement;
-  assert.equal(select.value, '');
-  fireEvent.change(select, { target: { value: 'resume-db-1' } });
+  await assertNoResumeSelected();
+  await pickResume('resume-db-1');
 
   await waitFor(() => {
     const appliedCard = document.querySelector('[data-template-id="modern"]');
@@ -541,8 +581,7 @@ test.skip('dashboard shows Applied only for the actively selected resume', async
 
   assert.equal(screen.queryByTestId('dashboard-template-grid'), null);
 
-  const select = await screen.findByTestId('dashboard-resume-select', undefined, { timeout: 15_000 }) as HTMLSelectElement;
-  fireEvent.change(select, { target: { value: 'resume-db-1' } });
+  await pickResume('resume-db-1');
 
   await waitForAssertion(() => {
     const templateGrid = screen.getByTestId('dashboard-template-grid');
@@ -552,7 +591,7 @@ test.skip('dashboard shows Applied only for the actively selected resume', async
     assert.equal(technicalCard?.classList.contains('active'), false);
   });
 
-  fireEvent.change(select, { target: { value: 'resume-db-2' } });
+  await pickResume('resume-db-2');
 
   await waitForAssertion(() => {
     const templateGrid = screen.getByTestId('dashboard-template-grid');
@@ -595,8 +634,7 @@ test('reopening dashboard after clearing session keeps saved resumes visible but
   const { default: DashboardPage } = await getDashboardPageModule();
 
   const firstRender = render(React.createElement(DashboardPage, { apiClient: createApiClient() as any }));
-  const select = await screen.findByTestId('dashboard-resume-select', undefined, { timeout: 15_000 }) as HTMLSelectElement;
-  fireEvent.change(select, { target: { value: 'resume-db-1' } });
+  await pickResume('resume-db-1');
   firstRender.unmount();
 
   window.sessionStorage.clear();
@@ -605,8 +643,7 @@ test('reopening dashboard after clearing session keeps saved resumes visible but
   const profilePreview = await screen.findByTestId('dashboard-preview-profile', undefined, { timeout: 15_000 });
   assert.match(profilePreview.textContent || '', /No resume selected/i);
   assert.doesNotMatch(profilePreview.textContent || '', /Database User/i);
-  const reopenedSelect = await screen.findByTestId('dashboard-resume-select', undefined, { timeout: 15_000 }) as HTMLSelectElement;
-  assert.equal(reopenedSelect.value, '');
+  await assertNoResumeSelected();
 });
 
 test('/resume/template honors selected template query and refreshes preview after upload', async () => {

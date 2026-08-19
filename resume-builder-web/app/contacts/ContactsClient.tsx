@@ -389,7 +389,7 @@ export default function ContactsClient() {
                 label="Linked application"
                 searchable
                 clearable
-                value={form.jobApplicationId || ''}
+                value={form.jobApplicationId || '' || undefined}
                 placeholder="— None —"
                 options={jobs.map((j) => ({ value: j.id, label: `${j.company} — ${j.role}` }))}
                 onChange={(value) => setForm({ ...form, jobApplicationId: String(value || '') })}

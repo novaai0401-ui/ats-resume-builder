@@ -173,7 +173,7 @@ export default function CoverLetterClient() {
           <TkxSelect
             label="Source resume"
             searchable
-            value={form.resumeId}
+            value={form.resumeId || undefined}
             isDisabled={resumes.length === 0}
             placeholder={resumes.length === 0 ? 'No resumes available' : 'Select a resume'}
             options={resumes.map((r) => ({ value: r.id, label: r.title }))}

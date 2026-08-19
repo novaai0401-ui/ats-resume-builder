@@ -189,7 +189,7 @@ export default function VersionsClient() {
           <TkxSelect
             label="Resume"
             searchable
-            value={resumeId}
+            value={resumeId || undefined}
             isDisabled={resumes.length === 0}
             placeholder={resumes.length === 0 ? 'No resumes saved yet' : 'Select a resume'}
             options={resumes.map((r) => ({ value: r.id, label: r.title }))}

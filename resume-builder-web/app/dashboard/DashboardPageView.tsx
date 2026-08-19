@@ -386,7 +386,7 @@ export default function DashboardPageView({
                 label="Selected resume"
                 searchable
                 clearable
-                value={selectedResumeId}
+                value={selectedResumeId || undefined}
                 placeholder={
                   filteredResumes.length === 0 && searchQuery
                     ? 'No resumes match your search'
@@ -434,7 +434,7 @@ export default function DashboardPageView({
                 label="Industry"
                 searchable
                 clearable
-                value={selectedIndustry}
+                value={selectedIndustry || undefined}
                 isDisabled={hasSelectedResume}
                 placeholder="All professions"
                 hint={

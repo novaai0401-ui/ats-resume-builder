@@ -62,7 +62,7 @@ export function MonthYearPicker({
         className={selectClass}
         label="Month"
         placeholder="Month"
-        value={month}
+        value={month || undefined}
         isDisabled={disabled}
         isInvalid={invalid}
         options={MONTHS.map(([v, label]) => ({ value: v, label }))}
@@ -73,7 +73,7 @@ export function MonthYearPicker({
         label="Year"
         placeholder="Year"
         searchable
-        value={year}
+        value={year || undefined}
         isDisabled={disabled}
         isInvalid={invalid}
         options={YEARS.map((y) => ({ value: String(y), label: String(y) }))}

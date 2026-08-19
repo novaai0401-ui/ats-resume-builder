@@ -213,7 +213,7 @@ export default function ShareLinksCard() {
         <TkxSelect
           label="Resume"
           searchable
-          value={pickedResumeId}
+          value={pickedResumeId || undefined}
           isDisabled={busy || resumes.length === 0}
           placeholder={resumes.length === 0 ? 'No saved resumes yet' : 'Select a resume'}
           options={resumes.map((r) => ({ value: r.id, label: r.title || r.id.slice(0, 8) }))}
@@ -400,7 +400,7 @@ function LinkDetails({
         <TkxSelect
           label="Pin to version (optional)"
           clearable
-          value={link.resumeVersionId || ''}
+          value={link.resumeVersionId || '' || undefined}
           placeholder="Live resume (always latest)"
           isLoading={versions === null}
           hint={

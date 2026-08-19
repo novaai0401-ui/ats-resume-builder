@@ -221,7 +221,7 @@ export default function CareerNavigatorClient() {
               label="Role"
               searchable
               clearable
-              value={roleId}
+              value={roleId || undefined}
               placeholder="Select a role"
               options={(currentIndustry?.roles || []).map((role) => ({
                 value: role.id,
@@ -322,7 +322,7 @@ export default function CareerNavigatorClient() {
               label="Target industry"
               searchable
               clearable
-              value={targetIndustryId}
+              value={targetIndustryId || undefined}
               placeholder="— same as current —"
               options={PROFESSION_INDUSTRIES.map((industry) => ({
                 value: industry.id,
@@ -340,7 +340,7 @@ export default function CareerNavigatorClient() {
               label="Target role"
               searchable
               clearable
-              value={targetRoleId}
+              value={targetRoleId || undefined}
               placeholder="— same as current —"
               options={(targetIndustry?.roles || []).map((role) => ({
                 value: role.id,
