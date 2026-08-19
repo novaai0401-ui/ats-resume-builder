@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { TkxSelect } from 'tekivex-ui';
 import {
   BYOK_PROVIDERS,
   DEFAULT_MODELS,
@@ -103,24 +104,26 @@ export default function ByokKeyCard() {
       ) : null}
 
       <div style={{ marginTop: record ? 18 : 0 }}>
-        <label className="label" htmlFor="byok-provider">Provider</label>
-        <select
+        <TkxSelect
           id="byok-provider"
-          className="input"
+          label="Provider"
           value={provider}
-          onChange={(e) => {
-            setProvider(e.target.value as ByokProvider);
+          style={{ maxWidth: 280, marginBottom: 12 }}
+          options={BYOK_PROVIDERS.map((p) => ({
+            value: p,
+            label:
+              p === 'groq'
+                ? 'Groq (free, recommended)'
+                : p === 'openai'
+                  ? 'OpenAI (paid)'
+                  : 'Anthropic (paid)',
+          }))}
+          onChange={(value) => {
+            setProvider(String(value || '') as ByokProvider);
             setModel('');
             setError('');
           }}
-          style={{ maxWidth: 280, marginBottom: 12 }}
-        >
-          {BYOK_PROVIDERS.map((p) => (
-            <option key={p} value={p}>
-              {p === 'groq' ? 'Groq (free, recommended)' : p === 'openai' ? 'OpenAI (paid)' : 'Anthropic (paid)'}
-            </option>
-          ))}
-        </select>
+        />
 
         <label className="label" htmlFor="byok-key">
           {record ? 'Replace with a different key' : 'API key'}

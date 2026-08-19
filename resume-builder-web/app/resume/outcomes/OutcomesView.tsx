@@ -12,7 +12,7 @@ import { useSearchParams } from 'next/navigation';
 import {
   CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
-import { TkxAlert, TkxButton, TkxCard, TkxCardBody, TkxCardHeader } from 'tekivex-ui';
+import { TkxAlert, TkxButton, TkxCard, TkxCardBody, TkxCardHeader, TkxSelect } from 'tekivex-ui';
 import { computeAbInsight, buildAbBars } from '@/src/lib/outcome-ab';
 import DataLoader from '@/src/components/DataLoader';
 import {
@@ -95,11 +95,13 @@ export default function OutcomesView() {
             Which version of your resume is actually getting replies. Proof, not opinions.
           </p>
         </div>
-        <select value={resumeId} onChange={(e) => setResumeId(e.target.value)} style={selectStyle}>
-          {resumes.map((r) => (
-            <option key={r.id} value={r.id}>{r.title || r.id.slice(0, 8)}</option>
-          ))}
-        </select>
+        <TkxSelect
+          searchable
+          value={resumeId}
+          style={selectStyle}
+          options={resumes.map((r) => ({ value: r.id, label: r.title || r.id.slice(0, 8) }))}
+          onChange={(value) => setResumeId(String(value || ''))}
+        />
       </header>
 
       {error && <TkxAlert variant="danger">{error}</TkxAlert>}

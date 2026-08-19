@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { TkxSelect } from 'tekivex-ui';
 import { api } from '@/src/lib/api';
 import { SUPPORT_EMAIL } from '@/src/lib/support';
 
@@ -78,13 +79,15 @@ export function PaidResumeRecoveryForm() {
           className="input"
         />
       </label>
-      <label className="small" style={{ display: 'grid', gap: 4 }}>
-        Format
-        <select value={format} onChange={(e) => setFormat(e.target.value as 'pdf' | 'docx')} className="input">
-          <option value="pdf">PDF</option>
-          <option value="docx">Word (.docx)</option>
-        </select>
-      </label>
+      <TkxSelect
+        label="Format"
+        value={format}
+        options={[
+          { value: 'pdf', label: 'PDF' },
+          { value: 'docx', label: 'Word (.docx)' },
+        ]}
+        onChange={(value) => setFormat(String(value || '') as 'pdf' | 'docx')}
+      />
       <button type="submit" className="btn" disabled={!canSubmit}>
         {status === 'sending' ? 'Sending…' : 'Email me my resume'}
       </button>

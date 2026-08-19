@@ -23,6 +23,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { TkxSelect } from 'tekivex-ui';
 import { getAccessToken } from '@/src/lib/api';
 import { loadByokKey } from '@/src/lib/byok-storage';
 import {
@@ -213,37 +214,36 @@ export default function MentorClient() {
       <section className="card col-12">
         <div className="mentor-form-grid">
           <div>
-            <label className="label" htmlFor="mentor-role">Target role</label>
-            <select
+            <TkxSelect
               id="mentor-role"
-              className="input"
+              label="Target role"
+              searchable
               value={role}
-              onChange={(e) => { setRole(e.target.value); setShowResult(false); }}
-            >
-              {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
-            </select>
+              options={ROLES.map((r) => ({ value: r, label: r }))}
+              onChange={(value) => { setRole(String(value || '')); setShowResult(false); }}
+            />
           </div>
           <div>
-            <label className="label" htmlFor="mentor-level">Experience level</label>
-            <select
+            <TkxSelect
               id="mentor-level"
-              className="input"
+              label="Experience level"
               value={level}
-              onChange={(e) => { setLevel(e.target.value as typeof LEVELS[number]); setShowResult(false); }}
-            >
-              {LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}
-            </select>
+              options={LEVELS.map((l) => ({ value: l, label: l }))}
+              onChange={(value) => {
+                setLevel(String(value || '') as typeof LEVELS[number]);
+                setShowResult(false);
+              }}
+            />
           </div>
           <div>
-            <label className="label" htmlFor="mentor-city">City (for salary band)</label>
-            <select
+            <TkxSelect
               id="mentor-city"
-              className="input"
+              label="City (for salary band)"
+              searchable
               value={city}
-              onChange={(e) => { setCity(e.target.value); setShowResult(false); }}
-            >
-              {SALARY_CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
+              options={SALARY_CITIES.map((c) => ({ value: c, label: c }))}
+              onChange={(value) => { setCity(String(value || '')); setShowResult(false); }}
+            />
           </div>
         </div>
         <div style={{ marginTop: 12 }}>

@@ -1,5 +1,6 @@
 'use client';
 
+import { TkxSelect } from 'tekivex-ui';
 import { toMonthInputValue } from '@/src/lib/date-utils';
 
 /**
@@ -48,34 +49,36 @@ export function MonthYearPicker({
     else onChange('');
   };
 
-  const selectClass = `input month-year-picker__select${invalid ? ' input-error' : ''}`;
+  const selectClass = `month-year-picker__select${invalid ? ' input-error' : ''}`;
 
   return (
     <div className="month-year-picker">
-      <select
+      {/* `label` carries the accessible name that aria-label used to provide —
+       * TkxSelect exposes no aria-label prop. The labels are hidden visually by
+       * .month-year-picker__select in globals.css, because "Month"/"Year" is
+       * already obvious from the placeholder and two stacked labels would
+       * double the height of every date row in the editor. */}
+      <TkxSelect
         className={selectClass}
-        aria-label="Month"
+        label="Month"
+        placeholder="Month"
         value={month}
-        disabled={disabled}
-        onChange={(e) => emit(e.target.value, year)}
-      >
-        <option value="">Month</option>
-        {MONTHS.map(([v, label]) => (
-          <option key={v} value={v}>{label}</option>
-        ))}
-      </select>
-      <select
+        isDisabled={disabled}
+        isInvalid={invalid}
+        options={MONTHS.map(([v, label]) => ({ value: v, label }))}
+        onChange={(next) => emit(String(next || ''), year)}
+      />
+      <TkxSelect
         className={selectClass}
-        aria-label="Year"
+        label="Year"
+        placeholder="Year"
+        searchable
         value={year}
-        disabled={disabled}
-        onChange={(e) => emit(month, e.target.value)}
-      >
-        <option value="">Year</option>
-        {YEARS.map((y) => (
-          <option key={y} value={String(y)}>{y}</option>
-        ))}
-      </select>
+        isDisabled={disabled}
+        isInvalid={invalid}
+        options={YEARS.map((y) => ({ value: String(y), label: String(y) }))}
+        onChange={(next) => emit(month, String(next || ''))}
+      />
     </div>
   );
 }

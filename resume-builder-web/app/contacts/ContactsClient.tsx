@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { TkxSelect } from 'tekivex-ui';
 import type {
   JobApplication,
   NetworkContact,
@@ -328,21 +329,17 @@ export default function ContactsClient() {
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                 />
               </label>
-              <label>
-                Relationship
-                <select
-                  value={form.relationship || 'other'}
-                  onChange={(e) =>
-                    setForm({ ...form, relationship: e.target.value as ContactRelationship })
-                  }
-                >
-                  {CONTACT_RELATIONSHIPS.map((r) => (
-                    <option key={r} value={r}>
-                      {RELATIONSHIP_LABELS[r]}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <TkxSelect
+                label="Relationship"
+                value={form.relationship || 'other'}
+                options={CONTACT_RELATIONSHIPS.map((r) => ({
+                  value: r,
+                  label: RELATIONSHIP_LABELS[r],
+                }))}
+                onChange={(value) =>
+                  setForm({ ...form, relationship: String(value || '') as ContactRelationship })
+                }
+              />
               <label>
                 Company
                 <input
@@ -388,20 +385,15 @@ export default function ContactsClient() {
                   onChange={(e) => setForm({ ...form, nextFollowUpAt: e.target.value })}
                 />
               </label>
-              <label>
-                Linked application
-                <select
-                  value={form.jobApplicationId || ''}
-                  onChange={(e) => setForm({ ...form, jobApplicationId: e.target.value })}
-                >
-                  <option value="">— None —</option>
-                  {jobs.map((j) => (
-                    <option key={j.id} value={j.id}>
-                      {j.company} — {j.role}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <TkxSelect
+                label="Linked application"
+                searchable
+                clearable
+                value={form.jobApplicationId || ''}
+                placeholder="— None —"
+                options={jobs.map((j) => ({ value: j.id, label: `${j.company} — ${j.role}` }))}
+                onChange={(value) => setForm({ ...form, jobApplicationId: String(value || '') })}
+              />
               <label className="form-full">
                 Notes
                 <textarea

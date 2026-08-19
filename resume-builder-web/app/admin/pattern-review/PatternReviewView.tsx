@@ -21,6 +21,7 @@ import {
   TkxCard,
   TkxCardBody,
   TkxCardHeader,
+  TkxSelect,
 } from 'tekivex-ui';
 import {
   api,
@@ -216,10 +217,12 @@ function FailureDetail({ sample, onChanged }: { sample: ParseFailureSample; onCh
           </pre>
         </details>
 
-        <label style={labelStyle}>Propose a pattern for kind</label>
-        <select value={kind} onChange={(e) => setKind(e.target.value)} style={inputStyle}>
-          {PATTERN_KINDS.map((k) => <option key={k} value={k}>{k}</option>)}
-        </select>
+        <TkxSelect
+          label="Propose a pattern for kind"
+          value={kind}
+          options={PATTERN_KINDS.map((k) => ({ value: k, label: k }))}
+          onChange={(value) => setKind(String(value || ''))}
+        />
         <TkxButton onClick={propose} disabled={busy} style={{ marginTop: 10 }}>
           {busy ? 'Asking the model…' : 'Propose pattern'}
         </TkxButton>

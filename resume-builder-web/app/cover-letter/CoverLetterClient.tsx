@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { TkxSelect } from 'tekivex-ui';
 import type {
   CoverLetter,
   CoverLetterTone,
@@ -169,21 +170,15 @@ export default function CoverLetterClient() {
 
       <div className="cover-letter-layout">
         <form className="cover-letter-form" onSubmit={onGenerate}>
-          <label>
-            Source resume
-            <select
-              value={form.resumeId}
-              onChange={(e) => setForm({ ...form, resumeId: e.target.value })}
-              disabled={resumes.length === 0}
-            >
-              {resumes.length === 0 ? <option value="">No resumes available</option> : null}
-              {resumes.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.title}
-                </option>
-              ))}
-            </select>
-          </label>
+          <TkxSelect
+            label="Source resume"
+            searchable
+            value={form.resumeId}
+            isDisabled={resumes.length === 0}
+            placeholder={resumes.length === 0 ? 'No resumes available' : 'Select a resume'}
+            options={resumes.map((r) => ({ value: r.id, label: r.title }))}
+            onChange={(value) => setForm({ ...form, resumeId: String(value || '') })}
+          />
           <label>
             Company *
             <input

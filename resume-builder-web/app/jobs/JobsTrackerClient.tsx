@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { TkxSelect } from 'tekivex-ui';
 import type { JobApplication, JobApplicationInput, JobStatus } from 'resume-builder-shared';
 import { api } from '@/src/lib/api';
 import DataLoader from '@/src/components/DataLoader';
@@ -337,21 +338,14 @@ export default function JobsTrackerClient() {
                   onChange={(e) => setForm({ ...form, salaryRange: e.target.value })}
                 />
               </label>
-              <label>
-                Status
-                <select
-                  value={form.status || 'wishlist'}
-                  onChange={(e) =>
-                    setForm({ ...form, status: e.target.value as JobStatus })
-                  }
-                >
-                  {JOB_STATUSES.map((s) => (
-                    <option key={s} value={s}>
-                      {JOB_STATUS_LABELS[s]}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <TkxSelect
+                label="Status"
+                value={form.status || 'wishlist'}
+                options={JOB_STATUSES.map((s) => ({ value: s, label: JOB_STATUS_LABELS[s] }))}
+                onChange={(value) =>
+                  setForm({ ...form, status: String(value || '') as JobStatus })
+                }
+              />
               <label>
                 Source
                 <input
@@ -474,17 +468,21 @@ function KanbanColumn({
                 <button className="btn tertiary" onClick={() => onEdit(job)} type="button">
                   Edit
                 </button>
-                <select
-                  aria-label="Move to status"
+                {/* TkxSelect exposes no aria-label prop, so the accessible name
+                 * has to come from its `label`. Rendering it visibly is the
+                 * honest trade: the raw select relied on aria-label alone, which
+                 * sighted users never saw and screen readers announced as a bare
+                 * "Move to status" with no visual anchor. */}
+                <TkxSelect
+                  size="sm"
+                  label="Move to status"
                   value={job.status}
-                  onChange={(e) => onMove(job, e.target.value as JobStatus)}
-                >
-                  {[...ACTIVE_STATUSES, ...CLOSED_STATUSES].map((s) => (
-                    <option key={s} value={s}>
-                      {JOB_STATUS_LABELS[s]}
-                    </option>
-                  ))}
-                </select>
+                  options={[...ACTIVE_STATUSES, ...CLOSED_STATUSES].map((s) => ({
+                    value: s,
+                    label: JOB_STATUS_LABELS[s],
+                  }))}
+                  onChange={(value) => onMove(job, String(value || '') as JobStatus)}
+                />
                 <button className="btn tertiary danger" onClick={() => onDelete(job)} type="button">
                   Delete
                 </button>

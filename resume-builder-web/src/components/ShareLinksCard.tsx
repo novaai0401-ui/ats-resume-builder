@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { TkxSelect } from 'tekivex-ui';
 import { getAccessToken } from '@/src/lib/api';
 
 /**
@@ -209,20 +210,15 @@ export default function ShareLinksCard() {
       </p>
 
       <div style={{ marginTop: 14, display: 'grid', gap: 8 }}>
-        <label className="small" style={{ display: 'grid', gap: 4 }}>
-          Resume
-          <select
-            value={pickedResumeId}
-            onChange={(e) => setPickedResumeId(e.target.value)}
-            disabled={busy || resumes.length === 0}
-            style={{ maxWidth: '100%', width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-          >
-            {resumes.length === 0 ? <option value="">No saved resumes yet</option> : null}
-            {resumes.map((r) => (
-              <option key={r.id} value={r.id}>{r.title || r.id.slice(0, 8)}</option>
-            ))}
-          </select>
-        </label>
+        <TkxSelect
+          label="Resume"
+          searchable
+          value={pickedResumeId}
+          isDisabled={busy || resumes.length === 0}
+          placeholder={resumes.length === 0 ? 'No saved resumes yet' : 'Select a resume'}
+          options={resumes.map((r) => ({ value: r.id, label: r.title || r.id.slice(0, 8) }))}
+          onChange={(value) => setPickedResumeId(String(value || ''))}
+        />
         <label className="small" style={{ display: 'grid', gap: 4 }}>
           Headline (optional — shown at the top of the public page)
           <input
@@ -401,25 +397,25 @@ function LinkDetails({
       }}
     >
       <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
-        <label className="small" style={{ display: 'grid', gap: 4 }}>
-          Pin to version (optional)
-          <select
-            value={link.resumeVersionId || ''}
-            onChange={(e) => onPatch({ resumeVersionId: e.target.value || null } as Partial<ShareLink>)}
-          >
-            <option value="">Live resume (always latest)</option>
-            {versions === null ? (
-              <option value="" disabled>Loading versions…</option>
-            ) : versions.length === 0 ? (
-              <option value="" disabled>No snapshots saved for this resume</option>
-            ) : null}
-            {(versions ?? []).map((v) => (
-              <option key={v.id} value={v.id}>
-                {v.label || `Snapshot ${new Date(v.createdAt).toLocaleDateString()}`}
-              </option>
-            ))}
-          </select>
-        </label>
+        <TkxSelect
+          label="Pin to version (optional)"
+          clearable
+          value={link.resumeVersionId || ''}
+          placeholder="Live resume (always latest)"
+          isLoading={versions === null}
+          hint={
+            versions !== null && versions.length === 0
+              ? 'No snapshots saved for this resume'
+              : undefined
+          }
+          options={(versions ?? []).map((v) => ({
+            value: v.id,
+            label: v.label || `Snapshot ${new Date(v.createdAt).toLocaleDateString()}`,
+          }))}
+          onChange={(value) =>
+            onPatch({ resumeVersionId: String(value || '') || null } as Partial<ShareLink>)
+          }
+        />
         <label className="small" style={{ display: 'grid', gap: 4 }}>
           Expires on (optional)
           <input

@@ -10,7 +10,7 @@
 
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { TkxAlert, TkxCard, TkxCardBody, TkxCardHeader } from 'tekivex-ui';
+import { TkxAlert, TkxCard, TkxCardBody, TkxCardHeader, TkxSelect } from 'tekivex-ui';
 import {
   api,
   isApiRequestError,
@@ -60,11 +60,13 @@ export default function AtsSimulateView() {
             What the recruiter actually sees after the ATS strips your resume. Not a keyword score — the real text.
           </p>
         </div>
-        <select value={resumeId} onChange={(e) => setResumeId(e.target.value)} style={selectStyle}>
-          {resumes.map((r) => (
-            <option key={r.id} value={r.id}>{r.title || r.id.slice(0, 8)}</option>
-          ))}
-        </select>
+        <TkxSelect
+          searchable
+          value={resumeId}
+          style={selectStyle}
+          options={resumes.map((r) => ({ value: r.id, label: r.title || r.id.slice(0, 8) }))}
+          onChange={(value) => setResumeId(String(value || ''))}
+        />
       </header>
 
       {error && <TkxAlert variant="danger">{error}</TkxAlert>}

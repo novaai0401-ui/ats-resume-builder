@@ -21,6 +21,7 @@ import {
   TkxCard,
   TkxCardBody,
   TkxCardHeader,
+  TkxSelect,
 } from 'tekivex-ui';
 import {
   api,
@@ -427,10 +428,12 @@ function EventSidebar({ events, onChanged }: { events: SahaayakEvent[]; onChange
           Note a career moment — a rejection, interview, or offer. It feeds your Outcome timeline so
           you (and Sahaayak) can see patterns over time. Optional and private.
         </p>
-        <label style={labelStyle}>Kind</label>
-        <select value={kind} onChange={(e) => setKind(e.target.value)} style={inputStyle}>
-          {EVENT_KINDS.map((k) => <option key={k.kind} value={k.kind}>{k.label}</option>)}
-        </select>
+        <TkxSelect
+          label="Kind"
+          value={kind}
+          options={EVENT_KINDS.map((k) => ({ value: k.kind, label: k.label }))}
+          onChange={(value) => setKind(String(value || ''))}
+        />
 
         {(kind === 'rejection' || kind === 'interview' || kind === 'offer' || kind === 'layoff') && (
           <>

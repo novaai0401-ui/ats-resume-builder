@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { TkxSelect } from 'tekivex-ui';
 import type { Resume, ResumeVersionSummary } from 'resume-builder-shared';
 import { api } from '@/src/lib/api';
 import DataLoader from '@/src/components/DataLoader';
@@ -184,19 +185,17 @@ export default function VersionsClient() {
       </div>
 
       <div className="versions-controls">
-        <label className="versions-control">
-          Resume
-          <select
+        <div className="versions-control">
+          <TkxSelect
+            label="Resume"
+            searchable
             value={resumeId}
-            onChange={(e) => onPickResume(e.target.value)}
-            disabled={resumes.length === 0}
-          >
-            {resumes.length === 0 ? <option value="">No resumes saved yet</option> : null}
-            {resumes.map((r) => (
-              <option key={r.id} value={r.id}>{r.title}</option>
-            ))}
-          </select>
-        </label>
+            isDisabled={resumes.length === 0}
+            placeholder={resumes.length === 0 ? 'No resumes saved yet' : 'Select a resume'}
+            options={resumes.map((r) => ({ value: r.id, label: r.title }))}
+            onChange={(value) => onPickResume(String(value || ''))}
+          />
+        </div>
         <label className="versions-control versions-control--grow">
           Label this snapshot (optional)
           <input

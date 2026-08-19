@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { TkxBottomNav, TkxDrawer } from 'tekivex-ui';
+import { TkxBottomNav, TkxDrawer, TkxSelect } from 'tekivex-ui';
 import useFeatureFlags from '@/src/hooks/use-feature-flags';
 import { FONT_OPTIONS, DENSITY_OPTIONS, ACCENT_PRESETS, REORDERABLE_SECTIONS, resolveSectionOrder, getAtsSectionTitle, templateSupportsPhoto, normalizePhotoUrl, isValidEmail, isValidPhone, EMAIL_INVALID_MESSAGE, PHONE_INVALID_MESSAGE } from 'resume-builder-shared';
 import { RESUME_CREATE_RATE_LIMIT_CODE, api, Resume, ResumeImportResult, UploadResumeResponse, getAccessToken, isApiRequestError } from '@/src/lib/api';
@@ -2548,36 +2548,29 @@ export default function ResumeEditor() {
           </p>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             <div style={{ flex: '1 1 180px', minWidth: 160 }}>
-              <label className="label" style={{ fontSize: 12 }}>Font</label>
-              <select
-                className="input"
+              <TkxSelect
+                label="Font"
+                searchable
                 value={String(resume.fontFamily || 'system-sans')}
-                onChange={(e) => {
-                  const value = e.target.value;
+                options={FONT_OPTIONS.map((opt) => ({ value: opt.id, label: opt.label }))}
+                onChange={(next) => {
+                  const value = String(next || '');
                   setResume((prev) => ({ ...prev, fontFamily: value }));
                   persistDesign({ fontFamily: value });
                 }}
-              >
-                {FONT_OPTIONS.map((opt) => (
-                  <option key={opt.id} value={opt.id}>{opt.label}</option>
-                ))}
-              </select>
+              />
             </div>
             <div style={{ flex: '1 1 180px', minWidth: 160 }}>
-              <label className="label" style={{ fontSize: 12 }}>Spacing</label>
-              <select
-                className="input"
+              <TkxSelect
+                label="Spacing"
                 value={String(resume.density || 'normal')}
-                onChange={(e) => {
-                  const value = e.target.value;
+                options={DENSITY_OPTIONS.map((opt) => ({ value: opt.id, label: opt.label }))}
+                onChange={(next) => {
+                  const value = String(next || '');
                   setResume((prev) => ({ ...prev, density: value }));
                   persistDesign({ density: value });
                 }}
-              >
-                {DENSITY_OPTIONS.map((opt) => (
-                  <option key={opt.id} value={opt.id}>{opt.label}</option>
-                ))}
-              </select>
+              />
             </div>
           </div>
           <div style={{ marginTop: 12 }}>
@@ -4202,16 +4195,23 @@ export default function ResumeEditor() {
                     }} />
                   </div>
                   <div className="col-6">
-                    <label className="label">Type</label>
-                    <select className="input" value={pub.type || 'publication'} onChange={(e) => {
-                      const copy = [...(resume.publications || [])];
-                      copy[pubIdx] = { ...copy[pubIdx], type: e.target.value === 'patent' ? 'patent' : 'publication' };
-                      setResume((prev) => ({ ...prev, publications: copy }));
-                      markDirty();
-                    }}>
-                      <option value="publication">Publication</option>
-                      <option value="patent">Patent</option>
-                    </select>
+                    <TkxSelect
+                      label="Type"
+                      value={pub.type || 'publication'}
+                      options={[
+                        { value: 'publication', label: 'Publication' },
+                        { value: 'patent', label: 'Patent' },
+                      ]}
+                      onChange={(next) => {
+                        const copy = [...(resume.publications || [])];
+                        copy[pubIdx] = {
+                          ...copy[pubIdx],
+                          type: String(next || '') === 'patent' ? 'patent' : 'publication',
+                        };
+                        setResume((prev) => ({ ...prev, publications: copy }));
+                        markDirty();
+                      }}
+                    />
                   </div>
                 </div>
                 <button className="btn secondary" style={{ marginTop: 8 }} onClick={() => {
