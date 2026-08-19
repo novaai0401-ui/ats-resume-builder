@@ -103,7 +103,14 @@ export default function LiveOpeningsPanel({ onTracked }: { onTracked: () => void
         return;
       }
       if (res.reason) {
-        setError(res.reason);
+        // A provider refusal is a server fault, not a thin resume. Showing the
+        // provider's own words means an admin can act on it instead of guessing
+        // — the message usually names the exact IP that was rejected.
+        setError(
+          res.providerErrors?.length
+            ? `${res.reason} (${res.providerErrors.join('; ')})`
+            : res.reason,
+        );
         return;
       }
 

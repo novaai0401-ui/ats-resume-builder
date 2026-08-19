@@ -87,11 +87,34 @@ export class JobsController {
         : []),
     ];
 
-    for (const attempt of attempts) {
-      const jobs = await this.liveJobs.search(attempt.q, {
+    // Refusals seen on the FIRST attempt. If a provider rejects the call it
+    // will reject every rung, so there is no point re-reporting it five times.
+    let firstFailures: string[] = [];
+
+    for (const [index, attempt] of attempts.entries()) {
+      const { jobs, failures } = await this.liveJobs.searchDetailed(attempt.q, {
         where: attempt.where,
         limit: resolvedLimit,
       });
+      if (index === 0) firstFailures = failures;
+
+      // Every configured provider refused: broadening cannot help, and telling
+      // the user to try a broader role would send them chasing a fault that is
+      // not theirs.
+      if (failures.length >= sources.length) {
+        return {
+          configured: true,
+          sources,
+          query: attempt.q,
+          where: attempt.where ?? null,
+          broadened: false,
+          jobs: [],
+          providerErrors: failures,
+          reason:
+            'The job feed rejected our request, so no search could run. This is a server ' +
+            'configuration issue rather than anything about your resume.',
+        };
+      }
       if (!jobs.length) continue;
       return {
         configured: true,
@@ -112,6 +135,9 @@ export class JobsController {
       where: resolvedWhere ?? null,
       broadened: false,
       jobs: [],
+      // A provider that failed on some rungs but not all still explains a thin
+      // result, so pass it through rather than implying the search was clean.
+      providerErrors: firstFailures,
     };
   }
 

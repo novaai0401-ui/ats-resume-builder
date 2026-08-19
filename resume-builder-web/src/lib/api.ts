@@ -1835,8 +1835,14 @@ export type JobMatchesResult = {
   /** True when the server had to widen the search to find anything. */
   broadened?: boolean;
   jobs: JobOpening[];
-  /** Present when the resume had too little to search on. */
+  /** Present when the resume had too little to search on, or a provider refused. */
   reason?: string;
+  /**
+   * Providers that REFUSED the call, e.g. ["careerjet: Unauthorized access from IP …"].
+   * A refusal and an empty result both arrive as zero jobs but need opposite
+   * responses from the user, so they must not be shown the same way.
+   */
+  providerErrors?: string[];
 };
 
 export type SkillDemandResult = {

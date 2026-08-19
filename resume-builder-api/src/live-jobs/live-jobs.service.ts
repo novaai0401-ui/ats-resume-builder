@@ -142,7 +142,32 @@ export class LiveJobsService {
     return out;
   }
 
-  async search(query: string, opts: JobSearchOptions = {}): Promise<JobOpening[]> {
+  /**
+   * Like search(), but also reports which providers REFUSED the call.
+   *
+   * Necessary because "the provider rejected us" and "there are no matching
+   * jobs" both arrive as an empty array, and they need opposite responses from
+   * the user: one is an allow-list or key to fix, the other is a query to
+   * broaden. Careerjet in particular answers 403 — or even 200 — with the
+   * reason buried in the body, so without this the UI confidently reports "no
+   * openings matched" while the feed is not working at all.
+   */
+  async searchDetailed(
+    query: string,
+    opts: JobSearchOptions = {},
+  ): Promise<{ jobs: JobOpening[]; failures: string[] }> {
+    // Per-call array, never a field: this service is a singleton, so shared
+    // mutable state would let concurrent requests read each other's failures.
+    const failures: string[] = [];
+    const jobs = await this.search(query, opts, failures);
+    return { jobs, failures };
+  }
+
+  async search(
+    query: string,
+    opts: JobSearchOptions = {},
+    failures?: string[],
+  ): Promise<JobOpening[]> {
     if (!query.trim()) return [];
     const where = opts.where ?? (this.defaultLocation() || undefined);
     const limit = opts.limit ?? 8;
@@ -158,9 +183,10 @@ export class LiveJobsService {
     const tasks: Array<Promise<JobOpening[]>> = [];
     if (adzuna) {
       tasks.push(
-        this.fetchJson(buildAdzunaUrl(adzuna, query, perProvider), 'Adzuna', query).then((p) =>
-          p ? normalizeAdzunaResults(p, limit) : [],
-        ),
+        this.fetchJson(buildAdzunaUrl(adzuna, query, perProvider), 'Adzuna', query).then((p) => {
+          if (p === null) failures?.push('adzuna: request failed');
+          return p ? normalizeAdzunaResults(p, limit) : [];
+        }),
       );
     }
     if (careerjet) {
@@ -176,8 +202,10 @@ export class LiveJobsService {
           const authError = isCareerjetAuthError(p);
           if (authError) {
             this.logger.warn(`Careerjet rejected the call: ${authError}`);
+            failures?.push(`careerjet: ${authError}`);
             return [];
           }
+          if (p === null) failures?.push('careerjet: request failed');
           return p ? normalizeCareerjetResults(p, limit) : [];
         }),
       );
