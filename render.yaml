@@ -273,6 +273,23 @@ services:
       - key: ADZUNA_DEFAULT_LOCATION
         value: ""
 
+      # ── Live jobs feed (Careerjet) ──────────────────────────────────
+      # Second provider, merged with Adzuna and de-duplicated. Free
+      # affiliate id from https://www.careerjet.com/partners/ — setting
+      # CAREERJET_AFFID alone enables it; the rest have working defaults.
+      #
+      # This is how Naukri and Indeed listings are reached. Neither can be
+      # integrated directly: Indeed closed its Publisher search API to new
+      # partners and Naukri has never offered a seeker-side one, so both are
+      # only available where a licensed aggregator carries them.
+      #
+      # Independent of Adzuna — either provider alone works, and a provider
+      # that is down or unset contributes nothing rather than failing the feed.
+      - key: CAREERJET_AFFID
+        sync: false
+      - key: CAREERJET_LOCALE
+        value: "en_IN"
+
       # ── Cron trigger secret — R-087 ─────────────────────────────────
       # Shared secret the cron services below send as `x-cron-secret`.
       # THIS is the single source of truth: set it here (any long random

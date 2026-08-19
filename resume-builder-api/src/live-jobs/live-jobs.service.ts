@@ -7,14 +7,25 @@ import {
   type JobOpening,
   type JobSearchOptions,
 } from './adzuna.util';
+import {
+  buildCareerjetUrl,
+  normalizeCareerjetResults,
+  type CareerjetConfig,
+} from './careerjet.util';
 
 /**
- * Live job-openings feed. Today backed by Adzuna; the provider is resolved from
- * config so a different source can be swapped in without touching callers.
+ * Live job-openings feed, aggregated across providers.
  *
- * Designed to never break the caller: if it's not configured or the upstream
- * fails, `search` returns [] and `isConfigured()` reports false, so features
- * (e.g. the Skill-Demand Agent) gracefully fall back to curated data.
+ * Designed never to break the caller: an unconfigured or failing provider
+ * contributes nothing rather than throwing, so features (the Skill-Demand
+ * Agent, job-alert emails) degrade to curated data instead of erroring. That
+ * also means adding a provider cannot regress the existing one — each is
+ * awaited independently and a rejection is contained.
+ *
+ * On Naukri and Indeed: neither can be called directly. Indeed closed its
+ * Publisher search API to new partners, and Naukri has never offered a
+ * seeker-side one, so both are reached — where their listings are syndicated —
+ * through Careerjet, a licensed aggregator. See careerjet.util.ts.
  */
 @Injectable()
 export class LiveJobsService {
@@ -22,17 +33,37 @@ export class LiveJobsService {
 
   constructor(private readonly config: ConfigService) {}
 
+  /** True when at least one provider is configured. */
   isConfigured(): boolean {
-    return Boolean(
-      this.config.get<string>('ADZUNA_APP_ID', '') && this.config.get<string>('ADZUNA_APP_KEY', ''),
-    );
+    return Boolean(this.adzunaCfg() || this.careerjetCfg());
   }
 
-  private cfg(): AdzunaConfig | null {
+  /** Which providers are live — used by the admin diagnostics panel. */
+  configuredSources(): string[] {
+    const sources: string[] = [];
+    if (this.adzunaCfg()) sources.push('adzuna');
+    if (this.careerjetCfg()) sources.push('careerjet');
+    return sources;
+  }
+
+  private adzunaCfg(): AdzunaConfig | null {
     const appId = this.config.get<string>('ADZUNA_APP_ID', '');
     const appKey = this.config.get<string>('ADZUNA_APP_KEY', '');
     if (!appId || !appKey) return null;
     return { appId, appKey, country: this.config.get<string>('ADZUNA_COUNTRY', 'in') };
+  }
+
+  private careerjetCfg(): CareerjetConfig | null {
+    const affid = this.config.get<string>('CAREERJET_AFFID', '');
+    if (!affid) return null;
+    return {
+      affid,
+      localeCode: this.config.get<string>('CAREERJET_LOCALE', 'en_IN'),
+      // Careerjet requires both of these on every call. We are server-side, so
+      // they describe the server; that is what their backend integrations do.
+      userIp: this.config.get<string>('CAREERJET_USER_IP', '127.0.0.1'),
+      userAgent: this.config.get<string>('CAREERJET_USER_AGENT', 'CallbackCV/1.0'),
+    };
   }
 
   /** Default location applied when the caller doesn't specify one. */
@@ -40,31 +71,89 @@ export class LiveJobsService {
     return this.config.get<string>('ADZUNA_DEFAULT_LOCATION', '');
   }
 
-  async search(query: string, opts: JobSearchOptions = {}): Promise<JobOpening[]> {
-    const cfg = this.cfg();
-    if (!cfg || !query.trim()) return [];
-    const where = opts.where ?? (this.defaultLocation() || undefined);
-    const url = buildAdzunaUrl(cfg, query, { ...opts, where });
+  private timeoutMs(): number {
+    const parsed = parseInt(this.config.get<string>('LIVE_JOBS_TIMEOUT_MS', '8000'), 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 8000;
+  }
+
+  /** GET a provider URL with a timeout, returning null on any failure. */
+  private async fetchJson(url: string, label: string, query: string): Promise<unknown | null> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.timeoutMs());
     try {
-      const timeoutMs = parseInt(this.config.get<string>('LIVE_JOBS_TIMEOUT_MS', '8000'), 10);
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), timeoutMs);
-      let payload: unknown;
-      try {
-        const res = await fetch(url, { signal: controller.signal });
-        if (!res.ok) {
-          this.logger.warn(`Adzuna search ${res.status} for "${query}"`);
-          return [];
-        }
-        payload = await res.json();
-      } finally {
-        clearTimeout(timer);
+      const res = await fetch(url, { signal: controller.signal });
+      if (!res.ok) {
+        this.logger.warn(`${label} search ${res.status} for "${query}"`);
+        return null;
       }
-      return normalizeAdzunaResults(payload, opts.limit ?? 8);
+      return await res.json();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      this.logger.warn(`Live jobs search failed for "${query}": ${msg}`);
-      return [];
+      this.logger.warn(`${label} search failed for "${query}": ${msg}`);
+      return null;
+    } finally {
+      clearTimeout(timer);
     }
+  }
+
+  /**
+   * The same opening often appears in more than one feed. Key on company +
+   * title + location rather than URL, because each aggregator rewrites the URL
+   * through its own redirect, so identical roles never share one.
+   */
+  private static dedupe(openings: JobOpening[], limit: number): JobOpening[] {
+    const seen = new Set<string>();
+    const out: JobOpening[] = [];
+    for (const job of openings) {
+      const key = `${job.company}|${job.title}|${job.location}`.toLowerCase().replace(/\s+/g, ' ');
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(job);
+      if (out.length >= limit) break;
+    }
+    return out;
+  }
+
+  async search(query: string, opts: JobSearchOptions = {}): Promise<JobOpening[]> {
+    if (!query.trim()) return [];
+    const where = opts.where ?? (this.defaultLocation() || undefined);
+    const limit = opts.limit ?? 8;
+
+    const adzuna = this.adzunaCfg();
+    const careerjet = this.careerjetCfg();
+    if (!adzuna && !careerjet) return [];
+
+    // Ask each provider for the full limit: after dedupe the combined list
+    // would otherwise come back short whenever the feeds overlap.
+    const perProvider = { ...opts, where, limit };
+
+    const tasks: Array<Promise<JobOpening[]>> = [];
+    if (adzuna) {
+      tasks.push(
+        this.fetchJson(buildAdzunaUrl(adzuna, query, perProvider), 'Adzuna', query).then((p) =>
+          p ? normalizeAdzunaResults(p, limit) : [],
+        ),
+      );
+    }
+    if (careerjet) {
+      tasks.push(
+        this.fetchJson(buildCareerjetUrl(careerjet, query, perProvider), 'Careerjet', query).then(
+          (p) => (p ? normalizeCareerjetResults(p, limit) : []),
+        ),
+      );
+    }
+
+    // allSettled, not all: one provider being down must not blank the feed.
+    const settled = await Promise.allSettled(tasks);
+    const merged = settled.flatMap((r) => (r.status === 'fulfilled' ? r.value : []));
+
+    // Newest first across providers, then dedupe. Undated listings sort last
+    // rather than jumping the queue.
+    merged.sort((a, b) => {
+      const at = a.postedAt ? Date.parse(a.postedAt) : 0;
+      const bt = b.postedAt ? Date.parse(b.postedAt) : 0;
+      return bt - at;
+    });
+    return LiveJobsService.dedupe(merged, limit);
   }
 }

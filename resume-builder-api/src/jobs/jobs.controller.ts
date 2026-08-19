@@ -12,12 +12,73 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { LiveJobsService } from '../live-jobs/live-jobs.service';
+import { buildProfileJobQuery } from '../live-jobs/profile-query.util';
+import { ResumeService } from '../resume/resume.service';
 import { JobsService, type JobApplicationInput } from './jobs.service';
 
 @Controller('jobs')
 @UseGuards(JwtAuthGuard)
 export class JobsController {
-  constructor(private readonly jobs: JobsService) {}
+  constructor(
+    private readonly jobs: JobsService,
+    private readonly liveJobs: LiveJobsService,
+    private readonly resumes: ResumeService,
+  ) {}
+
+  /**
+   * Openings matched to a saved resume.
+   *
+   * The query is derived from the resume rather than typed by the user — the
+   * most recent job title plus a couple of skills, filtered to their city. See
+   * profile-query.util.ts for why the role leads and why only a few skills go in.
+   *
+   * Never errors on a missing feed: with no provider configured this returns
+   * `configured: false` and an empty list, so the UI can say so plainly instead
+   * of rendering a failure.
+   */
+  @Get('matches/:resumeId')
+  async matches(
+    @Req() req: { user: { userId: string } },
+    @Param('resumeId') resumeId: string,
+    @Query('limit') limit?: string,
+    @Query('where') where?: string,
+  ) {
+    if (!this.liveJobs.isConfigured()) {
+      return { configured: false, sources: [], query: '', jobs: [] };
+    }
+
+    // Goes through ResumeService.get, which scopes by userId, so one user
+    // cannot pull matches for another's resume by guessing an id.
+    const resume = await this.resumes.get(req.user.userId, resumeId);
+    const profile = buildProfileJobQuery(resume);
+    const sources = this.liveJobs.configuredSources();
+
+    if (profile.empty) {
+      return {
+        configured: true,
+        sources,
+        query: '',
+        jobs: [],
+        reason: 'Add a job title or a few skills to your resume to see matching openings.',
+      };
+    }
+
+    const parsed = parseInt(String(limit ?? ''), 10);
+    const resolvedWhere = (where && where.trim()) || profile.where;
+    const jobs = await this.liveJobs.search(profile.query, {
+      where: resolvedWhere,
+      limit: Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, 20) : 8,
+    });
+
+    return {
+      configured: true,
+      sources,
+      query: profile.query,
+      where: resolvedWhere ?? null,
+      jobs,
+    };
+  }
 
   @Get()
   list(@Req() req: { user: { userId: string } }, @Query('status') status?: string) {

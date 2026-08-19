@@ -6,6 +6,9 @@
  * tier with an app id + key. Docs: https://developer.adzuna.com/
  */
 
+/** Providers that can produce a JobOpening. Widen this when adding one. */
+export type JobSource = 'adzuna' | 'careerjet';
+
 export interface JobOpening {
   title: string;
   company: string;
@@ -13,7 +16,8 @@ export interface JobOpening {
   url: string;
   salaryText: string | null;
   postedAt: string | null; // ISO date or null
-  source: 'adzuna';
+  /** Which feed this came from — surfaced in the UI so users can judge freshness. */
+  source: JobSource;
 }
 
 export interface AdzunaConfig {

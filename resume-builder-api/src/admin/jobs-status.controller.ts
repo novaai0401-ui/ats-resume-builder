@@ -25,6 +25,7 @@ export class JobsStatusController {
   @Get('status')
   async status() {
     const configured = this.liveJobs.isConfigured();
+    const sources = this.liveJobs.configuredSources();
     const country = this.config.get<string>('ADZUNA_COUNTRY', 'in');
     const defaultLocation = this.liveJobs.defaultLocation() || null;
 
@@ -47,27 +48,37 @@ export class JobsStatusController {
     const cronSecretConfigured = Boolean(String(process.env.CRON_SECRET || '').trim());
 
     return {
-      provider: 'adzuna',
+      // Was the literal 'adzuna'. The feed is multi-provider now, so report
+      // which ones are actually live — otherwise ops cannot tell whether a
+      // thin result set means one provider is unset or both are failing.
+      provider: sources.join('+') || 'none',
+      sources,
       configured,
       country,
       defaultLocation,
       probeOk,
       probeCount,
       cronSecretConfigured,
-      hint: buildHint(configured, probeOk, cronSecretConfigured),
+      hint: buildHint(configured, probeOk, cronSecretConfigured, sources),
     };
   }
 }
 
-function buildHint(configured: boolean, probeOk: boolean, cronSecretConfigured?: boolean): string {
+function buildHint(
+  configured: boolean,
+  probeOk: boolean,
+  cronSecretConfigured?: boolean,
+  sources: string[] = [],
+): string {
   if (!cronSecretConfigured) {
     return 'CRON_SECRET is NOT set on the API — the daily nudge and job-alert crons will get 403 and show "Failed run" on Render. Set the same CRON_SECRET value on ats-rb-api AND both cron services (ats-rb-cron-nudges, ats-rb-cron-job-alerts), then use each cron\'s "Trigger Run" button to verify.';
   }
   if (!configured) {
-    return 'Live jobs are OFF. Register free at developer.adzuna.com, then set ADZUNA_APP_ID and ADZUNA_APP_KEY in the environment (optional: ADZUNA_COUNTRY, default "in", and ADZUNA_DEFAULT_LOCATION). The jobs panel and email job alerts enable themselves once both are set.';
+    return 'Live jobs are OFF — no provider is configured. Either works on its own: Adzuna (register free at developer.adzuna.com, set ADZUNA_APP_ID + ADZUNA_APP_KEY) or Careerjet (free affiliate id at careerjet.com/partners, set CAREERJET_AFFID). Careerjet is the one that carries Naukri- and Indeed-syndicated listings, since neither offers a direct API. The jobs panel and job-alert emails enable themselves once at least one is set.';
   }
   if (!probeOk) {
-    return 'Adzuna keys are set but a live search returned nothing — check the keys are active on developer.adzuna.com (new keys can take a few minutes) and that ADZUNA_COUNTRY matches your market.';
+    return `Configured (${sources.join(', ')}) but a live search returned nothing. For Adzuna, check the keys are active on developer.adzuna.com (new keys take a few minutes) and that ADZUNA_COUNTRY matches your market. For Careerjet, check CAREERJET_AFFID is the 20-character affiliate id and that CAREERJET_LOCALE matches your market (default en_IN).`;
   }
-  return 'Live jobs are ON — Adzuna responded with openings. The /jobs panel and job-alert emails are active.';
+  const only = sources.length === 1 ? ` Only ${sources[0]} is configured — adding the other widens coverage.` : '';
+  return `Live jobs are ON — ${sources.join(' + ')} responded with openings. The /jobs panel and job-alert emails are active.${only}`;
 }
