@@ -273,22 +273,32 @@ services:
       - key: ADZUNA_DEFAULT_LOCATION
         value: ""
 
-      # ── Live jobs feed (Careerjet) ──────────────────────────────────
-      # Second provider, merged with Adzuna and de-duplicated. Free
-      # affiliate id from https://www.careerjet.com/partners/ — setting
-      # CAREERJET_AFFID alone enables it; the rest have working defaults.
+      # ── Live jobs feed (Careerjet v4) ───────────────────────────────
+      # Second provider, merged with Adzuna and de-duplicated. Key from
+      # https://www.careerjet.com/partners/ → Access API. Setting
+      # CAREERJET_API_KEY alone enables it; the rest have working defaults.
       #
-      # This is how Naukri and Indeed listings are reached. Neither can be
-      # integrated directly: Indeed closed its Publisher search API to new
-      # partners and Naukri has never offered a seeker-side one, so both are
-      # only available where a licensed aggregator carries them.
+      # Reaches Indian listings that Adzuna misses. Naukri and Indeed cannot be
+      # integrated directly — Indeed closed its Publisher search API to new
+      # partners and Naukri has never offered a seeker-side one — so an
+      # aggregator is the only route to that kind of inventory.
       #
-      # Independent of Adzuna — either provider alone works, and a provider
-      # that is down or unset contributes nothing rather than failing the feed.
-      - key: CAREERJET_AFFID
+      # TWO THINGS CAREERJET ENFORCES, both of which return 403 with the reason
+      # in the response BODY rather than a clean HTTP error:
+      #   1. A Referer header is mandatory ("Undeclared referrer").
+      #   2. The CALLING IP must be registered on the Careerjet account
+      #      ("Unauthorized access from IP x.x.x.x"). Register this service's
+      #      outbound IPs — Render lists them per service under Connect —
+      #      or the feed stays empty with no visible error.
+      #
+      # Independent of Adzuna: either provider alone works, and one that is
+      # unset or failing contributes nothing rather than breaking the feed.
+      - key: CAREERJET_API_KEY
         sync: false
       - key: CAREERJET_LOCALE
         value: "en_IN"
+      - key: CAREERJET_REFERER
+        value: "https://callbackcv.tekivex.com/jobs"
 
       # ── Cron trigger secret — R-087 ─────────────────────────────────
       # Shared secret the cron services below send as `x-cron-secret`.

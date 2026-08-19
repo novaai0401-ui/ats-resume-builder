@@ -1,19 +1,53 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { buildCareerjetUrl, normalizeCareerjetResults } = require('../dist/live-jobs/careerjet.util.js');
+const {
+  buildCareerjetUrl,
+  careerjetHeaders,
+  isCareerjetAuthError,
+  normalizeCareerjetResults,
+} = require('../dist/live-jobs/careerjet.util.js');
 const { buildProfileJobQuery } = require('../dist/live-jobs/profile-query.util.js');
 
 const CFG = {
-  affid: 'abcdef1234567890abcd',
+  apiKey: 'abcdef1234567890abcd',
   localeCode: 'en_IN',
   userIp: '127.0.0.1',
   userAgent: 'CallbackCV/1.0',
+  referer: 'https://callbackcv.tekivex.com/jobs',
 };
 
-test('buildCareerjetUrl sends every parameter Careerjet requires', () => {
+test('buildCareerjetUrl targets the v4 endpoint, not the dead legacy one', () => {
+  // The legacy host answers 403 "Undeclared referrer" for new accounts, and
+  // the key is no longer a query parameter — it moved into Basic auth.
+  const url = buildCareerjetUrl(CFG, 'x');
+  assert.ok(url.startsWith('https://search.api.careerjet.net/v4/query?'), url);
+  assert.ok(!url.includes('affid='), 'the API key must not be sent in the query string');
+  assert.ok(!url.includes(CFG.apiKey), 'the API key must never appear in the URL');
+});
+
+test('careerjetHeaders send the key as Basic auth with an empty password, plus a Referer', () => {
+  const headers = careerjetHeaders(CFG);
+  const [scheme, encoded] = headers.Authorization.split(' ');
+  assert.equal(scheme, 'Basic');
+  // Username = key, password EMPTY — hence the trailing colon.
+  assert.equal(Buffer.from(encoded, 'base64').toString('utf8'), `${CFG.apiKey}:`);
+  // Required by v4; without it the API answers 403 "Undeclared referrer".
+  assert.equal(headers.Referer, CFG.referer);
+});
+
+test('isCareerjetAuthError separates "refused the caller" from "found nothing"', () => {
+  // These arrive as an error BODY, so without this they read as a quiet day.
+  assert.match(
+    isCareerjetAuthError({ type: 'ERROR', error: 'Unauthorized access from IP 1.2.3.4' }),
+    /Unauthorized access from IP/,
+  );
+  assert.equal(isCareerjetAuthError({ type: 'JOBS', jobs: [] }), null);
+  assert.equal(isCareerjetAuthError(null), null);
+});
+
+test('buildCareerjetUrl sends every search parameter Careerjet requires', () => {
   const url = buildCareerjetUrl(CFG, 'frontend engineer react', { where: 'Pune', limit: 5 });
   const params = new URLSearchParams(url.split('?')[1]);
-  assert.equal(params.get('affid'), CFG.affid);
   assert.equal(params.get('keywords'), 'frontend engineer react');
   assert.equal(params.get('location'), 'Pune');
   assert.equal(params.get('locale_code'), 'en_IN');
@@ -59,7 +93,7 @@ test('normalizeCareerjetResults maps a payload into the shared JobOpening shape'
 test('normalizeCareerjetResults treats a non-JOBS payload as empty, not as data', () => {
   // Careerjet signals failure in the body with type !== 'JOBS' and still
   // returns HTTP 200, so this must not be mistaken for results.
-  assert.deepEqual(normalizeCareerjetResults({ type: 'ERROR', error: 'bad affid' }), []);
+  assert.deepEqual(normalizeCareerjetResults({ type: 'ERROR', error: 'bad key' }), []);
   assert.deepEqual(normalizeCareerjetResults({}), []);
   assert.deepEqual(normalizeCareerjetResults(null), []);
 });
