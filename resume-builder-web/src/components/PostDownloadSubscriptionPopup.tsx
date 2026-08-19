@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useFocusTrap } from '@/src/lib/use-focus-trap';
+import { TkxButton } from 'tekivex-ui';
 
 /**
  * Two-step post-download flow.
@@ -47,8 +48,8 @@ export default function PostDownloadSubscriptionPopup({
             ATS score is <strong>{score ?? '—'}</strong>. If you want to push it to 100% and see your full tech gap, use our subscription.
           </p>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-            <button className="btn" onClick={handleYes}>Yes, show me</button>
-            <button className="btn secondary" autoFocus onClick={handleNo}>No, thanks</button>
+            <TkxButton onClick={handleYes}>Yes, show me</TkxButton>
+            <TkxButton variant="outline" autoFocus onClick={handleNo}>No, thanks</TkxButton>
           </div>
         </div>
       </div>
@@ -78,16 +79,16 @@ export default function PostDownloadSubscriptionPopup({
         </ul>
         <div style={{ display: 'grid', gap: 10 }}>
           {/* Cancel is the primary / autofocused action per spec. */}
-          <button
-            className="btn secondary"
+          <TkxButton
+            variant="outline"
             autoFocus
             style={{ width: '100%' }}
             onClick={onClose}
           >
             Cancel
-          </button>
-          <button
-            className="btn"
+          </TkxButton>
+          <TkxButton
+           
             style={{ width: '100%', background: 'var(--primary)' }}
             onClick={() => {
               onClose();
@@ -95,7 +96,7 @@ export default function PostDownloadSubscriptionPopup({
             }}
           >
             Continue to subscription
-          </button>
+          </TkxButton>
         </div>
       </div>
     </div>

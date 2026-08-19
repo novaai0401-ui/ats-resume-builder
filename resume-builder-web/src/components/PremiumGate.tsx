@@ -142,9 +142,9 @@ export default function PremiumGate({ feature, children }: PremiumGateProps) {
   // Trigger button (replaces children until access is checked)
   return (
     <div style={{ textAlign: 'center', padding: 16 }}>
-      <button className="btn" onClick={checkAccess} disabled={checking}>
+      <TkxButton onClick={checkAccess} disabled={checking}>
         {checking ? 'Checking access...' : `Unlock ${featureInfo.title}`}
-      </button>
+      </TkxButton>
       <p className="small" style={{ marginTop: 6, color: 'var(--muted)' }}>Premium feature — requires upgrade or credits</p>
     </div>
   );

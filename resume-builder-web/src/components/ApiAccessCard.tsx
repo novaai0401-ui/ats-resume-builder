@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { getAccessToken } from '@/src/lib/api';
 import { MCP_NPM_URL } from '@/src/lib/integrations';
+import { TkxButton } from 'tekivex-ui';
 
 /**
  * Settings → API access.
@@ -77,12 +78,12 @@ export default function ApiAccessCard() {
         }}
       >
         <span style={{ flex: '1 1 240px', minWidth: 0 }}>{revealed ? token : masked}</span>
-        <button className="btn secondary" type="button" onClick={() => setRevealed((v) => !v)}>
+        <TkxButton variant="outline" type="button" onClick={() => setRevealed((v) => !v)}>
           {revealed ? 'Hide' : 'Reveal'}
-        </button>
-        <button className="btn" type="button" onClick={copy}>
+        </TkxButton>
+        <TkxButton type="button" onClick={copy}>
           {copied ? 'Copied ✓' : 'Copy token'}
-        </button>
+        </TkxButton>
       </div>
 
       <p className="small" style={{ color: 'var(--muted)', marginTop: 8 }}>

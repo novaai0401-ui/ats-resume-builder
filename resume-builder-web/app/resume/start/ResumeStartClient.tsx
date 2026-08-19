@@ -19,7 +19,7 @@ import { ingestResumeFile } from '@/src/lib/resume-ingest';
 import { useResumeStore } from '@/src/lib/resume-store';
 import { PrivacyBadge } from '@/src/components/PrivacyBadge';
 import DataLoader from '@/src/components/DataLoader';
-import { TkxTextarea } from 'tekivex-ui';
+import { TkxButton, TkxTextarea } from 'tekivex-ui';
 
 const SECTION_LABELS: Record<SectionType, string> = {
   contact: 'Header & Contact',
@@ -165,15 +165,15 @@ export default function ResumeStartClient() {
             <p className="small">
               Open a blank resume and complete sections step-by-step in guided mode.
             </p>
-            <button
-              className="btn secondary"
+            <TkxButton
+              variant="outline"
               onClick={() => {
                 clearPendingUploadSession();
                 router.push(scratchEditorHref);
               }}
             >
               Start from scratch
-            </button>
+            </TkxButton>
           </div>
 
           <div className="start-choice" data-testid="linkedin-import-choice">
@@ -206,8 +206,8 @@ export default function ResumeStartClient() {
                   return (
                     <>
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                        <button
-                          className="btn"
+                        <TkxButton
+                         
                           disabled={loadingUpload || t.length < 80}
                           data-testid="linkedin-import-submit"
                           title="Reads the pasted text above and builds your resume — no file needed."
@@ -217,10 +217,10 @@ export default function ResumeStartClient() {
                           }}
                         >
                           {loadingUpload ? 'Importing…' : 'Build resume from this'}
-                        </button>
-                        <button className="btn ghost" onClick={() => setLinkedinOpen(false)} disabled={loadingUpload}>
+                        </TkxButton>
+                        <TkxButton variant="ghost" onClick={() => setLinkedinOpen(false)} disabled={loadingUpload}>
                           Cancel
-                        </button>
+                        </TkxButton>
                       </div>
                       {t.length > 0 && t.length < 80 ? (
                         <p className="small" style={{ margin: 0, color: 'var(--muted)' }}>
@@ -239,9 +239,9 @@ export default function ResumeStartClient() {
                 })()}
               </div>
             ) : (
-              <button className="btn secondary" onClick={() => setLinkedinOpen(true)} data-testid="linkedin-import-open">
+              <TkxButton variant="outline" onClick={() => setLinkedinOpen(true)} data-testid="linkedin-import-open">
                 Paste LinkedIn profile
-              </button>
+              </TkxButton>
             )}
           </div>
         </div>
@@ -266,8 +266,8 @@ export default function ResumeStartClient() {
                     with the section sidebar plus an ATS panel that
                     re-validates on autosave. Worth the extra reload only
                     when you want the score back. */}
-              <button
-                className="btn"
+              <TkxButton
+               
                 onClick={() => {
                   const navigation = continueToReviewFromStart({
                     session,
@@ -284,9 +284,9 @@ export default function ResumeStartClient() {
                 disabled={!canContinueToReview(session) || loadingUpload}
               >
                 Continue to Review
-              </button>
-              <button
-                className="btn secondary"
+              </TkxButton>
+              <TkxButton
+                variant="outline"
                 onClick={() => {
                   const navigation = continueToReviewAtsFromStart({
                     session,
@@ -303,7 +303,7 @@ export default function ResumeStartClient() {
                 disabled={!canContinueToReview(session) || loadingUpload}
               >
                 Review & ATS
-              </button>
+              </TkxButton>
             </div>
           </div>
         )}

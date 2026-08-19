@@ -8,6 +8,7 @@ import {
   isCurrentUserAdmin,
   type AdminSettingsResponse,
 } from '@/src/lib/api';
+import { TkxButton } from 'tekivex-ui';
 
 type Toast = { type: 'success' | 'error'; text: string } | null;
 
@@ -155,12 +156,12 @@ export default function AdminSettingsPage() {
               </div>
             ) : null}
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 4 }}>
-              <button className="btn" onClick={onSaveRateLimit} disabled={savingRateLimit}>
+              <TkxButton onClick={onSaveRateLimit} disabled={savingRateLimit}>
                 {savingRateLimit ? 'Saving...' : 'Save Rate Limit'}
-              </button>
-              <button className="btn" onClick={onSavePayment} disabled={savingPayment}>
+              </TkxButton>
+              <TkxButton onClick={onSavePayment} disabled={savingPayment}>
                 {savingPayment ? 'Saving...' : 'Save Payment Flag'}
-              </button>
+              </TkxButton>
             </div>
           </div>
         ) : null}

@@ -6,7 +6,7 @@ import { api, type AtsScoreResult } from '@/src/lib/api';
 import { persistActiveResumeSelection, resolveCurrentSessionResumeId } from '@/src/lib/resume-flow';
 import { buildReviewAtsSuggestionSections } from '@/src/lib/review-ats';
 import DataLoader from '@/src/components/DataLoader';
-import { TkxTextarea } from 'tekivex-ui';
+import { TkxButton, TkxTextarea } from 'tekivex-ui';
 
 export default function ResumeAtsClient() {
   const router = useRouter();
@@ -47,7 +47,7 @@ export default function ResumeAtsClient() {
         <section className="card col-12">
           <h2>ATS Review</h2>
           <p className="small">Select a saved resume or upload a new one to run ATS.</p>
-          <button className="btn" onClick={() => router.push('/resume')}>Back to Editor</button>
+          <TkxButton onClick={() => router.push('/resume')}>Back to Editor</TkxButton>
         </section>
       </main>
     );
@@ -84,11 +84,11 @@ export default function ResumeAtsClient() {
             </p>
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button className="btn secondary" onClick={() => router.push(`/resume?id=${encodeURIComponent(resumeId)}`)}>
+            <TkxButton variant="outline" onClick={() => router.push(`/resume?id=${encodeURIComponent(resumeId)}`)}>
               Back to Review
-            </button>
-            <button
-              className="btn"
+            </TkxButton>
+            <TkxButton
+             
               onClick={() => runScore()}
               disabled={loading}
               aria-busy={loading}
@@ -99,7 +99,7 @@ export default function ResumeAtsClient() {
               ) : (
                 'Re-run ATS'
               )}
-            </button>
+            </TkxButton>
           </div>
         </div>
 

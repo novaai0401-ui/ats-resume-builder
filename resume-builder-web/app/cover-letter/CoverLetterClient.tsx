@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { TkxTextarea, TkxSelect } from 'tekivex-ui';
+import { TkxButton, TkxInput, TkxSelect, TkxTextarea } from 'tekivex-ui';
 import type {
   CoverLetter,
   CoverLetterTone,
@@ -179,22 +179,16 @@ export default function CoverLetterClient() {
             options={resumes.map((r) => ({ value: r.id, label: r.title }))}
             onChange={(value) => setForm({ ...form, resumeId: String(value || '') })}
           />
-          <label>
-            Company *
-            <input
+          <TkxInput label="Company *"
               required
               value={form.company}
               onChange={(e) => setForm({ ...form, company: e.target.value })}
             />
-          </label>
-          <label>
-            Role *
-            <input
+          <TkxInput label="Role *"
               required
               value={form.role}
               onChange={(e) => setForm({ ...form, role: e.target.value })}
             />
-          </label>
           <fieldset className="tone-picker">
             <legend>Tone</legend>
             {TONES.map((t) => (
@@ -222,13 +216,13 @@ export default function CoverLetterClient() {
               placeholder="Paste the job description to ground keywords..."
             />
           </div>
-          <button
+          <TkxButton
             type="submit"
-            className="btn primary"
+            colorScheme="primary"
             disabled={state === 'generating' || !form.company.trim() || !form.role.trim()}
           >
             {state === 'generating' ? 'Generating…' : 'Generate cover letter'}
-          </button>
+          </TkxButton>
         </form>
 
         <aside className="cover-letter-preview">
@@ -237,9 +231,9 @@ export default function CoverLetterClient() {
               <div className="cover-letter-preview__meta">
                 <span className="badge">{activeLetter.wordCount} words</span>
                 <span className="badge">{activeLetter.provider}</span>
-                <button type="button" className="btn tertiary" onClick={copyToClipboard}>
+                <TkxButton type="button" variant="ghost" onClick={copyToClipboard}>
                   Copy
-                </button>
+                </TkxButton>
               </div>
               <pre className="cover-letter-body">{activeLetter.body}</pre>
             </>
@@ -266,9 +260,9 @@ export default function CoverLetterClient() {
                   {' '}
                   · {l.wordCount} words · {new Date(l.createdAt).toLocaleDateString()}
                 </span>
-                <button type="button" className="btn tertiary danger" onClick={() => onDelete(l.id)}>
+                <TkxButton type="button" variant="ghost" colorScheme="danger" onClick={() => onDelete(l.id)}>
                   Delete
-                </button>
+                </TkxButton>
               </li>
             ))}
           </ul>

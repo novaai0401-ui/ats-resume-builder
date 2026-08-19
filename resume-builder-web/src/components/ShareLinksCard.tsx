@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { TkxSelect } from 'tekivex-ui';
+import { TkxButton, TkxInput, TkxSelect } from 'tekivex-ui';
 import { getAccessToken } from '@/src/lib/api';
 
 /**
@@ -219,9 +219,7 @@ export default function ShareLinksCard() {
           options={resumes.map((r) => ({ value: r.id, label: r.title || r.id.slice(0, 8) }))}
           onChange={(value) => setPickedResumeId(String(value || ''))}
         />
-        <label className="small" style={{ display: 'grid', gap: 4 }}>
-          Headline (optional — shown at the top of the public page)
-          <input
+        <TkxInput label="Headline (optional — shown at the top of the public page)"
             type="text"
             value={headline}
             onChange={(e) => setHeadline(e.target.value)}
@@ -229,16 +227,15 @@ export default function ShareLinksCard() {
             maxLength={280}
             disabled={busy}
           />
-        </label>
         <div>
-          <button
-            className="btn"
+          <TkxButton
+           
             onClick={createLink}
             disabled={busy || !pickedResumeId}
             style={{ marginTop: 4 }}
           >
             {busy ? 'Creating…' : 'Create share link'}
-          </button>
+          </TkxButton>
         </div>
         {error ? (
           <p className="small" role="alert" style={{ color: 'var(--danger)', margin: 0 }}>{error}</p>
@@ -279,9 +276,9 @@ export default function ShareLinksCard() {
                     {publicShareUrl(link.slug)}
                   </code>
                   <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                    <button className="btn ghost" onClick={() => copy(link.slug)} style={btnSm}>
+                    <TkxButton variant="ghost" onClick={() => copy(link.slug)} style={btnSm}>
                       {copied === link.slug ? 'Copied ✓' : 'Copy link'}
-                    </button>
+                    </TkxButton>
                     <a
                       className="btn ghost"
                       href={publicShareUrl(link.slug)}
@@ -292,9 +289,9 @@ export default function ShareLinksCard() {
                       Open
                     </a>
                     {link.enabled ? (
-                      <button className="btn ghost" onClick={() => revoke(link.id)} style={{ ...btnSm, color: 'var(--danger)' }}>
+                      <TkxButton variant="ghost" onClick={() => revoke(link.id)} style={{ ...btnSm, color: 'var(--danger)' }}>
                         Revoke
-                      </button>
+                      </TkxButton>
                     ) : (
                       <span className="small" style={{ alignSelf: 'center', color: 'var(--muted)' }}>Revoked</span>
                     )}
@@ -329,14 +326,14 @@ export default function ShareLinksCard() {
                         />
                         Let search engines index this page
                       </label>
-                      <button
-                        className="btn ghost"
+                      <TkxButton
+                        variant="ghost"
                         onClick={() => toggleExpand(link)}
                         style={{ ...btnSm, marginLeft: 'auto' }}
                         aria-expanded={Boolean(expanded[link.id])}
                       >
                         {expanded[link.id] ? 'Hide details' : 'Visit log & options'}
-                      </button>
+                      </TkxButton>
                     </div>
                     {expanded[link.id] ? (
                       <LinkDetails
@@ -416,9 +413,7 @@ function LinkDetails({
             onPatch({ resumeVersionId: String(value || '') || null } as Partial<ShareLink>)
           }
         />
-        <label className="small" style={{ display: 'grid', gap: 4 }}>
-          Expires on (optional)
-          <input
+        <TkxInput label="Expires on (optional)"
             type="date"
             value={expiresValue}
             onChange={(e) => {
@@ -430,7 +425,6 @@ function LinkDetails({
             }}
             min={new Date().toISOString().slice(0, 10)}
           />
-        </label>
       </div>
       <p className="small" style={{ marginTop: 10, color: 'var(--muted)' }}>
         {link.resumeVersionId

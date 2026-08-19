@@ -15,6 +15,7 @@ import { PrivacyBadge } from '@/src/components/PrivacyBadge';
 import { readPendingReferralCode, storePendingReferralCode } from '@/src/lib/referral';
 import { SupportHelpLink } from '@/src/components/SupportHelpLink';
 import { readNextParamFromLocation } from '../next-param';
+import { TkxButton, TkxInput } from 'tekivex-ui';
 
 type RouterLike = {
   push: (href: string) => Promise<boolean> | void;
@@ -138,10 +139,9 @@ export function LoginPageView({ apiClient = api, routerOverride, defaultMode = '
         <div style={{ display: 'grid', gap: 12 }}>
           {mode === 'login' ? (
             <form onSubmit={handlePasswordLogin} noValidate style={{ display: 'grid', gap: 12 }}>
-              <label className="label" htmlFor="login-email">Email</label>
-              <input
+              <TkxInput label="Email"
                 id="login-email"
-                className="input"
+               
                 type="email"
                 inputMode="email"
                 autoComplete="username"
@@ -154,10 +154,9 @@ export function LoginPageView({ apiClient = api, routerOverride, defaultMode = '
                 onChange={(e) => setEmail(e.target.value)}
                 required
               />
-              <label className="label" htmlFor="login-password">Password</label>
-              <input
+              <TkxInput label="Password"
                 id="login-password"
-                className="input"
+               
                 type="password"
                 autoComplete="current-password"
                 enterKeyHint="go"
@@ -167,17 +166,16 @@ export function LoginPageView({ apiClient = api, routerOverride, defaultMode = '
                 required
                 minLength={8}
               />
-              <button className="btn" type="submit" disabled={loading} style={{ width: '100%' }}>{loading ? 'Signing in…' : 'Sign In'}</button>
+              <TkxButton type="submit" disabled={loading} style={{ width: '100%' }}>{loading ? 'Signing in…' : 'Sign In'}</TkxButton>
               <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: '0.85rem' }}>
                 <Link href="/auth/forgot-password" className="auth-forgot-link">Forgot password?</Link>
               </div>
             </form>
           ) : (
             <form onSubmit={handleRegister} noValidate style={{ display: 'grid', gap: 12 }}>
-              <label className="label" htmlFor="reg-name">Full Name</label>
-              <input
+              <TkxInput label="Full Name"
                 id="reg-name"
-                className="input"
+               
                 type="text"
                 autoComplete="name"
                 autoCapitalize="words"
@@ -188,10 +186,9 @@ export function LoginPageView({ apiClient = api, routerOverride, defaultMode = '
                 required
                 minLength={2}
               />
-              <label className="label" htmlFor="reg-email">Email</label>
-              <input
+              <TkxInput label="Email"
                 id="reg-email"
-                className="input"
+               
                 type="email"
                 inputMode="email"
                 autoComplete="email"
@@ -204,10 +201,9 @@ export function LoginPageView({ apiClient = api, routerOverride, defaultMode = '
                 onChange={(e) => setRegEmail(e.target.value)}
                 required
               />
-              <label className="label" htmlFor="reg-password">Password</label>
-              <input
+              <TkxInput label="Password"
                 id="reg-password"
-                className="input"
+               
                 type="password"
                 autoComplete="new-password"
                 enterKeyHint="go"
@@ -217,7 +213,7 @@ export function LoginPageView({ apiClient = api, routerOverride, defaultMode = '
                 required
                 minLength={MIN_PASSWORD_LENGTH}
               />
-              <button className="btn" type="submit" disabled={loading} style={{ width: '100%' }}>{loading ? 'Creating account...' : 'Create Account'}</button>
+              <TkxButton type="submit" disabled={loading} style={{ width: '100%' }}>{loading ? 'Creating account...' : 'Create Account'}</TkxButton>
             </form>
           )}
 

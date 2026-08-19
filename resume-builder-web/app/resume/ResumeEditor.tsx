@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { TkxBottomNav, TkxDrawer, TkxSelect, TkxTextarea } from 'tekivex-ui';
+import { TkxBottomNav, TkxButton, TkxDrawer, TkxSelect, TkxTextarea } from 'tekivex-ui';
 import useFeatureFlags from '@/src/hooks/use-feature-flags';
 import { FONT_OPTIONS, DENSITY_OPTIONS, ACCENT_PRESETS, REORDERABLE_SECTIONS, resolveSectionOrder, getAtsSectionTitle, templateSupportsPhoto, normalizePhotoUrl, isValidEmail, isValidPhone, EMAIL_INVALID_MESSAGE, PHONE_INVALID_MESSAGE } from 'resume-builder-shared';
 import { RESUME_CREATE_RATE_LIMIT_CODE, api, Resume, ResumeImportResult, UploadResumeResponse, getAccessToken, isApiRequestError } from '@/src/lib/api';
@@ -2202,9 +2202,9 @@ export default function ResumeEditor() {
             💡 The AI screen flagged <strong>“{addKeyword}”</strong> as missing. Work it into a relevant
             experience bullet below, then use the <strong>✨ Rewrite</strong> button to phrase it naturally.
           </div>
-          <button className="btn secondary" type="button" onClick={() => setAddKeywordDismissed(true)}>
+          <TkxButton variant="outline" type="button" onClick={() => setAddKeywordDismissed(true)}>
             Dismiss
-          </button>
+          </TkxButton>
         </section>
       )}
       <section ref={editorRef} className={`card ${editorColumnClass}`}>
@@ -2218,9 +2218,9 @@ export default function ResumeEditor() {
             {isImportedMode && <span className="pill">Imported resume</span>}
             <StatusPill status={status} canAutoSave={validation.canAutoSave} lastSavedAt={lastSavedAt} />
             {!isReviewAtsPage && (
-              <button className="btn secondary" onClick={goToReviewAts}>
+              <TkxButton variant="outline" onClick={goToReviewAts}>
                 Review & ATS
-              </button>
+              </TkxButton>
             )}
             <label className="btn secondary" style={{ cursor: 'pointer' }}>
               {editorUploadLabel}
@@ -2243,14 +2243,14 @@ export default function ResumeEditor() {
                 <h3 style={{ margin: 0 }}>ATS Score</h3>
                 <p className="small">Live ATS checks update while you edit this resume.</p>
               </div>
-              <button
-                className="btn secondary"
+              <TkxButton
+                variant="outline"
                 onClick={() => refreshReviewAts('manual')}
                 disabled={atsReview.loading || atsQuotaBlocked}
                 data-testid="check-ats-score-button"
               >
                 {atsReview.loading ? 'Checking ATS...' : 'Check ATS Score'}
-              </button>
+              </TkxButton>
             </div>
             <div className="review-ats-panel__score" data-testid="review-ats-score">
               <strong>{atsReview.result ? atsReview.result.roleAdjustedScore : '--'}</strong>
@@ -2274,9 +2274,9 @@ export default function ResumeEditor() {
                 <p className="hint warn" style={{ margin: 0 }}>
                   {atsReview.result?.guidance?.roleAlignmentSummary || 'Experience bullets could be strengthened with leadership, ownership, or delivery signals relevant to your target role.'}
                 </p>
-                <button className="btn secondary" onClick={() => scrollToSection('experience')}>
+                <TkxButton variant="outline" onClick={() => scrollToSection('experience')}>
                   Go to Experience
-                </button>
+                </TkxButton>
               </div>
             )}
             {atsReview.result?.guidance && (
@@ -2423,8 +2423,8 @@ export default function ResumeEditor() {
                   <p className="small">Next step: review {SECTION_LABELS[uploadSummary.reviewTarget as SectionType]}.</p>
                 </div>
                 <div className="review-ats-panel__upload-actions">
-                  <button
-                    className="btn"
+                  <TkxButton
+                   
                     onClick={() => {
                       const step = REQUIRED_FLOW_SEQUENCE.indexOf('experience');
                       if (step >= 0) setActiveStepIndex(step);
@@ -2432,17 +2432,17 @@ export default function ResumeEditor() {
                     }}
                   >
                     Review Experience
-                  </button>
-                  <button
-                    className="btn secondary"
+                  </TkxButton>
+                  <TkxButton
+                    variant="outline"
                     onClick={() => (isReviewAtsPage ? refreshReviewAts('manual') : continueToAts())}
                     disabled={isReviewAtsPage ? (atsReview.loading || atsQuotaBlocked) : (!requiredSectionsValid || loadingAtsNavigation || atsQuotaBlocked)}
                   >
                     {isReviewAtsPage
                       ? (atsReview.loading ? 'Checking ATS...' : 'Check ATS Score')
                       : (loadingAtsNavigation ? 'Preparing ATS...' : 'Check ATS Score')}
-                  </button>
-                  <button className="btn secondary" onClick={() => setUploadSummary(null)}>Dismiss</button>
+                  </TkxButton>
+                  <TkxButton variant="outline" onClick={() => setUploadSummary(null)}>Dismiss</TkxButton>
                 </div>
               </div>
             )}
@@ -2466,8 +2466,8 @@ export default function ResumeEditor() {
               <p className="small">Next step: review {SECTION_LABELS[uploadSummary.reviewTarget as SectionType]}.</p>
             </div>
             <div className="upload-summary-panel__actions">
-              <button
-                className="btn"
+              <TkxButton
+               
                 onClick={() => {
                   const step = REQUIRED_FLOW_SEQUENCE.indexOf('experience');
                   if (step >= 0) setActiveStepIndex(step);
@@ -2475,17 +2475,17 @@ export default function ResumeEditor() {
                 }}
               >
                 Review Experience
-              </button>
-              <button
-                className="btn secondary"
+              </TkxButton>
+              <TkxButton
+                variant="outline"
                 onClick={() => (isReviewAtsPage ? refreshReviewAts('manual') : continueToAts())}
                 disabled={isReviewAtsPage ? (atsReview.loading || atsQuotaBlocked) : (!requiredSectionsValid || loadingAtsNavigation || atsQuotaBlocked)}
               >
                 {isReviewAtsPage
                   ? (atsReview.loading ? 'Checking ATS...' : 'Check ATS Score')
                   : (loadingAtsNavigation ? 'Preparing ATS...' : 'Check ATS Score')}
-              </button>
-              <button className="btn secondary" onClick={() => setUploadSummary(null)}>Dismiss</button>
+              </TkxButton>
+              <TkxButton variant="outline" onClick={() => setUploadSummary(null)}>Dismiss</TkxButton>
             </div>
           </div>
         )}
@@ -2510,8 +2510,8 @@ export default function ResumeEditor() {
               />
             </div>
             <div className="field-meta">
-              <button
-                className="btn secondary"
+              <TkxButton
+                variant="outline"
                 onClick={() => {
                   if (!importNotes.trim()) return;
                   setResume((prev) => ({
@@ -2523,8 +2523,8 @@ export default function ResumeEditor() {
                 }}
               >
                 Append to summary
-              </button>
-              <button className="btn secondary" onClick={() => setImportNotes('')}>Clear</button>
+              </TkxButton>
+              <TkxButton variant="outline" onClick={() => setImportNotes('')}>Clear</TkxButton>
             </div>
           </div>
         )}
@@ -2654,34 +2654,34 @@ export default function ResumeEditor() {
                   >
                     <span style={{ fontSize: 13 }}>{getAtsSectionTitle(key)}</span>
                     <span style={{ display: 'flex', gap: 4 }}>
-                      <button
+                      <TkxButton
                         type="button"
-                        className="btn secondary"
+                        variant="outline"
                         aria-label={`Move ${getAtsSectionTitle(key)} up`}
                         disabled={idx === 0}
                         onClick={() => moveSection(idx, -1)}
                         style={{ padding: '2px 8px', minWidth: 0, opacity: idx === 0 ? 0.4 : 1 }}
                       >
                         ↑
-                      </button>
-                      <button
+                      </TkxButton>
+                      <TkxButton
                         type="button"
-                        className="btn secondary"
+                        variant="outline"
                         aria-label={`Move ${getAtsSectionTitle(key)} down`}
                         disabled={idx === arr.length - 1}
                         onClick={() => moveSection(idx, 1)}
                         style={{ padding: '2px 8px', minWidth: 0, opacity: idx === arr.length - 1 ? 0.4 : 1 }}
                       >
                         ↓
-                      </button>
+                      </TkxButton>
                     </span>
                   </li>
                 ))}
               </ul>
               {resume.sectionOrder && resume.sectionOrder.length > 0 ? (
-                <button
+                <TkxButton
                   type="button"
-                  className="btn secondary"
+                  variant="outline"
                   style={{ marginTop: 8, padding: '4px 10px' }}
                   onClick={() => {
                     setResume((prev) => ({ ...prev, sectionOrder: null }));
@@ -2689,7 +2689,7 @@ export default function ResumeEditor() {
                   }}
                 >
                   Reset to default order
-                </button>
+                </TkxButton>
               ) : null}
             </div>
           ) : null}
@@ -2730,9 +2730,9 @@ export default function ResumeEditor() {
                     />
                   </label>
                   {resume.photoUrl ? (
-                    <button
+                    <TkxButton
                       type="button"
-                      className="btn secondary"
+                      variant="outline"
                       style={{ padding: '6px 12px' }}
                       onClick={() => {
                         setResume((prev) => ({ ...prev, photoUrl: null }));
@@ -2740,7 +2740,7 @@ export default function ResumeEditor() {
                       }}
                     >
                       Remove
-                    </button>
+                    </TkxButton>
                   ) : null}
                 </div>
               </div>
@@ -2792,20 +2792,20 @@ export default function ResumeEditor() {
             })}
           </div>
           <div className="step-nav__actions">
-            <button
-              className="btn secondary"
+            <TkxButton
+              variant="outline"
               onClick={goToPreviousRequiredStep}
               disabled={navigationGate.activeStepIndex <= 0}
             >
               Previous section
-            </button>
-            <button
-              className="btn"
+            </TkxButton>
+            <TkxButton
+             
               onClick={goToNextRequiredStep}
               disabled={navigationGate.activeStepIndex >= REQUIRED_FLOW_SEQUENCE.length - 1 || (guidedNavigation && !navigationGate.canProceedCurrent)}
             >
               Next section
-            </button>
+            </TkxButton>
             {!navigationGate.canProceedCurrent && (
               <span className="hint error">Complete {SECTION_LABELS[navigationGate.activeStepType as SectionType]} to continue.</span>
             )}
@@ -2889,8 +2889,8 @@ export default function ResumeEditor() {
                      editable EVEN WHEN it is gated by the navigation
                      gate ("Complete earlier required sections to
                      unlock this step"). User-reported bug. */}
-                  <button
-                    className="btn secondary"
+                  <TkxButton
+                    variant="outline"
                     onClick={(e) => {
                       e.stopPropagation();
                       if (sectionLocked) return;
@@ -2900,9 +2900,9 @@ export default function ResumeEditor() {
                     aria-label="Move section up"
                   >
                     Up
-                  </button>
-                  <button
-                    className="btn secondary"
+                  </TkxButton>
+                  <TkxButton
+                    variant="outline"
                     onClick={(e) => {
                       e.stopPropagation();
                       if (sectionLocked) return;
@@ -2912,10 +2912,10 @@ export default function ResumeEditor() {
                     aria-label="Move section down"
                   >
                     Down
-                  </button>
+                  </TkxButton>
                   {!section.required && (
-                    <button
-                      className="btn secondary"
+                    <TkxButton
+                      variant="outline"
                       onClick={(e) => {
                         e.stopPropagation();
                         if (sectionLocked) return;
@@ -2924,7 +2924,7 @@ export default function ResumeEditor() {
                       disabled={sectionLocked}
                     >
                       Remove
-                    </button>
+                    </TkxButton>
                   )}
                 </div>
               </div>
@@ -3129,14 +3129,14 @@ export default function ResumeEditor() {
                         className="input"
                         testId="languages-autocomplete"
                       />
-                      <button
+                      <TkxButton
                         type="button"
-                        className="btn secondary"
+                        variant="outline"
                         onClick={() => addLanguage(languageInput)}
                         disabled={!languageInput.trim()}
                       >
                         Add
-                      </button>
+                      </TkxButton>
                     </div>
                     <div className="skills-chips" data-testid="languages-chips">
                       {languages.map((language) => (
@@ -3182,9 +3182,9 @@ export default function ResumeEditor() {
                           }}
                         />
                       </div>
-                      <button
+                      <TkxButton
                         type="button"
-                        className="btn secondary"
+                        variant="outline"
                         onClick={() => {
                           const copy = resume.achievements.filter((_, i) => i !== achIdx);
                           setResume((prev) => ({ ...prev, achievements: copy }));
@@ -3193,12 +3193,12 @@ export default function ResumeEditor() {
                         aria-label="Remove achievement"
                       >
                         Remove
-                      </button>
+                      </TkxButton>
                     </div>
                   ))}
-                  <button
+                  <TkxButton
                     type="button"
-                    className="btn secondary"
+                    variant="outline"
                     style={{ marginTop: 10 }}
                     onClick={() => {
                       setResume((prev) => ({ ...prev, achievements: [...prev.achievements, ''] }));
@@ -3206,7 +3206,7 @@ export default function ResumeEditor() {
                     }}
                   >
                     Add achievement
-                  </button>
+                  </TkxButton>
                 </div>
               )}
 
@@ -3247,15 +3247,15 @@ export default function ResumeEditor() {
                             <strong>Experience #{expIdx + 1}</strong>
                             <p className="small">{summary}</p>
                           </div>
-                          <button
-                            className="btn secondary"
+                          <TkxButton
+                            variant="outline"
                             onClick={() => {
                               setResume((prev) => removeExperienceAt(prev as any, expIdx) as any);
                               markDirty();
                             }}
                           >
                             Remove
-                          </button>
+                          </TkxButton>
                         </div>
                         <div className="experience-entry__grid">
                           <div className="experience-entry__field">
@@ -3439,9 +3439,9 @@ export default function ResumeEditor() {
                                       }}
                                     />
                                     </div>
-                                    <button
+                                    <TkxButton
                                       type="button"
-                                      className="btn secondary"
+                                      variant="outline"
                                       onClick={() => {
                                         const copy = [...resume.experience];
                                         const nextHighlights = [...(copy[expIdx].highlights || [])];
@@ -3454,7 +3454,7 @@ export default function ResumeEditor() {
                                       disabled={highlightRows.length <= 1}
                                     >
                                       Remove
-                                    </button>
+                                    </TkxButton>
                                     <button
                                       type="button"
                                       className="btn secondary bullet-rewrite-trigger"
@@ -3492,14 +3492,14 @@ export default function ResumeEditor() {
                                           </p>
                                           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                                             <Link className="btn" href="/settings" style={{ fontSize: 13 }}>Add your AI key</Link>
-                                            <button
+                                            <TkxButton
                                               type="button"
-                                              className="btn ghost"
+                                              variant="ghost"
                                               style={{ fontSize: 13 }}
                                               onClick={() => dismissBulletRewrite(expIdx, highlightIdx)}
                                             >
                                               Dismiss
-                                            </button>
+                                            </TkxButton>
                                           </div>
                                         </div>
                                       );
@@ -3508,12 +3508,12 @@ export default function ResumeEditor() {
                                       return (
                                         <div className="bullet-rewrite-panel bullet-rewrite-panel--error">
                                           <p className="small" style={{ margin: 0 }}>{entry.message}</p>
-                                          <button
+                                          <TkxButton
                                             type="button"
-                                            className="btn ghost"
+                                            variant="ghost"
                                             style={{ fontSize: 12, marginTop: 6 }}
                                             onClick={() => dismissBulletRewrite(expIdx, highlightIdx)}
-                                          >Dismiss</button>
+                                          >Dismiss</TkxButton>
                                         </div>
                                       );
                                     }
@@ -3541,39 +3541,39 @@ export default function ResumeEditor() {
                                           {entry.alternatives.map((alt, i) => (
                                             <li key={i} className="bullet-rewrite-option">
                                               <span style={{ flex: 1, lineHeight: 1.4 }}>{alt}</span>
-                                              <button
+                                              <TkxButton
                                                 type="button"
-                                                className="btn"
+                                               
                                                 style={{ fontSize: 12, padding: '4px 10px' }}
                                                 onClick={() => acceptBulletRewrite(expIdx, highlightIdx, alt)}
-                                              >Use this</button>
+                                              >Use this</TkxButton>
                                             </li>
                                           ))}
                                         </ul>
                                         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
                                           {canShorten && (
-                                            <button
+                                            <TkxButton
                                               type="button"
-                                              className="btn secondary"
+                                              variant="outline"
                                               style={{ fontSize: 12 }}
                                               title={shortenedCandidate}
                                               onClick={() => shortenBulletInPlace(expIdx, highlightIdx)}
-                                            >Shorten to one bullet</button>
+                                            >Shorten to one bullet</TkxButton>
                                           )}
                                           {splittable && (
-                                            <button
+                                            <TkxButton
                                               type="button"
-                                              className="btn secondary"
+                                              variant="outline"
                                               style={{ fontSize: 12 }}
                                               onClick={() => splitBulletInPlace(expIdx, highlightIdx)}
-                                            >Split into {splitBulletIntoBullets(currentBullet).length} bullets</button>
+                                            >Split into {splitBulletIntoBullets(currentBullet).length} bullets</TkxButton>
                                           )}
-                                          <button
+                                          <TkxButton
                                             type="button"
-                                            className="btn ghost"
+                                            variant="ghost"
                                             style={{ fontSize: 12 }}
                                             onClick={() => dismissBulletRewrite(expIdx, highlightIdx)}
-                                          >Keep current</button>
+                                          >Keep current</TkxButton>
                                         </div>
                                       </div>
                                       );
@@ -3594,10 +3594,10 @@ export default function ResumeEditor() {
                                   {localFailure && localFailure.suggestions.length > 0 && (
                                     <div className="field-meta" style={{ marginTop: 6 }}>
                                       {localFailure.suggestions.map((suggestion) => (
-                                        <button
+                                        <TkxButton
                                           key={`verb-suggestion-${expIdx}-${highlightIdx}-${suggestion}`}
                                           type="button"
-                                          className="btn secondary"
+                                          variant="outline"
                                           data-testid={`verb-suggestion-${expIdx}-${highlightIdx}`}
                                           onClick={() => {
                                             const copy = [...resume.experience];
@@ -3610,7 +3610,7 @@ export default function ResumeEditor() {
                                           }}
                                         >
                                           {suggestion}
-                                        </button>
+                                        </TkxButton>
                                       ))}
                                     </div>
                                   )}
@@ -3618,9 +3618,9 @@ export default function ResumeEditor() {
                                     <div className="bullet-ai-suggestion">
                                       <span className="bullet-ai-suggestion__label">AI suggestion:</span>
                                       <p className="small bullet-ai-suggestion__text">{aiSuggestion.suggested}</p>
-                                      <button
+                                      <TkxButton
                                         type="button"
-                                        className="btn secondary"
+                                        variant="outline"
                                         style={{ fontSize: '0.7rem', padding: '3px 8px', marginTop: 2 }}
                                         onClick={() => {
                                           const copy = [...resume.experience];
@@ -3637,15 +3637,15 @@ export default function ResumeEditor() {
                                         }}
                                       >
                                         Apply
-                                      </button>
+                                      </TkxButton>
                                     </div>
                                   )}
                                 </div>
                               );
                             })}
-                            <button
+                            <TkxButton
                               type="button"
-                              className="btn secondary"
+                              variant="outline"
                               onClick={() => {
                                 const copy = [...resume.experience];
                                 const nextHighlights = [...(copy[expIdx].highlights || []), ''];
@@ -3656,7 +3656,7 @@ export default function ResumeEditor() {
                               }}
                             >
                               Add bullet
-                            </button>
+                            </TkxButton>
                             {expErrors.highlights && <p className="hint error">{expErrors.highlights}</p>}
                           </div>
                         </div>
@@ -3664,8 +3664,8 @@ export default function ResumeEditor() {
                     );
                   })}
                   <div className="experience-section__footer">
-                    <button
-                      className="btn"
+                    <TkxButton
+                     
                       data-testid="add-experience-button"
                       onClick={() => {
                         setResume((prev) => addEmptyExperience(prev as any) as any);
@@ -3673,7 +3673,7 @@ export default function ResumeEditor() {
                       }}
                     >
                       Add new experience
-                    </button>
+                    </TkxButton>
                   </div>
                 </div>
               )}
@@ -3815,8 +3815,8 @@ export default function ResumeEditor() {
                           Optional. Enter GPA (10-scale) or percentage.
                         </p>
                         <div className="education-entry__actions">
-                          <button
-                            className="btn secondary"
+                          <TkxButton
+                            variant="outline"
                             onClick={() => {
                               const copy = resume.education.filter((_, i) => i !== eduIdx);
                               setResume((prev) => ({ ...prev, education: copy.length ? copy : [structuredClone(emptyEducation)] }));
@@ -3824,21 +3824,21 @@ export default function ResumeEditor() {
                             }}
                           >
                             Remove
-                          </button>
+                          </TkxButton>
                         </div>
                       </div>
                     );
                   })}
                   <div className="education-section__footer">
-                    <button
-                      className="btn"
+                    <TkxButton
+                     
                       onClick={() => {
                         setResume((prev) => ({ ...prev, education: [...prev.education, structuredClone(emptyEducation)] }));
                         markDirty();
                       }}
                     >
                       Add education
-                    </button>
+                    </TkxButton>
                   </div>
                 </div>
               )}
@@ -3855,8 +3855,8 @@ export default function ResumeEditor() {
                       <div className="section-actions" style={{ justifyContent: 'space-between', marginBottom: 8 }}>
                         <strong>Project #{projIdx + 1}</strong>
                         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                          <button
-                            className="btn secondary"
+                          <TkxButton
+                            variant="outline"
                             onClick={() => {
                               setResume((prev) => moveProject(prev as any, projIdx, -1) as any);
                               markDirty();
@@ -3865,9 +3865,9 @@ export default function ResumeEditor() {
                             aria-label="Move project up"
                           >
                             Up
-                          </button>
-                          <button
-                            className="btn secondary"
+                          </TkxButton>
+                          <TkxButton
+                            variant="outline"
                             onClick={() => {
                               setResume((prev) => moveProject(prev as any, projIdx, 1) as any);
                               markDirty();
@@ -3876,12 +3876,12 @@ export default function ResumeEditor() {
                             aria-label="Move project down"
                           >
                             Down
-                          </button>
-                          <button className="btn secondary" onClick={() => {
+                          </TkxButton>
+                          <TkxButton variant="outline" onClick={() => {
                             const copy = resume.projects.filter((_, i) => i !== projIdx);
                             setResume((prev) => ({ ...prev, projects: copy.length ? copy : [structuredClone(EMPTY_PROJECT)] }));
                             markDirty();
-                          }}>Remove</button>
+                          }}>Remove</TkxButton>
                         </div>
                       </div>
                       <label className="label">Project name</label>
@@ -3934,8 +3934,8 @@ export default function ResumeEditor() {
                         <p className="hint error">Project URL must start with `https://` and be a valid link.</p>
                       )}
                       <div className="field-meta">
-                        <button
-                          className="btn secondary"
+                        <TkxButton
+                          variant="outline"
                           type="button"
                           onClick={() => {
                             const copy = [...resume.projects];
@@ -3945,9 +3945,9 @@ export default function ResumeEditor() {
                           }}
                         >
                           GitHub
-                        </button>
-                        <button
-                          className="btn secondary"
+                        </TkxButton>
+                        <TkxButton
+                          variant="outline"
                           type="button"
                           onClick={() => {
                             const copy = [...resume.projects];
@@ -3957,7 +3957,7 @@ export default function ResumeEditor() {
                           }}
                         >
                           Bitbucket
-                        </button>
+                        </TkxButton>
                       </div>
                       <label className="label" style={{ marginTop: 8 }}>Highlights (one per line)</label>
                       <TkxTextarea label="Project highlights (one per line)" style={{ minHeight: 80 }} placeholder="Built a scheduling app used by 200+ users" value={proj.highlights.join('\n')} onChange={(e) => {
@@ -3968,10 +3968,10 @@ export default function ResumeEditor() {
                       }} />
                     </div>
                   ))}
-                  <button className="btn" data-testid="add-another-project-button" onClick={() => {
+                  <TkxButton data-testid="add-another-project-button" onClick={() => {
                     setResume((prev) => addEmptyProject(prev as any) as any);
                     markDirty();
-                  }}>Add another project</button>
+                  }}>Add another project</TkxButton>
                 </div>
               )}
 
@@ -4036,17 +4036,17 @@ export default function ResumeEditor() {
                       <p className="hint" style={{ marginTop: 6 }}>
                         Examples: Credential ID, score, specialization, relevant modules, renewal date.
                       </p>
-                      <button className="btn secondary" style={{ marginTop: 8 }} onClick={() => {
+                      <TkxButton variant="outline" style={{ marginTop: 8 }} onClick={() => {
                         const copy = resume.certifications.filter((_, i) => i !== certIdx);
                         setResume((prev) => ({ ...prev, certifications: copy.length ? copy : [structuredClone(emptyCertification)] }));
                         markDirty();
-                      }}>Remove</button>
+                      }}>Remove</TkxButton>
                     </div>
                   ))}
-                  <button className="btn" onClick={() => {
+                  <TkxButton onClick={() => {
                     setResume((prev) => ({ ...prev, certifications: [...prev.certifications, structuredClone(emptyCertification)] }));
                     markDirty();
-                  }}>Add certification</button>
+                  }}>Add certification</TkxButton>
                 </div>
               )}
               </fieldset>
@@ -4118,23 +4118,23 @@ export default function ResumeEditor() {
                     />
                   </div>
                 </div>
-                <button className="btn secondary" style={{ marginTop: 8 }} onClick={() => {
+                <TkxButton variant="outline" style={{ marginTop: 8 }} onClick={() => {
                   const copy = (resume.licenses || []).filter((_, i) => i !== licIdx);
                   setResume((prev) => ({ ...prev, licenses: copy }));
                   if (!copy.length) setShowLicensesEditor(false);
                   markDirty();
-                }}>Remove</button>
+                }}>Remove</TkxButton>
               </div>
             ))}
-            <button className="btn" onClick={() => {
+            <TkxButton onClick={() => {
               setResume((prev) => ({ ...prev, licenses: [...(prev.licenses || []), structuredClone(emptyLicense)] }));
               markDirty();
-            }}>Add license</button>
+            }}>Add license</TkxButton>
           </div>
         ) : (
           <div style={{ marginTop: 16 }}>
-            <button
-              className="btn secondary"
+            <TkxButton
+              variant="outline"
               type="button"
               data-testid="add-licenses-affordance"
               onClick={() => {
@@ -4143,7 +4143,7 @@ export default function ResumeEditor() {
               }}
             >
               + Add licenses / registrations
-            </button>
+            </TkxButton>
             {licensureExpected && (
               <p className="hint" style={{ marginTop: 6 }}>
                 Recruiters in your field expect licensure details.
@@ -4221,23 +4221,23 @@ export default function ResumeEditor() {
                     />
                   </div>
                 </div>
-                <button className="btn secondary" style={{ marginTop: 8 }} onClick={() => {
+                <TkxButton variant="outline" style={{ marginTop: 8 }} onClick={() => {
                   const copy = (resume.publications || []).filter((_, i) => i !== pubIdx);
                   setResume((prev) => ({ ...prev, publications: copy }));
                   if (!copy.length) setShowPublicationsEditor(false);
                   markDirty();
-                }}>Remove</button>
+                }}>Remove</TkxButton>
               </div>
             ))}
-            <button className="btn" onClick={() => {
+            <TkxButton onClick={() => {
               setResume((prev) => ({ ...prev, publications: [...(prev.publications || []), structuredClone(emptyPublication)] }));
               markDirty();
-            }}>Add publication</button>
+            }}>Add publication</TkxButton>
           </div>
         ) : (
           <div style={{ marginTop: 8 }}>
-            <button
-              className="btn secondary"
+            <TkxButton
+              variant="outline"
               type="button"
               data-testid="add-publications-affordance"
               onClick={() => {
@@ -4246,7 +4246,7 @@ export default function ResumeEditor() {
               }}
             >
               + Add publications / patents
-            </button>
+            </TkxButton>
             {licensureExpected && (
               <p className="hint" style={{ marginTop: 6 }}>
                 Publications and patents strengthen credibility in your field.
@@ -4261,9 +4261,9 @@ export default function ResumeEditor() {
             <p className="small">Optional sections are hidden until you add them.</p>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {hiddenSections.map((section) => (
-                <button key={section.id} className="btn secondary" onClick={() => enableSection(section.type)}>
+                <TkxButton key={section.id} variant="outline" onClick={() => enableSection(section.type)}>
                   Add {SECTION_LABELS[section.type]}
-                </button>
+                </TkxButton>
               ))}
             </div>
           </div>
@@ -4327,8 +4327,8 @@ export default function ResumeEditor() {
             <div style={{ marginTop: 10 }}>
               <span className="small" style={{ fontWeight: 600 }}>Suggested summary</span>
               <p className="small" style={{ marginTop: 4 }}>{jdSuggestions.suggestedSummary}</p>
-              <button
-                className="btn secondary"
+              <TkxButton
+                variant="outline"
                 type="button"
                 onClick={() => {
                   setResume((prev) => ({ ...prev, summary: jdSuggestions.suggestedSummary }));
@@ -4337,7 +4337,7 @@ export default function ResumeEditor() {
                 }}
               >
                 Use this summary
-              </button>
+              </TkxButton>
             </div>
 
             {jdSuggestions.missingKeywords.length > 0 && (
@@ -4347,9 +4347,9 @@ export default function ResumeEditor() {
                   {jdSuggestions.missingKeywords.map((keyword) => {
                     const alreadyAdded = (resume.skills || []).some((s) => s.toLowerCase() === keyword.toLowerCase());
                     return (
-                      <button
+                      <TkxButton
                         key={keyword}
-                        className="btn secondary"
+                        variant="outline"
                         type="button"
                         style={{ fontSize: '0.75rem', padding: '4px 10px' }}
                         disabled={alreadyAdded}
@@ -4360,7 +4360,7 @@ export default function ResumeEditor() {
                         }}
                       >
                         {alreadyAdded ? `✓ ${keyword}` : `+ Add to skills: ${keyword}`}
-                      </button>
+                      </TkxButton>
                     );
                   })}
                 </div>
@@ -4379,8 +4379,8 @@ export default function ResumeEditor() {
                 {jdSuggestions.bulletIdeas.map((idea, ideaIdx) => (
                   <div key={`jd-bullet-${ideaIdx}`} style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 6 }}>
                     <span className="small" style={{ flex: '1 1 260px' }}>{idea}</span>
-                    <button
-                      className="btn secondary"
+                    <TkxButton
+                      variant="outline"
                       type="button"
                       style={{ fontSize: '0.75rem', padding: '4px 10px' }}
                       disabled={!resume.experience.length}
@@ -4397,7 +4397,7 @@ export default function ResumeEditor() {
                       }}
                     >
                       Add as bullet
-                    </button>
+                    </TkxButton>
                   </div>
                 ))}
               </div>
@@ -4406,26 +4406,26 @@ export default function ResumeEditor() {
         )}
 
         <div style={{ display: 'flex', gap: 12, marginTop: 8, flexWrap: 'wrap' }}>
-          <button
-            className="btn"
+          <TkxButton
+           
             onClick={() => saveDraft(false).catch(() => undefined)}
             disabled={!validation.canAutoSave || status === 'saving' || (resumeQuotaBlocked && !resumeId)}
             data-testid="save-changes-button"
           >
             {status === 'saving' ? 'Saving...' : 'Save changes'}
-          </button>
-          <button className="btn secondary" onClick={score} disabled={!requiredSectionsValid || atsQuotaBlocked}>ATS Score</button>
-          <button
-            className="btn"
+          </TkxButton>
+          <TkxButton variant="outline" onClick={score} disabled={!requiredSectionsValid || atsQuotaBlocked}>ATS Score</TkxButton>
+          <TkxButton
+           
             onClick={continueToAts}
             disabled={!requiredSectionsValid || loadingAtsNavigation || atsQuotaBlocked}
           >
             {loadingAtsNavigation ? 'Preparing ATS...' : 'Continue to ATS'}
-          </button>
-          <button className="btn secondary" onClick={exportPdf} disabled={!requiredSectionsValid}>Export</button>
-          <button className="btn secondary" onClick={parseJd} disabled={!requiredSectionsValid} title="See the key skills this job is asking for">Scan Job Skills</button>
-          <button className="btn secondary" onClick={critique} disabled={!requiredSectionsValid || aiCritiqueLoading}>{aiCritiqueLoading ? 'Analyzing...' : 'AI Critique'}</button>
-          <button className="btn secondary" onClick={analyzeTechGap} disabled={!requiredSectionsValid || techGapLoading}>{techGapLoading ? 'Analyzing gaps...' : 'Tech Gap'}</button>
+          </TkxButton>
+          <TkxButton variant="outline" onClick={exportPdf} disabled={!requiredSectionsValid}>Export</TkxButton>
+          <TkxButton variant="outline" onClick={parseJd} disabled={!requiredSectionsValid} title="See the key skills this job is asking for">Scan Job Skills</TkxButton>
+          <TkxButton variant="outline" onClick={critique} disabled={!requiredSectionsValid || aiCritiqueLoading}>{aiCritiqueLoading ? 'Analyzing...' : 'AI Critique'}</TkxButton>
+          <TkxButton variant="outline" onClick={analyzeTechGap} disabled={!requiredSectionsValid || techGapLoading}>{techGapLoading ? 'Analyzing gaps...' : 'Tech Gap'}</TkxButton>
         </div>
         {!requiredSectionsValid && (
           <p className="hint warn" style={{ marginTop: 8 }}>
@@ -4436,14 +4436,14 @@ export default function ResumeEditor() {
           <div className={`message-banner${status === 'error' ? ' error' : ''}`} style={{ marginTop: 12 }}>
             <p className="small">{message}</p>
             {showBulletLengthWarning && firstTooLongHighlightId && (
-              <button
+              <TkxButton
                 type="button"
-                className="btn secondary"
+                variant="outline"
                 style={{ marginTop: 6, fontSize: '0.75rem' }}
                 onClick={scrollToFirstInvalidHighlight}
               >
                 Jump to first issue
-              </button>
+              </TkxButton>
             )}
           </div>
         )}
@@ -4461,7 +4461,7 @@ export default function ResumeEditor() {
           <div className="ai-critique-panel" style={{ marginTop: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
               <h3 style={{ margin: 0 }}>AI Critique {aiCritiqueResult.provider !== 'fallback' && <span className="ai-badge">AI-assisted</span>}</h3>
-              <button className="btn secondary" style={{ fontSize: '0.75rem', padding: '4px 10px' }} onClick={() => setAiCritiqueResult(null)}>Close</button>
+              <TkxButton variant="outline" style={{ fontSize: '0.75rem', padding: '4px 10px' }} onClick={() => setAiCritiqueResult(null)}>Close</TkxButton>
             </div>
             {/* Two-line explainer so the user knows: (1) what this surface
                 does, (2) whether it actually compared against the JD they
@@ -4518,8 +4518,8 @@ export default function ResumeEditor() {
                 {aiCritiqueResult.critique.sectionSuggestions.summary.map((suggestion, i) => (
                   <div key={i} className="ai-suggestion">
                     <p className="small">{suggestion}</p>
-                    <button
-                      className="btn secondary"
+                    <TkxButton
+                      variant="outline"
                       style={{ fontSize: '0.7rem', padding: '3px 8px', marginTop: 4 }}
                       onClick={() => {
                         setResume((prev) => ({ ...prev, summary: suggestion }));
@@ -4532,7 +4532,7 @@ export default function ResumeEditor() {
                       }}
                     >
                       Apply
-                    </button>
+                    </TkxButton>
                   </div>
                 ))}
               </div>
@@ -4573,8 +4573,8 @@ export default function ResumeEditor() {
                     <div className="ai-bullet-suggested">
                       <span className="ai-label">Suggested:</span> {sug.suggested}
                     </div>
-                    <button
-                      className="btn secondary"
+                    <TkxButton
+                      variant="outline"
                       style={{ fontSize: '0.7rem', padding: '3px 8px', marginTop: 4 }}
                       onClick={() => {
                         setResume((prev) => {
@@ -4593,7 +4593,7 @@ export default function ResumeEditor() {
                       }}
                     >
                       Apply
-                    </button>
+                    </TkxButton>
                   </div>
                 ))}
               </div>
@@ -4707,7 +4707,7 @@ export default function ResumeEditor() {
           <div className="ai-critique-panel" style={{ marginTop: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
               <h3 style={{ margin: 0 }}>Technology Gap Analysis</h3>
-              <button className="btn secondary" style={{ fontSize: '0.75rem', padding: '4px 10px' }} onClick={() => setTechGapResult(null)}>Close</button>
+              <TkxButton variant="outline" style={{ fontSize: '0.75rem', padding: '4px 10px' }} onClick={() => setTechGapResult(null)}>Close</TkxButton>
             </div>
             {techGapResult.roleAlignmentSummary && (
               <p className="small" style={{ marginBottom: 12, color: 'var(--fg-muted, #555)' }}>{techGapResult.roleAlignmentSummary}</p>
@@ -4870,9 +4870,9 @@ export default function ResumeEditor() {
                 <p className="small" style={{ color: '#5a6778', textAlign: 'center', margin: 0 }}>
                   Premium is offered after you download your resume.
                 </p>
-                <button className="btn" style={{ width: '100%' }} onClick={() => setShowPremiumModal(false)}>
+                <TkxButton style={{ width: '100%' }} onClick={() => setShowPremiumModal(false)}>
                   Continue with free features
-                </button>
+                </TkxButton>
               </div>
             </div>
           </div>
@@ -4912,7 +4912,7 @@ export default function ResumeEditor() {
                 <h3 style={{ margin: 0 }}>Export & Finalize</h3>
                 <p className="small">Review ATS checks and finalize your resume export.</p>
               </div>
-              <button className="btn secondary" onClick={() => setExportOpen(false)}>Close</button>
+              <TkxButton variant="outline" onClick={() => setExportOpen(false)}>Close</TkxButton>
             </div>
 
             <PrivacyBadge variant="download" />
@@ -4945,8 +4945,8 @@ export default function ResumeEditor() {
                   </div>
                 )}
                 <div className="export-actions">
-                  <button
-                    className="btn"
+                  <TkxButton
+                   
                     disabled={exportIssues.length > 0 && !exportApproved}
                     onClick={async () => {
                       if (!resumeId) return;
@@ -4975,9 +4975,9 @@ export default function ResumeEditor() {
                     }}
                   >
                     Download PDF
-                  </button>
-                  <button
-                    className="btn"
+                  </TkxButton>
+                  <TkxButton
+                   
                     disabled={exportIssues.length > 0 && !exportApproved}
                     onClick={async () => {
                       if (!resumeId) return;
@@ -5002,7 +5002,7 @@ export default function ResumeEditor() {
                     }}
                   >
                     Download Word
-                  </button>
+                  </TkxButton>
                   <button
                     className="btn secondary"
                     onClick={() => {
@@ -5095,8 +5095,8 @@ export default function ResumeEditor() {
               </div>
             </div>
             <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-              <button className="btn secondary" onClick={handleTemplatePromptClose}>Not now</button>
-              <button className="btn" onClick={handleTemplatePromptConfirm} disabled={!templatePromptHref}>OK</button>
+              <TkxButton variant="outline" onClick={handleTemplatePromptClose}>Not now</TkxButton>
+              <TkxButton onClick={handleTemplatePromptConfirm} disabled={!templatePromptHref}>OK</TkxButton>
             </div>
           </div>
         </div>
@@ -5119,9 +5119,9 @@ export default function ResumeEditor() {
                 dashboard and having to find their way back. The draft is
                 already stored on this device and is imported on return. */}
             <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
-              <button className="btn secondary" onClick={() => setGuestGateOpen(false)}>
+              <TkxButton variant="outline" onClick={() => setGuestGateOpen(false)}>
                 Keep editing
-              </button>
+              </TkxButton>
               <Link className="btn ghost" href={`/auth/login?next=${encodeURIComponent(guestReturnPath)}`}>
                 Sign in
               </Link>
@@ -5214,9 +5214,9 @@ export default function ResumeEditor() {
         title="More actions"
       >
         <div className="mobile-action-drawer">
-          <button
+          <TkxButton
             type="button"
-            className="btn secondary"
+            variant="outline"
             onClick={() => {
               setMobileMoreOpen(false);
               mobileUploadInputRef.current?.click();
@@ -5224,22 +5224,22 @@ export default function ResumeEditor() {
             disabled={loadingUpload}
           >
             {editorUploadLabel}
-          </button>
+          </TkxButton>
           {!isReviewAtsPage ? (
-            <button
+            <TkxButton
               type="button"
-              className="btn secondary"
+              variant="outline"
               onClick={() => {
                 setMobileMoreOpen(false);
                 goToReviewAts();
               }}
             >
               Review &amp; ATS
-            </button>
+            </TkxButton>
           ) : null}
-          <button
+          <TkxButton
             type="button"
-            className="btn"
+           
             onClick={() => {
               setMobileMoreOpen(false);
               if (requiredSectionsValid && !loadingAtsNavigation && !atsQuotaBlocked) {
@@ -5249,17 +5249,17 @@ export default function ResumeEditor() {
             disabled={!requiredSectionsValid || loadingAtsNavigation || atsQuotaBlocked}
           >
             {loadingAtsNavigation ? 'Preparing ATS...' : 'Continue to ATS'}
-          </button>
-          <button
+          </TkxButton>
+          <TkxButton
             type="button"
-            className="btn ghost"
+            variant="ghost"
             onClick={() => {
               setMobileMoreOpen(false);
               if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
           >
             Scroll to top
-          </button>
+          </TkxButton>
         </div>
       </TkxDrawer>
       ) : null}

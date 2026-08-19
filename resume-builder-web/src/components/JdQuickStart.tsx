@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { TkxTextarea } from 'tekivex-ui';
+import { TkxButton, TkxTextarea } from 'tekivex-ui';
 
 /**
  * R-090 — home-page "Paste a JD" quick start. The critique found the core
@@ -53,9 +53,9 @@ export default function JdQuickStart() {
         placeholder="Paste the job description here…"
         style={{ width: '100%', resize: 'vertical' }}
       />
-      <button className="btn" type="button" onClick={go} disabled={!jd.trim()} style={{ marginTop: 10 }}>
+      <TkxButton type="button" onClick={go} disabled={!jd.trim()} style={{ marginTop: 10 }}>
         Show my missing skills
-      </button>
+      </TkxButton>
       <p className="small" style={{ margin: '8px 0 0', color: 'var(--muted)' }}>
         Free on your first resume — every AI feature stays unlimited there.
       </p>

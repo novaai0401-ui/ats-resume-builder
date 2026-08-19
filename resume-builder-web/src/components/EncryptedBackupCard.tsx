@@ -12,6 +12,7 @@
 import { useState } from 'react';
 import { api } from '@/src/lib/api';
 import { encryptBackup, decryptBackup } from '@/src/lib/zk-crypto';
+import { TkxButton, TkxInput } from 'tekivex-ui';
 
 export default function EncryptedBackupCard() {
   const [passphrase, setPassphrase] = useState('');
@@ -75,10 +76,9 @@ export default function EncryptedBackupCard() {
         passphrase can. This is the safety net for the privacy-first storage model: lose your
         device, keep your data.
       </p>
-      <label className="small" htmlFor="zk-pass">Passphrase</label>
-      <input
+      <TkxInput label="Passphrase"
         id="zk-pass"
-        className="input"
+       
         type="password"
         value={passphrase}
         onChange={(e) => setPassphrase(e.target.value)}
@@ -87,9 +87,9 @@ export default function EncryptedBackupCard() {
         style={{ marginTop: 4, marginBottom: 10 }}
       />
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <button className="btn" type="button" onClick={handleExport} disabled={busy}>
+        <TkxButton type="button" onClick={handleExport} disabled={busy}>
           {busy ? 'Working…' : 'Download encrypted backup'}
-        </button>
+        </TkxButton>
         <label className="btn secondary" style={{ cursor: 'pointer', margin: 0 }}>
           Restore from backup
           <input

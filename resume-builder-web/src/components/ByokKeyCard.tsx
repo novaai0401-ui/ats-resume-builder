@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { TkxSelect } from 'tekivex-ui';
+import { TkxButton, TkxInput, TkxSelect } from 'tekivex-ui';
 import {
   BYOK_PROVIDERS,
   DEFAULT_MODELS,
@@ -97,9 +97,9 @@ export default function ByokKeyCard() {
               {' '}· added {new Date(record.addedAt).toLocaleDateString()}
             </p>
           </div>
-          <button type="button" className="btn secondary" onClick={onRemove}>
+          <TkxButton type="button" variant="outline" onClick={onRemove}>
             Remove key
-          </button>
+          </TkxButton>
         </div>
       ) : null}
 
@@ -142,31 +142,30 @@ export default function ByokKeyCard() {
             }
             style={{ flex: 1, minWidth: 220 }}
           />
-          <button
+          <TkxButton
             type="button"
-            className="btn secondary"
+            variant="outline"
             onClick={() => setShown((s) => !s)}
             aria-label={shown ? 'Hide key' : 'Show key'}
             style={{ padding: '6px 12px' }}
           >
             {shown ? 'Hide' : 'Show'}
-          </button>
-          <button
+          </TkxButton>
+          <TkxButton
             type="button"
-            className="btn"
+           
             onClick={onSave}
             disabled={status === 'saving' || !input.trim()}
           >
             {status === 'saving' ? 'Saving…' : status === 'saved' ? 'Saved ✓' : record ? 'Replace key' : 'Save key'}
-          </button>
+          </TkxButton>
         </div>
 
         {needsModel ? (
           <div style={{ marginTop: 12 }}>
-            <label className="label" htmlFor="byok-model">Model <span style={{ color: 'var(--muted)', fontWeight: 400 }}>(optional)</span></label>
-            <input
+            <TkxInput label="Model (optional)"
               id="byok-model"
-              className="input"
+             
               type="text"
               value={model}
               autoComplete="off"

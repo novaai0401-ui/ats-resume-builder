@@ -18,7 +18,7 @@ import { api, getAccessToken } from '@/src/lib/api';
 import { useResumeStore } from '@/src/lib/resume-store';
 import { loadByokKey } from '@/src/lib/byok-storage';
 import { handleFreeTrialError } from '@/src/lib/free-trial';
-import { TkxTextarea } from 'tekivex-ui';
+import { TkxButton, TkxInput, TkxTextarea } from 'tekivex-ui';
 
 type Card = {
   category: 'behavioral' | 'technical' | 'role-specific';
@@ -238,10 +238,9 @@ export default function InterviewPrepClient() {
       <section className="card col-12">
         <div className="mentor-form-grid">
           <div>
-            <label className="label" htmlFor="target-role">Target role (optional)</label>
-            <input
+            <TkxInput label="Target role (optional)"
               id="target-role"
-              className="input"
+             
               type="text"
               placeholder="e.g. Senior Frontend Engineer"
               value={targetRole}
@@ -261,9 +260,9 @@ export default function InterviewPrepClient() {
           </div>
         </div>
         <div style={{ marginTop: 12 }}>
-          <button className="btn" onClick={handleGenerate} disabled={loading || !canUseAi}>
+          <TkxButton onClick={handleGenerate} disabled={loading || !canUseAi}>
             {loading ? 'Generating cards…' : 'Generate prep cards'}
-          </button>
+          </TkxButton>
         </div>
         {error ? <p className="hint error" style={{ marginTop: 10 }}>{error}</p> : null}
         {paywall ? (
@@ -365,9 +364,9 @@ function MockInterviewPanel({ resumeText, targetRole, jdText }: { resumeText: st
         answer, and shows a stronger model answer. Practice out loud, then type what you said.
       </p>
       {!started ? (
-        <button className="btn" disabled={busy} onClick={() => void send([])}>
+        <TkxButton disabled={busy} onClick={() => void send([])}>
           {busy ? 'Setting up the room…' : 'Start mock interview'}
-        </button>
+        </TkxButton>
       ) : (
         <>
           <div style={{ display: 'grid', gap: 10, marginBottom: 12 }}>
@@ -403,8 +402,8 @@ function MockInterviewPanel({ resumeText, targetRole, jdText }: { resumeText: st
                 disabled={busy}
               />
             </div>
-            <button
-              className="btn"
+            <TkxButton
+             
               disabled={busy || !draft.trim()}
               onClick={() => {
                 const next = [...messages, { role: 'user' as const, content: draft.trim() }];
@@ -413,7 +412,7 @@ function MockInterviewPanel({ resumeText, targetRole, jdText }: { resumeText: st
               }}
             >
               {busy ? 'Thinking…' : 'Send'}
-            </button>
+            </TkxButton>
           </div>
         </>
       )}

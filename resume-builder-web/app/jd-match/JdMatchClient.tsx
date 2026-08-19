@@ -23,7 +23,7 @@ import { readActiveResumeSelection } from '@/src/lib/resume-flow';
 import TailorDiffPanel from './TailorDiffPanel';
 import AiTrustNote from '@/src/components/AiTrustNote';
 import { handleFreeTrialError } from '@/src/lib/free-trial';
-import { TkxTextarea } from 'tekivex-ui';
+import { TkxButton, TkxTextarea } from 'tekivex-ui';
 
 type MatchResult = {
   matchPercent: number;
@@ -285,13 +285,13 @@ export default function JdMatchClient() {
           style={{ resize: 'vertical', minHeight: 200 }}
         />
         <div style={{ marginTop: 12, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <button className="btn" onClick={handleScore} disabled={loading}>
+          <TkxButton onClick={handleScore} disabled={loading}>
             {loading ? 'Matching…' : 'Match against my resume'}
-          </button>
+          </TkxButton>
           {jdText ? (
-            <button className="btn ghost" onClick={() => { setJdText(''); setResult(null); setError(''); setPaywall(false); }}>
+            <TkxButton variant="ghost" onClick={() => { setJdText(''); setResult(null); setError(''); setPaywall(false); }}>
               Clear
-            </button>
+            </TkxButton>
           ) : null}
         </div>
         {error ? <p className="hint error" style={{ marginTop: 10 }}>{error}</p> : null}
@@ -404,13 +404,13 @@ export default function JdMatchClient() {
                 {result.bulletSuggestions.map((bullet, i) => (
                   <li key={i} className="bullet-rewrite-option">
                     <span style={{ flex: 1 }}>{bullet}</span>
-                    <button
-                      className="btn"
+                    <TkxButton
+                     
                       style={{ fontSize: 12, padding: '4px 10px' }}
                       onClick={() => copyBullet(bullet, i)}
                     >
                       {copiedIdx === i ? 'Copied!' : 'Copy'}
-                    </button>
+                    </TkxButton>
                   </li>
                 ))}
               </ul>

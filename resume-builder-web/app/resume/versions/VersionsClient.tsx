@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { TkxSelect } from 'tekivex-ui';
+import { TkxButton, TkxInput, TkxSelect } from 'tekivex-ui';
 import type { Resume, ResumeVersionSummary } from 'resume-builder-shared';
 import { api } from '@/src/lib/api';
 import DataLoader from '@/src/components/DataLoader';
@@ -196,27 +196,24 @@ export default function VersionsClient() {
             onChange={(value) => onPickResume(String(value || ''))}
           />
         </div>
-        <label className="versions-control versions-control--grow">
-          Label this snapshot (optional)
-          <input
+        <TkxInput label="Label this snapshot (optional)"
             value={label}
             onChange={(e) => setLabel(e.target.value)}
             placeholder='e.g. "Pre-AI rewrite", "v2 senior pitch"'
             maxLength={120}
           />
-        </label>
         <div className="versions-actions">
-          <button
+          <TkxButton
             type="button"
-            className="btn primary"
+            colorScheme="primary"
             onClick={onSnapshot}
             disabled={!resumeId || state === 'snapshotting'}
           >
             {state === 'snapshotting' ? 'Saving…' : '+ Save snapshot'}
-          </button>
-          <button type="button" className="btn secondary" onClick={openInEditor} disabled={!resumeId}>
+          </TkxButton>
+          <TkxButton type="button" variant="outline" onClick={openInEditor} disabled={!resumeId}>
             Open in editor
-          </button>
+          </TkxButton>
         </div>
       </div>
 
@@ -246,22 +243,22 @@ export default function VersionsClient() {
                 </span>
               </div>
               <div className="version-row__actions">
-                <button
+                <TkxButton
                   type="button"
-                  className="btn tertiary"
+                  variant="ghost"
                   onClick={() => onRestore(v)}
                   disabled={state === 'restoring'}
                 >
                   Restore
-                </button>
-                <button
+                </TkxButton>
+                <TkxButton
                   type="button"
-                  className="btn tertiary danger"
+                  variant="ghost" colorScheme="danger"
                   onClick={() => onDelete(v)}
                   disabled={state === 'deleting'}
                 >
                   Delete
-                </button>
+                </TkxButton>
               </div>
             </li>
           ))}

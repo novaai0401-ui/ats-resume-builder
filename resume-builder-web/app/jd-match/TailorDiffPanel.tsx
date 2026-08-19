@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/src/lib/api';
 import OutcomeInsightCallout from '@/src/components/OutcomeInsightCallout';
+import { TkxButton } from 'tekivex-ui';
 
 /**
  * R-034 — Tailor Diff panel.
@@ -178,16 +179,16 @@ export default function TailorDiffPanel({
           <Link className="btn" href={`/resume/versions?id=${encodeURIComponent(resumeId)}`}>
             See in version history
           </Link>
-          <button
+          <TkxButton
             type="button"
-            className="btn ghost"
+            variant="ghost"
             onClick={() => {
               setApplied(null);
               setError(null);
             }}
           >
             Tailor another way
-          </button>
+          </TkxButton>
         </div>
       </section>
     );
@@ -322,17 +323,17 @@ export default function TailorDiffPanel({
         </div>
 
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>
-          <button
+          <TkxButton
             type="button"
-            className="btn"
+           
             onClick={apply}
             disabled={applying || selected === 0}
           >
             {applying ? 'Saving…' : `Apply ${selected} change${selected === 1 ? '' : 's'}`}
-          </button>
-          <button
+          </TkxButton>
+          <TkxButton
             type="button"
-            className="btn ghost"
+            variant="ghost"
             onClick={() => {
               setProposal(null);
               setError(null);
@@ -340,7 +341,7 @@ export default function TailorDiffPanel({
             disabled={applying}
           >
             Discard
-          </button>
+          </TkxButton>
         </div>
         {error ? (
           <p className="hint error" style={{ marginTop: 10 }}>{error}</p>
@@ -363,14 +364,14 @@ export default function TailorDiffPanel({
         new resume version — your live resume stays as it is. (~2,500 AI tokens.)
       </p>
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-        <button
+        <TkxButton
           type="button"
-          className="btn"
+         
           onClick={propose}
           disabled={loading || jdText.trim().length < 80}
         >
           {loading ? 'Tailoring…' : 'Tailor my resume for this JD'}
-        </button>
+        </TkxButton>
         {jdText.trim().length < 80 ? (
           <span className="small" style={{ alignSelf: 'center', color: 'var(--muted)' }}>
             Paste the full JD above to enable tailoring.

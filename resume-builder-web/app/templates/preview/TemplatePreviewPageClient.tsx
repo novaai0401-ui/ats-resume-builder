@@ -8,6 +8,7 @@ import { templates, type TemplateId } from '@/src/components/TemplatePreview';
 import ResumeTemplateRender from '@/src/components/ResumeTemplateRender';
 import { getSampleResumeForIndustry } from '@/src/lib/sample-resume-data';
 import { buildResumePreview, persistActiveResumeSelection, resolveCurrentSessionResumeId, resumeFromApi } from '@/src/lib/resume-flow';
+import { TkxButton } from 'tekivex-ui';
 
 const VALID_TEMPLATE_IDS = new Set(templates.map((template) => template.id));
 
@@ -271,19 +272,19 @@ export default function TemplatePreviewPageClient({
         <h3 style={{ marginTop: 0 }}>Actions</h3>
         <p className="small">{selectedTemplate?.description || 'Select a template from dashboard preview cards.'}</p>
         <div style={{ display: 'grid', gap: 8, marginTop: 12 }}>
-          <button className="btn" onClick={handleApplyTemplate} disabled={!resume || !activeResumeId || saving || loading}>
+          <TkxButton onClick={handleApplyTemplate} disabled={!resume || !activeResumeId || saving || loading}>
             {saving ? 'Applying...' : 'Apply Template'}
-          </button>
-          <button
-            className="btn secondary"
+          </TkxButton>
+          <TkxButton
+            variant="outline"
             onClick={() => router.push(activeResumeId ? `/resume?id=${encodeURIComponent(activeResumeId)}&template=${encodeURIComponent(templateId)}` : '/resume')}
             disabled={!activeResumeId}
           >
             Edit Resume
-          </button>
-          <button className="btn secondary" onClick={() => router.push('/dashboard')}>
+          </TkxButton>
+          <TkxButton variant="outline" onClick={() => router.push('/dashboard')}>
             Back to Dashboard
-          </button>
+          </TkxButton>
         </div>
         {message ? (
           <div className="message-banner" style={{ marginTop: 12 }}>

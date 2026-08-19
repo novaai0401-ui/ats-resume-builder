@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
-import { TkxDrawer } from 'tekivex-ui';
+import { TkxButton, TkxDrawer } from 'tekivex-ui';
 import { api, getAccessToken, isCurrentUserAdmin, startSessionHeartbeat } from '@/src/lib/api';
 import { NAV_HUBS, activeHubKey, type HubKey } from '@/src/lib/nav-hubs';
 import { classifyDevice, isInstallTargetDevice } from '@/src/lib/device';
@@ -138,7 +138,7 @@ export default function TopNav() {
         </Link>
       ) : null}
       {authed ? (
-        <button className="btn secondary" type="button" onClick={onLogout}>Logout</button>
+        <TkxButton variant="outline" type="button" onClick={onLogout}>Logout</TkxButton>
       ) : (
         <>
           {/* Public nav (R-089): the critique found the best pre-signup

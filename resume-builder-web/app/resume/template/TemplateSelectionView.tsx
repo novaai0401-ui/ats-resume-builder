@@ -17,6 +17,7 @@ import { recommendTemplates } from '@/src/lib/template-recommendation';
 import { useResumeStore, type ResumeDraft } from '@/src/lib/resume-store';
 import { TemplatePreviewFrame } from '@/src/components/TemplatePreviewFrame';
 import { resolveTemplateId, templateRegistry, type TemplateId } from '@/shared/templateRegistry';
+import { TkxButton } from 'tekivex-ui';
 
 function friendlyPdfError(error: unknown, fallback: string): string {
   if (isApiRequestError(error)) {
@@ -406,15 +407,15 @@ export default function TemplateSelectionView({
               Printing or saving this page produces a watermarked copy. Use Download for a
               clean, ATS-ready PDF without the watermark.
             </p>
-            <button
+            <TkxButton
               type="button"
-              className="btn"
+             
               onClick={() => {
                 if (typeof window !== 'undefined') window.location.href = cleanDownloadHref;
               }}
             >
               Download clean copy
-            </button>
+            </TkxButton>
           </aside>
         )}
         {previewResume ? (
@@ -528,22 +529,22 @@ export default function TemplateSelectionView({
               onChange={(event) => handleUpload(event.target.files?.[0])}
             />
           </label>
-          <button className="btn" onClick={handleSaveTemplate} disabled={!resumeDraft || saving}>
+          <TkxButton onClick={handleSaveTemplate} disabled={!resumeDraft || saving}>
             {saving ? 'Applying...' : 'Use Template'}
-          </button>
-          <button
-            className="btn secondary"
+          </TkxButton>
+          <TkxButton
+            variant="outline"
             onClick={() => router.push(resumeId ? `/resume?id=${encodeURIComponent(resumeId)}&template=${encodeURIComponent(selectedTemplate)}` : '/resume')}
             disabled={!resumeId}
           >
             Edit Resume
-          </button>
-          <button className="btn secondary" onClick={handleDownload} disabled={!resumeId || downloading}>
+          </TkxButton>
+          <TkxButton variant="outline" onClick={handleDownload} disabled={!resumeId || downloading}>
             {downloading ? 'Preparing PDF...' : 'Download PDF'}
-          </button>
-          <button className="btn secondary" onClick={() => router.push('/dashboard')}>
+          </TkxButton>
+          <TkxButton variant="outline" onClick={() => router.push('/dashboard')}>
             Back to Dashboard
-          </button>
+          </TkxButton>
           {toast && <span className="small" style={{ marginLeft: 'auto' }}>{toast}</span>}
         </div>
       </section>

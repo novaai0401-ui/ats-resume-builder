@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { PROFESSION_INDUSTRIES, TEMPLATE_CATALOG, getIndustryById } from 'resume-builder-shared';
-import { TkxEmpty, TkxSelect, TkxSkeleton } from 'tekivex-ui';
+import { TkxButton, TkxEmpty, TkxInput, TkxSelect, TkxSkeleton } from 'tekivex-ui';
 import { api, getAccessToken, type DriveSessionResponse, type Resume } from '@/src/lib/api';
 import TemplateCatalogGrid from '@/src/components/templates/TemplateCatalogGrid';
 import {
@@ -362,10 +362,8 @@ export default function DashboardPageView({
           {sortedResumes.length > 0 ? (
             <div style={{ display: 'grid', gap: 8, minWidth: 260, flex: '1 1 260px' }}>
               {shouldShowSearch ? (
-                <label style={{ display: 'grid', gap: 6 }}>
-                  <span className="small">Search resumes <span style={{ color: 'var(--muted)', fontWeight: 400 }}>— filters the list below</span></span>
-                  <input
-                    className="input"
+                <TkxInput label="Search resumes — filters the list below"
+                   
                     type="search"
                     inputMode="search"
                     enterKeyHint="search"
@@ -375,7 +373,6 @@ export default function DashboardPageView({
                     onChange={(e) => setSearchQuery(e.target.value)}
                     data-testid="dashboard-resume-search"
                   />
-                </label>
               ) : null}
               {/* TkxSelect rather than a raw <select>: the native control cannot
                * be themed (the option list is painted by the OS, so it stayed
@@ -486,8 +483,8 @@ export default function DashboardPageView({
             <Link className="btn secondary" href="/resume/start">
               Create Resume
             </Link>
-            <button
-              className="btn"
+            <TkxButton
+             
               type="button"
               onClick={() => {
                 if (activeResume?.id) {
@@ -498,7 +495,7 @@ export default function DashboardPageView({
               }}
             >
               Start from Template
-            </button>
+            </TkxButton>
           </div>
         </div>
 
@@ -589,12 +586,12 @@ export default function DashboardPageView({
             Import resumes from Drive to speed up setup.
           </p>
           <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
-            <button className="btn secondary" type="button" onClick={handleLater} disabled={consentLoading}>
+            <TkxButton variant="outline" type="button" onClick={handleLater} disabled={consentLoading}>
               Later
-            </button>
-            <button className="btn" type="button" onClick={handleConnect} disabled={consentLoading}>
+            </TkxButton>
+            <TkxButton type="button" onClick={handleConnect} disabled={consentLoading}>
               Connect
-            </button>
+            </TkxButton>
           </div>
         </div>
       )}

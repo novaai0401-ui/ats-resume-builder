@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { TkxTextarea, TkxSelect } from 'tekivex-ui';
+import { TkxButton, TkxSelect, TkxTextarea } from 'tekivex-ui';
 import { PROFESSION_INDUSTRIES, getIndustryById, getRoleById } from 'resume-builder-shared';
 import { api, type Resume, type TechGapResult } from '@/src/lib/api';
 import FreeAiNotice from '@/src/components/FreeAiNotice';
@@ -255,10 +255,10 @@ export default function CareerNavigatorClient() {
                 .map((s) => s.toLowerCase())
                 .includes(skill.toLowerCase());
               return (
-                <button
+                <TkxButton
                   key={skill}
                   type="button"
-                  className="btn ghost"
+                  variant="ghost"
                   disabled={alreadyListed}
                   style={{
                     fontSize: '0.75rem',
@@ -275,7 +275,7 @@ export default function CareerNavigatorClient() {
                   }}
                 >
                   + {skill}
-                </button>
+                </TkxButton>
               );
             })}
           </div>
@@ -364,18 +364,18 @@ export default function CareerNavigatorClient() {
         </div>
 
         <div style={{ marginTop: 16, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          <button
+          <TkxButton
             type="button"
-            className="btn"
+           
             onClick={handleAnalyze}
             disabled={status === 'analyzing'}
           >
             {status === 'analyzing' ? 'Analyzing...' : 'Recommend next skills'}
-          </button>
+          </TkxButton>
           {result ? (
-            <button type="button" className="btn ghost" onClick={resetResults}>
+            <TkxButton type="button" variant="ghost" onClick={resetResults}>
               Clear results
-            </button>
+            </TkxButton>
           ) : null}
         </div>
 

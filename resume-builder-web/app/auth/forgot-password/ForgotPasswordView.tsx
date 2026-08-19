@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/src/lib/api';
-import { TkxButton } from 'tekivex-ui';
+import { TkxButton, TkxInput } from 'tekivex-ui';
 import { SupportHelpLink } from '@/src/components/SupportHelpLink';
 
 export default function ForgotPasswordView() {
@@ -47,10 +47,9 @@ export default function ForgotPasswordView() {
         </p>
 
         <form onSubmit={onSubmit} style={{ display: 'grid', gap: 12 }}>
-          <label className="label" htmlFor="forgot-email">Email</label>
-          <input
+          <TkxInput label="Email"
             id="forgot-email"
-            className="input"
+           
             type="email"
             inputMode="email"
             autoComplete="email"
@@ -70,9 +69,9 @@ export default function ForgotPasswordView() {
           {message ? (
             <div className="message-banner success" role="status">
               <p className="small">{message}</p>
-              <button type="button" className="btn ghost" onClick={goToReset} style={{ marginTop: 8 }}>
+              <TkxButton type="button" variant="ghost" onClick={goToReset} style={{ marginTop: 8 }}>
                 I have a code — continue →
-              </button>
+              </TkxButton>
             </div>
           ) : null}
           {error ? <div className="message-banner"><p className="small">{error}</p></div> : null}

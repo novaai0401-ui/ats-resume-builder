@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { api, getCurrentUserEmail } from '@/src/lib/api';
 import { SUPPORT_EMAIL, supportMailto } from '@/src/lib/support';
 import { useFocusTrap } from '@/src/lib/use-focus-trap';
+import { TkxButton } from 'tekivex-ui';
 
 type RazorpayInitResult = {
   provider: 'razorpay';
@@ -217,10 +218,10 @@ export default function DownloadChargeModal({
           </p>
         )}
         <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
-          <button className="btn secondary" onClick={onCancel} disabled={busy}>Cancel</button>
-          <button className="btn" onClick={handlePay} disabled={busy || !init}>
+          <TkxButton variant="outline" onClick={onCancel} disabled={busy}>Cancel</TkxButton>
+          <TkxButton onClick={handlePay} disabled={busy || !init}>
             {busy ? 'Please wait…' : `Pay ${amountLabel}`}
-          </button>
+          </TkxButton>
         </div>
       </div>
     </div>

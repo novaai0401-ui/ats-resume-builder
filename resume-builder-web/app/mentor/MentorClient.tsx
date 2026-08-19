@@ -23,7 +23,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { TkxSelect } from 'tekivex-ui';
+import { TkxButton, TkxSelect } from 'tekivex-ui';
 import { getAccessToken } from '@/src/lib/api';
 import { loadByokKey } from '@/src/lib/byok-storage';
 import {
@@ -247,13 +247,13 @@ export default function MentorClient() {
           </div>
         </div>
         <div style={{ marginTop: 12 }}>
-          <button
-            className="btn"
+          <TkxButton
+           
             onClick={() => setShowResult(true)}
             disabled={!seed}
           >
             Show my path
-          </button>
+          </TkxButton>
         </div>
       </section>
 

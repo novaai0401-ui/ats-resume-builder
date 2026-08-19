@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getAccessToken } from '@/src/lib/api';
+import { TkxButton } from 'tekivex-ui';
 
 /**
  * R-037 — Settings card: your referral link + credit balance.
@@ -100,9 +101,9 @@ export default function ReferralCard() {
             >
               {referralUrl(me.code)}
             </code>
-            <button className="btn" onClick={copy} style={{ fontSize: 13, padding: '6px 14px' }}>
+            <TkxButton onClick={copy} style={{ fontSize: 13, padding: '6px 14px' }}>
               {copied ? 'Copied ✓' : 'Copy link'}
-            </button>
+            </TkxButton>
           </div>
           <p className="small" style={{ margin: '10px 0 0', color: 'var(--muted)' }}>
             {me.creditedReferrals} successful referral{me.creditedReferrals === 1 ? '' : 's'} ·{' '}

@@ -16,6 +16,13 @@ globalThis.window = dom.window as unknown as Window & typeof globalThis;
 globalThis.document = dom.window.document;
 globalThis.navigator = dom.window.navigator;
 globalThis.self = dom.window;
+// jsdom lacks matchMedia; tekivex-ui components (theme hooks) call it on mount.
+// The auth views now render TkxInput/TkxButton, so this shim is needed here as
+// well — same shape as login.page.test.tsx already uses.
+if (!dom.window.matchMedia) {
+  // @ts-expect-error test shim
+  dom.window.matchMedia = (q: string) => ({ matches: false, media: q, onchange: null, addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {}, dispatchEvent() { return false; } });
+}
 globalThis.HTMLElement = dom.window.HTMLElement;
 globalThis.localStorage = dom.window.localStorage;
 globalThis.sessionStorage = dom.window.sessionStorage;

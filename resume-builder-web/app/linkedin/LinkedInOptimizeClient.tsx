@@ -16,7 +16,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { TkxTextarea } from 'tekivex-ui';
+import { TkxButton, TkxTextarea } from 'tekivex-ui';
 import { api, getAccessToken } from '@/src/lib/api';
 import AiTrustNote from '@/src/components/AiTrustNote';
 import { handleFreeTrialError } from '@/src/lib/free-trial';
@@ -157,13 +157,13 @@ export default function LinkedInOptimizeClient() {
           style={{ resize: 'vertical', minHeight: 220 }}
         />
         <div style={{ marginTop: 12, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <button className="btn" onClick={handleAnalyze} disabled={loading}>
+          <TkxButton onClick={handleAnalyze} disabled={loading}>
             {loading ? 'Analyzing…' : 'Analyze my LinkedIn'}
-          </button>
+          </TkxButton>
           {profileText ? (
-            <button className="btn ghost" onClick={() => { setProfileText(''); setResult(null); setError(''); setRateLimited(false); }}>
+            <TkxButton variant="ghost" onClick={() => { setProfileText(''); setResult(null); setError(''); setRateLimited(false); }}>
               Clear
-            </button>
+            </TkxButton>
           ) : null}
         </div>
         {error ? <p className="hint error" style={{ marginTop: 10 }}>{error}</p> : null}
@@ -235,9 +235,9 @@ export default function LinkedInOptimizeClient() {
               <ul style={{ paddingLeft: 0, listStyle: 'none', margin: 0 }}>
                 <li className="bullet-rewrite-option">
                   <span style={{ flex: 1 }}>{result.suggestedHeadline}</span>
-                  <button className="btn" style={{ fontSize: 12, padding: '4px 10px' }} onClick={() => copyText(result.suggestedHeadline!, 'headline')}>
+                  <TkxButton style={{ fontSize: 12, padding: '4px 10px' }} onClick={() => copyText(result.suggestedHeadline!, 'headline')}>
                     {copiedKey === 'headline' ? 'Copied!' : 'Copy'}
-                  </button>
+                  </TkxButton>
                 </li>
               </ul>
             </section>
@@ -249,9 +249,9 @@ export default function LinkedInOptimizeClient() {
               <ul style={{ paddingLeft: 0, listStyle: 'none', margin: 0 }}>
                 <li className="bullet-rewrite-option" style={{ alignItems: 'flex-start' }}>
                   <span style={{ flex: 1, whiteSpace: 'pre-wrap' }}>{result.suggestedAbout}</span>
-                  <button className="btn" style={{ fontSize: 12, padding: '4px 10px' }} onClick={() => copyText(result.suggestedAbout!, 'about')}>
+                  <TkxButton style={{ fontSize: 12, padding: '4px 10px' }} onClick={() => copyText(result.suggestedAbout!, 'about')}>
                     {copiedKey === 'about' ? 'Copied!' : 'Copy'}
-                  </button>
+                  </TkxButton>
                 </li>
               </ul>
             </section>
@@ -269,9 +269,9 @@ export default function LinkedInOptimizeClient() {
                 ))}
               </div>
               <div style={{ marginTop: 10 }}>
-                <button className="btn ghost" style={{ fontSize: 12, padding: '4px 10px' }} onClick={() => copyText(result.suggestedSkills!.join(', '), 'skills')}>
+                <TkxButton variant="ghost" style={{ fontSize: 12, padding: '4px 10px' }} onClick={() => copyText(result.suggestedSkills!.join(', '), 'skills')}>
                   {copiedKey === 'skills' ? 'Copied!' : 'Copy all'}
-                </button>
+                </TkxButton>
               </div>
             </section>
           ) : null}

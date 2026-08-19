@@ -95,8 +95,8 @@ export default function LiveOpeningsPanel({ onTracked }: { onTracked: () => void
         <input className="input" placeholder="Role or skill, e.g. React Engineer" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && search()} style={{ flex: '1 1 220px' }} />
         <input className="input" placeholder="Location (optional)" value={location} onChange={(e) => setLocation(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && search()} style={{ flex: '1 1 160px' }} />
         <TkxButton variant="solid" colorScheme="primary" onClick={search} disabled={loading}>{loading ? 'Searching…' : 'Search'}</TkxButton>
-        <button
-          className="btn secondary"
+        <TkxButton
+          variant="outline"
           data-testid="save-job-alert"
           disabled={savingAlert || q.trim().length < 2}
           title="Email me when new openings match this search"
@@ -114,7 +114,7 @@ export default function LiveOpeningsPanel({ onTracked }: { onTracked: () => void
           }}
         >
           {savingAlert ? 'Saving…' : '🔔 Alert me'}
-        </button>
+        </TkxButton>
       </div>
       {prefilled ? (
         <p className="muted" style={{ fontSize: 12, marginTop: -4, marginBottom: 8 }}>
@@ -145,9 +145,9 @@ export default function LiveOpeningsPanel({ onTracked }: { onTracked: () => void
                   <a href={job.url} target="_blank" rel="noreferrer" style={{ fontWeight: 600 }}>{job.title}</a>
                   <div className="muted" style={{ fontSize: 12 }}>{[job.company, job.location, job.salaryText].filter(Boolean).join(' · ')}</div>
                 </div>
-                <button className="btn" onClick={() => track(job)} disabled={isTracked || tracking === job.url}>
+                <TkxButton onClick={() => track(job)} disabled={isTracked || tracking === job.url}>
                   {isTracked ? '✓ Tracked' : tracking === job.url ? 'Adding…' : '+ Track'}
-                </button>
+                </TkxButton>
               </div>
             );
           })}

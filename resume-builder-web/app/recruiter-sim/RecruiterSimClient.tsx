@@ -8,7 +8,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { TkxTextarea } from 'tekivex-ui';
+import { TkxButton, TkxTextarea } from 'tekivex-ui';
 import { presentVerdict } from 'resume-builder-shared';
 import { api, getAccessToken, type RecruiterSimResult } from '@/src/lib/api';
 import { useResumeStore } from '@/src/lib/resume-store';
@@ -110,9 +110,9 @@ export default function RecruiterSimClient() {
           </p>
         )}
         {error && <p className="small" style={{ color: '#a8412c' }}>{error}</p>}
-        <button className="btn" onClick={handleRun} disabled={loading} style={{ marginTop: 10 }}>
+        <TkxButton onClick={handleRun} disabled={loading} style={{ marginTop: 10 }}>
           {loading ? 'Running the screen…' : 'Run the AI screen'}
-        </button>
+        </TkxButton>
       </section>
 
       {result && (() => {

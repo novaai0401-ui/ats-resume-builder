@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getAccessToken } from '@/src/lib/api';
+import { TkxButton } from 'tekivex-ui';
 
 /**
  * R-038 Phase 2 — discovery surface inside the editor's Export modal.
@@ -154,9 +155,9 @@ export default function ShareInExportModal({ resumeId }: { resumeId: string | nu
           >
             {publicShareUrl(existing.slug)}
           </code>
-          <button className="btn" onClick={copy} style={{ fontSize: 13, padding: '6px 14px' }}>
+          <TkxButton onClick={copy} style={{ fontSize: 13, padding: '6px 14px' }}>
             {copied ? 'Copied ✓' : 'Copy link'}
-          </button>
+          </TkxButton>
           <a
             href={publicShareUrl(existing.slug)}
             target="_blank"
@@ -180,25 +181,25 @@ export default function ShareInExportModal({ resumeId }: { resumeId: string | nu
             You revoked this resume's share link. Create a new one (a fresh URL) or
             re-enable the old one from Settings.
           </p>
-          <button
-            className="btn"
+          <TkxButton
+           
             onClick={createLink}
             disabled={creating}
             style={{ fontSize: 13, padding: '6px 14px', marginTop: 6 }}
           >
             {creating ? 'Creating…' : 'Create a new share link'}
-          </button>
+          </TkxButton>
         </div>
       ) : (
         <div>
-          <button
-            className="btn"
+          <TkxButton
+           
             onClick={createLink}
             disabled={creating}
             style={{ fontSize: 13, padding: '6px 14px' }}
           >
             {creating ? 'Creating…' : 'Create a share link'}
-          </button>
+          </TkxButton>
           <p className="small" style={{ margin: '6px 0 0', color: '#5a6778' }}>
             We'll generate an unguessable URL. You can revoke it any time, mask
             your email + phone, or pin to a specific snapshot from Settings.

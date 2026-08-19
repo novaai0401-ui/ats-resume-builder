@@ -17,7 +17,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { TkxTextarea } from 'tekivex-ui';
+import { TkxButton, TkxTextarea } from 'tekivex-ui';
 import { api, getAccessToken } from '@/src/lib/api';
 import { useSavedResumeFallback } from '@/src/lib/use-saved-resume-fallback';
 import { loadByokKey } from '@/src/lib/byok-storage';
@@ -177,16 +177,16 @@ export default function MentorChatClient() {
               <p style={{ margin: 0, color: 'var(--muted)' }}>Start with one of these, or type your own:</p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
                 {STARTER_PROMPTS.map((p) => (
-                  <button
+                  <TkxButton
                     key={p}
                     type="button"
-                    className="btn ghost"
+                    variant="ghost"
                     style={{ fontSize: 12, lineHeight: 1.4, textAlign: 'left' }}
                     disabled={!canUseAi}
                     onClick={() => send(p)}
                   >
                     {p}
-                  </button>
+                  </TkxButton>
                 ))}
               </div>
             </div>
@@ -232,13 +232,13 @@ export default function MentorChatClient() {
             />
           </div>
           <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            <button type="submit" className="btn" disabled={!canSend}>
+            <TkxButton type="submit" disabled={!canSend}>
               {busy ? 'Sending…' : 'Send'}
-            </button>
+            </TkxButton>
             {messages.length > 0 ? (
-              <button type="button" className="btn ghost" onClick={clearChat} disabled={busy}>
+              <TkxButton type="button" variant="ghost" onClick={clearChat} disabled={busy}>
                 Restart conversation
-              </button>
+              </TkxButton>
             ) : null}
             <span className="small" style={{ color: 'var(--muted)', marginLeft: 'auto' }}>
               ⏎ to send · Shift+⏎ for newline

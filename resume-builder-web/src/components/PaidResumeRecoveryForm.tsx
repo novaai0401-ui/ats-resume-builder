@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { TkxSelect } from 'tekivex-ui';
+import { TkxButton, TkxInput, TkxSelect } from 'tekivex-ui';
 import { api } from '@/src/lib/api';
 import { SUPPORT_EMAIL } from '@/src/lib/support';
 
@@ -59,26 +59,20 @@ export function PaidResumeRecoveryForm() {
           straight to your account address. No extra charge.
         </p>
       </div>
-      <label className="small" style={{ display: 'grid', gap: 4 }}>
-        Resume name
-        <input
+      <TkxInput label="Resume name"
           type="text"
           value={resumeName}
           onChange={(e) => setResumeName(e.target.value)}
           placeholder="e.g. Software Engineer resume"
-          className="input"
+         
         />
-      </label>
-      <label className="small" style={{ display: 'grid', gap: 4 }}>
-        Payment ID (optional)
-        <input
+      <TkxInput label="Payment ID (optional)"
           type="text"
           value={paymentId}
           onChange={(e) => setPaymentId(e.target.value)}
           placeholder="pay_XXXXXXXX or order id"
-          className="input"
+         
         />
-      </label>
       <TkxSelect
         label="Format"
         value={format}
@@ -88,9 +82,9 @@ export function PaidResumeRecoveryForm() {
         ]}
         onChange={(value) => setFormat(String(value || '') as 'pdf' | 'docx')}
       />
-      <button type="submit" className="btn" disabled={!canSubmit}>
+      <TkxButton type="submit" disabled={!canSubmit}>
         {status === 'sending' ? 'Sending…' : 'Email me my resume'}
-      </button>
+      </TkxButton>
       {message && (
         <p
           className="small"

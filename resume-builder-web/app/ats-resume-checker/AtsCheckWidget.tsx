@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { isApiRequestError, publicAtsCheck, type PublicAtsCheckResult } from '@/src/lib/api';
-import { TkxTextarea } from 'tekivex-ui';
+import { TkxButton, TkxTextarea } from 'tekivex-ui';
 
 const MAX_CHARS = 20_000;
 
@@ -76,9 +76,9 @@ export default function AtsCheckWidget() {
         />
       </div>
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 10, flexWrap: 'wrap' }}>
-        <button className="btn" type="button" onClick={onCheck} disabled={busy}>
+        <TkxButton type="button" onClick={onCheck} disabled={busy}>
           {busy ? 'Checking…' : 'Check my resume'}
-        </button>
+        </TkxButton>
         <span className="small">{text.length.toLocaleString()} / {MAX_CHARS.toLocaleString()} characters</span>
       </div>
 

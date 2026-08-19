@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { TkxTextarea, TkxSelect } from 'tekivex-ui';
+import { TkxButton, TkxInput, TkxSelect, TkxTextarea } from 'tekivex-ui';
 import type { JobApplication, JobApplicationInput, JobStatus } from 'resume-builder-shared';
 import { api } from '@/src/lib/api';
 import DataLoader from '@/src/components/DataLoader';
@@ -186,9 +186,9 @@ export default function JobsTrackerClient() {
             your Kanban stays in sync with tailored resumes and cover letters.
           </p>
         </div>
-        <button type="button" className="btn primary" onClick={openNew}>
+        <TkxButton type="button" colorScheme="primary" onClick={openNew}>
           + New Application
-        </button>
+        </TkxButton>
       </div>
 
       <div className="jobs-stats" aria-label="Pipeline stats">
@@ -300,44 +300,29 @@ export default function JobsTrackerClient() {
           <form className="modal card" onSubmit={submitForm}>
             <h2 className="heading-lg">{editing ? 'Edit application' : 'New application'}</h2>
             <div className="form-grid">
-              <label>
-                Company *
-                <input
+              <TkxInput label="Company *"
                   required
                   value={form.company}
                   onChange={(e) => setForm({ ...form, company: e.target.value })}
                 />
-              </label>
-              <label>
-                Role *
-                <input
+              <TkxInput label="Role *"
                   required
                   value={form.role}
                   onChange={(e) => setForm({ ...form, role: e.target.value })}
                 />
-              </label>
-              <label>
-                JD URL
-                <input
+              <TkxInput label="JD URL"
                   type="url"
                   value={form.jdUrl || ''}
                   onChange={(e) => setForm({ ...form, jdUrl: e.target.value })}
                 />
-              </label>
-              <label>
-                Location
-                <input
+              <TkxInput label="Location"
                   value={form.location || ''}
                   onChange={(e) => setForm({ ...form, location: e.target.value })}
                 />
-              </label>
-              <label>
-                Salary range
-                <input
+              <TkxInput label="Salary range"
                   value={form.salaryRange || ''}
                   onChange={(e) => setForm({ ...form, salaryRange: e.target.value })}
                 />
-              </label>
               <TkxSelect
                 label="Status"
                 value={form.status || 'wishlist'}
@@ -361,29 +346,20 @@ export default function JobsTrackerClient() {
                   <option value="job-board" />
                 </datalist>
               </label>
-              <label>
-                Referral
-                <input
+              <TkxInput label="Referral"
                   value={form.referral || ''}
                   onChange={(e) => setForm({ ...form, referral: e.target.value })}
                 />
-              </label>
-              <label>
-                Next action
-                <input
+              <TkxInput label="Next action"
                   type="date"
                   value={typeof form.nextActionAt === 'string' ? form.nextActionAt : ''}
                   onChange={(e) => setForm({ ...form, nextActionAt: e.target.value })}
                 />
-              </label>
-              <label>
-                Applied on
-                <input
+              <TkxInput label="Applied on"
                   type="date"
                   value={typeof form.appliedAt === 'string' ? form.appliedAt : ''}
                   onChange={(e) => setForm({ ...form, appliedAt: e.target.value })}
                 />
-              </label>
               <div className="form-full">
                 <TkxTextarea
                   label="Notes"
@@ -402,12 +378,12 @@ export default function JobsTrackerClient() {
               </div>
             </div>
             <div className="form-actions">
-              <button type="button" className="btn secondary" onClick={closeForm}>
+              <TkxButton type="button" variant="outline" onClick={closeForm}>
                 Cancel
-              </button>
-              <button type="submit" className="btn primary" disabled={loadState === 'saving'}>
+              </TkxButton>
+              <TkxButton type="submit" colorScheme="primary" disabled={loadState === 'saving'}>
                 {loadState === 'saving' ? 'Saving…' : editing ? 'Save changes' : 'Add application'}
-              </button>
+              </TkxButton>
             </div>
           </form>
         </div>
@@ -465,9 +441,9 @@ function KanbanColumn({
                 </div>
               ) : null}
               <div className="kanban-card__actions">
-                <button className="btn tertiary" onClick={() => onEdit(job)} type="button">
+                <TkxButton variant="ghost" onClick={() => onEdit(job)} type="button">
                   Edit
-                </button>
+                </TkxButton>
                 {/* TkxSelect exposes no aria-label prop, so the accessible name
                  * has to come from its `label`. Rendering it visibly is the
                  * honest trade: the raw select relied on aria-label alone, which
@@ -483,9 +459,9 @@ function KanbanColumn({
                   }))}
                   onChange={(value) => onMove(job, String(value || '') as JobStatus)}
                 />
-                <button className="btn tertiary danger" onClick={() => onDelete(job)} type="button">
+                <TkxButton variant="ghost" colorScheme="danger" onClick={() => onDelete(job)} type="button">
                   Delete
-                </button>
+                </TkxButton>
               </div>
             </li>
           ))}

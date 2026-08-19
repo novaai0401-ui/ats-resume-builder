@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, getAccessToken, clearAuthTokens, refresh, setAuthTokens } from '@/src/lib/api';
+import { TkxButton } from 'tekivex-ui';
 
 /** Session duration in ms (30 minutes). */
 const SESSION_DURATION_MS = 30 * 60 * 1000;
@@ -150,12 +151,12 @@ export default function SessionWarningModal() {
         <div className="session-warning-modal__countdown">{timeDisplay}</div>
         <p className="small">Would you like to continue your session?</p>
         <div className="session-warning-modal__actions">
-          <button className="btn" onClick={handleContinue} disabled={extending}>
+          <TkxButton onClick={handleContinue} disabled={extending}>
             {extending ? 'Extending...' : 'Continue Session'}
-          </button>
-          <button className="btn secondary" onClick={doLogout}>
+          </TkxButton>
+          <TkxButton variant="outline" onClick={doLogout}>
             Logout
-          </button>
+          </TkxButton>
         </div>
       </div>
     </div>

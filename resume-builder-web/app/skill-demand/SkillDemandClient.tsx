@@ -12,6 +12,7 @@ import Link from 'next/link';
 import { api, type SkillDemandResult, type SkillDemandItem } from '@/src/lib/api';
 import { useSavedResumeFallback } from '@/src/lib/use-saved-resume-fallback';
 import { handleFreeTrialError } from '@/src/lib/free-trial';
+import { TkxButton } from 'tekivex-ui';
 
 const DEMAND_COLOR: Record<SkillDemandItem['demand'], string> = {
   'very-high': '#147a3a',
@@ -73,9 +74,9 @@ export default function SkillDemandClient() {
           style={{ marginTop: 8, maxWidth: 360 }}
         />
         {error && <p className="small" style={{ color: '#a8412c' }}>{error}</p>}
-        <button className="btn" onClick={run} disabled={loading} style={{ marginTop: 8 }}>
+        <TkxButton onClick={run} disabled={loading} style={{ marginTop: 8 }}>
           {loading ? 'Analyzing…' : 'Analyze my skills'}
-        </button>
+        </TkxButton>
       </section>
 
       {result && (

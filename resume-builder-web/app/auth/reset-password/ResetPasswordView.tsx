@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/src/lib/api';
 import { MIN_PASSWORD_LENGTH, PASSWORD_MIN_HINT, PASSWORD_TOO_SHORT_MESSAGE } from 'resume-builder-shared';
+import { TkxButton, TkxInput } from 'tekivex-ui';
 
 export default function ResetPasswordView() {
   const router = useRouter();
@@ -66,10 +67,9 @@ export default function ResetPasswordView() {
         </p>
 
         <form onSubmit={onSubmit} style={{ display: 'grid', gap: 12 }}>
-          <label className="label" htmlFor="reset-email">Email</label>
-          <input
+          <TkxInput label="Email"
             id="reset-email"
-            className="input"
+           
             type="email"
             inputMode="email"
             autoComplete="email"
@@ -81,10 +81,9 @@ export default function ResetPasswordView() {
             required
           />
 
-          <label className="label" htmlFor="reset-otp">Reset code</label>
-          <input
+          <TkxInput label="Reset code"
             id="reset-otp"
-            className="input"
+           
             type="text"
             inputMode="numeric"
             autoComplete="one-time-code"
@@ -96,10 +95,9 @@ export default function ResetPasswordView() {
             required
           />
 
-          <label className="label" htmlFor="reset-new">New password</label>
-          <input
+          <TkxInput label="New password"
             id="reset-new"
-            className="input"
+           
             type="password"
             autoComplete="new-password"
             placeholder={PASSWORD_MIN_HINT}
@@ -109,10 +107,9 @@ export default function ResetPasswordView() {
             minLength={MIN_PASSWORD_LENGTH}
           />
 
-          <label className="label" htmlFor="reset-confirm">Confirm password</label>
-          <input
+          <TkxInput label="Confirm password"
             id="reset-confirm"
-            className="input"
+           
             type="password"
             autoComplete="new-password"
             placeholder="Re-enter new password"
@@ -122,25 +119,25 @@ export default function ResetPasswordView() {
             minLength={MIN_PASSWORD_LENGTH}
           />
 
-          <button className="btn" type="submit" disabled={status === 'submitting' || status === 'done'}>
+          <TkxButton type="submit" disabled={status === 'submitting' || status === 'done'}>
             {status === 'submitting'
               ? 'Updating…'
               : status === 'done'
                 ? 'Password updated'
                 : 'Reset password'}
-          </button>
+          </TkxButton>
 
           {message ? (
             <div className="message-banner success" role="status">
               <p className="small">{message}</p>
-              <button
+              <TkxButton
                 type="button"
-                className="btn ghost"
+                variant="ghost"
                 onClick={() => router.push('/auth/login')}
                 style={{ marginTop: 8 }}
               >
                 Sign in →
-              </button>
+              </TkxButton>
             </div>
           ) : null}
           {error ? <div className="message-banner"><p className="small">{error}</p></div> : null}

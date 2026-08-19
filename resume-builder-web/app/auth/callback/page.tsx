@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { setAuthTokens, isCurrentUserAdmin } from '@/src/lib/api';
 import { Suspense } from 'react';
+import { TkxButton } from 'tekivex-ui';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001';
 
@@ -135,9 +136,9 @@ function CallbackHandler() {
         {error && (
           <div className="message-banner" style={{ marginTop: 12 }}>
             <p className="small">{error}</p>
-            <button className="btn" onClick={() => router.push('/auth/login')} style={{ marginTop: 8 }}>
+            <TkxButton onClick={() => router.push('/auth/login')} style={{ marginTop: 8 }}>
               Back to Login
-            </button>
+            </TkxButton>
           </div>
         )}
       </section>

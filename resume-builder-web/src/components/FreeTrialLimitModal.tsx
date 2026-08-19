@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useFocusTrap } from '@/src/lib/use-focus-trap';
 import { FREE_AI_RESUME_LOCKED_CODE, type FreeTrialBlock } from '@/src/lib/free-trial';
+import { TkxButton } from 'tekivex-ui';
 
 /**
  * R-098 — the "you've already used this one" popup.
@@ -71,9 +72,9 @@ export default function FreeTrialLimitModal({
             <Link className="btn ghost" href="/settings" onClick={onClose}>
               Add my own AI key (free)
             </Link>
-            <button className="btn secondary" onClick={onClose} autoFocus>
+            <TkxButton variant="outline" onClick={onClose} autoFocus>
               Close
-            </button>
+            </TkxButton>
           </div>
         </div>
       </div>
@@ -176,9 +177,9 @@ export default function FreeTrialLimitModal({
           <Link className="btn ghost" href="/settings" onClick={onClose}>
             Add my own AI key (free)
           </Link>
-          <button className="btn secondary" onClick={onClose} autoFocus>
+          <TkxButton variant="outline" onClick={onClose} autoFocus>
             Close
-          </button>
+          </TkxButton>
         </div>
       </div>
     </div>

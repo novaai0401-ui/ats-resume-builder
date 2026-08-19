@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { TkxTextarea, TkxSelect } from 'tekivex-ui';
+import { TkxButton, TkxInput, TkxSelect, TkxTextarea } from 'tekivex-ui';
 import type {
   JobApplication,
   NetworkContact,
@@ -202,9 +202,9 @@ export default function ContactsClient() {
             Set a follow-up date and no good connection goes cold.
           </p>
         </div>
-        <button type="button" className="btn primary" onClick={openNew}>
+        <TkxButton type="button" colorScheme="primary" onClick={openNew}>
           + Add contact
-        </button>
+        </TkxButton>
       </div>
 
       {error ? (
@@ -301,12 +301,12 @@ export default function ContactsClient() {
                       </span>
                     ) : null}
                     <div style={{ display: 'flex', gap: 8, marginTop: 8, justifyContent: 'flex-end' }}>
-                      <button type="button" className="btn secondary" onClick={() => openEdit(contact)}>
+                      <TkxButton type="button" variant="outline" onClick={() => openEdit(contact)}>
                         Edit
-                      </button>
-                      <button type="button" className="btn secondary" onClick={() => removeContact(contact)}>
+                      </TkxButton>
+                      <TkxButton type="button" variant="outline" onClick={() => removeContact(contact)}>
                         Delete
-                      </button>
+                      </TkxButton>
                     </div>
                   </div>
                 </div>
@@ -321,14 +321,11 @@ export default function ContactsClient() {
           <form className="modal card" onSubmit={submitForm}>
             <h2 className="heading-lg">{editing ? 'Edit contact' : 'New contact'}</h2>
             <div className="form-grid">
-              <label>
-                Name *
-                <input
+              <TkxInput label="Name *"
                   required
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                 />
-              </label>
               <TkxSelect
                 label="Relationship"
                 value={form.relationship || 'other'}
@@ -340,51 +337,33 @@ export default function ContactsClient() {
                   setForm({ ...form, relationship: String(value || '') as ContactRelationship })
                 }
               />
-              <label>
-                Company
-                <input
+              <TkxInput label="Company"
                   value={form.company || ''}
                   onChange={(e) => setForm({ ...form, company: e.target.value })}
                 />
-              </label>
-              <label>
-                Title
-                <input
+              <TkxInput label="Title"
                   value={form.title || ''}
                   onChange={(e) => setForm({ ...form, title: e.target.value })}
                 />
-              </label>
-              <label>
-                Email
-                <input
+              <TkxInput label="Email"
                   type="email"
                   value={form.email || ''}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
                 />
-              </label>
-              <label>
-                LinkedIn URL
-                <input
+              <TkxInput label="LinkedIn URL"
                   type="url"
                   value={form.linkedinUrl || ''}
                   onChange={(e) => setForm({ ...form, linkedinUrl: e.target.value })}
                 />
-              </label>
-              <label>
-                Phone
-                <input
+              <TkxInput label="Phone"
                   value={form.phone || ''}
                   onChange={(e) => setForm({ ...form, phone: e.target.value })}
                 />
-              </label>
-              <label>
-                Next follow-up
-                <input
+              <TkxInput label="Next follow-up"
                   type="date"
                   value={typeof form.nextFollowUpAt === 'string' ? form.nextFollowUpAt : ''}
                   onChange={(e) => setForm({ ...form, nextFollowUpAt: e.target.value })}
                 />
-              </label>
               <TkxSelect
                 label="Linked application"
                 searchable
@@ -404,12 +383,12 @@ export default function ContactsClient() {
               </div>
             </div>
             <div className="form-actions">
-              <button type="button" className="btn secondary" onClick={closeForm}>
+              <TkxButton type="button" variant="outline" onClick={closeForm}>
                 Cancel
-              </button>
-              <button type="submit" className="btn primary" disabled={loadState === 'saving'}>
+              </TkxButton>
+              <TkxButton type="submit" colorScheme="primary" disabled={loadState === 'saving'}>
                 {loadState === 'saving' ? 'Saving…' : editing ? 'Save changes' : 'Add contact'}
-              </button>
+              </TkxButton>
             </div>
           </form>
         </div>
