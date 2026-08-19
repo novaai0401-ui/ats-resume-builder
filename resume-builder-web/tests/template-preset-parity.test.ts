@@ -287,3 +287,26 @@ test('each preset template renders its own modifier class and header treatment',
     }
   }
 });
+
+test('the export id normaliser accepts every catalogued template, not a second allowlist', () => {
+  // Regression guard. normalizeTemplateId used to carry its OWN hardcoded list
+  // of 15 ids and quietly return 'classic' for anything else. A template could
+  // therefore be catalogued, registered, and previewed correctly while every
+  // download came out as Classic — which is exactly what the 2026 intake hit.
+  // The catalog is the single source of truth for which ids exist.
+  const apiSource = readFileSync(API_SERVICE, 'utf8');
+  const start = apiSource.indexOf('function normalizeTemplateId');
+  assert.ok(start > -1, 'normalizeTemplateId not found');
+  const body = apiSource.slice(start, apiSource.indexOf('\nfunction ', start + 10));
+
+  assert.match(
+    body,
+    /TEMPLATE_CATALOG\.some\(\s*\(?template\)?\s*=>\s*template\.id === normalized\s*\)/,
+    'normalizeTemplateId must accept ids by checking TEMPLATE_CATALOG, not a hardcoded array',
+  );
+  // The old failure mode was an inline array of template ids used as a gate.
+  assert.ok(
+    !/\[\s*'classic',\s*'modern',/.test(body),
+    'normalizeTemplateId still contains a hardcoded id allowlist',
+  );
+});

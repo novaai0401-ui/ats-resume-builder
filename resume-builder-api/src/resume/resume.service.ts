@@ -7,7 +7,7 @@ import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { JD_STOPWORDS, SECTION_LABEL_WORDS, filterJdKeywords } from '../lib/keyword-stopwords';
 import type { AtsIssue, AtsSectionKey, CreateResumeDto, UpdateResumeDto } from 'resume-builder-shared';
-import { designCssText, normalizeAccentColor, normalizePhotoUrl, templateSupportsPhoto, resolveSectionOrder, templatePreset } from 'resume-builder-shared';
+import { designCssText, normalizeAccentColor, normalizePhotoUrl, templateSupportsPhoto, resolveSectionOrder, templatePreset, TEMPLATE_CATALOG } from 'resume-builder-shared';
 import { ResumeSectionsSchema } from 'resume-schemas';
 import { ensureUsagePeriod } from '../billing/usage';
 import { rateLimitOrThrow } from '../limits/rate-limit';
@@ -5853,10 +5853,18 @@ function normalizeTemplateId(value: unknown) {
     visual: 'accent-header',
   };
   const normalized = aliases[raw] || raw;
-  if ([
-    'classic', 'modern', 'executive', 'technical', 'minimal', 'consultant', 'graduate',
-    'academic', 'healthcare', 'medical-coder', 'ai-ml-engineer', 'product-manager', 'creative', 'sidebar-bold', 'accent-header',
-  ].includes(normalized)) {
+  // Accept anything the SHARED CATALOG knows about. This used to be a second
+  // hardcoded allowlist, which meant a template could be added to the catalog,
+  // registered in the UI and previewed correctly, yet silently export as
+  // Classic because this list had never heard of it — the 2026 intake hit
+  // exactly that. The catalog is the single source of truth for which template
+  // ids exist; anything else still falls back to Classic.
+  if (TEMPLATE_CATALOG.some((template) => template.id === normalized)) {
+    return normalized;
+  }
+  // Legacy ids kept out of the catalog but still handled by renderTemplateBody
+  // (old DB rows, share links and saved selections must keep resolving).
+  if (normalized === 'graduate' || normalized === 'executive') {
     return normalized;
   }
   return 'classic';
