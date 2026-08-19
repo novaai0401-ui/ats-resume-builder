@@ -8,6 +8,20 @@ function isPlaceholderSmtpValue(value: string): boolean {
   return /(^|[_-])your[_-]|@example\.(com|org)$|changeme|change[_-]me|placeholder|^(test|demo|fake)@/i.test(value);
 }
 
+/**
+ * Non-secret SMTP defaults. Every deployment sends from the same Gmail
+ * mailbox, so defaulting host/port/user/from here means a deploy only has
+ * to set ONE variable — SMTP_PASS, the App Password. Nothing secret lives
+ * here; the password is env-only and is never committed. Any env var still
+ * wins, so switching providers needs no code change.
+ */
+const SMTP_DEFAULTS = {
+  host: 'smtp.gmail.com',
+  port: '587',
+  user: 'novaai0401@gmail.com',
+  from: 'ATS Resume Builder <novaai0401@gmail.com>',
+} as const;
+
 function isGmailHost(host: string): boolean {
   return /(^|\.)gmail\.com$|(^|\.)googlemail\.com$/i.test(String(host || '').trim());
 }
@@ -105,12 +119,14 @@ export class MailService {
   }
 
   constructor(private readonly config: ConfigService) {
-    const host = this.readEnv('SMTP_HOST');
-    const port = parseInt(this.readEnv('SMTP_PORT') || '587', 10);
-    const user = this.readEnv('SMTP_USER');
+    // Env always wins; fall back to the shared Gmail mailbox so a deploy
+    // only needs SMTP_PASS set.
+    const host = this.readEnv('SMTP_HOST') || SMTP_DEFAULTS.host;
+    const port = parseInt(this.readEnv('SMTP_PORT') || SMTP_DEFAULTS.port, 10);
+    const user = this.readEnv('SMTP_USER') || SMTP_DEFAULTS.user;
     // Strip the display spaces from a pasted Gmail App Password ("abcd efgh…").
     const pass = normalizeSmtpPass(host, this.readEnv('SMTP_PASS'));
-    const fromRaw = this.readEnv('SMTP_FROM');
+    const fromRaw = this.readEnv('SMTP_FROM') || SMTP_DEFAULTS.from;
     // Force From = the authenticated mailbox (keep any display name) so a
     // mismatched SMTP_FROM can't get the send silently rejected.
     this.fromAddress = resolveFromAddress(fromRaw, user);
@@ -123,6 +139,8 @@ export class MailService {
 
     // Compute a precise reason so ops can see EXACTLY what's wrong instead
     // of a generic "not configured".
+    // host/user/from now always resolve via SMTP_DEFAULTS, so SMTP_PASS is
+    // in practice the only variable a deploy can still be missing.
     const missing: string[] = [];
     if (!host) missing.push('SMTP_HOST');
     if (!user) missing.push('SMTP_USER');
