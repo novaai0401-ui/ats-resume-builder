@@ -7,7 +7,7 @@ import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { JD_STOPWORDS, SECTION_LABEL_WORDS, filterJdKeywords } from '../lib/keyword-stopwords';
 import type { AtsIssue, AtsSectionKey, CreateResumeDto, UpdateResumeDto } from 'resume-builder-shared';
-import { designCssText, normalizeAccentColor, normalizePhotoUrl, templateSupportsPhoto, resolveSectionOrder } from 'resume-builder-shared';
+import { designCssText, normalizeAccentColor, normalizePhotoUrl, templateSupportsPhoto, resolveSectionOrder, templatePreset } from 'resume-builder-shared';
 import { ResumeSectionsSchema } from 'resume-schemas';
 import { ensureUsagePeriod } from '../billing/usage';
 import { rateLimitOrThrow } from '../limits/rate-limit';
@@ -4884,7 +4884,41 @@ function renderTemplateBody(templateId: string, resume: any) {
   if (templateId === 'creative') return renderCreativeTemplateArticle(resume);
   if (templateId === 'sidebar-bold') return renderSidebarBoldTemplateArticle(resume);
   if (templateId === 'accent-header') return renderAccentHeaderTemplateArticle(resume);
+  // R-110 — preset-driven templates (2026 intake). Checked before the classic
+  // fallback so a preset id renders its own layout rather than silently
+  // exporting as Classic, which is how earlier templates lost their section
+  // labels in the PDF.
+  if (templatePreset(templateId)) return renderPresetTemplateArticle(templateId, resume);
   return renderClassicTemplateArticle(resume);
+}
+
+/**
+ * Renders any template described by a shared preset
+ * (resume-builder-shared/templates/presets.ts).
+ *
+ * This is the export-side mirror of the React PresetTemplate component. Both
+ * read the SAME preset object, so the section order, headings and modifier
+ * classes in the downloaded PDF are the ones the user approved in the preview.
+ * Adding a template is a preset entry plus a catalog entry — neither renderer
+ * needs editing, which is what stops the two drifting apart.
+ */
+function renderPresetTemplateArticle(templateId: string, resume: any) {
+  const preset = templatePreset(templateId);
+  const normalized = normalizeTemplateResumeData(resume);
+  if (!preset) return renderClassicTemplateArticle(resume);
+  return `
+    <article class="ats-template ats-template--${safeCssClass(templateId)}">
+      ${templateHeader(normalized, { bar: Boolean(preset.headerBar) })}
+      ${renderOrderedSections(normalized, {
+        companyJoiner: preset.companyJoiner,
+        tight: preset.tight,
+        divided: preset.divided,
+        uppercaseHeadings: preset.uppercaseHeadings,
+        defaultBody: preset.defaultBody as Exclude<AtsSectionKey, 'header'>[],
+        labels: preset.labels,
+      })}
+    </article>
+  `;
 }
 
 function renderClassicTemplateArticle(resume: any) {
@@ -5397,6 +5431,12 @@ type SectionLabelOverrides = Partial<{
   achievements: string;
   education: string;
   certifications: string;
+  // The React preview resolves labels generically for EVERY section key, so
+  // these two must be overridable here as well — otherwise a template that
+  // renames them on screen would silently fall back to the default heading in
+  // the exported PDF.
+  licenses: string;
+  publications: string;
   languages: string;
 }>;
 
@@ -5411,6 +5451,12 @@ function renderOrderedSections(
     groupedSkillLine?: string;
     labels?: SectionLabelOverrides;
     /** Reorder sections to put education before experience (academic CV). */
+    /**
+     * Explicit body order, used by preset-driven templates. Takes precedence
+     * over the educationFirst / certificationsFirst shortcuts below, which
+     * remain for the hand-written templates that already use them.
+     */
+    defaultBody?: Exclude<AtsSectionKey, 'header'>[];
     educationFirst?: boolean;
     /** Show certifications above experience (healthcare CV). */
     certificationsFirst?: boolean;
@@ -5496,7 +5542,7 @@ function renderOrderedSections(
     : [];
   const licensesSection = licenses.length ? `
       <section class="${sectionClass}">
-        ${heading('Licenses & Registrations')}
+        ${heading(labels.licenses || 'Licenses & Registrations')}
         ${licenses.map((l) => `
           <div class="ats-item">
             <strong>${escapeHtml(l.name || '')}</strong>${l.authority ? ` — ${escapeHtml(l.authority)}` : ''}
@@ -5510,7 +5556,7 @@ function renderOrderedSections(
     : [];
   const publicationsSection = publications.length ? `
       <section class="${sectionClass}">
-        ${heading('Publications & Patents')}
+        ${heading(labels.publications || 'Publications & Patents')}
         <ul class="ats-item">
           ${publications.map((pb) => `<li>${escapeHtml(pb.title || '')}${pb.venue ? `, ${escapeHtml(pb.venue)}` : ''}${pb.year ? ` (${escapeHtml(pb.year)})` : ''}${pb.type === 'patent' ? ' [Patent]' : ''}</li>`).join('')}
         </ul>
@@ -5531,7 +5577,9 @@ function renderOrderedSections(
   // present) wins, with unknown/missing keys falling back to the default
   // (resolveSectionOrder). This mirrors the React OrderedAtsSections renderer
   // so preview and export stay in lock-step.
-  const defaultBody = options.educationFirst
+  const defaultBody = options.defaultBody
+    ? options.defaultBody
+    : options.educationFirst
     ? ['summary', 'education', 'experience', 'projects', 'achievements', 'certifications', 'licenses', 'publications', 'skills', 'languages']
     : options.certificationsFirst
       ? ['summary', 'certifications', 'licenses', 'education', 'experience', 'skills', 'projects', 'achievements', 'publications', 'languages']

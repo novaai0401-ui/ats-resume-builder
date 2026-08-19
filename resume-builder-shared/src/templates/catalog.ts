@@ -11,7 +11,22 @@ export type TemplateCatalogId =
   | 'product-manager'
   | 'creative'
   | 'sidebar-bold'
-  | 'accent-header';
+  | 'accent-header'
+  // R-110 — 2026 intake. Preset-driven (templates/presets.ts): one shared
+  // layout definition read by BOTH the React preview and the API export,
+  // so a downloaded PDF cannot drift from the previewed document.
+  | 'skills-first'
+  | 'impact-metrics'
+  | 'ai-native'
+  | 'executive-brief'
+  | 'compact-dense'
+  | 'career-switch'
+  | 'early-talent'
+  | 'federal-detailed'
+  | 'revenue-sales'
+  | 'data-analytics'
+  | 'open-source'
+  | 'remote-global';
 
 /**
  * How well a template actually survives ATS parsers. We previously
@@ -300,6 +315,209 @@ export const TEMPLATE_CATALOG: readonly TemplateCatalogItem[] = [
     ],
     componentKey: 'accent-header',
     supportedSections: ['summary', 'skills', 'experience', 'projects', 'education', 'certifications', 'languages'],
+    supportedLocales: ['en-IN', 'en-US'],
+    layout: 'single-column',
+    paginationSafe: true,
+    implementedVariants: ['screen', 'print', 'ats-export'],
+  },
+
+  /* ---------------------------------------------------------------
+     R-110 — 2026 intake, preset-driven (see templates/presets.ts).
+     Layout for these lives in ONE shared preset read by both the React
+     preview and the API export renderer, so the downloaded PDF cannot
+     drift from the document the user approved on screen. All are
+     single-column with standard headings: what has changed for 2026 is
+     WHICH evidence leads and what it is called, not the visual styling,
+     because LLM-backed parsers reward explicit sections and penalise the
+     columns and graphics that older "designer" templates rely on.
+     --------------------------------------------------------------- */
+  {
+    id: 'skills-first',
+    name: 'Skills-First 2026',
+    description:
+      'Skills lead, profile supports, history follows. Built for skills-based screening, where the first filter asks what you can do rather than where you did it.',
+    tags: ['ATS-safe', 'Skills-based', '2026'],
+    atsSafety: 'high',
+    recommendedFor: ['Skills-based applications', 'Roles with an explicit skill checklist'],
+    industries: ['information-technology', 'ai-machine-learning', 'engineering', 'business-management', 'sales-marketing'],
+    componentKey: 'skills-first',
+    supportedSections: ['summary', 'skills', 'experience', 'projects', 'achievements', 'education', 'certifications', 'languages'],
+    supportedLocales: ['en-IN', 'en-US'],
+    layout: 'single-column',
+    paginationSafe: true,
+    implementedVariants: ['screen', 'print', 'ats-export'],
+  },
+  {
+    id: 'impact-metrics',
+    name: 'Impact & Metrics',
+    description:
+      'Quantified impact sits directly under the summary, so the numbers are read before the employment history. For roles screened on measurable outcomes.',
+    tags: ['ATS-safe', 'Metrics-led', '2026'],
+    atsSafety: 'high',
+    recommendedFor: ['Senior individual contributors', 'Roles judged on measurable outcomes'],
+    industries: ['business-management', 'sales-marketing', 'finance', 'information-technology', 'engineering'],
+    componentKey: 'impact-metrics',
+    supportedSections: ['summary', 'skills', 'experience', 'projects', 'achievements', 'education', 'certifications', 'languages'],
+    supportedLocales: ['en-IN', 'en-US'],
+    layout: 'single-column',
+    paginationSafe: true,
+    implementedVariants: ['screen', 'print', 'ats-export'],
+  },
+  {
+    id: 'ai-native',
+    name: 'AI-Native Professional',
+    description:
+      'Gives AI tooling a named section instead of burying it in a generic skills list. For 2027-2028 hiring, where AI fluency is a baseline expectation rather than a specialism.',
+    tags: ['ATS-safe', 'AI-ready', '2027'],
+    atsSafety: 'high',
+    recommendedFor: ['AI-adjacent roles in any function', 'Demonstrating AI fluency outside an AI job title'],
+    industries: ['ai-machine-learning', 'information-technology', 'engineering', 'media-communications', 'business-management'],
+    componentKey: 'ai-native',
+    supportedSections: ['summary', 'skills', 'experience', 'projects', 'achievements', 'education', 'certifications', 'languages'],
+    supportedLocales: ['en-IN', 'en-US'],
+    layout: 'single-column',
+    paginationSafe: true,
+    implementedVariants: ['screen', 'print', 'ats-export'],
+  },
+  {
+    id: 'executive-brief',
+    name: 'Executive Brief',
+    description:
+      'Scope first: teams led, budget owned, outcomes delivered. Uppercase headings and no decorative rules, so it reads as a briefing document.',
+    tags: ['ATS-safe', 'Leadership'],
+    atsSafety: 'high',
+    recommendedFor: ['Director and above', 'Board and executive search'],
+    industries: ['business-management', 'finance', 'manufacturing-supply-chain', 'healthcare', 'government-public-sector'],
+    componentKey: 'executive-brief',
+    supportedSections: ['summary', 'skills', 'experience', 'projects', 'achievements', 'education', 'certifications', 'languages'],
+    supportedLocales: ['en-IN', 'en-US'],
+    layout: 'single-column',
+    paginationSafe: true,
+    implementedVariants: ['screen', 'print', 'ats-export'],
+  },
+  {
+    id: 'compact-dense',
+    name: 'Compact One-Page',
+    description:
+      'Deliberately dense spacing for a long history that will not fit a page at normal leading. Compresses rather than cuts.',
+    tags: ['ATS-safe', 'One-page', 'Dense'],
+    atsSafety: 'high',
+    recommendedFor: ['Long careers held to one page', 'Applications with a strict page limit'],
+    industries: ['information-technology', 'engineering', 'finance', 'legal', 'business-management'],
+    componentKey: 'compact-dense',
+    supportedSections: ['summary', 'skills', 'experience', 'projects', 'achievements', 'education', 'certifications', 'languages'],
+    supportedLocales: ['en-IN', 'en-US'],
+    layout: 'single-column',
+    paginationSafe: true,
+    implementedVariants: ['screen', 'print', 'ats-export'],
+  },
+  {
+    id: 'career-switch',
+    name: 'Career Switch',
+    description:
+      'Transferable skills and relevant projects both precede the employment history, because a changer is screened out on history and screened in on capability.',
+    tags: ['ATS-safe', 'Career change'],
+    atsSafety: 'high',
+    recommendedFor: ['Changing industry or function', 'Returning after a break'],
+    industries: ['information-technology', 'business-management', 'education', 'healthcare', 'retail-ecommerce'],
+    componentKey: 'career-switch',
+    supportedSections: ['summary', 'skills', 'experience', 'projects', 'achievements', 'education', 'certifications', 'languages'],
+    supportedLocales: ['en-IN', 'en-US'],
+    layout: 'single-column',
+    paginationSafe: true,
+    implementedVariants: ['screen', 'print', 'ats-export'],
+  },
+  {
+    id: 'early-talent',
+    name: 'Early Talent',
+    description:
+      'Education and built projects lead; internships follow. For a first or second role, where coursework and personal projects are the strongest evidence available.',
+    tags: ['ATS-safe', 'Graduate', 'Entry-level'],
+    atsSafety: 'high',
+    recommendedFor: ['Students and new graduates', 'First or second professional role'],
+    industries: ['information-technology', 'engineering', 'education', 'ai-machine-learning', 'finance'],
+    componentKey: 'early-talent',
+    supportedSections: ['summary', 'skills', 'experience', 'projects', 'achievements', 'education', 'certifications', 'languages'],
+    supportedLocales: ['en-IN', 'en-US'],
+    layout: 'single-column',
+    paginationSafe: true,
+    implementedVariants: ['screen', 'print', 'ats-export'],
+  },
+  {
+    id: 'federal-detailed',
+    name: 'Government & Federal',
+    description:
+      'Explicit over polished: plain uppercase headings, no decorative rules, certifications and clearances given their own named section. Built for rules-based public-sector screening.',
+    tags: ['ATS-safe', 'Public sector', 'Detailed'],
+    atsSafety: 'high',
+    recommendedFor: ['Government and public-sector applications', 'Roles requiring clearances'],
+    industries: ['government-public-sector', 'legal', 'healthcare', 'engineering', 'logistics-transport'],
+    componentKey: 'federal-detailed',
+    supportedSections: ['summary', 'skills', 'experience', 'projects', 'achievements', 'education', 'certifications', 'languages'],
+    supportedLocales: ['en-IN', 'en-US'],
+    layout: 'single-column',
+    paginationSafe: true,
+    implementedVariants: ['screen', 'print', 'ats-export'],
+  },
+  {
+    id: 'revenue-sales',
+    name: 'Revenue & Sales',
+    description:
+      'Quota and revenue attainment lead, because sales screening reads attainment before anything else. Segment and deal size belong in the summary.',
+    tags: ['ATS-safe', 'Sales', 'Metrics-led'],
+    atsSafety: 'high',
+    recommendedFor: ['Quota-carrying sales roles', 'Revenue and growth functions'],
+    industries: ['sales-marketing', 'business-management', 'retail-ecommerce', 'hospitality-tourism', 'media-communications'],
+    componentKey: 'revenue-sales',
+    supportedSections: ['summary', 'skills', 'experience', 'projects', 'achievements', 'education', 'certifications', 'languages'],
+    supportedLocales: ['en-IN', 'en-US'],
+    layout: 'single-column',
+    paginationSafe: true,
+    implementedVariants: ['screen', 'print', 'ats-export'],
+  },
+  {
+    id: 'data-analytics',
+    name: 'Data & Analytics',
+    description:
+      'Stack first, then the decisions it influenced. Analysis and dashboard work gets its own section rather than competing with employment history.',
+    tags: ['ATS-safe', 'Data', 'Technical'],
+    atsSafety: 'high',
+    recommendedFor: ['Analysts and data scientists', 'BI and analytics engineering'],
+    industries: ['information-technology', 'ai-machine-learning', 'finance', 'retail-ecommerce', 'healthcare'],
+    componentKey: 'data-analytics',
+    supportedSections: ['summary', 'skills', 'experience', 'projects', 'achievements', 'education', 'certifications', 'languages'],
+    supportedLocales: ['en-IN', 'en-US'],
+    layout: 'single-column',
+    paginationSafe: true,
+    implementedVariants: ['screen', 'print', 'ats-export'],
+  },
+  {
+    id: 'open-source',
+    name: 'Open Source Engineer',
+    description:
+      'Public contributions and tooling precede the employer list, for engineers whose visible work is stronger evidence than where they have been employed.',
+    tags: ['ATS-safe', 'Engineering', 'Portfolio'],
+    atsSafety: 'high',
+    recommendedFor: ['Engineers with public repositories', 'Developer-tooling and infrastructure roles'],
+    industries: ['information-technology', 'ai-machine-learning', 'engineering', 'media-communications'],
+    componentKey: 'open-source',
+    supportedSections: ['summary', 'skills', 'experience', 'projects', 'achievements', 'education', 'certifications', 'languages'],
+    supportedLocales: ['en-IN', 'en-US'],
+    layout: 'single-column',
+    paginationSafe: true,
+    implementedVariants: ['screen', 'print', 'ats-export'],
+  },
+  {
+    id: 'remote-global',
+    name: 'Remote & Global',
+    description:
+      'Promotes working languages out of the footer and names remote track record explicitly, because overlap hours and language are real screening criteria in distributed hiring.',
+    tags: ['ATS-safe', 'Remote', 'Global'],
+    atsSafety: 'high',
+    recommendedFor: ['Distributed and remote-first roles', 'Cross-border applications'],
+    industries: ['information-technology', 'ai-machine-learning', 'media-communications', 'business-management', 'sales-marketing'],
+    componentKey: 'remote-global',
+    supportedSections: ['summary', 'skills', 'experience', 'projects', 'achievements', 'education', 'certifications', 'languages'],
     supportedLocales: ['en-IN', 'en-US'],
     layout: 'single-column',
     paginationSafe: true,

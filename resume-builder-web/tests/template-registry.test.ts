@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { DEFAULT_TEMPLATE_ID, TEMPLATE_CATALOG } from 'resume-builder-shared';
+import { DEFAULT_TEMPLATE_ID, TEMPLATE_CATALOG , PRESET_TEMPLATE_IDS } from 'resume-builder-shared';
 import { templateList, templateRegistry, type TemplateId } from '@/shared/templateRegistry';
 
 const SUPPORTED_IDS = TEMPLATE_CATALOG.map((template) => template.id) as TemplateId[];
@@ -91,6 +91,11 @@ test('achievements render everywhere: first-class OR via the shared fallback', (
     healthcare: 'HealthcareCV', creative: 'CreativePortfolio',
     'sidebar-bold': 'SidebarBold', 'accent-header': 'AccentHeader',
   };
+  // R-110 — preset-driven templates all render through the one shared
+  // PresetTemplate component, so they map to a single file rather than needing
+  // an entry each. Deriving this from PRESET_TEMPLATE_IDS means a new preset
+  // cannot silently escape this check.
+  for (const id of PRESET_TEMPLATE_IDS) COMPONENT_FILE[id] = 'PresetTemplate';
   for (const t of TEMPLATE_CATALOG) {
     const entry = templateRegistry[t.id as TemplateId];
     assert.ok(entry, `registry missing ${t.id}`);

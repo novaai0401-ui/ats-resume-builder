@@ -11,6 +11,7 @@ import ModernProfessional from '@/components/templates/ModernProfessional';
 import TechnicalCompact from '@/components/templates/TechnicalCompact';
 import SidebarBold from '@/components/templates/SidebarBold';
 import AccentHeader from '@/components/templates/AccentHeader';
+import { presetTemplateComponent } from '@/components/templates/PresetTemplate';
 
 export type TemplateComponentProps = {
   resumeData: ResumeImportResult;
@@ -40,6 +41,21 @@ const templateComponents: Record<TemplateComponentKey, ComponentType<TemplateCom
   creative: CreativePortfolio,
   'sidebar-bold': SidebarBold,
   'accent-header': AccentHeader,
+  // R-110 — 2026 intake. These share ONE renderer driven by the shared
+  // preset (resume-builder-shared/templates/presets.ts); the API export
+  // renderer reads the same preset, so preview and PDF cannot diverge.
+  'skills-first': presetTemplateComponent('skills-first'),
+  'impact-metrics': presetTemplateComponent('impact-metrics'),
+  'ai-native': presetTemplateComponent('ai-native'),
+  'executive-brief': presetTemplateComponent('executive-brief'),
+  'compact-dense': presetTemplateComponent('compact-dense'),
+  'career-switch': presetTemplateComponent('career-switch'),
+  'early-talent': presetTemplateComponent('early-talent'),
+  'federal-detailed': presetTemplateComponent('federal-detailed'),
+  'revenue-sales': presetTemplateComponent('revenue-sales'),
+  'data-analytics': presetTemplateComponent('data-analytics'),
+  'open-source': presetTemplateComponent('open-source'),
+  'remote-global': presetTemplateComponent('remote-global'),
 };
 
 const templateEntries = TEMPLATE_CATALOG.map((template) => {
