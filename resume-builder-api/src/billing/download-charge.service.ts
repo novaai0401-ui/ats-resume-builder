@@ -85,6 +85,31 @@ export class DownloadChargeService {
   }
 
   /**
+   * Whether THIS user should be asked to pay before downloading.
+   *
+   * The global flag alone cannot answer that. createOrder already exempts paid
+   * plans — it returns `{ included: true }` with a download token instead of an
+   * order — but the client decides whether to open the payment modal from the
+   * config endpoint, which knew only about the global flag. A subscriber would
+   * therefore get the payment dialog thrown up and instantly dismissed on their
+   * behalf: right outcome, alarming to watch when you already pay ₹499/mo.
+   *
+   * Answering per user keeps the two decisions consistent — whoever is exempt
+   * inside createOrder never sees the modal at all.
+   */
+  async isChargeableForUser(userId: string): Promise<boolean> {
+    if (!this.isFeatureEnabled()) return false;
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { plan: true },
+    });
+    // Unknown user: charge rather than silently hand over a paid export. The
+    // download route enforces this again server-side regardless.
+    if (!user) return true;
+    return !user.plan || user.plan === 'FREE';
+  }
+
+  /**
    * Pick gateway by region. Indian users go through Razorpay (INR ₹49);
    * everyone else pays via Stripe Checkout in USD (~$0.99).
    */

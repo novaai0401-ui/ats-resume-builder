@@ -166,8 +166,20 @@ services:
       # NEXT_PUBLIC mirror is needed (that var is unused by the code).
       # PREREQUISITE: live RAZORPAY_KEY_ID/SECRET must be set, otherwise
       # createOrder throws "Razorpay is not configured" and downloads break.
+      # Turned ON. Downloads were completing free because this was "false": the
+      # config endpoint reported enabled:false, so the client skipped the
+      # payment step entirely instead of charging per export.
+      #
+      # Paid plans are unaffected. They are exempt in createOrder (which returns
+      # `included: true` with a download token rather than an order) AND in
+      # hasPaidEntitlement (any plan !== FREE passes with no token at all), so a
+      # subscriber downloads with neither a modal nor a payment.
+      #
+      # ROLLBACK: set this back to "false" in the Render dashboard for
+      # ats-rb-api and restart. It is read at runtime, so neither enabling it
+      # nor rolling it back requires a code deploy.
       - key: ENABLE_DOWNLOAD_CHARGE
-        value: "false"
+        value: "true"
       - key: DOWNLOAD_CHARGE_INR_PAISE
         value: "4900"
       - key: DOWNLOAD_CHARGE_USD_CENTS

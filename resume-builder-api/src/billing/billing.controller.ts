@@ -165,11 +165,18 @@ export class BillingController {
 
   // ─── Per-download charge ─────────────────────────────────────────────────
 
-  /** Whether per-download charging is currently enabled (env flag). */
+  /**
+   * Whether per-download charging applies TO THIS USER.
+   *
+   * Answers per user rather than echoing the env flag. Paid plans include
+   * downloads and createOrder already exempts them, so a bare global `enabled`
+   * made the client raise a payment modal for subscribers and then dismiss it
+   * again a moment later.
+   */
   @Get('download-charge/config')
   @UseGuards(JwtAuthGuard)
-  getDownloadChargeConfig() {
-    return { enabled: this.downloadCharge.isFeatureEnabled() };
+  async getDownloadChargeConfig(@Req() req: { user: { userId: string } }) {
+    return { enabled: await this.downloadCharge.isChargeableForUser(req.user.userId) };
   }
 
   /** Create a per-download payment order. */
