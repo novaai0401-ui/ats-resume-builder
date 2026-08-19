@@ -686,7 +686,7 @@ body.resume-embed-body .main-shell {
   line-height: 1.2;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
-  display: inline-flex;
+  display: inline-flex !important;
   align-items: center;
   gap: 4px;
 }
@@ -1384,7 +1384,7 @@ body.resume-embed-body .main-shell {
 }
 
 .template-card__actions {
-  display: flex;
+  display: flex !important;
   gap: 8px;
   flex-wrap: wrap;
   margin-top: auto;
@@ -2265,7 +2265,7 @@ body.resume-embed-body .main-shell {
   gap: 6px;
 }
 .ats-chip {
-  display: inline-block;
+  display: inline-block !important;
   padding: 3px 8px;
   border-radius: 6px !important;
   font-size: 0.75rem;
@@ -2648,7 +2648,7 @@ body.resume-embed-body .main-shell {
   box-shadow: 0 2px 6px rgba(20, 40, 70, 0.04);
 }
 .prep-card__head {
-  display: flex;
+  display: flex !important;
   align-items: center;
   gap: 10px;
   width: 100%;
@@ -3104,7 +3104,12 @@ body.resume-embed-body .main-shell {
   width: 100%;
   box-sizing: border-box;
   border: 1px solid #d9e2ec;
-  background: var(--card);
+  /* Literal white, NOT var(--card). This is the resume PAPER — the same class
+   * the API re-declares for the PDF export. Themed, it becomes #151b2e in dark
+   * mode while `color: #111` below stays near-black, so the preview renders
+   * dark-on-dark and stops matching the printed document. A resume must look
+   * identical whatever the app theme is. */
+  background: #fff;
   padding: 24px 28px;
   color: #111;
   /* R-045: per-resume design vars override these; literals are the
@@ -3348,7 +3353,7 @@ h2 {
 
 /* Burger is desktop-hidden by default. */
 .nav-burger {
-  display: none;
+  display: none !important;
   width: 44px;  /* 44px = WCAG minimum touch target */
   height: 44px;
   padding: 0;
@@ -3414,7 +3419,7 @@ h2 {
   }
 
   .nav-burger {
-    display: inline-flex;
+    display: inline-flex !important;
   }
 
   .brand {
@@ -4543,7 +4548,7 @@ a:hover { color: var(--link-hover); }
 }
 
 .theme-toggle__option {
-  display: inline-flex;
+  display: inline-flex !important;
   align-items: center;
   gap: var(--space-1);
   /* 44px min touch target once padding + line-height are counted. */
