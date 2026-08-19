@@ -1,5 +1,5 @@
 import type { MetadataRoute } from 'next';
-import { TEMPLATE_CATALOG } from 'resume-builder-shared';
+import { TEMPLATE_CATALOG, PROFESSION_INDUSTRIES } from 'resume-builder-shared';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://callbackcv.tekivex.com';
 
@@ -41,6 +41,14 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified,
       changeFrequency: 'monthly' as const,
       priority: 0.8,
+    })),
+    // "Resume template for <field>" — the other half of the winnable long tail.
+    { url: `${SITE_URL}/resume-templates`, lastModified, changeFrequency: 'monthly', priority: 0.8 },
+    ...PROFESSION_INDUSTRIES.map((industry) => ({
+      url: `${SITE_URL}/resume-templates/${industry.id}`,
+      lastModified,
+      changeFrequency: 'monthly' as const,
+      priority: 0.7,
     })),
   ];
 }

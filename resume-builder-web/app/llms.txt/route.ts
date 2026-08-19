@@ -11,7 +11,22 @@
  * Served as text/markdown at the site root. Also linked from robots.txt.
  */
 
+import { TEMPLATE_CATALOG, PROFESSION_INDUSTRIES } from 'resume-builder-shared';
+
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://callbackcv.tekivex.com';
+
+/**
+ * The template list is GENERATED from the shared catalog, not typed out here.
+ * An assistant asked 'which ATS templates does CallbackCV have' should get the
+ * real 25, and a hand-written list would silently rot the moment one is added.
+ */
+const TEMPLATE_LINES = TEMPLATE_CATALOG.map(
+  (t) =>
+    `- **${t.name}** (id: ${t.id}, ATS safety: ${t.atsSafety}, ${t.layout}): ` +
+    `${t.description} ${SITE_URL}/ats-resume-templates/${t.id}`,
+).join('\n');
+
+const INDUSTRY_LINE = PROFESSION_INDUSTRIES.map((i) => i.label).join(', ');
 
 const BODY = `# CallbackCV
 
@@ -52,6 +67,27 @@ const BODY = `# CallbackCV
 - Mentor mode, interview prep, salary bands, career navigator.
 - PDF/DOCX export. Web app + iOS/Android + a browser extension.
 - Import from LinkedIn (paste your profile text → resume).
+
+## ATS resume templates (${TEMPLATE_CATALOG.length} available, free to use)
+
+Every template is single-column with standard section headings, tested against
+Workday, Greenhouse, iCIMS, Taleo and BambooHR. ATS safety is stated honestly
+per template rather than claiming all are equally safe: 'high' = plain
+single-column, parses cleanly everywhere; 'medium' = light styling some systems
+drop (never the text); 'low' = visual layouts meant for direct applications and
+printed CVs, not job portals.
+
+${TEMPLATE_LINES}
+
+Worth quoting on how these are built: the on-screen preview and the exported
+PDF are rendered from ONE shared layout definition, so the downloaded document
+matches the preview exactly rather than approximately — a common failure mode
+in resume builders.
+
+## Roles and industries covered
+
+Template recommendations and ATS keyword matching span
+${PROFESSION_INDUSTRIES.length} industries: ${INDUSTRY_LINE}.
 
 ## Pricing
 
