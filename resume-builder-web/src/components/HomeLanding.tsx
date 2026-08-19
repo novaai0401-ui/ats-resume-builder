@@ -208,7 +208,7 @@ export default function HomeLanding({ faq }: { faq: Faq[] }) {
       {/* -------------------------------------------------- What's in the free tier */}
       <section style={{ marginTop: 32 }}>
         <TkxCard variant="glass" padding="lg">
-          <TkxCardHeader title={<TkxTitle level={2}>What’s inside the free tier</TkxTitle>} />
+          <TkxCardHeader title="What’s inside the free tier" />
           <TkxCardBody>
             <TkxRow gutter={[12, 12]}>
               {FREE_TIER.map((item) => (
@@ -257,7 +257,7 @@ export default function HomeLanding({ faq }: { faq: Faq[] }) {
           this high-authority page to the SEO landers (unchanged intent). */}
       <section style={{ marginTop: 32 }} aria-labelledby="guides-heading">
         <TkxCard variant="outlined" padding="lg">
-          <TkxCardHeader title={<TkxTitle level={2}>Popular guides</TkxTitle>} />
+          <TkxCardHeader title="Popular guides" />
           <TkxCardBody>
             <ul style={{ lineHeight: 1.9, paddingLeft: 18 }}>
               <li><Link href="/pricing">Pricing</Link> — the complete price list (₹0 to build, ₹49/download, ₹499/mo Plus), shown before you start.</li>
