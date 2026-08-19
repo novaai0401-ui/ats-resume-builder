@@ -6,6 +6,7 @@ import { api, type AtsScoreResult } from '@/src/lib/api';
 import { persistActiveResumeSelection, resolveCurrentSessionResumeId } from '@/src/lib/resume-flow';
 import { buildReviewAtsSuggestionSections } from '@/src/lib/review-ats';
 import DataLoader from '@/src/components/DataLoader';
+import { TkxTextarea } from 'tekivex-ui';
 
 export default function ResumeAtsClient() {
   const router = useRouter();
@@ -102,10 +103,9 @@ export default function ResumeAtsClient() {
           </div>
         </div>
 
-        <label className="label" style={{ marginTop: 12 }}>Job Description (optional)</label>
-        <textarea
-          className="input"
-          style={{ minHeight: 120 }}
+        <TkxTextarea
+          label="Job Description (optional)"
+          style={{ minHeight: 120, marginTop: 12 }}
           value={jdText}
           onChange={(e) => setJdText(e.target.value)}
           placeholder="Paste a job description or list target roles for ATS matching"

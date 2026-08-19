@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { isApiRequestError, publicAtsCheck, type PublicAtsCheckResult } from '@/src/lib/api';
+import { TkxTextarea } from 'tekivex-ui';
 
 const MAX_CHARS = 20_000;
 
@@ -60,15 +61,20 @@ export default function AtsCheckWidget() {
         upload the file itself? <Link href="/auth/register">Sign up free</Link> to upload PDF/DOCX
         with full parsing.
       </p>
-      <textarea
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        maxLength={MAX_CHARS}
-        rows={10}
-        placeholder="Paste your resume text here…"
-        aria-label="Resume text"
-        style={{ width: '100%', marginTop: 8, padding: 10, borderRadius: 8, border: '1px solid #d1d5db', fontFamily: 'inherit', fontSize: 14 }}
-      />
+      {/* Label hidden visually — the paragraph above already explains what to
+       * paste, so a heading would repeat it. Screen readers keep the name,
+       * which is what the old aria-label provided. */}
+      <div className="hide-field-label" style={{ marginTop: 8 }}>
+        <TkxTextarea
+          label="Resume text"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          maxLength={MAX_CHARS}
+          minRows={10}
+          placeholder="Paste your resume text here…"
+          style={{ width: '100%' }}
+        />
+      </div>
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 10, flexWrap: 'wrap' }}>
         <button className="btn" type="button" onClick={onCheck} disabled={busy}>
           {busy ? 'Checking…' : 'Check my resume'}

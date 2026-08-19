@@ -23,6 +23,7 @@ import { readActiveResumeSelection } from '@/src/lib/resume-flow';
 import TailorDiffPanel from './TailorDiffPanel';
 import AiTrustNote from '@/src/components/AiTrustNote';
 import { handleFreeTrialError } from '@/src/lib/free-trial';
+import { TkxTextarea } from 'tekivex-ui';
 
 type MatchResult = {
   matchPercent: number;
@@ -274,11 +275,10 @@ export default function JdMatchClient() {
       </section>
 
       <section className="card col-12">
-        <label className="label" htmlFor="jd-text">Job description</label>
-        <textarea
+        <TkxTextarea
           id="jd-text"
-          className="input"
-          rows={10}
+          label="Job description"
+          minRows={10}
           placeholder="Paste the full job description here…"
           value={jdText}
           onChange={(e) => setJdText(e.target.value)}
