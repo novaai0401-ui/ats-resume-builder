@@ -114,15 +114,25 @@ function clean(value: unknown): string {
 }
 
 /**
- * Careerjet returns `date` as "YYYY-MM-DD HH:MM:SS" (not ISO). Convert to the
- * ISO string the rest of the app expects, and drop anything unparseable rather
- * than emitting an Invalid Date that renders as "NaN" in the UI.
+ * Convert Careerjet's `date` to the ISO string the rest of the app expects.
+ *
+ * v4 sends RFC 2822 — "Fri, 24 Jul 2026 07:07:25 GMT" — which Date parses
+ * directly. An earlier version of this assumed "YYYY-MM-DD HH:MM:SS" and
+ * swapped the first space for a "T", which turned every real date into
+ * "Fri,T24 Jul …" and therefore into null: openings came back correctly but
+ * every one of them was undated. The legacy form is still handled as a
+ * fallback, so a mixed or changed response degrades gracefully.
+ *
+ * Anything unparseable becomes null rather than an Invalid Date, which would
+ * render as "NaN" in the UI.
  */
 function toIsoDate(value: unknown): string | null {
   const raw = String(value ?? '').trim();
   if (!raw) return null;
-  const parsed = new Date(raw.replace(' ', 'T'));
-  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+  const direct = new Date(raw);
+  if (!Number.isNaN(direct.getTime())) return direct.toISOString();
+  const legacy = new Date(raw.replace(' ', 'T'));
+  return Number.isNaN(legacy.getTime()) ? null : legacy.toISOString();
 }
 
 /**

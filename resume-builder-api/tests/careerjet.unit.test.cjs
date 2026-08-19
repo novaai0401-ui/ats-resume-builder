@@ -65,29 +65,48 @@ test('buildCareerjetUrl clamps the page size', () => {
   assert.equal(small.get('pagesize'), '1');
 });
 
-test('normalizeCareerjetResults maps a payload into the shared JobOpening shape', () => {
+test('normalizeCareerjetResults maps a REAL v4 payload into the shared JobOpening shape', () => {
+  // Captured verbatim from a live v4 response, not invented. The first version
+  // of this fixture guessed the shape and passed while the integration was
+  // wrong — notably the date, which v4 sends as RFC 2822.
   const jobs = normalizeCareerjetResults({
     type: 'JOBS',
+    hits: 73,
+    pages: 25,
+    message: '73 matching jobs found',
+    response_time: 0.162,
     jobs: [
       {
-        title: 'Senior <b>Frontend</b> Engineer',
-        company: 'Acme &amp; Co',
-        locations: 'Pune, Maharashtra',
-        url: 'https://www.careerjet.co.in/jobad/1',
-        salary: '₹20L - ₹30L per year',
-        date: '2026-08-18 09:30:00',
+        company: 'NR Consulting',
+        date: 'Fri, 24 Jul 2026 07:07:25 GMT',
+        description: 'Title: Lead – .NET <b>Frontend</b> <b>Engineer</b>  Location: Pune',
+        locations: 'Mumbai, Maharashtra - Pune, Maharashtra',
+        salary: '',
+        site: '',
+        title: 'Lead – .NET <b>Frontend</b> Engineer',
+        url: 'https://jobviewtrack.com/v2/ShE_v4dpgTepy7FaweYzz5xGwhj075Qf',
       },
     ],
   });
   assert.equal(jobs.length, 1);
-  // HTML and entities are stripped — the title is rendered as text.
-  assert.equal(jobs[0].title, 'Senior Frontend Engineer');
-  assert.equal(jobs[0].company, 'Acme & Co');
-  assert.equal(jobs[0].location, 'Pune, Maharashtra');
-  assert.equal(jobs[0].salaryText, '₹20L - ₹30L per year');
+  // HTML is stripped — the title renders as text.
+  assert.equal(jobs[0].title, 'Lead – .NET Frontend Engineer');
+  assert.equal(jobs[0].company, 'NR Consulting');
+  assert.equal(jobs[0].location, 'Mumbai, Maharashtra - Pune, Maharashtra');
+  // An empty salary string becomes null, not "".
+  assert.equal(jobs[0].salaryText, null);
   assert.equal(jobs[0].source, 'careerjet');
-  // Careerjet dates are "YYYY-MM-DD HH:MM:SS", not ISO.
-  assert.ok(jobs[0].postedAt.startsWith('2026-08-18T'));
+  // RFC 2822 in, ISO out. This is the assertion that would have caught every
+  // opening arriving undated.
+  assert.equal(jobs[0].postedAt, '2026-07-24T07:07:25.000Z');
+});
+
+test('normalizeCareerjetResults still parses the legacy date form', () => {
+  const [job] = normalizeCareerjetResults({
+    type: 'JOBS',
+    jobs: [{ title: 'Engineer', url: 'https://x/1', date: '2026-08-18 09:30:00' }],
+  });
+  assert.ok(job.postedAt.startsWith('2026-08-18T'));
 });
 
 test('normalizeCareerjetResults treats a non-JOBS payload as empty, not as data', () => {
