@@ -194,7 +194,12 @@ export default function HomeLanding({ faq }: { faq: Faq[] }) {
                       {f.title}
                     </span>
                   }
-                  action={<TkxTag>{f.tag}</TkxTag>}
+                  // variant="outline": the default "subtle" tints the tag's
+                  // background with its own foreground colour, which lifts the
+                  // effective background and left these chips at 4.37:1 — just
+                  // under the 4.5 AA floor, in BOTH themes. An outline tag
+                  // leaves the surface behind the text unchanged.
+                  action={<TkxTag variant="outline">{f.tag}</TkxTag>}
                 />
                 <TkxCardBody>
                   <TkxParagraph type="secondary">{f.body}</TkxParagraph>

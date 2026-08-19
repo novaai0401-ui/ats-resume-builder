@@ -90,7 +90,9 @@
   --bg-elevated: #ffffff;
   --ink: #0f172a;
   --ink-subtle: #475569;
-  --muted: #64748b;
+  /* #64748b measured 4.21:1 on --surface — under the 4.5 AA floor for body
+     text. Darkened just enough to clear it on every light surface. */
+  --muted: #5f6e84;
   --ink-inverse: #ffffff;
   --card: #ffffff;
   --border: #e6e8f2;
@@ -109,6 +111,9 @@
   --accent-2: #7c3aed;
   --grad-primary: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
   --grad-primary-hover: linear-gradient(135deg, #4338ca 0%, #6d28d9 100%);
+  /* Link text. Deeper than the base in light so it reads on pale surfaces. */
+  --link: #4338ca;
+  --link-hover: #3730a3;
 
   /* ---- Semantic: each pairs a foreground with a tinted background ---- */
   --success: #059669;
@@ -154,7 +159,7 @@
     --bg-elevated: #151b2e;
     --ink: #e8ecf8;
     --ink-subtle: #a9b4cd;
-    --muted: #8290ad;
+    --muted: #8593b0;
     --ink-inverse: #0b1020;
     --card: #151b2e;
     --border: #263149;
@@ -172,6 +177,10 @@
     --accent-2: #a78bfa;
     --grad-primary: linear-gradient(135deg, #6366f1 0%, #a78bfa 100%);
     --grad-primary-hover: linear-gradient(135deg, #818cf8 0%, #c4b5fd 100%);
+    /* Inverted on purpose: on a dark ground "deeper" reads as dimmer, and
+       #6366f1 measured 4.24:1 on --bg. The lighter tone clears AA. */
+    --link: #818cf8;
+    --link-hover: #a5b4fc;
 
     --success: #34d399;
     --success-soft: #0c2f24;
@@ -204,7 +213,7 @@
   --bg-elevated: #151b2e;
   --ink: #e8ecf8;
   --ink-subtle: #a9b4cd;
-  --muted: #8290ad;
+  --muted: #8593b0;
   --ink-inverse: #0b1020;
   --card: #151b2e;
   --border: #263149;
@@ -222,6 +231,8 @@
   --accent-2: #a78bfa;
   --grad-primary: linear-gradient(135deg, #6366f1 0%, #a78bfa 100%);
   --grad-primary-hover: linear-gradient(135deg, #818cf8 0%, #c4b5fd 100%);
+  --link: #818cf8;
+  --link-hover: #a5b4fc;
 
   --success: #34d399;
   --success-soft: #0c2f24;
@@ -4269,9 +4280,16 @@ textarea:focus-visible,
 }
 .card:hover { box-shadow: var(--shadow); }
 
-/* Links read as interactive without shouting. */
-a { color: var(--primary-600); text-underline-offset: 2px; }
-a:hover { color: var(--primary-700); }
+/* Links read as interactive without shouting.
+
+   Uses --link, not --primary-600 directly. In LIGHT mode the deeper 600 is
+   the right choice: it is darker than the base, so it reads clearly on pale
+   surfaces. In DARK mode "deeper" means dimmer, and #6366f1 on --bg measured
+   4.24:1 — under the 4.5 AA floor for body text. --link therefore resolves to
+   the lighter --primary in dark (6.35:1 on --bg, 5.73:1 on --card).
+   Hover follows the same logic in reverse: darker in light, lighter in dark. */
+a { color: var(--link); text-underline-offset: 2px; }
+a:hover { color: var(--link-hover); }
 
 /* Respect reduced-motion preferences. */
 @media (prefers-reduced-motion: reduce) {

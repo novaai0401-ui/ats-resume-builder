@@ -27,7 +27,7 @@ export const callbackLight: ThemeTokens = createTheme(auroraLight, {
   surfaceAlt: '#f7f9fd',  // --surface-alt
   border: '#e6e8f2',      // --border
   text: '#0f172a',        // --ink
-  textMuted: '#64748b',   // --muted
+  textMuted: '#5f6e84',   // --muted (AA-corrected; keep in step with globals.css)
   primary: '#4f46e5',     // --primary
   secondary: '#7c3aed',   // --accent-2
   danger: '#dc2626',      // --danger
@@ -43,7 +43,9 @@ export const callbackDark: ThemeTokens = createTheme(quantumDark, {
   surfaceAlt: '#121828',
   border: '#263149',
   text: '#e8ecf8',
-  textMuted: '#8290ad',
+  // #8290ad measured 4.39:1 on the translucent tag surface — under the 4.5 AA
+  // floor. Nudged to clear it. Must match --muted in globals.css.
+  textMuted: '#8593b0',
   primary: '#818cf8',
   secondary: '#a78bfa',
   danger: '#f87171',
