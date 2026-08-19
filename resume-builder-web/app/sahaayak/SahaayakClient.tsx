@@ -22,6 +22,7 @@ import {
   TkxCardBody,
   TkxCardHeader,
   TkxSelect,
+  TkxTextarea,
 } from 'tekivex-ui';
 import {
   api,
@@ -144,12 +145,12 @@ function OptInGate({ onOptedIn }: { onOptedIn: (p: SahaayakProfile) => void }) {
           </div>
 
           <div style={{ marginTop: 14 }}>
-            <label style={labelStyle}>Guardrails (optional)</label>
-            <textarea
+            <TkxTextarea
+              label="Guardrails (optional)"
               value={guardrails}
               onChange={(e) => setGuardrails(e.target.value)}
               placeholder={`Examples: "Don't bring up my last layoff." "Don't suggest job boards."`}
-              rows={3}
+              minRows={3}
               style={textareaStyle}
             />
           </div>
@@ -303,20 +304,25 @@ function SahaayakWorkspace({ profile, onProfileChange }: { profile: SahaayakProf
             </div>
 
             <div style={{ marginTop: 14, display: 'flex', gap: 8 }}>
-              <textarea
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    send();
-                  }
-                }}
-                rows={2}
-                placeholder="Say what's on your mind. Enter to send, Shift+Enter for newline."
-                style={{ ...textareaStyle, marginBottom: 0 }}
-                disabled={sending}
-              />
+              {/* Chat composer — a visible label above the box would be noise,
+               * so the accessible name is kept for screen readers only. */}
+              <div className="hide-field-label" style={{ flex: 1 }}>
+                <TkxTextarea
+                  label="Message Sahaayak"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      send();
+                    }
+                  }}
+                  minRows={2}
+                  placeholder="Say what's on your mind. Enter to send, Shift+Enter for newline."
+                  style={{ ...textareaStyle, marginBottom: 0 }}
+                  disabled={sending}
+                />
+              </div>
               <TkxButton onClick={send} disabled={sending || !input.trim()}>
                 {sending ? '…' : 'Send'}
               </TkxButton>
@@ -457,11 +463,11 @@ function EventSidebar({ events, onChanged }: { events: SahaayakEvent[]; onChange
           </>
         )}
 
-        <label style={labelStyle}>Note (optional)</label>
-        <textarea
+        <TkxTextarea
+          label="Note (optional)"
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          rows={2}
+          minRows={2}
           style={textareaStyle}
           placeholder="A line for future-you."
         />
