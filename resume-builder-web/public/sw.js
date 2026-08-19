@@ -10,7 +10,11 @@
 // Bump CACHE_VERSION whenever cached file shape changes so old workers
 // release their grip on stale assets.
 
-const CACHE_VERSION = 'pocket-resume-v1';
+// v2: renamed from 'pocket-resume-v1'. The rename is deliberate — the
+// activate handler below deletes every cache not matching CACHE_VERSION, so
+// bumping this is how a bad cache gets evicted from clients already in the
+// wild. It also drops the stale product name.
+const CACHE_VERSION = 'callbackcv-v2';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const OFFLINE_URL = '/offline.html';
@@ -80,7 +84,24 @@ self.addEventListener('fetch', (event) => {
           caches.open(RUNTIME_CACHE).then((c) => c.put(request, copy)).catch(() => null);
           return res;
         })
-        .catch(() => caches.match(OFFLINE_URL));
+        .catch(() => {
+          // NEVER fall back to offline.html here. This branch also serves
+          // script and style requests, so handing back an HTML document for a
+          // .js request makes the browser parse HTML as JavaScript. Webpack's
+          // module registry then ends up undefined and the app dies with
+          // "Cannot read properties of undefined (reading 'call')" — that is
+          // __webpack_require__ calling modules[id].call() on a missing
+          // factory. It turned a transient chunk fetch failure into a hard
+          // white-screen error page on /auth/register and anywhere else.
+          //
+          // Return an honest error instead, so the browser reports a network
+          // failure and Next.js can retry the chunk.
+          return new Response('', {
+            status: 503,
+            statusText: 'Offline',
+            headers: { 'Cache-Control': 'no-store' },
+          });
+        });
     }),
   );
 });
