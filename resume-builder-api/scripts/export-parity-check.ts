@@ -162,4 +162,23 @@ if (visualFailures) process.exit(1);
   console.log('ok   photo-banner       (photo path: img rendered, monogram suppressed)');
 }
 
+
+/* Hero identity: the PERSON leads, the document title is the subtitle, and the
+   same string never renders twice — a real exported PDF showed the long doc
+   title in 26px type and again beneath it. */
+{
+  const { html } = renderResumeTemplateHtml({
+    templateId: 'sidebar-elegant',
+    resumeData: { ...VISUAL_RESUME, title: 'Tech Lead / AVP - Full Stack' },
+    mode: 'export',
+  });
+  const nameOk = /nb-visual__name">Test Person</.test(html);
+  const roleOk = html.includes('nb-visual__role">Tech Lead / AVP - Full Stack');
+  if (!nameOk || !roleOk) {
+    console.log();
+    process.exit(1);
+  }
+  console.log('ok   hero identity      (person name leads, title is the subtitle)');
+}
+
 process.exit(failures + visualFailures ? 1 : 0);

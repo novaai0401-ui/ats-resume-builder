@@ -1,5 +1,6 @@
 ﻿import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ProfileCopilotService } from './profile-copilot.service';
 import { AiController } from './ai.controller';
 import { AiService } from './ai.service';
 import { TechGapService } from './tech-gap.service';
@@ -20,6 +21,7 @@ import { LiveJobsModule } from '../live-jobs/live-jobs.module';
   imports: [ConfigModule, SettingsModule, LiveJobsModule],
   controllers: [AiController],
   providers: [
+    ProfileCopilotService,
     MockInterviewService,
     AiService,
     TechGapService,

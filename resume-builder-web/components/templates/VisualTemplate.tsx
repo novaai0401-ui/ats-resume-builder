@@ -95,7 +95,15 @@ export default function VisualTemplate({
   const phone = String(normalized.contact?.phone || '').trim();
   const location = String(normalized.contact?.location || '').trim();
   const links = cleanList(normalized.contact?.links);
-  const name = fullNameOrTitle(normalized);
+  // The PERSON leads a designer hero. fullNameOrTitle prefers the document
+  // title (an ATS-header convention), which put 'Assistant Vice President -
+  // Engineering / Frontend Platforms / …' in 26px type and then repeated it
+  // in the role line — seen in a real exported PDF. Name first, title as the
+  // subtitle, and never the same string twice.
+  const personName = String(normalized.contact?.fullName || '').trim();
+  const name = personName || fullNameOrTitle(normalized);
+  const roleLine = String(normalized.title || '').trim();
+  const showRole = Boolean(roleLine) && roleLine.toLowerCase() !== name.toLowerCase();
   const photo = normalizePhotoUrl(normalized.photoUrl);
   // photo-banner degrades to the monogram when no photo is uploaded, so the
   // template never renders a broken empty circle.
@@ -114,9 +122,7 @@ export default function VisualTemplate({
         ) : null}
         <div className="nb-visual__id">
           <h1 className="nb-visual__name">{name}</h1>
-          {normalized.title && normalized.contact?.fullName ? (
-            <p className="nb-visual__role">{normalized.title}</p>
-          ) : null}
+          {showRole ? <p className="nb-visual__role">{roleLine}</p> : null}
         </div>
       </header>
 

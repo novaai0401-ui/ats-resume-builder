@@ -4628,39 +4628,63 @@ a:hover { color: var(--link-hover); }
 }
 
 /* ==========================================================================
-   Site footer — every page closes with trust links + copyright. Tokens only,
-   so it follows light/dark for free. Bottom padding clears the fixed mobile
-   bottom-nav (56px + safe-area) so the links are never buried under it.
+   Site footer — competitor-grade: gradient hairline, brand column, four link
+   groups, copyright. Tokens only, so light/dark work without extra rules.
+   Bottom padding clears the fixed mobile bottom-nav + safe area.
    ========================================================================== */
 .site-footer {
   margin-top: var(--space-16);
-  padding: var(--space-8) var(--space-5) calc(var(--space-8) + 64px + env(safe-area-inset-bottom, 0px));
   border-top: 1px solid var(--border);
-  text-align: center;
+  position: relative;
+  padding: var(--space-10) var(--space-5) calc(var(--space-8) + 64px + env(safe-area-inset-bottom, 0px));
+}
+/* The premium tell: a thin accent gradient along the top edge. */
+.site-footer::before {
+  content: '';
+  position: absolute;
+  top: -1px; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, var(--primary), #a78bfa, var(--primary));
 }
 @media (min-width: 768px) {
-  /* No bottom nav on desktop — normal padding. */
-  .site-footer { padding-bottom: var(--space-8); }
+  .site-footer { padding-bottom: var(--space-10); }
 }
-.site-footer__links {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: var(--space-2) 0;
+.site-footer__grid {
+  max-width: 1080px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1.6fr repeat(4, 1fr);
+  gap: var(--space-8) var(--space-6);
 }
-.site-footer__link {
-  color: var(--ink);
-  font-size: var(--text-sm);
-  text-decoration: none;
-  padding: var(--space-1) var(--space-3);
+@media (max-width: 1023.98px) {
+  .site-footer__grid { grid-template-columns: 1fr 1fr; }
 }
+@media (max-width: 479.98px) {
+  .site-footer__grid { grid-template-columns: 1fr; }
+}
+.site-footer__logo {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  background: linear-gradient(90deg, var(--primary), #a78bfa);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.site-footer__tagline { margin: 0 0 var(--space-3); font-size: var(--text-sm); color: var(--muted); max-width: 34ch; line-height: var(--leading-normal); }
+.site-footer__meta { margin: 0; font-size: var(--text-xs); color: var(--muted); }
+.site-footer__meta a { color: var(--link); text-decoration: none; }
+.site-footer__group { display: flex; flex-direction: column; gap: var(--space-2); }
+.site-footer__group-title { margin: 0 0 var(--space-1); font-size: var(--text-xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.site-footer__link { color: var(--ink); font-size: var(--text-sm); text-decoration: none; }
 .site-footer__link:hover { color: var(--link-hover); text-decoration: underline; }
-/* Competitor-style separators between links, without extra markup. */
-.site-footer__link + .site-footer__link { border-left: 1px solid var(--border); }
 .site-footer__copyright {
-  margin: var(--space-4) 0 0;
+  max-width: 1080px;
+  margin: var(--space-8) auto 0;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
   font-size: var(--text-xs);
   color: var(--muted);
+  text-align: center;
 }
 
 /* ── nb-visual family: 4 designer templates, one structure ─────────

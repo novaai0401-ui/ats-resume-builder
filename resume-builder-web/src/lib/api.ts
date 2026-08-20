@@ -1017,6 +1017,18 @@ export const api = {
       body: JSON.stringify({ resumeText, jdText }),
     }),
 
+  /**
+   * Profile Copilot — prioritised action plan for one of the user's saved
+   * resumes. The server derives everything from the account; nothing is
+   * pasted. BYOK header rides along like every other AI call.
+   */
+  copilotPlan: (resumeId: string) =>
+    request<CopilotPlan>(`/ai/copilot/${encodeURIComponent(resumeId)}`, {
+      method: 'POST',
+      headers: { ...(getByokHeader() || {}) },
+      body: JSON.stringify({}),
+    }),
+
   aiCritique: (input: AiCritiqueRequest) =>
     request<AiCritiqueResult>(`/ai/ai-critique`, {
       method: 'POST',
@@ -1818,6 +1830,25 @@ export type JobOpening = {
   salaryText: string | null;
   postedAt: string | null;
   source: string;
+};
+
+
+export type CopilotAction = {
+  id: string;
+  severity: 'high' | 'medium' | 'low';
+  section: string;
+  title: string;
+  detail: string;
+  cta: string;
+};
+
+export type CopilotPlan = {
+  resumeId: string;
+  resumeTitle: string;
+  assessment: string;
+  actions: CopilotAction[];
+  aiEnhanced: boolean;
+  aiSource: string;
 };
 
 export type JobMatchesResult = {

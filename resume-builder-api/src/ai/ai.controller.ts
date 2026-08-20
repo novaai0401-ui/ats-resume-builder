@@ -1,4 +1,5 @@
 ﻿import { BadRequestException, Body, Controller, Delete, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { ProfileCopilotService } from './profile-copilot.service';
 import {
   AiCritiqueSchema,
   AiParseJdSchema,
@@ -47,6 +48,7 @@ function byokFromReq(req: AuthedAiReq): { provider?: string | null; key?: string
 @UseGuards(JwtAuthGuard)
 export class AiController {
   constructor(
+    private readonly profileCopilot: ProfileCopilotService,
     private readonly aiService: AiService,
     private readonly techGapService: TechGapService,
     private readonly coverLetterService: CoverLetterService,
@@ -262,6 +264,16 @@ export class AiController {
   }
 
   /** Live job openings for a free-text query (Student/Pro). */
+  /**
+   * Profile Copilot — a prioritised action plan derived from the user's OWN
+   * saved resume. Rule-based plan always returns; AI enrichment follows the
+   * standard access ladder (BYOK / paid plan uncapped, FREE daily-capped).
+   */
+  @Post('copilot/:resumeId')
+  copilot(@Req() req: AuthedAiReq, @Param('resumeId') resumeId: string) {
+    return this.profileCopilot.plan(req.user.userId, resumeId, byokFromReq(req));
+  }
+
   @Get('live-openings')
   liveOpenings(
     @Req() req: { user: { userId: string } },

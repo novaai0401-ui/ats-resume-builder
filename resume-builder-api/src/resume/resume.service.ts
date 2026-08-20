@@ -5020,9 +5020,13 @@ const VISUAL_TEMPLATE_IDS = new Set(['sidebar-elegant', 'icon-accent', 'banner-m
  */
 function renderVisualTemplateArticle(templateId: string, resume: any) {
   const normalized = normalizeTemplateResumeData(resume);
-  const name = templateFullNameOrTitle(normalized);
+  // Person first — mirrors the React component. templateFullNameOrTitle
+  // prefers the document title (ATS-header convention), which rendered the
+  // long title as the hero name AND repeated it as the role line.
+  const personName = String(normalized?.contact?.fullName || '').trim();
+  const name = personName || templateFullNameOrTitle(normalized);
   const role = String(normalized?.title || '').trim();
-  const hasRoleSubtitle = role && normalized?.contact?.fullName;
+  const hasRoleSubtitle = Boolean(role) && role.toLowerCase() !== name.toLowerCase();
   const summary = String(normalized.summary || '').trim();
 
   const skills = nonOverlappingMainSkills(normalized);

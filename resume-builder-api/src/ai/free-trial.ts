@@ -41,6 +41,7 @@ export type AiFeatureKey =
   | 'interview-prep'
   | 'mock-interview'
   | 'mentor-chat'
+  | 'profile-copilot'
   | 'recruiter-sim'
   | 'skill-demand';
 

@@ -19,6 +19,7 @@ import { recommendTemplates } from '@/src/lib/template-recommendation';
 import { PrivacyBadge } from '@/src/components/PrivacyBadge';
 import { SUPPORT_EMAIL } from '@/src/lib/support';
 import { CallbackRateCard } from '@/src/components/CallbackRateCard';
+import CopilotCard from '@/src/components/CopilotCard';
 import { defaultTemplateId, resolveTemplateId, templateRegistry, type TemplateId } from '@/shared/templateRegistry';
 
 const DASHBOARD_TEMPLATE_OPTIONS = TEMPLATE_CATALOG.map((template) => templateRegistry[template.id]);
@@ -409,6 +410,10 @@ export default function DashboardPageView({
           ) : null}
         </div>
       </section>
+
+      {/* Auto-loads when a resume is selected — the copilot is the
+          "what next?" driver, so it belongs directly under the selection. */}
+      {selectedResumeId ? <CopilotCard resumeId={selectedResumeId} /> : null}
 
       <section
         className="card"
