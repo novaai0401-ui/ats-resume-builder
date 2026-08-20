@@ -185,7 +185,10 @@ export default function BillingPage() {
             position: 'relative',
             borderColor: 'var(--primary)',
             boxShadow: 'var(--shadow-lg)',
-            background: 'linear-gradient(180deg, #f3f2ff 0%, #ffffff 60%)',
+            // Token gradient: the hardcoded #f3f2ff->#fff stayed light in dark
+            // mode while every heading and price followed the theme — the card
+            // rendered near-blank (founder screenshot).
+            background: 'linear-gradient(180deg, color-mix(in srgb, var(--primary) 8%, var(--card)) 0%, var(--card) 60%)',
           }}
         >
           <div style={{ position: 'absolute', top: 14, right: 14 }}>

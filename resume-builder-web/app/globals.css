@@ -2939,9 +2939,12 @@ body.resume-embed-body .main-shell {
 }
 
 .upload-summary-panel {
-  border: 1px solid #c8d8ea;
+  /* Tokens, not literals: #f4f9ff stayed light in dark mode while the text
+     followed the theme — the founder-reported invisible-heading panel. The
+     color-mix keeps the same subtle brand tint in BOTH themes. */
+  border: 1px solid var(--border);
   border-radius: 12px;
-  background: #f4f9ff;
+  background: color-mix(in srgb, var(--primary) 7%, var(--card));
   padding: 14px 16px;
   display: flex;
   justify-content: space-between;
