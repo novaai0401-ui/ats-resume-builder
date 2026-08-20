@@ -4810,6 +4810,70 @@ const ATS_TEMPLATE_EXPORT_CSS = `
       .nb-sidebar-bold__exp-date { font-size: 10px; color: #7a9ab8; white-space: nowrap; flex-shrink: 0; }
       .nb-sidebar-bold__exp-bullets { margin: 4px 0 0 14px; padding: 0; list-style: disc; orphans: 3; widows: 2; }
       .nb-sidebar-bold__exp-bullets li { font-size: 10px; color: #3a4a5c; margin-bottom: 2px; line-height: 1.5; }
+
+      /* ── nb-visual family: 4 designer templates, one structure ─────────
+         Variants (modifier class does ALL differentiation):
+           --sidebar-elegant  accent left rail, white main
+           --icon-accent      glyph-badged headings, slim left column
+           --banner-modern    tinted accent banner, grey right rail
+           --initials-classic initials avatar, accent details
+         Accent-driven via --rb-accent so the editor swatches recolour the
+         whole design. This block is duplicated VERBATIM in the app stylesheet
+         and ATS_TEMPLATE_EXPORT_CSS — edit both or the PDF drifts. Colours are
+         literal or --rb-* only (a resume renders identically in dark mode and
+         in the PDF container, where app theme tokens do not exist). */
+      .nb-visual { font-family: var(--rb-font, 'Segoe UI', system-ui, sans-serif); font-size: calc(12px * var(--rb-fs-scale, 1)); line-height: var(--rb-lh, 1.5); color: #21303f; background: #ffffff; min-height: 100%; }
+      .nb-visual__hero { display: flex; align-items: center; gap: 14px; padding: 22px 26px 16px; }
+      .nb-visual__name { margin: 0; font-size: 25px; font-weight: 700; letter-spacing: -0.01em; color: var(--rb-accent, #155263); }
+      .nb-visual__role { margin: 3px 0 0; font-size: 12.5px; color: #5a6b7c; text-transform: uppercase; letter-spacing: 0.06em; }
+      .nb-visual__initials { width: 54px; height: 54px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 700; color: #ffffff; background: var(--rb-accent, #155263); flex-shrink: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .nb-visual__body { display: grid; grid-template-columns: 215px 1fr; }
+      .nb-visual__side { padding: 16px 18px 22px 26px; }
+      .nb-visual__main { padding: 16px 26px 22px 20px; min-width: 0; }
+      .nb-visual__block { margin-bottom: 14px; break-inside: avoid-page; }
+      .nb-visual__title { margin: 0 0 7px; font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: var(--rb-accent, #155263); display: flex; align-items: center; gap: 7px; break-after: avoid; page-break-after: avoid; }
+      .nb-visual__ico { display: none; }
+      .nb-visual__contact { margin: 0 0 3px; font-size: 10.5px; color: #3c4c5c; word-break: break-word; }
+      .nb-visual__contact--link { color: var(--rb-accent, #155263); }
+      .nb-visual__list { margin: 0; padding-left: 16px; }
+      .nb-visual__list li { font-size: 10.5px; color: #3c4c5c; margin-bottom: 3px; }
+      .nb-visual__summary { margin: 0; font-size: 11px; color: #3c4c5c; line-height: 1.65; }
+      .nb-visual__item { margin-bottom: 10px; break-inside: avoid-page; }
+      .nb-visual__item-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+      .nb-visual__item-role { font-size: 12px; font-weight: 600; color: #22384e; }
+      .nb-visual__item-date { font-size: 10px; color: #7d8fa1; white-space: nowrap; }
+      .nb-visual__item-org { margin: 1px 0 3px; font-size: 10.5px; font-style: italic; color: #5a6b7c; }
+      .nb-visual__bullets { margin: 0; padding-left: 16px; }
+      .nb-visual__bullets li { font-size: 10.5px; color: #3c4c5c; margin-bottom: 2px; }
+
+      /* sidebar-elegant: the accent rail. Everything inside goes light-on-dark. */
+      .nb-visual--sidebar-elegant .nb-visual__hero { padding-bottom: 12px; border-bottom: 2px solid var(--rb-accent, #155263); }
+      .nb-visual--sidebar-elegant .nb-visual__side { background: var(--rb-accent, #155263); color: #f2f6f9; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .nb-visual--sidebar-elegant .nb-visual__side .nb-visual__title { color: #ffffff; border-bottom: 1px solid rgba(255,255,255,0.35); padding-bottom: 4px; }
+      .nb-visual--sidebar-elegant .nb-visual__side .nb-visual__contact,
+      .nb-visual--sidebar-elegant .nb-visual__side .nb-visual__contact--link,
+      .nb-visual--sidebar-elegant .nb-visual__side .nb-visual__list li { color: #eaf1f6; }
+
+      /* icon-accent: glyph badges on, slim side column, hairline under hero. */
+      .nb-visual--icon-accent .nb-visual__body { grid-template-columns: 190px 1fr; }
+      .nb-visual--icon-accent .nb-visual__ico,
+      .nb-visual--initials-classic .nb-visual__ico { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; background: var(--rb-accent, #155263); color: #ffffff; font-size: 9px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .nb-visual--icon-accent .nb-visual__hero { border-bottom: 1px solid #dde5ec; }
+      .nb-visual--icon-accent .nb-visual__side { border-right: 1px solid #dde5ec; }
+
+      /* banner-modern: tinted band header, grey rail moves to the RIGHT. */
+      .nb-visual--banner-modern .nb-visual__hero { background: #e7eef4; background: color-mix(in srgb, var(--rb-accent, #155263) 16%, #ffffff); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .nb-visual--banner-modern .nb-visual__body { grid-template-columns: 1fr 205px; }
+      .nb-visual--banner-modern .nb-visual__side { order: 2; background: #f3f5f7; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .nb-visual--banner-modern .nb-visual__main { order: 1; padding: 16px 20px 22px 26px; }
+
+      /* initials-classic: airy, square accent markers on list items. */
+      .nb-visual--initials-classic .nb-visual__name { color: #33475c; }
+      .nb-visual--initials-classic .nb-visual__name { font-weight: 400; }
+      .nb-visual--initials-classic .nb-visual__side { border-right: 1px solid #e3e9ef; }
+      .nb-visual--initials-classic .nb-visual__list { list-style: square; }
+      .nb-visual--initials-classic .nb-visual__bullets { list-style: square; }
+
 `;
 
 export function renderResumeTemplateHtml(input: RenderResumeTemplateHtmlInput): RenderResumeTemplateHtmlOutput {
@@ -4884,12 +4948,191 @@ function renderTemplateBody(templateId: string, resume: any) {
   if (templateId === 'creative') return renderCreativeTemplateArticle(resume);
   if (templateId === 'sidebar-bold') return renderSidebarBoldTemplateArticle(resume);
   if (templateId === 'accent-header') return renderAccentHeaderTemplateArticle(resume);
+  // nb-visual family — four designer templates through one shared renderer.
+  if (VISUAL_TEMPLATE_IDS.has(templateId)) return renderVisualTemplateArticle(templateId, resume);
   // R-110 — preset-driven templates (2026 intake). Checked before the classic
   // fallback so a preset id renders its own layout rather than silently
   // exporting as Classic, which is how earlier templates lost their section
   // labels in the PDF.
   if (templatePreset(templateId)) return renderPresetTemplateArticle(templateId, resume);
   return renderClassicTemplateArticle(resume);
+}
+
+
+/** Section glyphs for the nb-visual icon variants. DejaVu/Liberation-covered
+ *  characters only — emoji would tofu in the Alpine PDF container. Keep in
+ *  step with SECTION_GLYPHS in components/templates/VisualTemplate.tsx. */
+const VISUAL_GLYPHS: Record<string, string> = {
+  contact: '\u2709',
+  skills: '\u2605',
+  languages: '\u25C6',
+  summary: '\u25CF',
+  experience: '\u25C6',
+  projects: '\u25A0',
+  education: '\u25B2',
+  certifications: '\u2726',
+  achievements: '\u2605',
+};
+
+/** Template ids served by the shared nb-visual renderer below. */
+const VISUAL_TEMPLATE_IDS = new Set(['sidebar-elegant', 'icon-accent', 'banner-modern', 'initials-classic']);
+
+/**
+ * Mirror of components/templates/VisualTemplate.tsx — ONE markup structure for
+ * all four designer templates; the variant class does the visual work, and the
+ * nb-visual CSS block is duplicated verbatim in globals.css and
+ * ATS_TEMPLATE_EXPORT_CSS. Change the React component, this function, or
+ * either CSS copy, and the other three must move with it.
+ */
+function renderVisualTemplateArticle(templateId: string, resume: any) {
+  const normalized = normalizeTemplateResumeData(resume);
+  const name = templateFullNameOrTitle(normalized);
+  const role = String(normalized?.title || '').trim();
+  const hasRoleSubtitle = role && normalized?.contact?.fullName;
+  const summary = String(normalized.summary || '').trim();
+
+  const skills = nonOverlappingMainSkills(normalized);
+  const languages = templateCleanList(normalized.languages);
+  const experience = templateExperienceItems(normalized);
+  const projects = templateProjectItems(normalized);
+  const education = templateEducationItems(normalized);
+  const certifications = templateCertificationItems(normalized);
+  const achievements = templateCleanList(normalized.achievements);
+
+  const email = String(normalized?.contact?.email || '').trim();
+  const phone = String(normalized?.contact?.phone || '').trim();
+  const location = String(normalized?.contact?.location || '').trim();
+  const links = templateCleanList(normalized?.contact?.links);
+
+  const initials = name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w: string) => w[0]!.toUpperCase())
+    .join('');
+
+  const title = (id: string, label: string) =>
+    `<h2 class="nb-visual__title"><span class="nb-visual__ico" aria-hidden="true">${VISUAL_GLYPHS[id] || '\u25CF'}</span>${label}</h2>`;
+
+  const contactBlock = `
+        <section class="nb-visual__block">
+          ${title('contact', 'Contact')}
+          ${email ? `<p class="nb-visual__contact">${escapeHtml(email)}</p>` : ''}
+          ${phone ? `<p class="nb-visual__contact">${escapeHtml(phone)}</p>` : ''}
+          ${location ? `<p class="nb-visual__contact">${escapeHtml(location)}</p>` : ''}
+          ${links.map((l) => `<p class="nb-visual__contact nb-visual__contact--link">${escapeHtml(l)}</p>`).join('')}
+        </section>`;
+
+  const listBlock = (id: string, label: string, items: string[]) =>
+    items.length
+      ? `
+        <section class="nb-visual__block">
+          ${title(id, label)}
+          <ul class="nb-visual__list">${items.map((s) => `<li>${escapeHtml(s)}</li>`).join('')}</ul>
+        </section>`
+      : '';
+
+  const experienceBlock = experience.length
+    ? `
+        <section class="nb-visual__block">
+          ${title('experience', 'Work History')}
+          ${experience
+            .map((it) => {
+              const dateRange = templateDateRange(String(it.startDate || ''), String(it.endDate || ''));
+              const highlights = templateCleanList(it.highlights);
+              return `
+          <div class="nb-visual__item">
+            <div class="nb-visual__item-head">
+              <span class="nb-visual__item-role">${escapeHtml(it.role || 'Role')}</span>
+              ${dateRange ? `<span class="nb-visual__item-date">${escapeHtml(dateRange)}</span>` : ''}
+            </div>
+            ${it.company ? `<p class="nb-visual__item-org">${escapeHtml(it.company)}</p>` : ''}
+            ${highlights.length ? `<ul class="nb-visual__bullets">${highlights.map((h) => `<li>${escapeHtml(h)}</li>`).join('')}</ul>` : ''}
+          </div>`;
+            })
+            .join('')}
+        </section>`
+    : '';
+
+  const projectsBlock = projects.length
+    ? `
+        <section class="nb-visual__block">
+          ${title('projects', 'Projects')}
+          ${projects
+            .map((it) => {
+              const highlights = templateCleanList(it.highlights);
+              return `
+          <div class="nb-visual__item">
+            <div class="nb-visual__item-head"><span class="nb-visual__item-role">${escapeHtml(it.name || '')}</span></div>
+            ${highlights.length ? `<ul class="nb-visual__bullets">${highlights.map((h) => `<li>${escapeHtml(h)}</li>`).join('')}</ul>` : ''}
+          </div>`;
+            })
+            .join('')}
+        </section>`
+    : '';
+
+  const educationBlock = education.length
+    ? `
+        <section class="nb-visual__block">
+          ${title('education', 'Education')}
+          ${education
+            .map((it) => {
+              const dateRange = templateDateRange(String(it.startDate || ''), String(it.endDate || ''));
+              return `
+          <div class="nb-visual__item">
+            <div class="nb-visual__item-head">
+              <span class="nb-visual__item-role">${escapeHtml(it.degree || '')}</span>
+              ${dateRange ? `<span class="nb-visual__item-date">${escapeHtml(dateRange)}</span>` : ''}
+            </div>
+            ${it.institution ? `<p class="nb-visual__item-org">${escapeHtml(it.institution)}</p>` : ''}
+          </div>`;
+            })
+            .join('')}
+        </section>`
+    : '';
+
+  const certificationsBlock = certifications.length
+    ? `
+        <section class="nb-visual__block">
+          ${title('certifications', 'Certifications')}
+          <ul class="nb-visual__list">${certifications
+            .map((c: any) => `<li>${escapeHtml(String(c?.name || ''))}${c?.issuer ? ` \u2014 ${escapeHtml(String(c.issuer))}` : ''}</li>`)
+            .join('')}</ul>
+        </section>`
+    : '';
+
+  const achievementsBlock = listBlock('achievements', 'Achievements', achievements);
+
+  return `
+    <article class="nb-visual nb-visual--${safeCssClass(templateId)}">
+      <header class="nb-visual__hero">
+        ${templateId === 'initials-classic' ? `<span class="nb-visual__initials" aria-hidden="true">${escapeHtml(initials)}</span>` : ''}
+        <div class="nb-visual__id">
+          <h1 class="nb-visual__name">${escapeHtml(name)}</h1>
+          ${hasRoleSubtitle ? `<p class="nb-visual__role">${escapeHtml(role)}</p>` : ''}
+        </div>
+      </header>
+      <div class="nb-visual__body">
+        <aside class="nb-visual__side">
+          ${contactBlock}
+          ${listBlock('skills', 'Skills', skills)}
+          ${listBlock('languages', 'Languages', languages)}
+        </aside>
+        <div class="nb-visual__main">
+          ${summary ? `
+        <section class="nb-visual__block">
+          ${title('summary', 'Summary')}
+          <p class="nb-visual__summary">${escapeHtml(summary)}</p>
+        </section>` : ''}
+          ${experienceBlock}
+          ${projectsBlock}
+          ${educationBlock}
+          ${certificationsBlock}
+          ${achievementsBlock}
+        </div>
+      </div>
+    </article>
+  `;
 }
 
 /**

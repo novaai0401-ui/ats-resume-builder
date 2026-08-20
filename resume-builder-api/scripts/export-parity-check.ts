@@ -93,4 +93,48 @@ console.log(
     ? `\n${failures}/${PRESET_TEMPLATE_IDS.length} FAILED`
     : `\nall ${PRESET_TEMPLATE_IDS.length} preset templates export correctly, with CSS`,
 );
-process.exit(failures ? 1 : 0);
+// (exit moved to the end of the file so later sections actually run)
+
+/* ---------------------------------------------------------------------------
+   nb-visual family: same proof for the designer templates. One shared
+   renderer serves all four, so a break here is a break in all of them.
+   --------------------------------------------------------------------------- */
+const VISUAL_IDS = ['sidebar-elegant', 'icon-accent', 'banner-modern', 'initials-classic'];
+const VISUAL_RESUME: any = {
+  ...RESUME,
+  contact: { ...RESUME.contact, links: ['linkedin.com/in/x'] },
+  accentColor: '#7c2d5e',
+};
+
+let visualFailures = 0;
+for (const id of VISUAL_IDS) {
+  const { html, cssIncluded } = renderResumeTemplateHtml({
+    templateId: id,
+    resumeData: VISUAL_RESUME,
+    mode: 'export',
+  });
+  const problems: string[] = [];
+  if (!html.includes(`nb-visual--${id}`)) problems.push('missing variant class');
+  if (html.includes('ats-template--classic')) problems.push('fell back to classic');
+  if (!cssIncluded || !html.includes('.nb-visual ')) problems.push('nb-visual CSS not inlined');
+  if (!html.includes('Work History')) problems.push('experience section missing');
+  // The accent swatch must reach the PDF, or the four designs all render in
+  // the default teal regardless of what the user picked.
+  if (!html.includes('--rb-accent: #7c2d5e')) problems.push('accent variable not injected');
+  if (id === 'initials-classic' && !/nb-visual__initials[^>]*>TP</.test(html)) problems.push('initials missing');
+  if (problems.length) {
+    visualFailures++;
+    console.log(`FAIL ${id}`);
+    for (const p of problems) console.log('    - ' + p);
+  } else {
+    console.log(`ok   ${id.padEnd(18)} (visual)`);
+  }
+}
+console.log(
+  visualFailures
+    ? `\n${visualFailures}/${VISUAL_IDS.length} visual templates FAILED`
+    : `all ${VISUAL_IDS.length} visual templates export correctly, with CSS + accent`,
+);
+if (visualFailures) process.exit(1);
+
+process.exit(failures + visualFailures ? 1 : 0);

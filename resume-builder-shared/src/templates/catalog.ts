@@ -26,7 +26,14 @@ export type TemplateCatalogId =
   | 'revenue-sales'
   | 'data-analytics'
   | 'open-source'
-  | 'remote-global';
+  | 'remote-global'
+  // nb-visual family — designer/showcase templates, accent-colour driven.
+  // One shared component + one export renderer; the variant class does the
+  // visual differentiation. atsSafety low: for people, not parsers.
+  | 'sidebar-elegant'
+  | 'icon-accent'
+  | 'banner-modern'
+  | 'initials-classic';
 
 /**
  * How well a template actually survives ATS parsers. We previously
@@ -521,6 +528,78 @@ export const TEMPLATE_CATALOG: readonly TemplateCatalogItem[] = [
     supportedLocales: ['en-IN', 'en-US'],
     layout: 'single-column',
     paginationSafe: true,
+    implementedVariants: ['screen', 'print', 'ats-export'],
+  },
+
+  /* ---------------------------------------------------------------
+     nb-visual family — designer/showcase templates for people rather
+     than parsers (the honest atsSafety: low). One shared component and
+     one export renderer serve all four; the variant modifier class does
+     the visual differentiation, and every design is recoloured by the
+     user's accent swatch (--rb-accent).
+     --------------------------------------------------------------- */
+  {
+    id: 'sidebar-elegant',
+    name: 'Sidebar Elegant',
+    description:
+      'Accent-coloured left rail for contact and skills beside a clean white main column — and the rail recolours with your accent swatch. Visual showcase: most ATS merge or drop the columns, so use it for people, not portals.',
+    tags: ['Visual', 'Two-column', 'Accent'],
+    atsSafety: 'low',
+    recommendedFor: ['Direct applications and referrals', 'Printed CVs', 'Client-facing roles'],
+    industries: ['sales-marketing', 'business-management', 'hospitality-tourism', 'creative-design', 'media-communications'],
+    componentKey: 'sidebar-elegant',
+    supportedSections: ['summary', 'skills', 'experience', 'projects', 'achievements', 'education', 'certifications', 'languages'],
+    supportedLocales: ['en-IN', 'en-US'],
+    layout: 'sidebar',
+    paginationSafe: false,
+    implementedVariants: ['screen', 'print', 'ats-export'],
+  },
+  {
+    id: 'icon-accent',
+    name: 'Icon Accent',
+    description:
+      'Glyph-badged section headings in your accent colour with a slim contact column — the polished-but-quiet look. Visual showcase: two-column, so keep it for humans rather than ATS portals.',
+    tags: ['Visual', 'Icons', 'Accent'],
+    atsSafety: 'low',
+    recommendedFor: ['Networking and referrals', 'Consultants and freelancers'],
+    industries: ['business-management', 'media-communications', 'creative-design', 'education', 'hospitality-tourism'],
+    componentKey: 'icon-accent',
+    supportedSections: ['summary', 'skills', 'experience', 'projects', 'achievements', 'education', 'certifications', 'languages'],
+    supportedLocales: ['en-IN', 'en-US'],
+    layout: 'multi-column',
+    paginationSafe: false,
+    implementedVariants: ['screen', 'print', 'ats-export'],
+  },
+  {
+    id: 'banner-modern',
+    name: 'Banner Modern',
+    description:
+      'A soft accent-tinted banner behind your name, with a grey utility rail on the right. The tint follows your accent swatch. Visual showcase — recruiters love it, parsers merge the columns.',
+    tags: ['Visual', 'Banner', 'Accent'],
+    atsSafety: 'low',
+    recommendedFor: ['Creative and client-facing roles', 'Printed CVs'],
+    industries: ['creative-design', 'media-communications', 'sales-marketing', 'hospitality-tourism', 'retail-ecommerce'],
+    componentKey: 'banner-modern',
+    supportedSections: ['summary', 'skills', 'experience', 'projects', 'achievements', 'education', 'certifications', 'languages'],
+    supportedLocales: ['en-IN', 'en-US'],
+    layout: 'multi-column',
+    paginationSafe: false,
+    implementedVariants: ['screen', 'print', 'ats-export'],
+  },
+  {
+    id: 'initials-classic',
+    name: 'Initials Classic',
+    description:
+      'A monogram avatar built from your initials beside an understated serif-weight name, with square accent markers. The calm executive look, no photo required. Visual showcase, not for ATS portals.',
+    tags: ['Visual', 'Monogram', 'Understated'],
+    atsSafety: 'low',
+    recommendedFor: ['Senior and executive applications shared directly', 'Board and advisory CVs'],
+    industries: ['business-management', 'finance', 'legal', 'government-public-sector', 'education'],
+    componentKey: 'initials-classic',
+    supportedSections: ['summary', 'skills', 'experience', 'projects', 'achievements', 'education', 'certifications', 'languages'],
+    supportedLocales: ['en-IN', 'en-US'],
+    layout: 'multi-column',
+    paginationSafe: false,
     implementedVariants: ['screen', 'print', 'ats-export'],
   },
 ] as const;

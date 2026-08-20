@@ -12,6 +12,7 @@ import TechnicalCompact from '@/components/templates/TechnicalCompact';
 import SidebarBold from '@/components/templates/SidebarBold';
 import AccentHeader from '@/components/templates/AccentHeader';
 import { presetTemplateComponent } from '@/components/templates/PresetTemplate';
+import { visualTemplateComponent } from '@/components/templates/VisualTemplate';
 
 export type TemplateComponentProps = {
   resumeData: ResumeImportResult;
@@ -56,6 +57,11 @@ const templateComponents: Record<TemplateComponentKey, ComponentType<TemplateCom
   'data-analytics': presetTemplateComponent('data-analytics'),
   'open-source': presetTemplateComponent('open-source'),
   'remote-global': presetTemplateComponent('remote-global'),
+  // nb-visual family — one component, variant per id (see VisualTemplate.tsx).
+  'sidebar-elegant': visualTemplateComponent('sidebar-elegant'),
+  'icon-accent': visualTemplateComponent('icon-accent'),
+  'banner-modern': visualTemplateComponent('banner-modern'),
+  'initials-classic': visualTemplateComponent('initials-classic'),
 };
 
 const templateEntries = TEMPLATE_CATALOG.map((template) => {

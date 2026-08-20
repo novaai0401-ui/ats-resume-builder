@@ -96,6 +96,10 @@ test('achievements render everywhere: first-class OR via the shared fallback', (
   // an entry each. Deriving this from PRESET_TEMPLATE_IDS means a new preset
   // cannot silently escape this check.
   for (const id of PRESET_TEMPLATE_IDS) COMPONENT_FILE[id] = 'PresetTemplate';
+  // nb-visual family shares one component file the same way.
+  for (const id of ['sidebar-elegant', 'icon-accent', 'banner-modern', 'initials-classic']) {
+    COMPONENT_FILE[id] = 'VisualTemplate';
+  }
   for (const t of TEMPLATE_CATALOG) {
     const entry = templateRegistry[t.id as TemplateId];
     assert.ok(entry, `registry missing ${t.id}`);
