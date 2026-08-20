@@ -20,6 +20,8 @@ import { useResumeStore } from '@/src/lib/resume-store';
 import { PrivacyBadge } from '@/src/components/PrivacyBadge';
 import DataLoader from '@/src/components/DataLoader';
 import { TkxButton, TkxTextarea } from 'tekivex-ui';
+import Link from 'next/link';
+import { templateRegistry, resolveTemplateId, defaultTemplateId } from '@/shared/templateRegistry';
 
 const SECTION_LABELS: Record<SectionType, string> = {
   contact: 'Header & Contact',
@@ -47,6 +49,12 @@ export default function ResumeStartClient() {
   const [linkedinText, setLinkedinText] = useState('');
 
   const template = (searchParams.get('template') || '').trim();
+  // The chosen template's display name — shown back to the user below. They
+  // arrive here from 'Use this template', and a fork page with no trace of
+  // that choice reads as the choice having been lost (founder-reported).
+  const chosenTemplate = template
+    ? templateRegistry[resolveTemplateId(template, defaultTemplateId)]
+    : null;
   const uploadEditorHref = buildEditorRoute('review', template);
   const reviewAtsHref = buildReviewAtsRoute(template);
   const scratchEditorHref = buildEditorRoute('scratch', template);
@@ -101,6 +109,13 @@ export default function ResumeStartClient() {
       <section className="card col-12 start-shell">
         <div className="start-shell__head">
           <h2>Start your resume</h2>
+          {chosenTemplate ? (
+            <p className="small" data-testid="chosen-template-banner" style={{ margin: '4px 0 0' }}>
+              <span className="pill recommended">✓ Template: {chosenTemplate.name}</span>{' '}
+              Both paths below keep this template —{' '}
+              <Link href="/templates/preview">change template</Link>
+            </p>
+          ) : null}
           <p className="small">Are you uploading an existing resume?</p>
         </div>
 
