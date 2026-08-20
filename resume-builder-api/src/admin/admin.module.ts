@@ -7,6 +7,7 @@ import { SelfServeRecoveryController } from './self-serve-recovery.controller';
 import { MailStatusController } from './mail-status.controller';
 import { WhatsappStatusController } from './whatsapp-status.controller';
 import { AiStatusController } from './ai-status.controller';
+import { UserPlanController } from './user-plan.controller';
 import { AiHealthService } from './ai-health.service';
 import { SupportRecoveryService } from './support-recovery.service';
 import { SettingsModule } from '../settings/settings.module';
@@ -24,6 +25,7 @@ import { AdminAuthGuard } from '../auth/admin-auth.guard';
     MailStatusController,
     WhatsappStatusController,
     AiStatusController,
+    UserPlanController,
   ],
   providers: [AdminAuthGuard, AdminBootstrapService, SupportRecoveryService, AiHealthService],
 })
