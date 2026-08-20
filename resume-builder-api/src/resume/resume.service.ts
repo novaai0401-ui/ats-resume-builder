@@ -4874,6 +4874,40 @@ const ATS_TEMPLATE_EXPORT_CSS = `
       .nb-visual--initials-classic .nb-visual__list { list-style: square; }
       .nb-visual--initials-classic .nb-visual__bullets { list-style: square; }
 
+
+      /* ── nb-visual batch 2: photo-banner / timeline-pro / elegant-serif /
+         bold-header. Same duplication contract as the block above: this text
+         lives verbatim in BOTH stylesheets. ── */
+
+      /* photo-banner: tinted banner hero with a round photo (or the monogram
+         fallback). Rail stays left, like sidebar-elegant but light. */
+      .nb-visual--photo-banner .nb-visual__hero { background: #e7eef4; background: color-mix(in srgb, var(--rb-accent, #155263) 14%, #ffffff); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .nb-visual__photo { width: 62px; height: 62px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 2px solid #ffffff; }
+      .nb-visual--photo-banner .nb-visual__side { border-right: 1px solid #e3e9ef; }
+
+      /* timeline-pro: a vertical rule through the main column with an accent
+         dot per entry. The dot is a pure-CSS pseudo-element, so it renders
+         identically in the app and in the PDF container. */
+      .nb-visual--timeline-pro .nb-visual__hero { border-bottom: 2px solid var(--rb-accent, #155263); }
+      .nb-visual--timeline-pro .nb-visual__main .nb-visual__item { position: relative; padding-left: 18px; border-left: 2px solid #dde5ec; margin-left: 4px; padding-bottom: 8px; margin-bottom: 2px; }
+      .nb-visual--timeline-pro .nb-visual__main .nb-visual__item::before { content: ''; position: absolute; left: -6px; top: 3px; width: 10px; height: 10px; border-radius: 50%; background: var(--rb-accent, #155263); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .nb-visual--timeline-pro .nb-visual__side { border-right: 1px solid #dde5ec; }
+
+      /* elegant-serif: centered serif hero with hairlines. The serif stack is
+         deliberate and literal — Georgia/Times render in the PDF container
+         without shipping a font. */
+      .nb-visual--elegant-serif .nb-visual__hero { flex-direction: column; text-align: center; gap: 4px; padding-top: 28px; border-bottom: 1px solid #d9e2ec; }
+      .nb-visual--elegant-serif .nb-visual__name { font-family: Georgia, 'Times New Roman', serif; font-weight: 400; font-size: 28px; letter-spacing: 0.02em; color: #24313f; }
+      .nb-visual--elegant-serif .nb-visual__role { letter-spacing: 0.18em; color: var(--rb-accent, #155263); }
+      .nb-visual--elegant-serif .nb-visual__title { font-family: Georgia, 'Times New Roman', serif; text-transform: none; letter-spacing: 0.02em; font-size: 13px; border-bottom: 1px solid #d9e2ec; padding-bottom: 3px; }
+      .nb-visual--elegant-serif .nb-visual__side { border-right: 1px solid #e3e9ef; }
+
+      /* bold-header: solid accent header block, light-on-dark identity. */
+      .nb-visual--bold-header .nb-visual__hero { background: var(--rb-accent, #155263); padding: 26px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .nb-visual--bold-header .nb-visual__name { color: #ffffff; }
+      .nb-visual--bold-header .nb-visual__role { color: rgba(255,255,255,0.85); }
+      .nb-visual--bold-header .nb-visual__side { background: #f3f5f7; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
 `;
 
 export function renderResumeTemplateHtml(input: RenderResumeTemplateHtmlInput): RenderResumeTemplateHtmlOutput {
@@ -4975,7 +5009,7 @@ const VISUAL_GLYPHS: Record<string, string> = {
 };
 
 /** Template ids served by the shared nb-visual renderer below. */
-const VISUAL_TEMPLATE_IDS = new Set(['sidebar-elegant', 'icon-accent', 'banner-modern', 'initials-classic']);
+const VISUAL_TEMPLATE_IDS = new Set(['sidebar-elegant', 'icon-accent', 'banner-modern', 'initials-classic', 'photo-banner', 'timeline-pro', 'elegant-serif', 'bold-header']);
 
 /**
  * Mirror of components/templates/VisualTemplate.tsx — ONE markup structure for
@@ -5004,6 +5038,11 @@ function renderVisualTemplateArticle(templateId: string, resume: any) {
   const location = String(normalized?.contact?.location || '').trim();
   const links = templateCleanList(normalized?.contact?.links);
 
+  // photo-banner mirrors the React component: photo when uploaded, monogram
+  // fallback when not, so the circle is never empty.
+  const photo = normalizePhotoUrl((normalized as { photoUrl?: unknown })?.photoUrl as string | null | undefined);
+  const showPhoto = templateId === 'photo-banner' && Boolean(photo);
+  const showInitials = templateId === 'initials-classic' || (templateId === 'photo-banner' && !photo);
   const initials = name
     .split(/\s+/)
     .filter(Boolean)
@@ -5106,7 +5145,7 @@ function renderVisualTemplateArticle(templateId: string, resume: any) {
   return `
     <article class="nb-visual nb-visual--${safeCssClass(templateId)}">
       <header class="nb-visual__hero">
-        ${templateId === 'initials-classic' ? `<span class="nb-visual__initials" aria-hidden="true">${escapeHtml(initials)}</span>` : ''}
+        ${showPhoto ? `<img class="nb-visual__photo" src="${photo}" alt="" />` : ''}${showInitials ? `<span class="nb-visual__initials" aria-hidden="true">${escapeHtml(initials)}</span>` : ''}
         <div class="nb-visual__id">
           <h1 class="nb-visual__name">${escapeHtml(name)}</h1>
           ${hasRoleSubtitle ? `<p class="nb-visual__role">${escapeHtml(role)}</p>` : ''}

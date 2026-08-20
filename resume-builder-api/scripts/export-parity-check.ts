@@ -99,7 +99,7 @@ console.log(
    nb-visual family: same proof for the designer templates. One shared
    renderer serves all four, so a break here is a break in all of them.
    --------------------------------------------------------------------------- */
-const VISUAL_IDS = ['sidebar-elegant', 'icon-accent', 'banner-modern', 'initials-classic'];
+const VISUAL_IDS = ['sidebar-elegant', 'icon-accent', 'banner-modern', 'initials-classic', 'photo-banner', 'timeline-pro', 'elegant-serif', 'bold-header'];
 const VISUAL_RESUME: any = {
   ...RESUME,
   contact: { ...RESUME.contact, links: ['linkedin.com/in/x'] },
@@ -136,5 +136,30 @@ console.log(
     : `all ${VISUAL_IDS.length} visual templates export correctly, with CSS + accent`,
 );
 if (visualFailures) process.exit(1);
+
+// (exit is at the very end of the file — code after an exit never runs,
+// which has now bitten this script twice)
+
+/* photo-banner's PHOTO path: the loop above ran it with no photo, which only
+   proves the monogram fallback. One more render with a real (tiny) data-URI
+   asserts the img actually reaches the PDF markup. */
+{
+  const TINY_PNG =
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+  const { html } = renderResumeTemplateHtml({
+    templateId: 'photo-banner',
+    resumeData: { ...VISUAL_RESUME, photoUrl: TINY_PNG },
+    mode: 'export',
+  });
+  const hasImg = html.includes('nb-visual__photo') && html.includes(TINY_PNG);
+  // Scope to the ELEMENT: the inlined <style> also contains the .nb-visual__initials
+  // RULE, so a bare substring test always matches (same lesson as the headerBar check).
+  const hasMonogram = /<span class="nb-visual__initials"/.test(html);
+  if (!hasImg || hasMonogram) {
+    console.log(`FAIL photo-banner (photo path): img=${hasImg} monogramStillShown=${hasMonogram}`);
+    process.exit(1);
+  }
+  console.log('ok   photo-banner       (photo path: img rendered, monogram suppressed)');
+}
 
 process.exit(failures + visualFailures ? 1 : 0);

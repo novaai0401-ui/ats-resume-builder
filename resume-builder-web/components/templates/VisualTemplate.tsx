@@ -1,4 +1,5 @@
 import React from 'react';
+import { normalizePhotoUrl } from 'resume-builder-shared';
 import {
   achievementItems,
   certificationItems,
@@ -34,7 +35,16 @@ import {
  * from competitor galleries. These are showcase layouts (atsSafety: low):
  * recruiters love them, ATS parsers merge or drop the columns.
  */
-export type VisualVariant = 'sidebar-elegant' | 'icon-accent' | 'banner-modern' | 'initials-classic';
+export type VisualVariant =
+  | 'sidebar-elegant'
+  | 'icon-accent'
+  | 'banner-modern'
+  | 'initials-classic'
+  // batch 2
+  | 'photo-banner'      // accent banner hero with a round photo (initials when none)
+  | 'timeline-pro'      // vertical timeline rule with accent dots on each entry
+  | 'elegant-serif'     // centered serif hero, hairline rules
+  | 'bold-header';      // solid accent header block, white name
 
 /** Glyphs for the icon variants. Chosen from DejaVu/Liberation coverage so the
  *  PDF container renders them — emoji would tofu in the Alpine image. */
@@ -86,11 +96,20 @@ export default function VisualTemplate({
   const location = String(normalized.contact?.location || '').trim();
   const links = cleanList(normalized.contact?.links);
   const name = fullNameOrTitle(normalized);
+  const photo = normalizePhotoUrl(normalized.photoUrl);
+  // photo-banner degrades to the monogram when no photo is uploaded, so the
+  // template never renders a broken empty circle.
+  const showPhoto = variant === 'photo-banner' && Boolean(photo);
+  const showInitials = variant === 'initials-classic' || (variant === 'photo-banner' && !photo);
 
   return (
     <article className={`nb-visual nb-visual--${variant}`}>
       <header className="nb-visual__hero">
-        {variant === 'initials-classic' ? (
+        {showPhoto ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img className="nb-visual__photo" src={photo!} alt="" />
+        ) : null}
+        {showInitials ? (
           <span className="nb-visual__initials" aria-hidden="true">{initialsOf(name)}</span>
         ) : null}
         <div className="nb-visual__id">

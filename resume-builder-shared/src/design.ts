@@ -48,7 +48,7 @@ export function normalizeAccentColor(value?: string | null): string | null {
  * templates render a photo; the ATS family and every ATS-safe export omit it so
  * machine screening stays clean (TEMPLATE_SPEC §9.5).
  */
-export const PHOTO_TEMPLATE_IDS: ReadonlySet<string> = new Set(['sidebar-bold', 'accent-header']);
+export const PHOTO_TEMPLATE_IDS: ReadonlySet<string> = new Set(['sidebar-bold', 'accent-header', 'photo-banner']);
 
 export function templateSupportsPhoto(templateId?: string | null): boolean {
   return PHOTO_TEMPLATE_IDS.has(String(templateId || '').trim());

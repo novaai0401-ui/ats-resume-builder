@@ -33,7 +33,11 @@ export type TemplateCatalogId =
   | 'sidebar-elegant'
   | 'icon-accent'
   | 'banner-modern'
-  | 'initials-classic';
+  | 'initials-classic'
+  | 'photo-banner'
+  | 'timeline-pro'
+  | 'elegant-serif'
+  | 'bold-header';
 
 /**
  * How well a template actually survives ATS parsers. We previously
@@ -596,6 +600,72 @@ export const TEMPLATE_CATALOG: readonly TemplateCatalogItem[] = [
     recommendedFor: ['Senior and executive applications shared directly', 'Board and advisory CVs'],
     industries: ['business-management', 'finance', 'legal', 'government-public-sector', 'education'],
     componentKey: 'initials-classic',
+    supportedSections: ['summary', 'skills', 'experience', 'projects', 'achievements', 'education', 'certifications', 'languages'],
+    supportedLocales: ['en-IN', 'en-US'],
+    layout: 'multi-column',
+    paginationSafe: false,
+    implementedVariants: ['screen', 'print', 'ats-export'],
+  },
+
+  /* nb-visual batch 2 — same family, same contract. */
+  {
+    id: 'photo-banner',
+    name: 'Photo Banner',
+    description:
+      'A soft accent banner with your photo in a clean circle — and a tasteful monogram when you skip the photo. Visual showcase: use for people, not ATS portals.',
+    tags: ['Visual', 'Photo', 'Banner'],
+    atsSafety: 'low',
+    recommendedFor: ['Client-facing and hospitality roles', 'Regions where photo CVs are the norm'],
+    industries: ['hospitality-tourism', 'sales-marketing', 'media-communications', 'creative-design', 'retail-ecommerce'],
+    componentKey: 'photo-banner',
+    supportedSections: ['summary', 'skills', 'experience', 'projects', 'achievements', 'education', 'certifications', 'languages'],
+    supportedLocales: ['en-IN', 'en-US'],
+    layout: 'sidebar',
+    paginationSafe: false,
+    implementedVariants: ['screen', 'print', 'ats-export'],
+  },
+  {
+    id: 'timeline-pro',
+    name: 'Timeline Pro',
+    description:
+      'Your career as a vertical timeline — an accent dot per role on a clean rule. Reads instantly in interviews and printouts; ATS parsers merge the columns, so keep it for humans.',
+    tags: ['Visual', 'Timeline', 'Accent'],
+    atsSafety: 'low',
+    recommendedFor: ['Interview leave-behinds', 'Career-story-driven applications'],
+    industries: ['business-management', 'information-technology', 'engineering', 'media-communications', 'education'],
+    componentKey: 'timeline-pro',
+    supportedSections: ['summary', 'skills', 'experience', 'projects', 'achievements', 'education', 'certifications', 'languages'],
+    supportedLocales: ['en-IN', 'en-US'],
+    layout: 'multi-column',
+    paginationSafe: false,
+    implementedVariants: ['screen', 'print', 'ats-export'],
+  },
+  {
+    id: 'elegant-serif',
+    name: 'Elegant Serif',
+    description:
+      'Centred serif name, hairline rules, letter-spaced role line — the quiet luxury look. Visual showcase for direct sharing rather than job portals.',
+    tags: ['Visual', 'Serif', 'Understated'],
+    atsSafety: 'low',
+    recommendedFor: ['Senior and executive applications', 'Law, finance and academia shared directly'],
+    industries: ['legal', 'finance', 'education', 'government-public-sector', 'business-management'],
+    componentKey: 'elegant-serif',
+    supportedSections: ['summary', 'skills', 'experience', 'projects', 'achievements', 'education', 'certifications', 'languages'],
+    supportedLocales: ['en-IN', 'en-US'],
+    layout: 'multi-column',
+    paginationSafe: false,
+    implementedVariants: ['screen', 'print', 'ats-export'],
+  },
+  {
+    id: 'bold-header',
+    name: 'Bold Header',
+    description:
+      'A solid accent header block with your name in white — maximum presence in the first second. Visual showcase; parsers may misread the header block, so use it with people.',
+    tags: ['Visual', 'Bold', 'Accent'],
+    atsSafety: 'low',
+    recommendedFor: ['Creative and sales roles', 'Printed CVs and career fairs'],
+    industries: ['creative-design', 'sales-marketing', 'media-communications', 'retail-ecommerce', 'hospitality-tourism'],
+    componentKey: 'bold-header',
     supportedSections: ['summary', 'skills', 'experience', 'projects', 'achievements', 'education', 'certifications', 'languages'],
     supportedLocales: ['en-IN', 'en-US'],
     layout: 'multi-column',

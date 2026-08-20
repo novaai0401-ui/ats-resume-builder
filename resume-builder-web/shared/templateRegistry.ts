@@ -62,6 +62,10 @@ const templateComponents: Record<TemplateComponentKey, ComponentType<TemplateCom
   'icon-accent': visualTemplateComponent('icon-accent'),
   'banner-modern': visualTemplateComponent('banner-modern'),
   'initials-classic': visualTemplateComponent('initials-classic'),
+  'photo-banner': visualTemplateComponent('photo-banner'),
+  'timeline-pro': visualTemplateComponent('timeline-pro'),
+  'elegant-serif': visualTemplateComponent('elegant-serif'),
+  'bold-header': visualTemplateComponent('bold-header'),
 };
 
 const templateEntries = TEMPLATE_CATALOG.map((template) => {

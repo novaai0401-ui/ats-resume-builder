@@ -97,7 +97,7 @@ test('achievements render everywhere: first-class OR via the shared fallback', (
   // cannot silently escape this check.
   for (const id of PRESET_TEMPLATE_IDS) COMPONENT_FILE[id] = 'PresetTemplate';
   // nb-visual family shares one component file the same way.
-  for (const id of ['sidebar-elegant', 'icon-accent', 'banner-modern', 'initials-classic']) {
+  for (const id of ['sidebar-elegant', 'icon-accent', 'banner-modern', 'initials-classic', 'photo-banner', 'timeline-pro', 'elegant-serif', 'bold-header']) {
     COMPONENT_FILE[id] = 'VisualTemplate';
   }
   for (const t of TEMPLATE_CATALOG) {
