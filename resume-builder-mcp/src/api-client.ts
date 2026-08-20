@@ -55,6 +55,28 @@ export class PocketResumeClient {
     return (await res.json()) as T;
   }
 
+  /** Create a resume from structured fields. The API validates with the same
+   * schema the web editor uses, so an assistant cannot create a malformed one. */
+  createResume(input: Record<string, unknown>) {
+    return this.request<{ id: string; title: string }>('/resumes', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  }
+
+  /** Patch resume fields. Server-side revalidation + userId scoping apply. */
+  updateResume(resumeId: string, patch: Record<string, unknown>) {
+    return this.request<{ id: string }>(`/resumes/${encodeURIComponent(resumeId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    });
+  }
+
+  /** Whether THIS user must pay per download (false for paid plans). */
+  downloadChargeConfig() {
+    return this.request<{ enabled: boolean }>('/billing/download-charge/config');
+  }
+
   listResumes() {
     return this.request<Array<{ id: string; title: string; updatedAt?: string }>>('/resumes');
   }

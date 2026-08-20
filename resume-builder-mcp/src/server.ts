@@ -49,6 +49,156 @@ export function buildServer(client: PocketResumeClient): McpServer {
     };
   };
 
+
+  /**
+   * The build tools below are what makes "type in ChatGPT/Claude and your
+   * resume gets built" real: before them this server could only read, tailor
+   * and track resumes that already existed. All three go through the same API
+   * with the same user identity, so every gate (validation, quotas, payment)
+   * holds over MCP exactly as on the web — external platforms get no side
+   * doors by construction.
+   */
+  server.tool(
+    'create_resume',
+    [
+      'Create a NEW resume in the user\'s CallbackCV account from structured',
+      'fields. Gather the user\'s details conversationally first, then call',
+      'this once. summary must be at least 20 characters. Returns the new',
+      'resumeId — use it with update_resume, tailor_resume and',
+      'get_download_link.',
+    ].join(' '),
+    {
+      title: z.string().min(2).describe('Document title, e.g. "Senior Frontend Engineer Resume"'),
+      summary: z.string().min(20).describe('Professional summary, 2-3 sentences with at least one measurable result'),
+      contact: z
+        .object({
+          fullName: z.string().optional(),
+          email: z.string().optional(),
+          phone: z.string().optional(),
+          location: z.string().optional(),
+          links: z.array(z.string()).optional(),
+        })
+        .optional(),
+      skills: z.array(z.string()).optional(),
+      experience: z
+        .array(
+          z.object({
+            role: z.string(),
+            company: z.string(),
+            startDate: z.string().optional(),
+            endDate: z.string().optional(),
+            highlights: z.array(z.string()).optional().describe('Outcome bullets — include numbers'),
+          }),
+        )
+        .optional(),
+      education: z
+        .array(
+          z.object({
+            degree: z.string(),
+            institution: z.string(),
+            startDate: z.string().optional(),
+            endDate: z.string().optional(),
+          }),
+        )
+        .optional(),
+      achievements: z.array(z.string()).optional(),
+      templateId: z.string().optional().describe('Template id, e.g. "classic" (default), "modern", "skills-first"'),
+    },
+    { title: 'Create a resume', readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+    async (input) => {
+      try {
+        const created = await client.createResume(input as Record<string, unknown>);
+        return ok({
+          created: true,
+          resumeId: created.id,
+          title: created.title,
+          next:
+            'Use update_resume to refine sections, tailor_resume to target a JD, ' +
+            'and get_download_link when the user wants the PDF.',
+        });
+      } catch (err) {
+        return fail(err);
+      }
+    },
+  );
+
+  server.tool(
+    'update_resume',
+    [
+      'Update fields on an existing resume (summary, skills, experience,',
+      'education, achievements, title, templateId). Send ONLY the fields to',
+      'change — arrays REPLACE the whole section, so read the resume first',
+      'with get_resume and send the full corrected array.',
+    ].join(' '),
+    {
+      resumeId: z.string(),
+      title: z.string().min(2).optional(),
+      summary: z.string().min(20).optional(),
+      skills: z.array(z.string()).optional(),
+      experience: z
+        .array(
+          z.object({
+            role: z.string(),
+            company: z.string(),
+            startDate: z.string().optional(),
+            endDate: z.string().optional(),
+            highlights: z.array(z.string()).optional(),
+          }),
+        )
+        .optional(),
+      education: z
+        .array(
+          z.object({
+            degree: z.string(),
+            institution: z.string(),
+            startDate: z.string().optional(),
+            endDate: z.string().optional(),
+          }),
+        )
+        .optional(),
+      achievements: z.array(z.string()).optional(),
+      templateId: z.string().optional(),
+    },
+    { title: 'Update a resume', readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    async ({ resumeId, ...patch }) => {
+      try {
+        await client.updateResume(resumeId, patch as Record<string, unknown>);
+        return ok({ updated: true, resumeId, changedFields: Object.keys(patch) });
+      } catch (err) {
+        return fail(err);
+      }
+    },
+  );
+
+  server.tool(
+    'get_download_link',
+    [
+      'Get the link where the user downloads this resume as a PDF, plus',
+      'whether a one-time payment applies. This tool NEVER returns the file',
+      'itself: the download happens in the CallbackCV app, where the payment',
+      'gate for free users is enforced server-side — paid plans download',
+      'clean and free. Tell the user the price honestly when paymentRequired',
+      'is true.',
+    ].join(' '),
+    { resumeId: z.string() },
+    { title: 'Get the PDF download link', readOnlyHint: true, openWorldHint: false },
+    async ({ resumeId }) => {
+      try {
+        const webUrl = String(process.env.PUBLIC_WEB_URL || 'https://callbackcv.tekivex.com').replace(/\/+$/, '');
+        const cfg = await client.downloadChargeConfig();
+        return ok({
+          url: webUrl + '/resume/template?resumeId=' + encodeURIComponent(resumeId),
+          paymentRequired: cfg.enabled,
+          note: cfg.enabled
+            ? 'A one-time charge (Rs 49 in India / ~$0.99 elsewhere) applies at download; CallbackCV Plus includes downloads.'
+            : 'Included in the user\'s plan — the download is free and un-watermarked.',
+        });
+      } catch (err) {
+        return fail(err);
+      }
+    },
+  );
+
   server.tool(
     'list_resumes',
     'List the user\'s saved resumes (id + title). Start here to find the resumeId other tools need.',

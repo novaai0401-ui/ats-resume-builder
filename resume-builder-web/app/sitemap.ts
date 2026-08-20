@@ -38,6 +38,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${SITE_URL}/accessibility`, lastModified, changeFrequency: 'yearly', priority: 0.3 },
     { url: `${SITE_URL}/skill-demand`, lastModified, changeFrequency: 'weekly', priority: 0.6 },
     { url: `${SITE_URL}/linkedin`, lastModified, changeFrequency: 'monthly', priority: 0.6 },
+    // "Build resume in ChatGPT/Claude" — a query space with no incumbent yet.
+    { url: `${SITE_URL}/ai-assistants`, lastModified, changeFrequency: 'monthly', priority: 0.7 },
     // One indexable URL per template. The long tail — "executive resume
     // template", "resume template for career change" — is where a newer domain
     // can realistically rank, and each query needs its own page to compete for
