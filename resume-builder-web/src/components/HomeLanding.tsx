@@ -153,7 +153,7 @@ export default function HomeLanding({ faq }: { faq: Faq[] }) {
           </TkxCol>
           <TkxCol span={24} sm={8}>
             <TkxCard variant="glass" padding="md">
-              <TkxStatistic title="ATS-safe templates" value={10} suffix="+" />
+              <TkxStatistic title="Resume templates (ATS + designer)" value={33} />
             </TkxCard>
           </TkxCol>
           <TkxCol span={24} sm={8}>

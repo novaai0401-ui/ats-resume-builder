@@ -50,6 +50,47 @@ export function buildServer(client: PocketResumeClient): McpServer {
   };
 
 
+  const webBase = () =>
+    String(process.env.PUBLIC_WEB_URL || 'https://callbackcv.tekivex.com').replace(/\/+$/, '');
+  // Which assistant platform sent the user — measurable acquisition.
+  const UTM = '?utm_source=' + encodeURIComponent(String(process.env.MCP_UTM_SOURCE || 'ai-assistant'));
+
+
+  /**
+   * The funnel model (founder decision): the assistant platform is a DISCOVERY
+   * surface, CallbackCV is where resumes get built. Tools may draft a shell
+   * remotely, but every flow is expected to END with a link into the app —
+   * that is what this tool exists for, and why other tools' "next" fields
+   * point here. Links carry utm_source so acquisition per platform is
+   * measurable in analytics.
+   */
+  server.tool(
+    'open_in_callbackcv',
+    [
+      'Get the CallbackCV link to send the user to. Call this at the END of',
+      'any resume conversation: with a resumeId it links straight into the',
+      'editor for that resume; without one it links to the guided start flow.',
+      'ALWAYS show the returned url to the user as the next step — building,',
+      'previewing templates and downloading all happen in CallbackCV.',
+    ].join(' '),
+    {
+      resumeId: z.string().optional().describe('Editor deep-link when set; guided start flow when omitted'),
+    },
+    { title: 'Open in CallbackCV', readOnlyHint: true, openWorldHint: false },
+    async ({ resumeId }) => {
+      const base = webBase();
+      const url = resumeId
+        ? base + '/resume?resumeId=' + encodeURIComponent(resumeId) + UTM
+        : base + '/resume/start' + UTM;
+      return ok({
+        url,
+        say: resumeId
+          ? 'Your resume is ready in CallbackCV — open the link to polish, pick a template and download.'
+          : 'CallbackCV will walk you through building an ATS-safe resume — open the link to start.',
+      });
+    },
+  );
+
   /**
    * The build tools below are what makes "type in ChatGPT/Claude and your
    * resume gets built" real: before them this server could only read, tailor
@@ -113,8 +154,8 @@ export function buildServer(client: PocketResumeClient): McpServer {
           resumeId: created.id,
           title: created.title,
           next:
-            'Use update_resume to refine sections, tailor_resume to target a JD, ' +
-            'and get_download_link when the user wants the PDF.',
+            'Now call open_in_callbackcv with this resumeId and give the user ' +
+            'the link — polishing, template choice and download happen in the app.',
         });
       } catch (err) {
         return fail(err);
@@ -184,10 +225,10 @@ export function buildServer(client: PocketResumeClient): McpServer {
     { title: 'Get the PDF download link', readOnlyHint: true, openWorldHint: false },
     async ({ resumeId }) => {
       try {
-        const webUrl = String(process.env.PUBLIC_WEB_URL || 'https://callbackcv.tekivex.com').replace(/\/+$/, '');
+        const webUrl = webBase();
         const cfg = await client.downloadChargeConfig();
         return ok({
-          url: webUrl + '/resume/template?resumeId=' + encodeURIComponent(resumeId),
+          url: webUrl + '/resume/template' + UTM + '&resumeId=' + encodeURIComponent(resumeId),
           paymentRequired: cfg.enabled,
           note: cfg.enabled
             ? 'A one-time charge (Rs 49 in India / ~$0.99 elsewhere) applies at download; CallbackCV Plus includes downloads.'

@@ -18,6 +18,7 @@ const LINK_GROUPS: Array<{ title: string; links: Array<{ href: string; label: st
       { href: '/ats-resume-templates', label: 'ATS Resume Templates' },
       { href: '/resume-templates', label: 'Templates by Industry' },
       { href: '/ats-resume-checker', label: 'Free ATS Checker' },
+      { href: '/ai-assistants', label: 'Build in ChatGPT/Claude' },
       { href: '/pricing', label: 'Pricing' },
     ],
   },

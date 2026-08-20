@@ -1,6 +1,6 @@
 'use client';
 
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import type { ResumeImportResult } from 'resume-builder-shared';
 import ResumeTemplateRender from '@/src/components/ResumeTemplateRender';
 import type { TemplateRecommendation } from '@/src/lib/template-recommendation';
@@ -8,6 +8,7 @@ import type { TemplateConfig, TemplateId } from '@/shared/templateRegistry';
 import { TkxButton } from 'tekivex-ui';
 
 type TemplateCardThumbnailProps = {
+  accent?: string;
   templateId: TemplateId;
   previewResume: ResumeImportResult | null;
   previewLoading?: boolean;
@@ -28,10 +29,20 @@ const TemplateCardThumbnailLoading = memo(function TemplateCardThumbnailLoading(
 
 TemplateCardThumbnailLoading.displayName = 'TemplateCardThumbnailLoading';
 
+/**
+ * Accent swatches — the competitor-gallery 'colour dots'. Every template's
+ * CSS routes colour through --rb-accent, so one override recolours the whole
+ * thumbnail live: the designer templates' rails/banners/monograms AND the ATS
+ * templates' header rules. Picking a dot is a PREVIEW; the user commits a
+ * colour in the editor's design panel, which persists it per resume.
+ */
+const ACCENT_SWATCHES = ['#155263', '#1e3a8a', '#6d28d9', '#9f1239', '#b45309', '#067647', '#334155'];
+
 const TemplateCardThumbnail = memo(function TemplateCardThumbnail({
   templateId,
   previewResume,
   previewLoading = false,
+  accent,
 }: TemplateCardThumbnailProps) {
   if (!previewResume) {
     return previewLoading ? <TemplateCardThumbnailLoading /> : null;
@@ -44,7 +55,7 @@ const TemplateCardThumbnail = memo(function TemplateCardThumbnail({
       data-thumbnail-state="live"
       data-thumbnail-component="ResumeTemplateRender"
     >
-      <ResumeTemplateRender templateId={templateId} resumeData={previewResume} mode="thumbnail" />
+      <ResumeTemplateRender templateId={templateId} resumeData={previewResume} mode="thumbnail" accentOverride={accent} />
     </div>
   );
 });
@@ -104,6 +115,9 @@ function TemplateCard({
     previewHandler(template.id);
   };
 
+  // Local per-card preview accent — '' means the template's own default.
+  const [accent, setAccent] = useState('');
+
   const handlePrimaryAction = () => {
     if (disabled) return;
     onSelectTemplate(template.id);
@@ -137,7 +151,7 @@ function TemplateCard({
           handlePreview();
         }}
       >
-        <TemplateCardThumbnail templateId={template.id} previewResume={previewResume} previewLoading={previewLoading} />
+        <TemplateCardThumbnail templateId={template.id} previewResume={previewResume} previewLoading={previewLoading} accent={accent || undefined} />
         <TkxButton
           type="button"
           className="template-card__preview-overlay template-card__preview-overlay-button"
@@ -149,6 +163,25 @@ function TemplateCard({
         >
           Open preview
         </TkxButton>
+      </div>
+      {/* Colour dots: tap to recolour the thumbnail live via --rb-accent.
+          stopPropagation everywhere — a dot press must never read as a card
+          selection. Buttons, not divs: 24px hit targets, keyboard-reachable. */}
+      <div className="template-card__swatches" role="group" aria-label={`Preview colours for ${template.name}`}>
+        {ACCENT_SWATCHES.map((colour) => (
+          <button
+            key={colour}
+            type="button"
+            className={`template-card__swatch${accent === colour ? " template-card__swatch--active" : ""}`}
+            style={{ background: colour }}
+            aria-label={`Preview in ${colour}`}
+            aria-pressed={accent === colour}
+            onClick={(event) => {
+              event.stopPropagation();
+              setAccent((prev) => (prev === colour ? "" : colour));
+            }}
+          />
+        ))}
       </div>
       <div className="template-card__meta">
         <div>

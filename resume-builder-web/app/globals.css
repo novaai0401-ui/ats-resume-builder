@@ -4863,3 +4863,27 @@ a:hover { color: var(--link-hover); }
 .tp-cta p { margin: 0 0 var(--space-2); }
 .tp-cta p:last-child { margin-bottom: 0; }
 .tp-cta a { color: var(--link); font-weight: 600; }
+
+/* Template-card accent swatches — the competitor-gallery colour dots. Raw
+   buttons (not Tkx) so no inline-style reclaim is needed; 24px hit targets. */
+.template-card__swatches {
+  display: flex;
+  gap: 8px;
+  padding: 8px 12px 2px;
+  flex-wrap: wrap;
+}
+.template-card__swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--card);
+  box-shadow: 0 0 0 1px var(--border);
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.template-card__swatch:hover { transform: scale(1.18); }
+.template-card__swatch--active {
+  transform: scale(1.18);
+  box-shadow: 0 0 0 2px var(--primary);
+}
