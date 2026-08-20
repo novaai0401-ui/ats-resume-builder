@@ -2625,42 +2625,46 @@ export default function ResumeEditor() {
           <div style={{ marginTop: 12 }}>
             <label className="label" style={{ fontSize: 12 }}>Accent colour</label>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-              <TkxButton
+              {/* NATIVE buttons, not TkxButton: since tekivex-ui 4.0 the
+                  library's own button styling outranks an inline background,
+                  so every swatch painted as the primary token — seven
+                  identical purple dots that also ignored theme switches
+                  (founder screenshot). A colour dot has no use for button
+                  chrome; the raw element keeps its inline colour under any
+                  library version. Selection ring uses --ink so it is visible
+                  in BOTH themes (the old #111 vanished in dark mode). */}
+              <button
                 type="button"
+                className="accent-swatch"
                 aria-label="Default accent (template default)"
+                aria-pressed={!resume.accentColor}
                 title="Template default"
                 onClick={() => {
                   setResume((prev) => ({ ...prev, accentColor: null }));
                   persistDesign({ accentColor: null });
                 }}
                 style={{
-                  width: 26,
-                  height: 26,
-                  borderRadius: '50%',
-                  border: !resume.accentColor ? '2px solid #111' : '1px solid #cbd5e1',
+                  border: !resume.accentColor ? '2px solid var(--ink)' : '1px solid var(--border)',
                   background: 'linear-gradient(135deg, #fff 0 50%, #94a3b8 50% 100%)',
-                  cursor: 'pointer',
                 }}
               />
               {ACCENT_PRESETS.map((preset) => {
                 const selected = String(resume.accentColor || '').toLowerCase() === preset.value.toLowerCase();
                 return (
-                  <TkxButton
+                  <button
                     key={preset.id}
                     type="button"
+                    className="accent-swatch"
                     aria-label={preset.label}
+                    aria-pressed={selected}
                     title={preset.label}
                     onClick={() => {
                       setResume((prev) => ({ ...prev, accentColor: preset.value }));
                       persistDesign({ accentColor: preset.value });
                     }}
                     style={{
-                      width: 26,
-                      height: 26,
-                      borderRadius: '50%',
-                      border: selected ? '2px solid #111' : '1px solid #cbd5e1',
+                      border: selected ? '2px solid var(--ink)' : '1px solid var(--border)',
                       background: preset.value,
-                      cursor: 'pointer',
                     }}
                   />
                 );

@@ -5086,6 +5086,19 @@ a:hover { color: var(--link-hover); }
   box-sizing: border-box;
 }
 
+/* Editor accent swatches — native buttons so the inline colour always wins
+   (see ResumeEditor: tekivex 4.0 button styling defeated inline backgrounds). */
+.accent-swatch {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  padding: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform 0.12s ease;
+}
+.accent-swatch:hover { transform: scale(1.15); }
+
 /* ==========================================================================
    MOBILE FIELD CONTAINMENT — the class fix for fields escaping the screen.
    Grid/flex children default to min-width:auto (they refuse to shrink below
@@ -5104,4 +5117,9 @@ a:hover { color: var(--link-hover); }
     max-width: 100%;
     box-sizing: border-box;
   }
+  /* Nested panels (card > section-card > field) each spend padding, leaving
+     inputs a sliver by the third layer — founder screenshot of the editor's
+     Design panel. Trim the outer layers on phones only. */
+  .card { padding: 14px 12px; }
+  .card .section-card { padding-left: 8px; padding-right: 8px; }
 }
