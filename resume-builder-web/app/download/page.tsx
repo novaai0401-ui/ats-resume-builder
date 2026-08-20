@@ -153,8 +153,11 @@ export default async function DownloadPage() {
         <p style={{ color: 'var(--ink)', lineHeight: 1.55, margin: 0 }}>
           We&rsquo;re a small team and the App Store + Play Store fees ($99/yr + $25 one-time) plus
           weeks of review aren&rsquo;t worth it until we have product-market fit. Our APK is signed
-          with a stable key, served over HTTPS, and verified at runtime — see{' '}
-          <a href="/security">how we secure sideloaded installs</a>.
+          with a stable key, served over HTTPS, and verified at runtime. For how your data is
+          stored and protected, see the{' '}
+          {/* Was a link to /security — a page that never existed (caught by the
+              wiring audit). The security claims actually live in the policy. */}
+          <a href="/privacy">Privacy Policy</a>.
         </p>
       </section>
     </main>
