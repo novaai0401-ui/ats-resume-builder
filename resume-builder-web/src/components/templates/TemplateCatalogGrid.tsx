@@ -33,8 +33,10 @@ TemplateCardThumbnailLoading.displayName = 'TemplateCardThumbnailLoading';
  * Accent swatches — the competitor-gallery 'colour dots'. Every template's
  * CSS routes colour through --rb-accent, so one override recolours the whole
  * thumbnail live: the designer templates' rails/banners/monograms AND the ATS
- * templates' header rules. Picking a dot is a PREVIEW; the user commits a
- * colour in the editor's design panel, which persists it per resume.
+ * templates' header rules. The active dot RIDES ALONG when the card is
+ * previewed/applied (callbacks receive it as a second argument) — a founder-
+ * reported PDF came out in the default navy after the user picked a colour
+ * here, because the dot used to be preview-only local state.
  */
 const ACCENT_SWATCHES = ['#155263', '#1e3a8a', '#6d28d9', '#9f1239', '#b45309', '#067647', '#334155'];
 
@@ -69,8 +71,9 @@ type TemplateCatalogGridProps = {
   recommendation?: TemplateRecommendation | null;
   hoveredTemplate?: TemplateId | '';
   onHoverTemplate?: (templateId: TemplateId | '') => void;
-  onPreviewTemplate?: (templateId: TemplateId) => void;
-  onSelectTemplate: (templateId: TemplateId) => void;
+  /** Second arg: the card's active preview-accent dot, if the user picked one. */
+  onPreviewTemplate?: (templateId: TemplateId, previewAccent?: string) => void;
+  onSelectTemplate: (templateId: TemplateId, previewAccent?: string) => void;
   primaryActionLabel?: string;
   layoutVariant?: 'list' | 'gallery';
   disabled?: boolean;
@@ -97,8 +100,8 @@ function TemplateCard({
   recommendation?: TemplateRecommendation | null;
   hoveredTemplate: TemplateId | '';
   onHoverTemplate?: (id: TemplateId | '') => void;
-  onPreviewTemplate?: (id: TemplateId) => void;
-  onSelectTemplate: (id: TemplateId) => void;
+  onPreviewTemplate?: (id: TemplateId, previewAccent?: string) => void;
+  onSelectTemplate: (id: TemplateId, previewAccent?: string) => void;
   primaryActionLabel: string;
   disabled: boolean;
   previewLoading: boolean;
@@ -110,17 +113,19 @@ function TemplateCard({
   const previewHandler = onPreviewTemplate || onSelectTemplate;
   const showPreviewAction = Boolean(onPreviewTemplate);
 
+  // Local per-card preview accent — '' means the template's own default.
+  // Handed to the callbacks so a colour previewed here is the colour that
+  // gets applied (and lands in the exported PDF).
+  const [accent, setAccent] = useState('');
+
   const handlePreview = () => {
     if (disabled) return;
-    previewHandler(template.id);
+    previewHandler(template.id, accent || undefined);
   };
-
-  // Local per-card preview accent — '' means the template's own default.
-  const [accent, setAccent] = useState('');
 
   const handlePrimaryAction = () => {
     if (disabled) return;
-    onSelectTemplate(template.id);
+    onSelectTemplate(template.id, accent || undefined);
   };
 
   return (
@@ -129,14 +134,13 @@ function TemplateCard({
       className={`template-card ${isApplied ? 'active' : ''}`}
       data-template-id={template.id}
       onClick={() => {
-        if (disabled) return;
-        previewHandler(template.id);
+        handlePreview();
       }}
       onKeyDown={(event) => {
         if (disabled) return;
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
-          previewHandler(template.id);
+          handlePreview();
         }
       }}
       role="button"

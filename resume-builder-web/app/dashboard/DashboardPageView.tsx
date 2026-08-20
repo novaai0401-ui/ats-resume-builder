@@ -289,7 +289,7 @@ export default function DashboardPageView({
 
   // Use = apply the template to the selected resume and go straight to the
   // editor so the user keeps working with it applied. (No resume yet → start.)
-  async function handleTemplateSelect(templateId: TemplateId) {
+  async function handleTemplateSelect(templateId: TemplateId, previewAccent?: string) {
     setSelectedTemplate(templateId);
     setStatus('');
     setError('');
@@ -300,7 +300,12 @@ export default function DashboardPageView({
 
     setTemplateSaving(true);
     try {
-      const updated = await apiClient.updateResume(activeResume.id, { templateId });
+      // A colour dot picked on the card rides along with the template —
+      // a preview-only accent used to download as the default navy.
+      const updated = await apiClient.updateResume(activeResume.id, {
+        templateId,
+        ...(previewAccent ? { accentColor: previewAccent } : {}),
+      });
       setResumes((prev) => prev.map((resume) => (resume.id === activeResume.id ? updated : resume)));
       router.push(`/resume?id=${encodeURIComponent(activeResume.id)}&template=${encodeURIComponent(templateId)}`);
     } catch (err: unknown) {

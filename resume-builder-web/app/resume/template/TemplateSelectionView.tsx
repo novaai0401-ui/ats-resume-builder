@@ -142,6 +142,11 @@ export default function TemplateSelectionView({
   const [pendingUploadFileName, setPendingUploadFileName] = useState('');
   const pendingTemplateSaveRef = useRef<Promise<void> | null>(null);
   const templateSaveRunRef = useRef(0);
+  // Accent dot picked on a template card. null = no override (the resume's
+  // saved colour stands). Carried through the live preview AND the save, so
+  // the colour the user previewed is the colour the exported PDF gets —
+  // founder-reported: the PDF came out default navy after picking a dot.
+  const previewAccentRef = useRef<string | null>(null);
   const previewPaneRef = useRef<HTMLElement | null>(null);
   const activeTemplateMeta = useMemo(() => TEMPLATE_OPTIONS.find((template) => template.id === selectedTemplate), [selectedTemplate]);
   const ActiveTemplateComponent = templateRegistry[selectedTemplate].component;
@@ -226,7 +231,11 @@ export default function TemplateSelectionView({
     setSaving(true);
     setError('');
     const runId = ++templateSaveRunRef.current;
-    const savePromise = apiClient.updateResume(resumeId, { templateId: template })
+    const accentOverride = previewAccentRef.current;
+    const savePromise = apiClient.updateResume(resumeId, {
+      templateId: template,
+      ...(accentOverride ? { accentColor: accentOverride } : {}),
+    })
       .then((updated) => {
         applySavedTemplate(updated, template, toastText);
       })
@@ -244,10 +253,15 @@ export default function TemplateSelectionView({
     return savePromise;
   };
 
-  const handlePreviewTemplate = (template: TemplateId) => {
+  const handlePreviewTemplate = (template: TemplateId, previewAccent?: string) => {
+    // No dot on this card → drop any earlier override and let the resume's
+    // SAVED colour show, so the live preview always matches what a save
+    // would produce.
+    previewAccentRef.current = previewAccent || null;
+    const accentPatch = { accentColor: previewAccent || resumeData?.accentColor || null };
     setSelectedTemplate(template);
-    setResumeDraft((prev) => (prev ? { ...prev, templateId: template } : prev));
-    setResumeStore((prev) => ({ ...prev, templateId: template }));
+    setResumeDraft((prev) => (prev ? { ...prev, templateId: template, ...accentPatch } : prev));
+    setResumeStore((prev) => ({ ...prev, templateId: template, ...accentPatch }));
     setToast('');
     // On mobile the live preview + action buttons (Use / Download) are stacked
     // ABOVE the catalog (preview-pane order:-1), so tapping a card looks like
@@ -303,6 +317,17 @@ export default function TemplateSelectionView({
       const fullName = (resumeDraft?.contact?.fullName || '').trim();
       const role = (resumeDraft?.experience?.[0]?.role || resumeDraft?.title || '').trim();
       const fileBaseName = [fullName, role].filter(Boolean).join('_');
+      // The server export renders the SAVED resume (template id aside), so a
+      // colour dot that was previewed but never applied would silently
+      // download in the default navy — the founder's exact report. Persist
+      // the override before generating.
+      if (previewAccentRef.current && previewAccentRef.current !== resumeData?.accentColor) {
+        const updated = await apiClient.updateResume(resumeId, {
+          templateId: selectedTemplate,
+          accentColor: previewAccentRef.current,
+        });
+        applySavedTemplate(updated, selectedTemplate);
+      }
       await apiClient.downloadPdf(resumeId, selectedTemplate, downloadToken, fileBaseName);
       setToast('PDF download started.');
     } catch (err: unknown) {

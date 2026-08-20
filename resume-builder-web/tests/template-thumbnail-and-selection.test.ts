@@ -170,3 +170,45 @@ test('computePreviewScale handles zero dimensions gracefully', () => {
   assert.strictEqual(computePreviewScale(0, 500), 1);
   assert.strictEqual(computePreviewScale(500, 0), 1);
 });
+
+// ── Accent dots must RIDE ALONG into selection/download (founder report:
+//    picked a colour on the card, PDF downloaded in the default navy) ──
+
+test('catalog grid hands the active accent dot to the selection callbacks', () => {
+  const src = readFileSync(catalogGridPath, 'utf-8');
+  assert(
+    src.includes('previewHandler(template.id, accent || undefined)'),
+    'Preview must carry the active dot',
+  );
+  assert(
+    src.includes('onSelectTemplate(template.id, accent || undefined)'),
+    'Primary action must carry the active dot',
+  );
+});
+
+test('template selection persists a previewed accent before generating the PDF', () => {
+  const src = readFileSync(templateSelectionPath, 'utf-8');
+  // The server export renders the SAVED resume, so runDownload must save the
+  // pending accent override first — otherwise the preview and the PDF differ.
+  assert(
+    src.includes('previewAccentRef.current !== resumeData?.accentColor'),
+    'Download must check for an unpersisted accent override',
+  );
+  assert(
+    src.includes('accentColor: previewAccentRef.current'),
+    'Download must persist the previewed accent via updateResume',
+  );
+  // "Use template" (persistTemplate) must carry it too.
+  assert(
+    src.includes('...(accentOverride ? { accentColor: accentOverride } : {})'),
+    'persistTemplate must include the accent override when one is active',
+  );
+});
+
+test('dashboard template apply carries the previewed accent', () => {
+  const src = readFileSync(path.join(__dirname, '..', 'app', 'dashboard', 'DashboardPageView.tsx'), 'utf-8');
+  assert(
+    src.includes('...(previewAccent ? { accentColor: previewAccent } : {})'),
+    'Dashboard apply must persist the card accent alongside the template',
+  );
+});
