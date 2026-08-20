@@ -62,6 +62,9 @@ type PublicPayload = {
     contactMasked: boolean;
     snapshotLabel: string | null;
     snapshotCreatedAt: string | null;
+    /** Paid owner → portfolio treatment (photo shown, PDF served clean). */
+    portfolio?: boolean;
+    photoUrl?: string | null;
   };
 };
 
@@ -151,6 +154,20 @@ export default async function PublicSharePage({
       ) : null}
       <article style={cardStyle}>
         <header style={headerStyle}>
+          {/* Portfolio tier only — free share cards never carry the photo, so
+              nothing changes for links created before this existed. Plain img,
+              not next/image: the src is a user-supplied external URL and this
+              page must render without image-optimizer config for any host. */}
+          {meta.portfolio && meta.photoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={meta.photoUrl}
+              alt={`${fullName} profile photo`}
+              width={72}
+              height={72}
+              style={{ borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '2px solid #dce5ef' }}
+            />
+          ) : null}
           <div>
             <h1 style={{ margin: 0, fontSize: 26, color: '#1a3a5c' }}>{fullName}</h1>
             {headline ? (

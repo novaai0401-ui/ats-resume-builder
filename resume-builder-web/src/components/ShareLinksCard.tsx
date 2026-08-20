@@ -339,6 +339,7 @@ export default function ShareLinksCard() {
                         events={events[link.id] || null}
                         versions={versionsByResume[link.resumeId] || null}
                         onPatch={(patch) => patchLink(link.id, patch)}
+                        onSaved={load}
                       />
                     ) : null}
                   </>
@@ -369,16 +370,86 @@ const toggleStyle: React.CSSProperties = {
  *   - visit log: last 50 view/download events with timestamp + coarse
  *     geo + truncated UA. Owner sees activity, NEVER the raw IP.
  */
+/**
+ * Claim a vanity URL for the link (/p/chandan-kumar instead of /p/x7Kq…).
+ *
+ * Plus-only, but deliberately NOT hidden from free users: the server is the
+ * authority on the plan, and its refusal message names the upgrade — hiding
+ * the field would also hide the feature. Unlike the toggles (which go through
+ * patchLink and swallow errors), the claim MUST surface the server's exact
+ * words: "already taken", "reserved" and "needs Plus" each require a
+ * different action from the user.
+ */
+function ClaimCustomLink({ link, onSaved }: { link: ShareLink; onSaved: () => void }) {
+  const [value, setValue] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState('');
+
+  const claim = async () => {
+    setBusy(true);
+    setMessage('');
+    try {
+      const res = await authedFetch(`/share-links/${link.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ customSlug: value.trim().toLowerCase() }),
+      });
+      if (res.ok) {
+        setMessage('Saved — your new URL is live. The old random link now returns 404.');
+        setValue('');
+        onSaved();
+      } else {
+        const body = (await res.json().catch(() => null)) as { message?: string | string[] } | null;
+        const raw = body?.message;
+        setMessage(Array.isArray(raw) ? raw.join(' ') : raw || 'Could not claim that link.');
+      }
+    } catch {
+      setMessage('Could not claim that link — check your connection and try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div style={{ marginTop: 10 }}>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <div style={{ flex: '1 1 220px' }}>
+          <TkxInput
+            label="Custom link (Plus)"
+            placeholder="e.g. chandan-kumar"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && value.trim() && !busy && claim()}
+          />
+        </div>
+        <TkxButton variant="outline" disabled={busy || value.trim().length < 3} onClick={claim}>
+          {busy ? 'Claiming…' : 'Claim URL'}
+        </TkxButton>
+      </div>
+      <p className="small" style={{ margin: '4px 0 0', color: 'var(--muted)' }}>
+        Your page becomes /p/{value.trim().toLowerCase() || 'your-name'} — lowercase letters, digits
+        and hyphens. Anyone holding the old random URL will get a 404, so re-share after claiming.
+      </p>
+      {message ? (
+        <p className="small" style={{ margin: '4px 0 0', color: 'var(--ink)' }} data-testid="claim-slug-message">
+          {message}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 function LinkDetails({
   link,
   events,
   versions,
   onPatch,
+  onSaved,
 }: {
   link: ShareLink;
   events: VisitEvent[] | null;
   versions: ResumeVersion[] | null;
   onPatch: (patch: Partial<ShareLink>) => void;
+  onSaved: () => void;
 }) {
   const expiresValue = link.expiresAt ? link.expiresAt.slice(0, 10) : '';
   return (
@@ -480,6 +551,7 @@ function LinkDetails({
       <p className="small" style={{ marginTop: 8, color: 'var(--muted)', fontSize: 11 }}>
         We never store the visitor's IP address. Each row above is the most we know.
       </p>
+      <ClaimCustomLink link={link} onSaved={onSaved} />
     </div>
   );
 }

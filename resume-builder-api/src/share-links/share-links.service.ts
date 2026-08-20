@@ -47,7 +47,26 @@ export type UpdateShareLinkInput = Partial<{
    * accepting the change (no cross-resume pinning).
    */
   resumeVersionId: string | null;
+  /**
+   * Vanity slug (Plus only) — turns /p/x7Kq… into /p/chandan-kumar. Lowercase
+   * letters, digits and hyphens, 3–40 chars. Validated against a reserved-word
+   * list so nobody claims /p/admin, and against the format so the random slugs
+   * (which contain uppercase) can never collide with the vanity namespace.
+   */
+  customSlug: string;
 }>;
+
+/**
+ * Vanity slugs a user must not claim: they either shadow real or future app
+ * routes, or would let someone impersonate the product on a public URL.
+ */
+const RESERVED_SLUGS = new Set([
+  'admin', 'api', 'app', 'auth', 'billing', 'callbackcv', 'contact', 'dashboard',
+  'download', 'help', 'jobs', 'login', 'official', 'pricing', 'privacy',
+  'register', 'resume', 'settings', 'share', 'support', 'terms', 'tekivex',
+]);
+
+const CUSTOM_SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{1,38})[a-z0-9]$/;
 
 /**
  * Public-facing resume payload. Strips everything the visitor doesn't
@@ -74,6 +93,11 @@ export type PublicResumePayload = {
     contactMasked: boolean;
     snapshotLabel: string | null;
     snapshotCreatedAt: string | null;
+    /** True when the owner is on a paid plan — the page renders as a portfolio
+     *  and the PDF is served clean rather than watermarked. */
+    portfolio: boolean;
+    /** Portfolio tier only; null on free share cards. */
+    photoUrl: string | null;
   };
 };
 
@@ -127,9 +151,46 @@ export class ShareLinksService {
     });
   }
 
+  /** Whether the OWNER of a link is on a paid plan — drives the portfolio tier. */
+  private async ownerIsPlus(userId: string): Promise<boolean> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { plan: true },
+    });
+    return Boolean(user?.plan && user.plan !== 'FREE');
+  }
+
   async update(userId: string, id: string, input: UpdateShareLinkInput) {
     const existing = await this.prisma.shareLink.findFirst({ where: { id, userId } });
     if (!existing) throw new NotFoundException('Share link not found.');
+
+    // Vanity slug — Plus only. The random slugs contain uppercase, so the
+    // all-lowercase vanity format can never collide with an auto-generated one.
+    let customSlug: string | undefined;
+    if (input.customSlug !== undefined) {
+      const wanted = String(input.customSlug || '').trim().toLowerCase();
+      if (!CUSTOM_SLUG_RE.test(wanted)) {
+        throw new BadRequestException(
+          'Custom link must be 3–40 characters: lowercase letters, digits and hyphens (not at the ends).',
+        );
+      }
+      if (RESERVED_SLUGS.has(wanted)) {
+        throw new BadRequestException('That link name is reserved — pick another.');
+      }
+      if (!(await this.ownerIsPlus(userId))) {
+        throw new ForbiddenException(
+          'Custom portfolio links are a CallbackCV Plus feature. Upgrade to claim your own URL.',
+        );
+      }
+      if (wanted !== existing.slug) {
+        const taken = await this.prisma.shareLink.findUnique({
+          where: { slug: wanted },
+          select: { id: true },
+        });
+        if (taken) throw new BadRequestException('That link is already taken — try another.');
+        customSlug = wanted;
+      }
+    }
 
     // Validate version pinning: the snapshot must belong to the same
     // resume + user. Without this check a malicious patch could pin a
@@ -153,6 +214,7 @@ export class ShareLinksService {
           ? { expiresAt: input.expiresAt ? new Date(input.expiresAt) : null }
           : {}),
         ...(input.resumeVersionId !== undefined ? { resumeVersionId: input.resumeVersionId } : {}),
+        ...(customSlug ? { slug: customSlug } : {}),
       },
     });
   }
@@ -328,6 +390,11 @@ export class ShareLinksService {
     }
 
     const safeResume = sanitiseResumeForPublic(resumeBody, link.maskContact);
+    // Portfolio tier: a paid owner's public page renders as a portfolio —
+    // photo shown, clean (un-watermarked) PDF served. Resolved fresh on every
+    // read rather than stamped on the link, so an upgrade or a lapse takes
+    // effect immediately on pages that were shared long ago.
+    const portfolio = await this.ownerIsPlus(link.userId);
     return {
       slug: link.slug,
       headline: link.headline,
@@ -338,6 +405,10 @@ export class ShareLinksService {
         contactMasked: link.maskContact,
         snapshotLabel,
         snapshotCreatedAt,
+        portfolio,
+        // The photo only travels on the portfolio tier — free share cards stay
+        // exactly what they were.
+        photoUrl: portfolio ? String((resumeBody as { photoUrl?: unknown })?.photoUrl || '') || null : null,
       },
     };
   }
@@ -370,8 +441,13 @@ export class ShareLinksService {
     // PDF code path in the app — fork would be a maintenance trap.
     // Public copies carry a watermark: the recruiter gets a usable PDF
     // while the owner's clean export stays the canonical one.
+    // Watermark is the free tier's tell, not a universal rule: a Plus owner's
+    // portfolio serves the clean document (that is part of what the plan
+    // sells), while free share cards keep the visible "un-final" mark so the
+    // owner's paid export stays the canonical copy.
+    const ownerIsPlus = await this.ownerIsPlus(link.userId);
     const pdf = await this.resume.generatePdfBypassingQuota(link.userId, link.resumeId, undefined, {
-      watermark: true,
+      watermark: !ownerIsPlus,
     });
 
     await this.recordEvent(link.id, 'download', req);
