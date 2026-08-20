@@ -198,7 +198,7 @@ export default function ShareLinksCard() {
   };
 
   return (
-    <section className="card" style={{ marginTop: 16 }} aria-labelledby="share-links-title">
+    <section className="card share-links-card" style={{ marginTop: 16 }} aria-labelledby="share-links-title">
       <h2 id="share-links-title" style={{ marginTop: 0 }}>
         Public share links
       </h2>

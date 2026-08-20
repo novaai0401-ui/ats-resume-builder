@@ -5055,3 +5055,18 @@ a:hover { color: var(--link-hover); }
     animation: none;
   }
 }
+
+/* Share-links card: keep tekivex fields INSIDE the card on phones.
+   Two stacked defaults caused the founder-reported overflow: grid children
+   default to min-width:auto (they refuse to shrink below content size), and
+   tekivex inputs carry an intrinsic width. Scoped here rather than fixed
+   globally so a library upgrade cannot silently re-break other layouts;
+   also logged in the tekivex-ui feedback list. */
+.share-links-card * { min-width: 0; }
+.share-links-card input,
+.share-links-card select,
+.share-links-card textarea,
+.share-links-card [class*="tkx"] {
+  max-width: 100%;
+  box-sizing: border-box;
+}
