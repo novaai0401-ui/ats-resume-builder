@@ -1,5 +1,11 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
+import {
+  TrustCard,
+  TrustChecklist,
+  TrustHero,
+  TrustPageShell,
+} from '@/src/components/TrustPage';
 
 export const metadata: Metadata = {
   title: 'Pricing — CallbackCV',
@@ -15,6 +21,9 @@ export const metadata: Metadata = {
 // upfront transparency: every number a user will ever be asked for, on one
 // public page, before they invest an hour building. Keep this page in sync
 // with billing copy (C-003).
+//
+// Premium redesign is PRESENTATION ONLY — every claim, price and feature line
+// below is preserved verbatim from the original page for exactly that reason.
 const TIERS = [
   {
     name: 'Free',
@@ -62,46 +71,48 @@ const TIERS = [
 
 export default function PricingPage() {
   return (
-    <main>
-      <section className="hero" style={{ paddingBottom: 8 }}>
-        <h1>Simple pricing, shown before you build.</h1>
-        <p className="small">
-          Building and editing is free forever. You only ever pay for two things: a clean
-          download (₹49) or the everything-AI plan (₹499/month). That&rsquo;s the whole list.
-        </p>
-      </section>
+    <TrustPageShell>
+      <TrustHero eyebrow="Pricing" title="Simple pricing," accent="shown before you build">
+        Building and editing is free forever. You only ever pay for two things: a clean download
+        (₹49) or the everything-AI plan (₹499/month). That&rsquo;s the whole list.
+      </TrustHero>
 
-      <section className="grid" aria-label="Plans">
+      <div className="price-grid" aria-label="Plans">
         {TIERS.map((tier) => (
-          <article
-            key={tier.name}
-            className="card col-4"
-            style={tier.highlight ? { borderColor: 'var(--primary)', borderWidth: 2 } : undefined}
-          >
-            <h2 style={{ marginBottom: 2 }}>{tier.name}</h2>
-            <p style={{ margin: '0 0 2px', fontSize: 32, fontWeight: 800 }}>{tier.price}</p>
-            <p className="small" style={{ margin: '0 0 12px', color: 'var(--muted)' }}>{tier.cadence}</p>
-            <ul className="small" style={{ paddingLeft: 18, lineHeight: 1.8, marginBottom: 14 }}>
+          <article key={tier.name} className={`price-card${tier.highlight ? ' price-card--featured' : ''}`}>
+            {tier.highlight ? <span className="price-card__ribbon">Most popular</span> : null}
+            <h2 className="price-card__name">{tier.name}</h2>
+            <p className="price-card__price">
+              {tier.price}
+              <span className="price-card__cadence"> {tier.cadence}</span>
+            </p>
+            <ul className="price-card__features">
               {tier.features.map((f) => (
-                <li key={f}>{f}</li>
+                <li key={f}>
+                  <span className="price-card__tick" aria-hidden="true">✓</span>
+                  {f}
+                </li>
               ))}
             </ul>
-            <Link className={tier.highlight ? 'btn' : 'btn secondary'} href={tier.cta.href}>
+            <Link className={tier.highlight ? 'btn price-card__cta' : 'btn secondary price-card__cta'} href={tier.cta.href}>
               {tier.cta.label}
             </Link>
           </article>
         ))}
-      </section>
+      </div>
 
-      <section className="card" style={{ marginTop: 18 }} aria-labelledby="pricing-faq">
-        <h2 id="pricing-faq">The fine print, in plain words</h2>
-        <ul className="small" style={{ paddingLeft: 18, lineHeight: 1.9 }}>
-          <li><strong>No hidden charges.</strong> You will never hit a surprise paywall at export — this page is the entire price list.</li>
-          <li><strong>Bring your own AI key (free).</strong> Plug in your own Groq/OpenAI/Anthropic key in Settings and the AI features run on it at no charge from us.</li>
-          <li><strong>Cancel anytime.</strong> Plus is month-to-month via Razorpay; cancelling keeps your account and resumes on the Free tier.</li>
-          <li><strong>Referrals.</strong> Each friend who signs up earns you a free download.</li>
-        </ul>
-      </section>
-    </main>
+      <div style={{ marginTop: 24 }}>
+        <TrustCard icon="₹" title="The fine print, in plain words" wide>
+          <TrustChecklist
+            items={[
+              { ok: true, text: <><strong>No hidden charges.</strong> You will never hit a surprise paywall at export — this page is the entire price list.</> },
+              { ok: true, text: <><strong>Bring your own AI key (free).</strong> Plug in your own Groq/OpenAI/Anthropic key in Settings and the AI features run on it at no charge from us.</> },
+              { ok: true, text: <><strong>Cancel anytime.</strong> Plus is month-to-month via Razorpay; cancelling keeps your account and resumes on the Free tier.</> },
+              { ok: true, text: <><strong>Referrals.</strong> Each friend who signs up earns you a free download.</> },
+            ]}
+          />
+        </TrustCard>
+      </div>
+    </TrustPageShell>
   );
 }

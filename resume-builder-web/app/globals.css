@@ -4887,3 +4887,58 @@ a:hover { color: var(--link-hover); }
   transform: scale(1.18);
   box-shadow: 0 0 0 2px var(--primary);
 }
+
+/* Pricing cards — the premium tier presentation. The featured card carries a
+   gradient border + ribbon; everything else is tokens so dark mode is free. */
+.price-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-5);
+  align-items: stretch;
+}
+@media (max-width: 1023.98px) { .price-grid { grid-template-columns: 1fr; max-width: 480px; margin: 0 auto; } }
+.price-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: var(--space-6);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.price-card:hover { transform: translateY(-3px); box-shadow: 0 14px 34px -20px color-mix(in srgb, var(--primary) 50%, transparent); }
+.price-card--featured {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--card), var(--card)) padding-box,
+    linear-gradient(135deg, var(--primary), #a78bfa) border-box;
+  border-width: 2px;
+}
+.price-card__ribbon {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 3px 14px;
+  border-radius: 999px;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #ffffff;
+  background: linear-gradient(90deg, var(--primary), #a78bfa);
+  white-space: nowrap;
+}
+.price-card__name { margin: 0 0 var(--space-1); font-size: var(--text-lg); }
+.price-card__price { margin: 0 0 var(--space-4); font-size: 2.4rem; font-weight: 800; letter-spacing: -0.02em; color: var(--ink); }
+.price-card__cadence { font-size: var(--text-sm); font-weight: 400; color: var(--muted); letter-spacing: 0; }
+.price-card__features { list-style: none; margin: 0 0 var(--space-5); padding: 0; display: grid; gap: var(--space-2); flex: 1; }
+.price-card__features li { display: flex; gap: var(--space-2); align-items: flex-start; font-size: var(--text-sm); color: var(--muted); }
+.price-card__tick {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0; margin-top: 1px;
+  font-size: 11px; font-weight: 700;
+  color: #067647; background: rgba(6,118,71,0.14);
+}
+.price-card__cta { width: 100%; text-align: center; }
