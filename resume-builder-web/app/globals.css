@@ -4953,3 +4953,105 @@ a:hover { color: var(--link-hover); }
   background-clip: text;
   color: transparent;
 }
+
+/* ==========================================================================
+   AMBIENT LAYER — the futuristic-professional treatment.
+   Scope: MARKETING surfaces only (.home-landing, .tp-page). The editor,
+   dashboard and resume preview are deliberately excluded: atmosphere behind a
+   document you are trying to read is decoration at the reader's expense, and
+   the resume paper must stay clinically neutral.
+
+   Three ingredients, all restrained:
+     1. Aurora glows — two large radial gradients in the brand hues, a few
+        percent opacity, fixed so content scrolls over light.
+     2. An engineering grid in heroes — 1px lines at ~4% via color-mix, the
+        "built by people who measure things" tell.
+     3. A slow shimmer on gradient text — 14s, and fully disabled under
+        prefers-reduced-motion.
+   Everything derives from var(--primary) + tokens, so light/dark and any
+   future brand-colour change need zero edits here.
+   ========================================================================== */
+.home-landing,
+.tp-page {
+  position: relative;
+  isolation: isolate; /* keep the glow layer behind content but inside the page */
+}
+.home-landing::before,
+.tp-page::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(600px 420px at 12% -5%,
+      color-mix(in srgb, var(--primary) 13%, transparent), transparent 70%),
+    radial-gradient(700px 480px at 95% 12%,
+      color-mix(in srgb, #a78bfa 11%, transparent), transparent 70%),
+    radial-gradient(520px 380px at 50% 108%,
+      color-mix(in srgb, var(--primary) 7%, transparent), transparent 70%);
+}
+
+/* Engineering grid behind heroes. ::after so it stacks over the aurora but
+   under text; masked so it fades out instead of ending on a hard line. */
+.home-hero,
+.tp-hero {
+  position: relative;
+}
+.home-hero::after,
+.tp-hero::after {
+  content: '';
+  position: absolute;
+  inset: -24px -9999px; /* full-bleed sideways without overflow-x */
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--ink) 5%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--ink) 5%, transparent) 1px, transparent 1px);
+  background-size: 44px 44px;
+  -webkit-mask-image: radial-gradient(ellipse 70% 90% at 50% 30%, #000 35%, transparent 78%);
+  mask-image: radial-gradient(ellipse 70% 90% at 50% 30%, #000 35%, transparent 78%);
+}
+
+/* Gradient text gains a slow shimmer — the "alive" tell, at a pace that reads
+   as light moving, not as animation. */
+@keyframes ambient-shimmer {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.home-hero__accent,
+.tp-title__accent,
+.site-footer__logo {
+  background: linear-gradient(90deg, var(--primary), #a78bfa, var(--primary));
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: ambient-shimmer 14s ease-in-out infinite;
+}
+
+/* Featured elements get a soft brand glow — depth, not neon. */
+.price-card--featured {
+  box-shadow: 0 0 44px -18px color-mix(in srgb, var(--primary) 55%, transparent);
+}
+.tp-cta {
+  box-shadow: 0 0 36px -20px color-mix(in srgb, var(--primary) 45%, transparent);
+}
+
+/* Glassier cards on the ambient surfaces: a whisper of translucency so the
+   aurora reads through card edges. Solid enough that AA contrast holds. */
+.tp-page .tp-card,
+.tp-page .price-card:not(.price-card--featured) {
+  background: color-mix(in srgb, var(--card) 92%, transparent);
+  backdrop-filter: blur(6px);
+}
+
+/* Accessibility: motion off means OFF. The static gradient remains. */
+@media (prefers-reduced-motion: reduce) {
+  .home-hero__accent,
+  .tp-title__accent,
+  .site-footer__logo {
+    animation: none;
+  }
+}
