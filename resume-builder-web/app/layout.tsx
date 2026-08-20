@@ -152,7 +152,13 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <NavigationProgress />
           <div className="main-shell">
             <header className="topbar">
-              <div className="brand">CallbackCV</div>
+              {/* The callback-loop mark beside the wordmark — plain img of the
+                  same SVG the favicon/PWA use, so the identity is one file. */}
+              <div className="brand" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/icons/icon.svg" alt="" width={26} height={26} style={{ borderRadius: 7 }} />
+                CallbackCV
+              </div>
               <TopNav />
               <ThemeToggle />
             </header>
