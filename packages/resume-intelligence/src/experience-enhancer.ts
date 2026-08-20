@@ -430,7 +430,7 @@ function looksLikeCompanyLine(line: string) {
   if (!trimmed || trimmed.length > 80) return false;
   const tokens = trimmed.split(/\s+/).filter(Boolean);
   if (!tokens.length) return false;
-  const titleCased = tokens.filter((word) => /^[A-Z][A-Za-z0-9&'()./-]*$/.test(word) || /^[A-Z]{2,}$/.test(word));
+  const titleCased = tokens.filter((word) => /^[\p{Lu}][\p{L}\p{N}&'()./-]*$/u.test(word) || /^[\p{Lu}]{2,}$/u.test(word));
   if (titleCased.length >= Math.ceil(tokens.length / 2)) return true;
   if (/(inc|llc|ltd|corp|company|technologies|systems|solutions|group|partners|bank|consulting|enterprises|services|labs|digital|pvt|limited|infotech)/i.test(trimmed)) {
     return true;

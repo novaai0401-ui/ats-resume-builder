@@ -133,39 +133,128 @@ export function looksLikeLinkedInProfile(text: string): boolean {
   return false;
 }
 
+/** Markdown link: `[text](url)` — the "copy as markdown" LinkedIn paste shape. */
+const MD_LINK = /\[([^\]]*)\]\(([^)\s]+)\)/g;
+/** A line that is ONLY an employment type (LinkedIn prints it alone under grouped roles). */
+const EMPLOYMENT_TYPE_ONLY = /^(full[- ]?time|part[- ]?time|contract|internship|freelance|self[- ]?employed|apprenticeship|seasonal|temporary)$/i;
+/** A line that is ONLY a duration ("6 yrs 2 mos" under a grouped company header). */
+const BARE_DURATION = /^\d+\s*(?:yrs?|years?)(?:\s*\d+\s*(?:mos?|months?))?$|^\d+\s*(?:mos?|months?)$/i;
+/** LinkedIn workplace-type tail on location lines — any country, any language variant LinkedIn ships. */
+const WORKPLACE_TAIL = /[,·]?\s*(on[- ]?site|hybrid|remote)\s*$/i;
+/** LinkedIn's "Skill A, Skill B and +17 skills" association footer under a role. */
+const SKILL_ASSOC_LINE = /\band\s\+\d+\s+skills?$|^\S[^,]*,.*\+\d+\s+skills?$/i;
+
+/**
+ * Structural location test for the line that follows a date inside
+ * Experience/Education. LinkedIn's block order is fixed worldwide —
+ * Role / Company · Type / Dates / Location / bullets — so position is the
+ * primary signal; the shape check (short, comma-separated or a
+ * geography-suffix word, no digits, not a sentence) merely keeps real
+ * bullets safe. Deliberately NOT a country list: profiles come from
+ * anywhere.
+ */
+function looksLikeLocationAfterDate(line: string): boolean {
+  if (WORKPLACE_TAIL.test(line)) return true;
+  if (/\b(area|region|district|division)$/i.test(line)) return true;
+  if (!line.includes(',')) return false;
+  if (/\d/.test(line)) return false;
+  if (/[.!?]$/.test(line)) return false;
+  return line.split(/\s+/).length <= 8;
+}
+
 /** Rewrite a LinkedIn paste into parser-friendly resume text. */
 export function normalizeLinkedInProfileText(text: string): string {
   const out: string[] = [];
   const rawLines = String(text || '').split('\n');
+  // Grouped-positions state: `[Company](…/company/…)` header lines announce
+  // an employer whose roles follow as starred sub-entries WITHOUT their own
+  // company line. Remember it and re-emit it after each such role so every
+  // entry reaches the parser in canonical Role / Company / (Dates) shape.
+  let pendingCompany = '';
+  let inEntrySection = false; // Experience/Education — where location lines live
+  let lastWasDate = false;
+
   for (const raw of rawLines) {
-    let line = dedupeDoubledLine(raw.trim());
+    const rawTrimmed = raw.trim();
+    // Markdown bullet marker for grouped sub-roles ("* [Role](…position…)").
+    const starred = /^[*-]\s+\[/.test(rawTrimmed);
+    let line = rawTrimmed.replace(/^[*-]\s+(?=\[)/, '');
+
+    // Resolve markdown links using the URL as a line classifier.
+    let isCompanyAnchor = false;
+    const links = [...line.matchAll(MD_LINK)];
+    if (links.length) {
+      // "…and +17 skills" association overlays are pure LinkedIn chrome.
+      if (links.some(([, , url]) => /skill-associations/i.test(url))) continue;
+      isCompanyAnchor = links.some(([, , url]) => /linkedin\.com\/company\//i.test(url));
+      line = line.replace(MD_LINK, (_, label: string) => label).trim();
+    }
+
+    line = dedupeDoubledLine(line);
     if (!line) continue;
     // Drop LinkedIn app chrome (nav, messaging overlay, feed, avatar
     // alt-text, social actions) that never belongs on a resume.
     if (LINKEDIN_CHROME_LINE.test(line)) continue;
+    // Image alt-text ("Acme Corp logo") and education grade footers.
+    if (/\slogo$/i.test(line)) continue;
+    if (/^grade\s*:/i.test(line)) continue;
 
     // Section heading?
     const section = LINKEDIN_SECTION_MAP.find(([re]) => re.test(line));
     if (section) {
       out.push('');
       out.push(section[1]);
+      pendingCompany = '';
+      inEntrySection = section[1] === 'WORK EXPERIENCE' || section[1] === 'EDUCATION';
+      lastWasDate = false;
       continue;
     }
 
-    // "Company · Full-time" → "Company"; strip duration tails.
-    line = line.replace(EMPLOYMENT_TYPES, '').replace(DURATION_TAIL, '').trim();
+    // "Company · Full-time" → "Company"; strip duration tails and the
+    // truncation marker LinkedIn appends to collapsed text.
+    line = line.replace(EMPLOYMENT_TYPES, '').replace(DURATION_TAIL, '').replace(/(\.\.\.|…)\s*more$/i, '').trim();
     if (!line) continue;
+    // Lines that were NOTHING BUT type/duration ("Full-time", "6 yrs 2 mos")
+    // sit under grouped roles and must not become companies or bullets.
+    if (EMPLOYMENT_TYPE_ONLY.test(line) || BARE_DURATION.test(line)) continue;
+    if (inEntrySection && SKILL_ASSOC_LINE.test(line)) continue;
     // Strip trailing "· Contact info" style chrome, then convert LinkedIn's
     // remaining "·" separators (skills, locations) into commas — the
     // canonical delimiter the downstream mappers split on.
     line = line.replace(/\s*·\s*contact info\s*$/i, '').replace(/\s*·\s*/g, ', ').trim();
     if (!line) continue;
 
+    // A grouped-company header: remember it, emit nothing yet.
+    if (isCompanyAnchor && inEntrySection) {
+      pendingCompany = line;
+      lastWasDate = false;
+      continue;
+    }
+
     // Bare "Jan 2020 - Present · 3 yrs" date line → "(Jan 2020 - Present)"
     const dm = line.match(LINKEDIN_DATE_LINE);
     if (dm) {
       const end = /present/i.test(dm[2]) ? 'Present' : dm[2];
       out.push(`(${dm[1]} - ${end})`);
+      lastWasDate = true;
+      continue;
+    }
+
+    // The line under a date in Experience/Education is the entry's location
+    // — never a company and never an achievement. Dropping it here is what
+    // stops "Pune Division, Maharashtra, India" (or "Greater Toronto Area,
+    // Canada, Hybrid") from becoming a bullet.
+    if (inEntrySection && lastWasDate && looksLikeLocationAfterDate(line)) {
+      lastWasDate = false;
+      continue;
+    }
+    lastWasDate = false;
+
+    // A starred sub-role under a grouped company: emit Role then Company so
+    // the entry is self-contained for the parser.
+    if (starred && inEntrySection && pendingCompany && !line.startsWith('•')) {
+      out.push(line);
+      out.push(pendingCompany);
       continue;
     }
     out.push(line);

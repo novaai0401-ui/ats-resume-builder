@@ -135,3 +135,112 @@ test('the real profile paste still extracts cleanly after the chrome expansion',
   const r = service['buildStructuredResume'](normalizeUploadText(splitTabularExperienceHeaders(normalized)));
   assert.equal(r.parsedPayload.experience.length, 2);
 });
+
+// ── Markdown-flavoured LinkedIn paste (copy-as-markdown / reader tools) ──
+// Every line arrives as a [text](url) link; the URL says what the line IS
+// (/company/ = grouped employer, position/ = role lines, skill-associations
+// = the "+N skills" overlay). Fixture deliberately uses a DIFFERENT person
+// and country than the founder's report: the parsing is structural, not
+// tuned to one profile.
+const MD_PASTE = [
+  'Directrice adjointe at Banque Lumière, leading platform engineering across Europe.',
+  '',
+  'Experience',
+  '[Banque Lumière](https://www.linkedin.com/company/98765/)',
+  '[Full-time · 4 yrs 2 mos](https://www.linkedin.com/company/98765/)',
+  '* [Engineering Manager](https://www.linkedin.com/in/amelie-dupont/edit/forms/position/111/)',
+  '[Mar 2022 - Present · 3 yrs 6 mos](https://www.linkedin.com/in/amelie-dupont/edit/forms/position/111/)',
+  '[Lyon, Auvergne-Rhône-Alpes, France · Hybrid](https://www.linkedin.com/in/amelie-dupont/edit/forms/position/111/)',
+  '• Scaled the payments platform team from 4 to 15 engineers.… more',
+  '[ Leadership, Kubernetes and +12 skills](https://www.linkedin.com/in/amelie-dupont/overlay/111/skill-associations-details/)',
+  '* [Staff Engineer](https://www.linkedin.com/in/amelie-dupont/edit/forms/position/222/)',
+  '[Jan 2021 - Mar 2022 · 1 yr 3 mos](https://www.linkedin.com/in/amelie-dupont/edit/forms/position/222/)',
+  '• Designed the multi-region ledger service.',
+  '[Senior Developer](https://www.linkedin.com/in/amelie-dupont/edit/forms/position/333/)',
+  '[Maple Analytics · Full-time](https://www.linkedin.com/in/amelie-dupont/edit/forms/position/333/)',
+  '[Feb 2017 - Dec 2020 · 3 yrs 11 mos](https://www.linkedin.com/in/amelie-dupont/edit/forms/position/333/)',
+  '[Greater Toronto Area, Canada · Remote](https://www.linkedin.com/in/amelie-dupont/edit/forms/position/333/)',
+  '• Built the reporting pipeline used by 200 clients.',
+  '',
+  'Education',
+  'Université de Lyon logo',
+  'Université de Lyon',
+  'Master of Science - MSc, Computer Science',
+  '2012 – 2017',
+  'Grade: 16/20',
+].join('\n');
+
+test('markdown paste: link URLs classify lines; roles pair with their grouped company', () => {
+  assert.equal(looksLikeLinkedInProfile(MD_PASTE), true);
+  const out = normalizeLinkedInProfileText(MD_PASTE);
+  const lines = out.split('\n');
+
+  // Grouped roles are re-paired with the /company/ anchor.
+  const emIdx = lines.indexOf('Engineering Manager');
+  assert.ok(emIdx >= 0, 'role survives');
+  assert.equal(lines[emIdx + 1], 'Banque Lumière', 'grouped role gets its company on the next line');
+  const seIdx = lines.indexOf('Staff Engineer');
+  assert.equal(lines[seIdx + 1], 'Banque Lumière', 'second grouped role too');
+
+  // Ungrouped entry keeps its own company line.
+  const sdIdx = lines.indexOf('Senior Developer');
+  assert.equal(lines[sdIdx + 1], 'Maple Analytics');
+
+  // Dates parenthesised; durations gone.
+  assert.ok(out.includes('(Mar 2022 - Present)'));
+  assert.ok(!/yrs?|mos\b/.test(out), 'no duration fragments');
+
+  // Locations (France AND Canada — structural, not a country list) dropped.
+  assert.ok(!out.includes('Auvergne'), 'French location dropped');
+  assert.ok(!out.includes('Toronto'), 'Canadian location dropped');
+
+  // LinkedIn overlays and alt-text never survive.
+  assert.ok(!/\+12 skills/.test(out), 'skill-association overlay dropped');
+  assert.ok(!/logo/.test(out), 'image alt-text dropped');
+  assert.ok(!/Grade:/.test(out), 'grade footer dropped');
+  assert.ok(!lines.includes('Full-time'), 'bare employment type never becomes a company');
+
+  // Real content is intact.
+  assert.ok(out.includes('• Scaled the payments platform team from 4 to 15 engineers.'));
+  assert.ok(!/…\s*more/.test(out), 'truncation marker stripped');
+  assert.ok(out.includes('Université de Lyon'));
+});
+
+test('markdown paste extracts structured experience end-to-end', () => {
+  const { ResumeService, normalizeUploadText, splitTabularExperienceHeaders } = svc;
+  const service = new ResumeService({}, undefined, undefined, undefined, undefined);
+  const normalized = normalizeLinkedInProfileText(MD_PASTE);
+  const r = service['buildStructuredResume'](normalizeUploadText(splitTabularExperienceHeaders(normalized)));
+  const p = r.parsedPayload;
+
+  const roles = p.experience.map((e) => e.role);
+  assert.ok(roles.includes('Engineering Manager'), `roles: ${roles.join(' | ')}`);
+  const em = p.experience.find((e) => e.role === 'Engineering Manager');
+  assert.equal(em.company, 'Banque Lumière');
+  // No experience entry may have a location, employment type, or skill
+  // overlay as its company — the founder's screenshots showed all three.
+  for (const e of p.experience) {
+    assert.ok(!/full-?time/i.test(e.company || ''), `employment type as company: ${e.company}`);
+    assert.ok(!/\+\d+ skills/.test(e.company || ''), `skills overlay as company: ${e.company}`);
+    assert.ok(!/(France|Canada|Area)$/i.test(e.company || ''), `location as company: ${e.company}`);
+    for (const h of e.highlights || []) {
+      assert.ok(!/(France|Canada|Area)$/i.test(h), `location as bullet: ${h}`);
+    }
+  }
+});
+
+test('a paste with NO name never crowns a job title as fullName; accented names survive', () => {
+  const { ResumeService, normalizeUploadText, splitTabularExperienceHeaders } = svc;
+  const service = new ResumeService({}, undefined, undefined, undefined, undefined);
+  const run = (t) => service['buildStructuredResume'](normalizeUploadText(splitTabularExperienceHeaders(normalizeLinkedInProfileText(t)))).parsedPayload;
+
+  // MD_PASTE carries no person name at all → better an empty header the user
+  // fills than "Assistant Vice President" as their name (founder screenshot).
+  const anon = run(MD_PASTE);
+  const anonName = anon.contact?.fullName || '';
+  assert.ok(!/manager|engineer|consultant|president|developer/i.test(anonName), `role title as name: ${anonName}`);
+
+  // A real name — accented or not, role-word surname or not — is kept.
+  assert.equal(run('Amélie Dupont\namelie@example.com\n\n' + MD_PASTE).contact.fullName, 'Amélie Dupont');
+  assert.equal(run('Sarah Baker\nsarah@example.com\n\n' + MD_PASTE).contact.fullName, 'Sarah Baker');
+});
