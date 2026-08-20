@@ -122,23 +122,18 @@ export default function HomeLanding({ faq }: { faq: Faq[] }) {
           PDF/Word export.
         </TkxParagraph>
 
+        {/* Real <a> links, not router.push handlers: these are the page's
+            strongest anchors and Googlebot does not follow JS click handlers
+            (flagged by an external crawlability audit — its only true finding). */}
         <div className="home-cta-row">
-          <TkxButton
-            size="lg"
-            colorScheme="primary"
-            glow
-            leftIcon={<span aria-hidden>✨</span>}
-            onClick={() => router.push('/resume/start')}
-          >
-            Start your resume — free
-          </TkxButton>
-          <TkxButton
-            size="lg"
-            variant="outline"
-            onClick={() => router.push('/auth/register')}
-          >
-            Create account
-          </TkxButton>
+          <Link href="/resume/start" style={{ textDecoration: 'none' }}>
+            <TkxButton size="lg" colorScheme="primary" glow leftIcon={<span aria-hidden>✨</span>}>
+              Start your resume — free
+            </TkxButton>
+          </Link>
+          <Link href="/auth/register" style={{ textDecoration: 'none' }}>
+            <TkxButton size="lg" variant="outline">Create account</TkxButton>
+          </Link>
         </div>
 
         <TkxParagraph type="secondary" style={{ fontSize: 13, marginTop: 4 }}>
@@ -272,12 +267,12 @@ export default function HomeLanding({ faq }: { faq: Faq[] }) {
               Upload an existing resume to import in 30 seconds, or start from scratch.
             </TkxParagraph>
             <div className="home-cta-row" style={{ justifyContent: 'center' }}>
-              <TkxButton size="lg" colorScheme="primary" glow onClick={() => router.push('/resume/start')}>
-                Start your resume
-              </TkxButton>
-              <TkxButton size="lg" variant="outline" onClick={() => router.push('/templates')}>
-                Browse templates
-              </TkxButton>
+              <Link href="/resume/start" style={{ textDecoration: 'none' }}>
+                <TkxButton size="lg" colorScheme="primary" glow>Start your resume</TkxButton>
+              </Link>
+              <Link href="/templates/preview" style={{ textDecoration: 'none' }}>
+                <TkxButton size="lg" variant="outline">Browse templates</TkxButton>
+              </Link>
             </div>
           </TkxCardBody>
         </TkxCard>

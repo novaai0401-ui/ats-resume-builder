@@ -27,7 +27,12 @@ export default function PublicTemplatePreview({
 }) {
   const sample = getSampleResumeForIndustry(industryId);
   return (
-    <div data-testid="public-template-preview" data-template-id={templateId}>
+    <div
+      data-testid="public-template-preview"
+      data-template-id={templateId}
+      role="img"
+      aria-label={`Preview of the ${templateId.replace(/-/g, " ")} resume template with sample content`}
+    >
       <TemplatePreviewFrame mode={mode} pageWidth={TEMPLATE_PAGE_WIDTH} pageHeight={TEMPLATE_PAGE_HEIGHT}>
         <TemplatePreview templateId={templateId as TemplateId} resume={sample} />
       </TemplatePreviewFrame>
