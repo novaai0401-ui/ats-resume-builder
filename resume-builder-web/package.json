@@ -20,7 +20,7 @@
     "react-dom": "latest",
     "recharts": "^3.8.1",
     "resume-builder-shared": "../resume-builder-shared",
-    "tekivex-ui": "^3.32.0",
+    "tekivex-ui": "^4.0.0",
     "zustand": "latest"
   },
   "devDependencies": {
