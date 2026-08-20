@@ -30,6 +30,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${SITE_URL}/mentor/chat`, lastModified, changeFrequency: 'weekly', priority: 0.7 },
     { url: `${SITE_URL}/download`, lastModified, changeFrequency: 'weekly', priority: 0.6 },
     { url: `${SITE_URL}/pricing`, lastModified, changeFrequency: 'monthly', priority: 0.7 },
+    // Trust pages — thin on keywords but heavy on E-E-A-T; payment-gateway and
+    // search-quality reviewers look for exactly these.
+    { url: `${SITE_URL}/about`, lastModified, changeFrequency: 'yearly', priority: 0.4 },
+    { url: `${SITE_URL}/contact`, lastModified, changeFrequency: 'yearly', priority: 0.4 },
+    { url: `${SITE_URL}/terms`, lastModified, changeFrequency: 'yearly', priority: 0.3 },
+    { url: `${SITE_URL}/accessibility`, lastModified, changeFrequency: 'yearly', priority: 0.3 },
     { url: `${SITE_URL}/skill-demand`, lastModified, changeFrequency: 'weekly', priority: 0.6 },
     { url: `${SITE_URL}/linkedin`, lastModified, changeFrequency: 'monthly', priority: 0.6 },
     // One indexable URL per template. The long tail — "executive resume

@@ -4626,3 +4626,39 @@ a:hover { color: var(--link-hover); }
     padding: var(--space-1) var(--space-2);
   }
 }
+
+/* ==========================================================================
+   Site footer — every page closes with trust links + copyright. Tokens only,
+   so it follows light/dark for free. Bottom padding clears the fixed mobile
+   bottom-nav (56px + safe-area) so the links are never buried under it.
+   ========================================================================== */
+.site-footer {
+  margin-top: var(--space-16);
+  padding: var(--space-8) var(--space-5) calc(var(--space-8) + 64px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--border);
+  text-align: center;
+}
+@media (min-width: 768px) {
+  /* No bottom nav on desktop — normal padding. */
+  .site-footer { padding-bottom: var(--space-8); }
+}
+.site-footer__links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2) 0;
+}
+.site-footer__link {
+  color: var(--ink);
+  font-size: var(--text-sm);
+  text-decoration: none;
+  padding: var(--space-1) var(--space-3);
+}
+.site-footer__link:hover { color: var(--link-hover); text-decoration: underline; }
+/* Competitor-style separators between links, without extra markup. */
+.site-footer__link + .site-footer__link { border-left: 1px solid var(--border); }
+.site-footer__copyright {
+  margin: var(--space-4) 0 0;
+  font-size: var(--text-xs);
+  color: var(--muted);
+}

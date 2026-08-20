@@ -4,6 +4,7 @@ import 'tekivex-ui/styles';
 import './globals.css';
 import TopNav from '@/src/components/TopNav';
 import MobileBottomNav from '@/src/components/MobileBottomNav';
+import SiteFooter from '@/src/components/SiteFooter';
 import { NavigationProgress } from '@/src/components/NavigationProgress';
 import Providers from '@/src/components/Providers';
 import FreeTrialLimitModalHost from '@/src/components/FreeTrialLimitModalHost';
@@ -167,6 +168,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               hubs as the desktop top-nav so navigation stays in one
               place. CSS handles the breakpoint; component renders
               only when authed. */}
+          <SiteFooter />
           <MobileBottomNav />
           <PwaInstaller />
           <TrainingConsentModal />
