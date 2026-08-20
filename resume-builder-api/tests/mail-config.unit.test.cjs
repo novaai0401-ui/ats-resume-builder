@@ -10,9 +10,10 @@ test('missing SMTP vars → not configured, precise reason lists them', () => {
   const m = new MailService(cfg({}));
   const s = m.getStatus();
   assert.equal(s.configured, false);
-  assert.match(s.reason, /SMTP_HOST/);
-  assert.match(s.reason, /SMTP_USER/);
+  // Host/user/from fall back to SMTP_DEFAULTS (the shared Gmail mailbox), so
+  // the ONLY variable that can still be missing is the App Password.
   assert.match(s.reason, /SMTP_PASS/);
+  assert.doesNotMatch(s.reason, /SMTP_HOST|SMTP_USER/);
 });
 
 test('real Gmail creds are accepted (not flagged as placeholder)', () => {

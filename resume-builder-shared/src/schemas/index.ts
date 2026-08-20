@@ -60,6 +60,10 @@ export const RegisterSchema = z.object({
   /// R-037: referral code carried from a `?ref=` link. Optional and
   /// best-effort — an invalid code never blocks the signup.
   referralCode: z.string().max(20).optional(),
+  /// 6-digit email-ownership code from POST /auth/register/start. Optional in
+  /// the schema (the server decides whether the gate is on); when the gate is
+  /// on, registering without it returns EMAIL_VERIFICATION_REQUIRED.
+  otp: z.string().regex(/^\d{6}$/).optional(),
 });
 
 export const EmailOtpRequestSchema = z.object({

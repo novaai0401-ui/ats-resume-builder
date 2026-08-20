@@ -6,6 +6,8 @@ export type RegisterDto = {
   password?: string;
   /** R-037: referral code carried from a `?ref=` link. Best-effort. */
   referralCode?: string;
+  /** 6-digit email-ownership code from /auth/register/start (when the gate is on). */
+  otp?: string;
 };
 
 export type EmailOtpRequestDto = {

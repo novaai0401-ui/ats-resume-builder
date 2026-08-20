@@ -10,6 +10,7 @@ import {
 } from 'resume-builder-shared';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { PasswordResetService } from './password-reset.service';
+import { EmailVerificationService } from './email-verification.service';
 import { LinkedInOAuthService } from './linkedin-oauth.service';
 import { AnalyticsService } from '../analytics/analytics.service';
 
@@ -18,6 +19,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly passwordResetService: PasswordResetService,
+    private readonly emailVerification: EmailVerificationService,
     private readonly linkedInOAuth: LinkedInOAuthService,
     private readonly analytics: AnalyticsService,
   ) {}
@@ -66,6 +68,20 @@ export class AuthController {
       const message = err instanceof Error ? err.message : 'linkedin_failed';
       return res.redirect(`${web}/auth/login?error=${encodeURIComponent(message)}`);
     }
+  }
+
+  /**
+   * Step 1 of signup: email a 6-digit ownership code. Registration itself
+   * (below) refuses to create the account until the code is presented, so an
+   * address nobody controls (the example.com signups we saw in production)
+   * can never become a user row. Per-email limits live in the service.
+   */
+  @Throttle({ default: { limit: 8, ttl: 60_000 } })
+  @Post('register/start')
+  @HttpCode(200)
+  registerStart(@Req() req: Request, @Body() body: { email: string }) {
+    const userAgent = String(req.headers['user-agent'] || '').slice(0, 500);
+    return this.emailVerification.start(String(body?.email || ''), { ip: extractIp(req), userAgent });
   }
 
   // Tight throttle on unauthenticated, abuse-prone endpoints (on top of the
@@ -194,6 +210,17 @@ export class AuthController {
       String(body?.otp || ''),
       String(body?.newPassword || ''),
     );
+  }
+
+  /**
+   * The user's own sign-in history ("where and which device"), newest first.
+   * Backed by the LoginEvent rows recordLoginAndAlertIfNewDevice writes on
+   * every login; new-device email alerts ride the same data.
+   */
+  @Get('login-activity')
+  @UseGuards(JwtAuthGuard)
+  loginActivity(@Req() req: { user: { userId: string } }) {
+    return this.authService.listLoginActivity(req.user.userId);
   }
 
   /**

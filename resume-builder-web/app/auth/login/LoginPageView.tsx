@@ -26,7 +26,8 @@ const fallbackRouter: RouterLike = {
 };
 
 export type LoginPageProps = {
-  apiClient?: Pick<typeof api, 'register' | 'loginWithPassword'>;
+  apiClient?: Pick<typeof api, 'register' | 'loginWithPassword'> &
+    Partial<Pick<typeof api, 'registerStart'>>;
   routerOverride?: RouterLike;
   defaultMode?: 'login' | 'register';
 };
@@ -40,10 +41,14 @@ export function LoginPageView({ apiClient = api, routerOverride, defaultMode = '
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  // Register state
+  // Register state. Signup is two-step: details → 6-digit code emailed to the
+  // address → account created WITH the code (the API refuses without it, so
+  // made-up addresses can't become accounts).
   const [regName, setRegName] = useState('');
   const [regEmail, setRegEmail] = useState('');
   const [regPassword, setRegPassword] = useState('');
+  const [regOtp, setRegOtp] = useState('');
+  const [regStage, setRegStage] = useState<'details' | 'code'>('details');
 
   const [error, setError] = useState('');
   const [status, setStatus] = useState('');
@@ -89,6 +94,16 @@ export function LoginPageView({ apiClient = api, routerOverride, defaultMode = '
     }
   }
 
+  /** Email the 6-digit code (step 1 + "Resend code"). */
+  async function sendVerificationCode() {
+    if (!apiClient.registerStart) return false;
+    await apiClient.registerStart({ email: regEmail.trim() });
+    setRegOtp('');
+    setRegStage('code');
+    setStatus(`We emailed a 6-digit code to ${regEmail.trim()}. Enter it below to finish.`);
+    return true;
+  }
+
   async function handleRegister(event: React.FormEvent) {
     event.preventDefault();
     setError('');
@@ -103,11 +118,21 @@ export function LoginPageView({ apiClient = api, routerOverride, defaultMode = '
     }
     setLoading(true);
     try {
+      // Step 1: details submitted → send the code and wait for it.
+      if (regStage === 'details' && apiClient.registerStart) {
+        await sendVerificationCode();
+        return;
+      }
+      if (regStage === 'code' && !/^\d{6}$/.test(regOtp.trim())) {
+        setError('Enter the 6-digit code from the verification email.');
+        return;
+      }
       const referralCode = readPendingReferralCode();
       await apiClient.register({
         fullName: regName.trim(),
         email: regEmail.trim(),
         password: regPassword || undefined,
+        ...(regStage === 'code' ? { otp: regOtp.trim() } : {}),
         ...(referralCode ? { referralCode } : {}),
       });
       // Clear the pending code so it can't double-apply from this
@@ -119,7 +144,15 @@ export function LoginPageView({ apiClient = api, routerOverride, defaultMode = '
       setStatus('Account created! Redirecting...');
       await navigateAfterAuth();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Registration failed');
+      const message = err instanceof Error ? err.message : 'Registration failed';
+      // Server gate is on but we somehow skipped the code step (e.g. the
+      // start call was bypassed): recover by sending the code now.
+      if (message.includes('EMAIL_VERIFICATION_REQUIRED')) {
+        try {
+          if (await sendVerificationCode()) { setError(''); return; }
+        } catch { /* fall through to the raw error */ }
+      }
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -173,6 +206,50 @@ export function LoginPageView({ apiClient = api, routerOverride, defaultMode = '
             </form>
           ) : (
             <form onSubmit={handleRegister} noValidate style={{ display: 'grid', gap: 12 }}>
+              {regStage === 'code' ? (
+                <>
+                  <TkxInput label="Verification code"
+                    id="reg-otp"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    enterKeyHint="go"
+                    placeholder="6-digit code"
+                    value={regOtp}
+                    onChange={(e) => setRegOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    required
+                    minLength={6}
+                    maxLength={6}
+                  />
+                  <TkxButton type="submit" disabled={loading} style={{ width: '100%' }}>
+                    {loading ? 'Verifying…' : 'Verify & Create Account'}
+                  </TkxButton>
+                  <div style={{ display: 'flex', gap: 12, fontSize: '0.85rem' }}>
+                    <button
+                      type="button"
+                      className="btn ghost"
+                      disabled={loading}
+                      onClick={() => {
+                        setError('');
+                        void sendVerificationCode().catch((err: unknown) =>
+                          setError(err instanceof Error ? err.message : 'Could not resend the code.'),
+                        );
+                      }}
+                    >
+                      Resend code
+                    </button>
+                    <button
+                      type="button"
+                      className="btn ghost"
+                      disabled={loading}
+                      onClick={() => { setRegStage('details'); setRegOtp(''); setStatus(''); setError(''); }}
+                    >
+                      Change details
+                    </button>
+                  </div>
+                </>
+              ) : (
+              <>
               <TkxInput label="Full Name"
                 id="reg-name"
                
@@ -213,7 +290,9 @@ export function LoginPageView({ apiClient = api, routerOverride, defaultMode = '
                 required
                 minLength={MIN_PASSWORD_LENGTH}
               />
-              <TkxButton type="submit" disabled={loading} style={{ width: '100%' }}>{loading ? 'Creating account...' : 'Create Account'}</TkxButton>
+              <TkxButton type="submit" disabled={loading} style={{ width: '100%' }}>{loading ? 'Sending code…' : 'Create Account'}</TkxButton>
+              </>
+              )}
             </form>
           )}
 

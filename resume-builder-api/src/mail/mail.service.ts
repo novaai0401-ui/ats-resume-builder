@@ -525,6 +525,33 @@ export class MailService {
     }
   }
 
+  /** Registration email-ownership code. Plain + simple on purpose: this is
+   * the first mail a user ever gets from us and it must survive every client. */
+  async sendEmailVerificationCode(to: string, otp: string): Promise<boolean> {
+    if (!this.transporter) {
+      this.logger.warn(`Cannot send verification email to ${to}: SMTP not configured`);
+      return false;
+    }
+    try {
+      await this.transporter.sendMail({
+        from: this.fromAddress,
+        to,
+        subject: `${otp} is your CallbackCV verification code`,
+        text: [
+          `Your CallbackCV verification code is: ${otp}`,
+          '',
+          'Enter it on the sign-up page to finish creating your account.',
+          'The code expires in 15 minutes.',
+          'If you did not try to create a CallbackCV account, ignore this email — nothing was created.',
+        ].join('\n'),
+      });
+      return true;
+    } catch (err: unknown) {
+      this.recordSendError('email-verification', err);
+      return false;
+    }
+  }
+
   async sendPasswordResetEmail(to: string, otp: string): Promise<boolean> {
     if (!this.transporter) {
       this.logger.warn(`Cannot send password-reset email to ${to}: SMTP not configured`);

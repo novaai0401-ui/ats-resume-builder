@@ -857,7 +857,7 @@ export async function refresh(payload: RefreshPayload, options: { silent?: boole
 }
 
 export const api = {
-  register: async (payload: { fullName: string; email: string; mobile?: string; password?: string; referralCode?: string }) => {
+  register: async (payload: { fullName: string; email: string; mobile?: string; password?: string; referralCode?: string; otp?: string }) => {
     const auth = await request<AuthResponse>('/auth/register', {
       method: 'POST',
       body: JSON.stringify(payload),
@@ -865,6 +865,20 @@ export const api = {
     setAuthTokens(auth);
     return auth;
   },
+
+  /** Step 1 of signup: have the API email a 6-digit ownership code. */
+  registerStart: (payload: { email: string }) =>
+    request<{ sent: boolean }>('/auth/register/start', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  /** The signed-in user's recent logins (Settings → Login activity). */
+  getLoginActivity: () =>
+    request<{ events: Array<{ id: string; method: string; ip: string | null; userAgent: string | null; createdAt: string }> }>(
+      '/auth/login-activity',
+      { method: 'GET' },
+    ),
 
   logout: async () => {
     await request('/auth/logout', { method: 'POST' });

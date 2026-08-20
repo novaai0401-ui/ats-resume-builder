@@ -11,6 +11,7 @@ import { normalizeMobile } from './mobile.util';
 import { MailService } from '../mail/mail.service';
 import { ReferralsService } from '../referrals/referrals.service';
 import { enforcePasswordPolicy } from './password-hygiene';
+import { EmailVerificationService, emailVerificationRequired } from './email-verification.service';
 
 const ACCESS_TOKEN_TYPE = 'access';
 const REFRESH_TOKEN_TYPE = 'refresh';
@@ -37,6 +38,9 @@ export class AuthService {
     // don't have to provide it. When absent, referral codes on signup
     // are silently ignored — registration never depends on referrals.
     @Optional() private readonly referralsService?: ReferralsService,
+    // Optional for the same unit-test reason. When absent, the email
+    // verification gate is skipped (test stubs), never half-enforced.
+    @Optional() private readonly emailVerification?: EmailVerificationService,
   ) {}
 
   /**
@@ -95,6 +99,21 @@ export class AuthService {
     }
   }
 
+  /**
+   * The user's recent sign-ins for the Settings "Login activity" card. 20 is
+   * plenty to spot a device that isn't yours; older rows stay in the table
+   * for support/audit but aren't shipped to the client.
+   */
+  async listLoginActivity(userId: string) {
+    const events = await this.prisma.loginEvent.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+      select: { id: true, method: true, ip: true, userAgent: true, createdAt: true },
+    });
+    return { events };
+  }
+
   async register(dto: RegisterDto, meta: { ip?: string } = {}) {
     const email = dto.email.trim().toLowerCase();
     const existing = await this.prisma.user.findUnique({
@@ -102,6 +121,19 @@ export class AuthService {
     });
     if (existing) {
       throw new BadRequestException('An account with this email already exists. Please log in instead.');
+    }
+
+    // Email ownership gate: a literal example.com address reached production,
+    // so an account is only created once the caller proves they can read the
+    // inbox (6-digit code from POST /auth/register/start). The marker token in
+    // the message lets the web client detect "need the code step" reliably.
+    if (emailVerificationRequired() && this.emailVerification) {
+      if (!dto.otp) {
+        throw new BadRequestException(
+          'EMAIL_VERIFICATION_REQUIRED: verify your email first — request a code and register with it.',
+        );
+      }
+      await this.emailVerification.assertVerified(email, dto.otp);
     }
 
     // Email-only onboarding: mobile is OPTIONAL (we do not run paid SMS
@@ -150,6 +182,9 @@ export class AuthService {
         isAdmin,
         primaryAuthProvider: 'password',
         hasUserSetPassword,
+        // Reaching this point means the code check passed (or the gate is
+        // off / running in a test stub) — the address is considered proven.
+        emailVerifiedAt: new Date(),
         aiTokensLimit: planConfig.aiTokensLimit,
         pdfExportsLimit: planConfig.pdfExportsLimit,
         atsScansLimit: planConfig.atsScansLimit,

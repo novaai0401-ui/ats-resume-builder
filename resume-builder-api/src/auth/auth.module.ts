@@ -6,6 +6,7 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './jwt.strategy';
 import { PasswordResetService } from './password-reset.service';
+import { EmailVerificationService } from './email-verification.service';
 import { LinkedInOAuthService } from './linkedin-oauth.service';
 import { ResumeModule } from '../resume/resume.module';
 import { MailModule } from '../mail/mail.module';
@@ -29,6 +30,7 @@ import { MailModule } from '../mail/mail.module';
   providers: [
     AuthService,
     PasswordResetService,
+    EmailVerificationService,
     LinkedInOAuthService,
     JwtStrategy,
   ],

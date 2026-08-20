@@ -8,6 +8,7 @@ import ShareLinksCard from '@/src/components/ShareLinksCard';
 import ReferralCard from '@/src/components/ReferralCard';
 import ApiAccessCard from '@/src/components/ApiAccessCard';
 import IntegrationsCard from '@/src/components/IntegrationsCard';
+import LoginActivityCard from '@/src/components/LoginActivityCard';
 
 /**
  * User settings.
@@ -46,6 +47,8 @@ export default function SettingsPageView() {
         </p>
         <Link className="btn secondary" href="/dashboard">Back to dashboard</Link>
       </section>
+
+      <LoginActivityCard />
 
       <div style={{ marginTop: 16 }}>
         <EncryptedBackupCard />

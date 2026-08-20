@@ -139,6 +139,50 @@ test('register form is accessible via defaultMode prop', async () => {
   });
 });
 
+test('register is two-step when the code endpoint exists: details → emailed code → account', async () => {
+  const { render, fireEvent, waitFor } = await getTestingLib();
+  const { LoginPageView } = await getLoginPageModule();
+  const startCalls: Array<{ email: string }> = [];
+  const registerCalls: Array<{ email: string; otp?: string }> = [];
+  const apiClient = {
+    ...createMockApi(),
+    registerStart: async (payload: { email: string }) => {
+      startCalls.push(payload);
+      return { sent: true };
+    },
+    register: async (payload: { fullName: string; email: string; otp?: string }) => {
+      registerCalls.push(payload);
+      return { user: { id: '1', email: payload.email, fullName: 'b' }, accessToken: 'a', refreshToken: 'r' };
+    },
+  };
+  const routerHits: string[] = [];
+  const routerStub = { push: async (href: string) => { routerHits.push(href); return true; } };
+
+  const view = render(React.createElement(LoginPageView, { apiClient: apiClient as any, routerOverride: routerStub, defaultMode: 'register' }));
+  fireEvent.change(view.getByLabelText(/full name/i), { target: { value: 'Jane Doe' } });
+  fireEvent.change(view.getByLabelText(/^email$/i), { target: { value: 'jane@example.com' } });
+  fireEvent.change(view.getByLabelText(/password/i), { target: { value: 'secure123!' } });
+  fireEvent.click(view.getByRole('button', { name: /create account/i }));
+
+  // Step 1: the code was requested, NO account was created yet.
+  await waitFor(() => {
+    assert.equal(startCalls.length, 1);
+    assert.equal(startCalls[0].email, 'jane@example.com');
+    assert.equal(registerCalls.length, 0);
+  });
+
+  // Step 2: enter the emailed code — register is called WITH it.
+  const codeInput = await waitFor(() => view.getByLabelText(/verification code/i));
+  fireEvent.change(codeInput, { target: { value: '654321' } });
+  fireEvent.click(view.getByRole('button', { name: /verify & create account/i }));
+  await waitFor(() => {
+    assert.equal(registerCalls.length, 1);
+    assert.equal(registerCalls[0].otp, '654321');
+    assert.equal(registerCalls[0].email, 'jane@example.com');
+    assert.equal(routerHits[0], '/dashboard');
+  });
+});
+
 test('login page has link to register page', async () => {
   const { render } = await getTestingLib();
   const { LoginPageView } = await getLoginPageModule();

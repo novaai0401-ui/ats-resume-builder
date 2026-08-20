@@ -52,6 +52,11 @@ model User {
   /// random password hash on creation, so this flag distinguishes "real"
   /// passwords from placeholder ones.
   hasUserSetPassword Boolean @default(true)
+  /// Set when the user proves ownership of their email (6-digit code at
+  /// registration). Existing accounts are backfilled as verified — the gate
+  /// applies to NEW signups; retroactively locking out real users over a
+  /// process they were never offered would be wrong.
+  emailVerifiedAt DateTime?
   /// True if the user has saved a BYOK AI key locally — used for admin dashboard
   /// aggregate counting only. The actual key is never stored on the server.
   byokKeyEnabled Boolean @default(false)

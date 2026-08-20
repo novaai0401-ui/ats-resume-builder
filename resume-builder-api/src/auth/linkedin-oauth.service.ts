@@ -229,6 +229,9 @@ export class LinkedInOAuthService {
         isAdmin,
         primaryAuthProvider: 'linkedin',
         hasUserSetPassword: false,
+        // LinkedIn asserts the email as verified on their side; no extra
+        // code step for OAuth signups.
+        emailVerifiedAt: new Date(),
         aiTokensLimit: planConfig.aiTokensLimit,
         pdfExportsLimit: planConfig.pdfExportsLimit,
         atsScansLimit: planConfig.atsScansLimit,

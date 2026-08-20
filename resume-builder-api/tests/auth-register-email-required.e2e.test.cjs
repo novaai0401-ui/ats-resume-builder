@@ -6,6 +6,10 @@ const { AuthService } = require('../dist/auth/auth.service.js');
 const { PasswordResetService } = require('../dist/auth/password-reset.service.js');
 const { LinkedInOAuthService } = require('../dist/auth/linkedin-oauth.service.js');
 const { AnalyticsService } = require('../dist/analytics/analytics.service.js');
+const { EmailVerificationService } = require('../dist/auth/email-verification.service.js');
+
+/** Calls recorded by the EmailVerificationService stub, reset per app. */
+let startCalls;
 
 async function createApp() {
   const moduleRef = await Test.createTestingModule({
@@ -24,8 +28,18 @@ async function createApp() {
       { provide: PasswordResetService, useValue: {} },
       { provide: LinkedInOAuthService, useValue: { isConfigured: () => false } },
       { provide: AnalyticsService, useValue: { track: () => {} } },
+      {
+        provide: EmailVerificationService,
+        useValue: {
+          start: async (email, meta) => {
+            startCalls.push({ email, meta });
+            return { sent: true };
+          },
+        },
+      },
     ],
   }).compile();
+  startCalls = [];
 
   const app = moduleRef.createNestApplication();
   await app.init();
@@ -58,5 +72,38 @@ test('POST /auth/register still accepts a mobile when the user provides one', as
     .post('/auth/register')
     .send({ fullName: 'With Mobile', email: 'test2@example.com', mobile: '+919999999999', password: 'longenough123' })
     .expect(201);
+  await app.close();
+});
+
+// Email ownership gate: step 1 of signup emails a 6-digit code.
+test('POST /auth/register/start hands the email to the verification service', async () => {
+  const assert = require('node:assert/strict');
+  const app = await createApp();
+  const res = await request(app.getHttpServer())
+    .post('/auth/register/start')
+    .set('user-agent', 'test-agent')
+    .send({ email: 'new@person.dev' })
+    .expect(200);
+  assert.deepEqual(res.body, { sent: true });
+  assert.equal(startCalls.length, 1);
+  assert.equal(startCalls[0].email, 'new@person.dev');
+  assert.equal(startCalls[0].meta.userAgent, 'test-agent');
+  await app.close();
+});
+
+// The register schema accepts the 6-digit code and passes it through, and
+// rejects a malformed one at the validation layer.
+test('POST /auth/register forwards a valid otp and 400s a malformed one', async () => {
+  const assert = require('node:assert/strict');
+  const app = await createApp();
+  const ok = await request(app.getHttpServer())
+    .post('/auth/register')
+    .send({ fullName: 'Code User', email: 'code@person.dev', password: 'longenough123', otp: '123456' })
+    .expect(201);
+  assert.equal(ok.body.otp, '123456'); // stub echoes the parsed payload
+  await request(app.getHttpServer())
+    .post('/auth/register')
+    .send({ fullName: 'Code User', email: 'code@person.dev', password: 'longenough123', otp: '12ab56' })
+    .expect(400);
   await app.close();
 });
