@@ -181,4 +181,31 @@ if (visualFailures) process.exit(1);
   console.log('ok   hero identity      (person name leads, title is the subtitle)');
 }
 
+/* Pagination doctrine guard: no MAIN-COLUMN section/item container may carry
+   break-inside: avoid in the export CSS. A container taller than one page
+   gets pushed wholesale to the next page by Chromium instead of splitting —
+   the reported symptom was Work History jumping to page 2 and leaving page 1
+   blank after the summary (nb-visual family, all 8 templates at once). */
+{
+  const { html } = renderResumeTemplateHtml({
+    templateId: 'sidebar-elegant',
+    resumeData: VISUAL_RESUME,
+    mode: 'export',
+  });
+  // Pull each offending selector's declaration block out of the inlined CSS.
+  const growable = ['.nb-visual__block', '.nb-visual__item', '.nb-sidebar-bold__content-section', '.nb-sidebar-bold__exp-item', '.ats-section', '.ats-item'];
+  const bad: string[] = [];
+  for (const sel of growable) {
+    const re = new RegExp(sel.replace(/[.\\]/g, '\\$&') + '\\s*\\{[^}]*\\}', 'g');
+    for (const rule of html.match(re) || []) {
+      if (/break-inside\s*:\s*avoid/.test(rule)) bad.push(sel);
+    }
+  }
+  if (bad.length) {
+    console.log(`FAIL pagination doctrine: break-inside: avoid on growable container(s): ${[...new Set(bad)].join(', ')}`);
+    process.exit(1);
+  }
+  console.log('ok   pagination         (no break-inside: avoid on growable main-column containers)');
+}
+
 process.exit(failures + visualFailures ? 1 : 0);

@@ -4721,7 +4721,10 @@ a:hover { color: var(--link-hover); }
 .nb-visual__body { display: grid; grid-template-columns: 215px 1fr; }
 .nb-visual__side { padding: 16px 18px 22px 26px; }
 .nb-visual__main { padding: 16px 26px 22px 20px; min-width: 0; }
-.nb-visual__block { margin-bottom: 14px; break-inside: avoid-page; }
+/* Pagination doctrine: blocks/items break freely, headings glue to what
+   follows — avoid-page here pushed a tall Work History wholesale to page 2
+   in the PDF. Kept verbatim with ATS_TEMPLATE_EXPORT_CSS. */
+.nb-visual__block { margin-bottom: 14px; break-inside: auto; page-break-inside: auto; }
 .nb-visual__title { margin: 0 0 7px; font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: var(--rb-accent, #155263); display: flex; align-items: center; gap: 7px; break-after: avoid; page-break-after: avoid; }
 .nb-visual__ico { display: none; }
 .nb-visual__contact { margin: 0 0 3px; font-size: 10.5px; color: #3c4c5c; word-break: break-word; }
@@ -4729,12 +4732,12 @@ a:hover { color: var(--link-hover); }
 .nb-visual__list { margin: 0; padding-left: 16px; }
 .nb-visual__list li { font-size: 10.5px; color: #3c4c5c; margin-bottom: 3px; }
 .nb-visual__summary { margin: 0; font-size: 11px; color: #3c4c5c; line-height: 1.65; }
-.nb-visual__item { margin-bottom: 10px; break-inside: avoid-page; }
-.nb-visual__item-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+.nb-visual__item { margin-bottom: 10px; break-inside: auto; page-break-inside: auto; }
+.nb-visual__item-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; break-after: avoid; page-break-after: avoid; }
 .nb-visual__item-role { font-size: 12px; font-weight: 600; color: #22384e; }
 .nb-visual__item-date { font-size: 10px; color: #7d8fa1; white-space: nowrap; }
 .nb-visual__item-org { margin: 1px 0 3px; font-size: 10.5px; font-style: italic; color: #5a6b7c; }
-.nb-visual__bullets { margin: 0; padding-left: 16px; }
+.nb-visual__bullets { margin: 0; padding-left: 16px; orphans: 3; widows: 2; }
 .nb-visual__bullets li { font-size: 10.5px; color: #3c4c5c; margin-bottom: 2px; }
 
 /* sidebar-elegant: the accent rail. Everything inside goes light-on-dark. */
