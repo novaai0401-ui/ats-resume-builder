@@ -30,6 +30,30 @@ export default function AboutPage() {
       </TrustHero>
 
       <TrustGrid>
+        {/* Founder-supplied story (2026-08) — kept faithful to their words:
+            Tekivex builds technical products; CallbackCV grew from wanting a
+            resume you can write, edit, download and share anywhere, plus job
+            search matched to your own profile; AI interview practice is the
+            direction of travel (interview prep already ships, and is being
+            taken deeper). No invented names or credentials — C-003. */}
+        <TrustCard icon="◆" title="Who we are" wide>
+          <p>
+            <strong>Tekivex</strong> is a small product studio that builds technical products —
+            including the tekivex-ui component library this very site runs on. CallbackCV started
+            with a simple question from our own job hunts: why isn&apos;t there one place where you
+            can <strong>write, edit, download and share</strong> a resume from any device, and then
+            find the jobs that actually match <strong>your</strong> profile?
+          </p>
+          <p>
+            So we built it — and went one step further than the tools we were frustrated with:
+            CallbackCV measures which resume version really gets callbacks, instead of guessing.
+            Interview preparation with AI has already begun inside the app, and we&apos;re taking it
+            further: full <strong>AI-led mock interview sessions</strong> that grill you the way a
+            real panel would, so the resume that got you the interview is followed by the
+            preparation that gets you the offer.
+          </p>
+        </TrustCard>
+
         <TrustCard icon="⚙" title="What it does">
           <ul>
             <li><strong>33 resume templates</strong> — ATS-safe layouts tested against Workday, Greenhouse, iCIMS, Taleo and BambooHR, plus designer templates for sharing with people.</li>
