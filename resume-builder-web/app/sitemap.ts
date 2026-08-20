@@ -58,5 +58,15 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: 'monthly' as const,
       priority: 0.7,
     })),
+    // Role tier — one page per role, substantive because every role now
+    // carries authored ATS keywords (the doorway-page risk that blocked this).
+    ...PROFESSION_INDUSTRIES.flatMap((industry) =>
+      industry.roles.map((role) => ({
+        url: `${SITE_URL}/resume-templates/${industry.id}/${role.id}`,
+        lastModified,
+        changeFrequency: 'monthly' as const,
+        priority: 0.6,
+      })),
+    ),
   ];
 }

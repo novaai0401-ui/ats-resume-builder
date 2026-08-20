@@ -16,13 +16,11 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://callbackcv.tekivex
  * Targets "resume template for <field>" queries, which are winnable in a way
  * that the bare head term is not.
  *
- * Deliberately built at INDUSTRY level rather than one page per role. There are
- * 161 roles in the catalog but only 20 carry keywords, so a page per role would
- * be 141 near-identical pages differing by a job title — textbook doorway pages,
- * which Google penalises across the whole domain rather than just ignoring.
- * Industry pages have real per-page substance: their own description, their own
- * ranked template recommendations, and their own role list. Role pages become
- * worth building once the role keyword data is filled in.
+ * Middle tier of the template-SEO hierarchy: hub -> industry -> role. The role
+ * tier below ([role]/page.tsx) was deliberately held back until every role
+ * carried authored ATS keywords — pages generated from a bare job title are
+ * doorway pages, which Google penalises domain-wide. All 161 roles now have
+ * keywords, so this page links each role down to its own page.
  */
 
 export function generateStaticParams() {
@@ -176,10 +174,13 @@ export default async function IndustryTemplatesPage({
         {' '}{industry.roles.length} {industry.label.toLowerCase()} roles:
       </p>
       <ul>
+        {/* Each role links to its own page — 161 role pages exist below this
+            tier, and a page in the sitemap with no inbound link gets crawled
+            late or never. */}
         {industry.roles.map((r) => (
           <li key={r.id}>
-            {r.label}
-            {r.keywords?.length ? ` — keywords ATS parsers look for: ${r.keywords.join(', ')}` : ''}
+            <Link href={`/resume-templates/${industry.id}/${r.id}`}>{r.label} resume</Link>
+            {r.keywords?.length ? ` — ATS keywords: ${r.keywords.join(', ')}` : ''}
           </li>
         ))}
       </ul>
