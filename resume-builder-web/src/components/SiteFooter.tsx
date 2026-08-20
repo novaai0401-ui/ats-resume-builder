@@ -54,10 +54,16 @@ export default function SiteFooter() {
     <footer className="site-footer">
       <div className="site-footer__grid">
         <div className="site-footer__brand">
-          <p className="site-footer__logo" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/icons/icon.svg?v=2" alt="" width={22} height={22} style={{ borderRadius: 6 }} />
-            CallbackCV
+          <p className="site-footer__logo">
+            <Link
+              href="/"
+              aria-label="CallbackCV home"
+              style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'inherit', textDecoration: 'none' }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/icons/icon.svg?v=2" alt="" width={22} height={22} style={{ borderRadius: 6 }} />
+              CallbackCV
+            </Link>
           </p>
           <p className="site-footer__tagline">
             The resume builder that measures what matters: real callbacks, per resume version.

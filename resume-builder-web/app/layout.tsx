@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import Link from 'next/link';
 import type { Metadata, Viewport } from 'next';
 import 'tekivex-ui/styles';
 import './globals.css';
@@ -167,11 +168,18 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             <header className="topbar">
               {/* The callback-loop mark beside the wordmark — plain img of the
                   same SVG the favicon/PWA use, so the identity is one file. */}
-              <div className="brand" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {/* The brand is a LINK to home — users expect the logo to be the
+                  way back from anywhere, and it previously was a dead <div>. */}
+              <Link
+                href="/"
+                className="brand"
+                aria-label="CallbackCV home"
+                style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'inherit', textDecoration: 'none' }}
+              >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src="/icons/icon.svg?v=2" alt="" width={26} height={26} style={{ borderRadius: 7 }} />
                 CallbackCV
-              </div>
+              </Link>
               <TopNav />
               <ThemeToggle />
             </header>
