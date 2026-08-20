@@ -243,6 +243,30 @@ export class MailService {
    * failed" the same as "not configured" from the visitor's
    * perspective: a generic "could not deliver" — no probing oracle.
    */
+  /**
+   * Ops report (the daily spend tripwire). Plain text on purpose: it is read
+   * by one founder in an inbox, and a metric mail that needs HTML to be
+   * legible is hiding something.
+   */
+  async sendOpsReportEmail(args: { to: string; subject: string; text: string }): Promise<boolean> {
+    if (!this.transporter) {
+      this.logger.warn('Cannot send ops report: SMTP not configured');
+      return false;
+    }
+    try {
+      await this.transporter.sendMail({
+        from: this.fromAddress,
+        to: args.to,
+        subject: args.subject,
+        text: args.text,
+      });
+      return true;
+    } catch (err: unknown) {
+      this.logger.error(`Ops report send failed: ${err instanceof Error ? err.message : String(err)}`);
+      return false;
+    }
+  }
+
   async sendShareRelayEmail(args: {
     ownerEmail: string;
     senderName: string;

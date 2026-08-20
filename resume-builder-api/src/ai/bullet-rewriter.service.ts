@@ -10,6 +10,7 @@ import { rateLimitOrThrow } from '../limits/rate-limit';
 import { SettingsService } from '../settings/settings.service';
 import type { AiProvider } from './providers/ai-provider.interface';
 import { GroqProvider } from './providers/groq.provider';
+import { approxTokens, modelForFeature, recordAiUsage } from './ai-usage';
 import {
   enforceResumeAiFreeDaily,
   enforceResumeBuildAssistDaily,
@@ -140,6 +141,17 @@ export class BulletRewriterService {
         temperature: 0.4,
         timeoutMs,
       });
+      // Meter our-key calls: rewrite is the highest-volume AI feature (it is
+      // never trial-metered), so the spend report is meaningless without it.
+      // BYOK is not recorded — the user's own spend.
+      if (source !== 'byok') {
+        await recordAiUsage(this.prisma, {
+          userId,
+          feature: 'bullet-rewrite',
+          tokensUsed: approxTokens(system, userPrompt, raw),
+          model: modelForFeature(this.config, 'bullet-rewrite'),
+        });
+      }
       const parsed = parseAlternatives(raw);
       if (parsed.length < 1) {
         return {
@@ -197,8 +209,10 @@ export class BulletRewriterService {
     if (providerName !== 'groq') return null;
     const key = this.config.get<string>('GROQ_API_KEY', '');
     if (!key) return null;
-    const model = this.config.get<string>('GROQ_MODEL', '');
-    return new GroqProvider(key, model || undefined);
+    // Light model: bullets are short drafts the user edits anyway — the 8B
+    // model reads the same here and is ~10x cheaper, on the app's most-called
+    // AI feature.
+    return new GroqProvider(key, modelForFeature(this.config, 'bullet-rewrite'));
   }
 }
 

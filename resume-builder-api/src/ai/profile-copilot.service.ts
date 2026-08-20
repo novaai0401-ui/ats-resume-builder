@@ -7,6 +7,7 @@ import type { AiProvider } from './providers/ai-provider.interface';
 import { GroqProvider } from './providers/groq.provider';
 import { XaiProvider } from './providers/xai.provider';
 import { enforceResumeAiFreeDaily, recordResumeAiFreeUsage, resolveResumeAiProvider } from './resume-ai-access';
+import { approxTokens, enforcePlanMonthlyTokens, modelForFeature, recordAiUsage } from './ai-usage';
 
 /**
  * Profile Copilot — the automated driver behind "what should I do next?".
@@ -107,14 +108,31 @@ export class ProfileCopilotService {
     if (freeDaily) {
       await enforceResumeAiFreeDaily(this.prisma, this.config, userId, 'profile-copilot');
     }
+    // Paid plans are uncapped per-call but carry a monthly token ceiling —
+    // one scripted abuser must not turn the best-margin customer negative.
+    if (source === 'plan') {
+      await enforcePlanMonthlyTokens(this.prisma, userId);
+    }
 
     try {
       const timeoutMs = parseInt(this.config.get<string>('AI_TIMEOUT_MS', '25000'), 10);
-      const raw = await provider.complete(
-        SYSTEM_PROMPT,
-        buildUserPrompt(resume as unknown as ResumeShape, baseline.actions),
-        { maxTokens: 900, temperature: 0.3, timeoutMs },
-      );
+      const userPrompt = buildUserPrompt(resume as unknown as ResumeShape, baseline.actions);
+      const raw = await provider.complete(SYSTEM_PROMPT, userPrompt, {
+        maxTokens: 900,
+        temperature: 0.3,
+        timeoutMs,
+      });
+      // Meter every billable call — the ceiling and the daily spend report are
+      // only as good as this recording. BYOK is deliberately not recorded: it
+      // costs us nothing and is the user's own spend.
+      if (source !== 'byok') {
+        await recordAiUsage(this.prisma, {
+          userId,
+          feature: 'profile-copilot',
+          tokensUsed: approxTokens(SYSTEM_PROMPT, userPrompt, raw),
+          model: modelForFeature(this.config, 'profile-copilot'),
+        });
+      }
       const enriched = parseAiPlan(raw, baseline.actions);
       if (!enriched) return base;
       if (freeDaily) {
@@ -135,7 +153,9 @@ export class ProfileCopilotService {
       return key ? new XaiProvider(key, this.config.get<string>('XAI_MODEL', '') || undefined) : null;
     }
     const key = this.config.get<string>('GROQ_API_KEY', '');
-    return key ? new GroqProvider(key, this.config.get<string>('GROQ_MODEL', '') || undefined) : null;
+    // Light model: the copilot returns a short JSON plan, where the 8B model is
+    // indistinguishable from 70B and ~10x cheaper.
+    return key ? new GroqProvider(key, modelForFeature(this.config, 'profile-copilot')) : null;
   }
 }
 

@@ -477,3 +477,26 @@ services:
           type: web
           name: ats-rb-api
           envVarKey: CRON_SECRET
+
+  # Daily ops/spend report — the tripwire that stops a Groq bill or an abuse
+  # pattern being discovered a month late. Mails OPS_REPORT_EMAIL (defaults to
+  # the support address) a plain-text summary of yesterday: AI calls + tokens +
+  # estimated cost, captured revenue, signups, active paid plans.
+  - type: cron
+    name: ats-rb-cron-ops
+    runtime: docker
+    dockerfilePath: ./cron/Dockerfile
+    dockerContext: ./cron
+    repo: https://github.com/novaai0401-ui/ats-resume-builder
+    branch: main
+    # 03:00 UTC = 08:30 IST — in the founder inbox with morning coffee.
+    schedule: "0 3 * * *"
+    region: singapore
+    envVars:
+      - key: CRON_TARGET_URL
+        value: https://ats-rb-api.onrender.com/admin/ops/daily-report
+      - key: CRON_SECRET
+        fromService:
+          type: web
+          name: ats-rb-api
+          envVarKey: CRON_SECRET

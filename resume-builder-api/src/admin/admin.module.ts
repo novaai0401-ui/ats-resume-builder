@@ -13,10 +13,12 @@ import { SupportRecoveryService } from './support-recovery.service';
 import { SettingsModule } from '../settings/settings.module';
 import { ResumeModule } from '../resume/resume.module';
 import { BillingModule } from '../billing/billing.module';
+import { MailModule } from '../mail/mail.module';
+import { OpsReportController } from './ops-report.controller';
 import { AdminAuthGuard } from '../auth/admin-auth.guard';
 
 @Module({
-  imports: [SettingsModule, ResumeModule, BillingModule],
+  imports: [SettingsModule, ResumeModule, BillingModule, MailModule],
   controllers: [
     AdminController,
     AdminAnalyticsController,
@@ -26,6 +28,7 @@ import { AdminAuthGuard } from '../auth/admin-auth.guard';
     WhatsappStatusController,
     AiStatusController,
     UserPlanController,
+    OpsReportController,
   ],
   providers: [AdminAuthGuard, AdminBootstrapService, SupportRecoveryService, AiHealthService],
 })
