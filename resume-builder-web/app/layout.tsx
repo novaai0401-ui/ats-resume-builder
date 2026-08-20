@@ -125,8 +125,21 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                   aggregateRating: undefined,
                 },
                 {
+                  '@type': 'Organization',
+                  '@id': `${SITE_URL}/#org`,
+                  name: 'CallbackCV',
+                  // How people actually type it — teaches the entity graph the
+                  // two-word form resolves to the same brand.
+                  alternateName: ['Callback CV', 'CallbackCV Resume Builder'],
+                  url: SITE_URL,
+                  logo: `${SITE_URL}/icons/icon-512.png`,
+                  parentOrganization: { '@type': 'Organization', name: 'Tekivex', url: 'https://tekivex.com' },
+                },
+                {
                   '@type': 'WebSite',
                   name: 'CallbackCV',
+                  alternateName: 'Callback CV',
+                  publisher: { '@id': `${SITE_URL}/#org` },
                   url: SITE_URL,
                   potentialAction: {
                     '@type': 'SearchAction',
@@ -156,7 +169,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                   same SVG the favicon/PWA use, so the identity is one file. */}
               <div className="brand" style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/icons/icon.svg" alt="" width={26} height={26} style={{ borderRadius: 7 }} />
+                <img src="/icons/icon.svg?v=2" alt="" width={26} height={26} style={{ borderRadius: 7 }} />
                 CallbackCV
               </div>
               <TopNav />
