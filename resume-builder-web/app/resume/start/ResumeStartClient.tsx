@@ -199,6 +199,13 @@ export default function ResumeStartClient() {
                 </div>
                 {(() => {
                   const t = linkedinText.trim();
+                  // The single most common mistake: pasting the profile's URL
+                  // instead of its text. We cannot fetch it — LinkedIn requires
+                  // login and blocks scraping, which is why this flow is
+                  // paste-based — so answering a URL with the generic 'too
+                  // short' hint reads as the feature being broken.
+                  const looksLikeUrl =
+                    t.length > 0 && t.length < 200 && /^https?:\/\/\S+$/i.test(t);
                   const looksLikeFeed =
                     t.length > 0 &&
                     /you are on the messaging overlay|scrolled to top of feed|compose message|start a post|\bpromoted\b|people you may know/i.test(t) &&
@@ -208,7 +215,7 @@ export default function ResumeStartClient() {
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                         <TkxButton
                          
-                          disabled={loadingUpload || t.length < 80}
+                          disabled={loadingUpload || t.length < 80 || looksLikeUrl}
                           data-testid="linkedin-import-submit"
                           title="Reads the pasted text above and builds your resume — no file needed."
                           onClick={() => {
@@ -222,9 +229,16 @@ export default function ResumeStartClient() {
                           Cancel
                         </TkxButton>
                       </div>
-                      {t.length > 0 && t.length < 80 ? (
+                      {t.length > 0 && t.length < 80 && !looksLikeUrl ? (
                         <p className="small" style={{ margin: 0, color: 'var(--muted)' }}>
                           That looks too short — paste your whole profile (About + Experience + Education).
+                        </p>
+                      ) : null}
+                      {looksLikeUrl ? (
+                        <p className="small" style={{ margin: 0, color: 'var(--danger, #b42318)' }} data-testid="linkedin-url-hint">
+                          That's the <strong>link</strong> to your profile — we need the <strong>text on it</strong>.
+                          LinkedIn blocks tools from opening profile links, so: open that page yourself,
+                          select everything (Ctrl/Cmd+A), copy, and paste it here instead.
                         </p>
                       ) : null}
                       {looksLikeFeed ? (
