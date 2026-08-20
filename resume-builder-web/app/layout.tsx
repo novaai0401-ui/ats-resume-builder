@@ -7,6 +7,7 @@ import TopNav from '@/src/components/TopNav';
 import MobileBottomNav from '@/src/components/MobileBottomNav';
 import SiteFooter from '@/src/components/SiteFooter';
 import { NavigationProgress } from '@/src/components/NavigationProgress';
+import ScrollReset from '@/src/components/ScrollReset';
 import Providers from '@/src/components/Providers';
 import FreeTrialLimitModalHost from '@/src/components/FreeTrialLimitModalHost';
 import PwaInstaller from '@/src/components/PwaInstaller';
@@ -164,6 +165,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <SkipToContent targetId="main-content" />
         <Providers>
           <NavigationProgress />
+          <ScrollReset />
           <div className="main-shell">
             <header className="topbar">
               {/* The callback-loop mark beside the wordmark — plain img of the

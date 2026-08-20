@@ -3372,6 +3372,14 @@ h2 {
   .template-grid-layout {
     grid-template-columns: repeat(1, 1fr);
   }
+  /* The track count above is 1, but the children still carry span 6 from the
+     <=1024 rule — a span wider than the track count makes the browser mint
+     implicit columns (the .col-12 bug's sibling), which rendered the phone
+     gallery as two squeezed side-by-side columns. Neutralise spans here. */
+  .review-grid > [class*="col-"],
+  .template-grid-layout > [class*="col-"] {
+    grid-column: auto;
+  }
 }
 
 /* -------------------------------------------------------------------------
@@ -3739,12 +3747,16 @@ html, body { max-width: 100%; overflow-x: hidden; }
    style the component's internal label instead of the card. */
 .tone-picker > div { display: flex; align-items: flex-start; gap: .55rem; padding: .55rem .5rem; border-radius: 8px; cursor: pointer; min-height: 44px; border: 1px solid transparent; }
 .tone-picker > div:hover { background: var(--surface-alt); }
-.tone-picker > div.selected { background: #eef2ff; border-color: #c7d2fe; }
+/* Tokens: the hardcoded #eef2ff selected-card stayed near-white in dark mode
+   while the label followed the theme (founder screenshot: "Professional"
+   unreadable). */
+.tone-picker > div.selected { background: color-mix(in srgb, var(--primary) 12%, var(--card)); border-color: var(--primary); }
 .tone-picker input[type="radio"] { width: 18px; height: 18px; margin-top: 2px; flex-shrink: 0; accent-color: var(--primary); }
-.tone-picker small { display: block; color: #667085; font-size: .78rem; }
-.cover-letter-preview { border: 1px solid var(--border); border-radius: 10px; padding: .75rem; background: #fafafa; min-height: 320px; display: flex; flex-direction: column; gap: .5rem; }
+.tone-picker small { display: block; color: var(--muted); font-size: .78rem; }
+/* #fafafa was the big near-blank panel in dark mode. */
+.cover-letter-preview { border: 1px solid var(--border); border-radius: 10px; padding: .75rem; background: var(--surface-alt); min-height: 320px; display: flex; flex-direction: column; gap: .5rem; }
 .cover-letter-preview__meta { display: flex; gap: .5rem; align-items: center; }
-.cover-letter-body { white-space: pre-wrap; font-family: var(--font-serif); font-size: .95rem; line-height: 1.5; margin: 0; background: var(--card); padding: 1rem; border-radius: 8px; border: 1px solid #eef2f7; }
+.cover-letter-body { white-space: pre-wrap; font-family: var(--font-serif); font-size: .95rem; line-height: 1.5; margin: 0; background: var(--card); padding: 1rem; border-radius: 8px; border: 1px solid var(--border); }
 .cover-letter-placeholder { padding: 2rem 1rem; text-align: center; }
 .cover-letter-history { margin-top: 1.25rem; }
 .cover-letter-history ul { list-style: none; padding: 0; margin: .5rem 0 0; }
@@ -5072,4 +5084,24 @@ a:hover { color: var(--link-hover); }
 .share-links-card [class*="tkx"] {
   max-width: 100%;
   box-sizing: border-box;
+}
+
+/* ==========================================================================
+   MOBILE FIELD CONTAINMENT — the class fix for fields escaping the screen.
+   Grid/flex children default to min-width:auto (they refuse to shrink below
+   content size), so any long option label or intrinsic field width pushes a
+   column past the viewport — reported on Account (share links) and Jobs
+   (cover letter), and previously patched per-card. Scoped to phones so
+   desktop layouts that legitimately rely on content sizing are untouched.
+   ========================================================================== */
+@media (max-width: 767.98px) {
+  .card :is(div, section, aside, label, fieldset),
+  .cover-letter-layout,
+  .cover-letter-layout :is(div, section, aside, label, fieldset) {
+    min-width: 0;
+  }
+  input, select, textarea {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
 }
