@@ -4942,3 +4942,14 @@ a:hover { color: var(--link-hover); }
   color: #067647; background: rgba(6,118,71,0.14);
 }
 .price-card__cta { width: 100%; text-align: center; }
+
+/* Landing hero accent — the same gradient language as the trust pages and
+   footer, so the front door and the rest of the site read as one brand.
+   display:inline-block keeps background-clip reliable across engines. */
+.home-hero__accent {
+  display: inline-block;
+  background: linear-gradient(90deg, var(--primary), #a78bfa);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}

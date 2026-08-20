@@ -92,7 +92,7 @@ const FEATURES: { emoji: string; title: string; body: string; tag: string }[] = 
 
 const FREE_TIER = [
   'Unlimited resume creation and editing',
-  '10+ ATS-safe templates across industries',
+  '33 templates — ATS-safe and designer, across industries',
   'Full AI on your first resume — unlimited bullet rewrites, ATS critique, tech gap, JD skill gap and tailoring on it',
   'Every standalone AI tool free once each — cover letter, LinkedIn optimizer, interview prep, mentor chat and more',
   'Rule-based ATS score, missing keywords and action-verb suggestions — unlimited, no AI needed',
@@ -111,7 +111,9 @@ export default function HomeLanding({ faq }: { faq: Faq[] }) {
           Free ATS-safe builder · Honest AI · India-first
         </TkxBadge>
 
-        <TkxTitle level={1}>Know which resume actually gets callbacks.</TkxTitle>
+        <TkxTitle level={1}>
+          Know which resume actually <span className="home-hero__accent">gets callbacks</span>.
+        </TkxTitle>
 
         <TkxParagraph type="secondary" style={{ maxWidth: 640, fontSize: 18 }}>
           Every builder gives you a score. CallbackCV measures the truth: real
