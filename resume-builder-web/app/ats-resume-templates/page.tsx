@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { TEMPLATE_CATALOG } from 'resume-builder-shared';
+import PublicTemplatePreview from '@/src/components/PublicTemplatePreview';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://callbackcv.tekivex.com';
 
@@ -87,6 +88,9 @@ export default function AtsResumeTemplatesPage() {
       <section className="grid" aria-label="Template list">
         {TEMPLATE_CATALOG.map((t) => (
           <article key={t.id} className="card col-6">
+            <div style={{ border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden', marginBottom: 10 }}>
+              <PublicTemplatePreview templateId={t.id} industryId={t.industries?.[0]} />
+            </div>
             {/* Heading links to the template's own page. Without an internal
                 link the 25 detail pages are orphans — present in the sitemap
                 but with nothing pointing at them, which is how pages end up

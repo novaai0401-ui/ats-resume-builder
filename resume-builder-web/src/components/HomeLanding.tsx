@@ -166,6 +166,30 @@ export default function HomeLanding({ faq }: { faq: Faq[] }) {
         </TkxRow>
       </section>
 
+      {/* Industry quick links — external critique: the homepage never showed
+          WHO the templates serve. Chips deep-link into the industry/role SEO
+          tier, which also feeds those pages homepage link equity. */}
+      <section aria-label="Templates by field" style={{ marginTop: 28 }}>
+        <TkxParagraph type="secondary" style={{ marginBottom: 8, fontSize: 14 }}>
+          Templates tuned for your field:
+        </TkxParagraph>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {[
+            { href: '/resume-templates/information-technology', label: 'Tech & IT' },
+            { href: '/resume-templates/finance', label: 'Finance' },
+            { href: '/resume-templates/sales-marketing', label: 'Marketing & Sales' },
+            { href: '/resume-templates/healthcare', label: 'Healthcare' },
+            { href: '/resume-templates/engineering', label: 'Engineering' },
+            { href: '/ats-resume-templates/early-talent', label: 'Freshers & Students' },
+            { href: '/resume-templates', label: 'All 21 industries →' },
+          ].map((c) => (
+            <Link key={c.href} href={c.href} className="pill" style={{ textDecoration: 'none' }}>
+              {c.label}
+            </Link>
+          ))}
+        </div>
+      </section>
+
       {/* -------------------------------------------------------- Paste-a-JD start
           Sits directly under the hero on purpose: "I have a JD, what am I
           missing?" is the task most visitors arrive with, and burying the

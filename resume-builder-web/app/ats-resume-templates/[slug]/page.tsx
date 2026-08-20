@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { TEMPLATE_CATALOG, type TemplateCatalogItem } from 'resume-builder-shared';
+import PublicTemplatePreview from '@/src/components/PublicTemplatePreview';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://callbackcv.tekivex.com';
 
@@ -155,6 +156,13 @@ export default async function TemplateDetailPage({
           Use this template free
         </Link>
       </p>
+
+      {/* The template itself, rendered live with sample content — the page
+          used to DESCRIBE the template without showing it. */}
+      <h2>What it looks like</h2>
+      <div style={{ maxWidth: 560, border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+        <PublicTemplatePreview templateId={template.id} industryId={template.industries?.[0]} mode="full" />
+      </div>
 
       <h2>Who this template is for</h2>
       <ul>
