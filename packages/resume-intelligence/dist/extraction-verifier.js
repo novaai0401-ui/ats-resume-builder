@@ -25,7 +25,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.verifyExtraction = verifyExtraction;
 exports.pickBetterExtraction = pickBetterExtraction;
-const NAME_LINE_RE = /^[A-Z][A-Za-z.'\-]+(?:\s+[A-Z][A-Za-z.'\-]+){1,3}$/;
+const NAME_LINE_RE = /^[\p{Lu}][\p{L}.'\-]+(?:\s+[\p{Lu}][\p{L}.'\-]+){1,3}$/u;
 const EMAIL_RE = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
 const PHONE_RE = /\+?\d[\d\s().\-]{7,}\d/;
 const LOCATION_RE = /\b(remote|usa|united states|india|canada|uk|australia|singapore|pune|mumbai|bangalore|bengaluru|delhi|hyderabad|chennai|kolkata|noida|gurgaon|gurugram|new york|san francisco|london|berlin|tokyo)\b/i;
@@ -107,7 +107,7 @@ function findCandidateName(rawText) {
         if (NAME_LINE_RE.test(line))
             return line;
         // Also accept ALL CAPS multi-word names ("SEEMA ALMAS YUNUS SHAIKH")
-        if (/^[A-Z][A-Z'\-]+(\s+[A-Z][A-Z'\-]+){1,4}$/.test(line) && line.length <= 56)
+        if (/^[\p{Lu}][\p{Lu}'\-]+(\s+[\p{Lu}][\p{Lu}'\-]+){1,4}$/u.test(line) && line.length <= 56)
             return line;
     }
     return '';

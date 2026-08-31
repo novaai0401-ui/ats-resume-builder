@@ -8,3 +8,4 @@ export * from './templates/professions.js';
 export * from './outcome-presentation.js';
 export * from './design.js';
 export * from './auth.js';
+export * from './ats-detect.js';

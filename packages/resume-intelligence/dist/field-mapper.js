@@ -1496,7 +1496,7 @@ function scoreNameCandidate(line, index, anchorIndex, lines) {
         score += 2;
     else
         score += 1;
-    const strictName = /^[A-Z][A-Za-z.'-]+(?:\s+[A-Z][A-Za-z.'-]+){1,3}$/.test(line);
+    const strictName = /^[\p{Lu}][\p{L}.'-]+(?:\s+[\p{Lu}][\p{L}.'-]+){1,3}$/u.test(line);
     if (strictName)
         score += 6;
     if (anchorIndex >= 0) {
@@ -1539,10 +1539,22 @@ function isLikelyNameLine(line) {
         return false;
     if (COMPANY_SUFFIX_RE.test(cleaned))
         return false;
+    // A line that IS a job title ("Assistant Vice President", "Senior Software
+    // Engineer") can never be the person's name — without this, a paste that
+    // carries no name at all crowned the first role title as fullName. One
+    // role-ish word alone stays a valid name ("Sarah Baker", "Priya Head"),
+    // so require TWO hits before rejecting.
+    {
+        const ROLE_VOCAB = /^(senior|junior|lead|principal|staff|assistant|associate|deputy|chief|executive|vice|global|regional|technical|managing|general|software|systems?|president|engineer|developer|manager|consultant|analyst|architect|director|officer|designer|specialist|scientist|administrator|technician|accountant|attorney|nurse|teacher|intern|head)$/i;
+        const roleHits = cleaned.split(/\s+/).filter((w) => ROLE_VOCAB.test(w)).length;
+        if (roleHits >= 2)
+            return false;
+    }
     const words = cleaned.split(/\s+/).filter(Boolean);
     if (words.length < 2 || words.length > 4)
         return false;
-    return words.every((word) => /^[A-Z][A-Za-z.'-]*$/.test(word));
+    // Unicode-aware: names are not ASCII-only (Amélie, Müller, Ólafur, Sørensen).
+    return words.every((word) => /^[\p{Lu}][\p{L}.'-]*$/u.test(word));
 }
 function extractHeadline(lines, nameIndex) {
     if (nameIndex < 0)
@@ -2326,7 +2338,7 @@ function looksLikeRoleTitle(line) {
     const significant = titleTokens.filter((w) => !STOPWORDS.has(w.toLowerCase()));
     if (significant.length === 0)
         return true;
-    const titleCaseSignificant = significant.filter((w) => /^[A-Z][A-Za-z0-9&'./-]*$/.test(w) || /^[A-Z]{2,}$/.test(w));
+    const titleCaseSignificant = significant.filter((w) => /^[\p{Lu}][\p{L}\p{N}&'./-]*$/u.test(w) || /^[\p{Lu}]{2,}$/u.test(w));
     if (titleCaseSignificant.length < significant.length)
         return false;
     return true;
@@ -2422,7 +2434,7 @@ function looksLikeCompany(line) {
     // or a present-participle ("ensuring alignment with company") are descriptions,
     // not company names. Real company names start with an uppercase letter,
     // a digit, or punctuation like "&".
-    if (!/^[A-Z0-9&(]/.test(cleaned))
+    if (!/^[\p{Lu}\p{N}&(]/u.test(cleaned))
         return false;
     // Reject lines that start with an action verb. Real company names don't.
     if (SENTENCE_OPENER_RE.test(cleaned))
@@ -2452,7 +2464,7 @@ function looksLikeCompany(line) {
         const significant = tokens.filter((t) => !STOPWORDS.has(t.toLowerCase()));
         if (significant.length === 0)
             return false;
-        const titleCase = significant.filter((t) => /^[A-Z]/.test(t) || /^[A-Z0-9&]+$/.test(t)).length;
+        const titleCase = significant.filter((t) => /^[\p{Lu}]/u.test(t) || /^[\p{Lu}\p{N}&]+$/u.test(t)).length;
         if (titleCase < Math.ceil(significant.length * 0.5))
             return false;
         return true;
@@ -2471,7 +2483,7 @@ function looksLikeCompany(line) {
     const mainPart = commaParts.length >= 2 ? commaParts[0] : cleaned;
     const tokens = mainPart.split(/\s+/).filter(Boolean);
     if (tokens.length >= 1 && tokens.length <= 7) {
-        const titleCaseTokens = tokens.filter((token) => /^[A-Z][A-Za-z0-9&'.-]*$/.test(token) || /^&$/.test(token)).length;
+        const titleCaseTokens = tokens.filter((token) => /^[\p{Lu}][\p{L}\p{N}&'.-]*$/u.test(token) || /^&$/.test(token)).length;
         // Single-token brand names (e.g. "Contoso", "Citi", "Cognizant", "Stripe")
         // are valid company names provided the token is title-case and at least
         // 3 letters long so we don't pick up role abbreviations like "VP".

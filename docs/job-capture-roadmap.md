@@ -6,32 +6,24 @@ leverage-per-effort, not by size.
 
 ---
 
-## 1. Outcome logging nudges (smallest — do first)
+## 1. Outcome logging nudges — ✅ ALREADY SHIPPED (R-031)
 
-**Problem.** The Outcome Loop only produces data if users log responses. Most
-won't unprompted, so the differentiator stays theoretical.
+Correction (2026-08-31): this plan was written before checking the codebase —
+the feature exists and is BETTER than planned. `src/outcome-nudge/` sends one
+email per stale application (applied >7 days, no status change) with
+single-tap signed links (no login needed) for No reply / Rejected /
+Interview, an unsubscribe flip on `User.nudgeEmailsEnabled`, an optional
+WhatsApp copy (R-087), and an idempotent daily scan driven by the
+`ats-rb-cron-nudges` Render cron (09:00 IST). Even inbound-mail replies are
+handled.
 
-**Plan.**
-- New cron (reuse the `ats-rb-cron-ops` pattern in render.yaml): daily, find
-  `JobApplication` rows in `applied` status with no status change for N days
-  (start N=10) whose user has email enabled.
-- Send ONE digest email per user per week max: "You applied to {company} with
-  {resume title} — any response yet?" with three deep links:
-  `/applications?respond={id}&outcome=response|rejected|nothing`.
-- The web route pre-opens the application card with the status picker. No new
-  UI beyond reading the query param.
-- Suppression: per-application `lastNudgedAt` column; never nudge the same
-  application twice; global opt-out flag on User.
-
-**Effort.** ~1 day. Schema: 1 column. API: 1 cron endpoint + mail template.
-Web: query-param handling on the applications page.
-
-**Success metric.** % of applications that ever reach a terminal status
-(response/rejected) — today unknown, target >40%.
+**Remaining follow-up (small):** surface the metric — % of applications that
+ever reach a terminal status — on the admin ops report, so the founder can
+see whether nudges are working. Target >40%.
 
 ---
 
-## 2. ATS identification from job URL (cheap win)
+## 2. ATS identification from job URL — ✅ SHIPPED 2026-08-31
 
 **Problem.** Jobscan tells users which ATS the employer runs and tailors advice.
 We already store `JobApplication.jdUrl` — the ATS is usually IN the hostname.
@@ -95,6 +87,7 @@ applications that later get an outcome logged (feeds plan 1's metric).
 
 ## Sequencing
 
-Plan 1 and 2 are independent and small — ship both in one release. Plan 3
-starts after, so clipped jobs land in a tracker that already nudges for
-outcomes and badges the ATS.
+Plans 1 and 2 are done (1 predated this doc; 2 shipped with it —
+`resume-builder-shared/src/ats-detect.ts` + the tracker's AtsBadge). Next up
+is plan 3, the extension: clipped jobs will land in a tracker that already
+nudges for outcomes and badges the ATS.

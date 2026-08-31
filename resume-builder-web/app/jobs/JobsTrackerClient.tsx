@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { TkxButton, TkxInput, TkxSelect, TkxTextarea } from 'tekivex-ui';
+import { detectAtsFromUrl } from 'resume-builder-shared';
 import type { JobApplication, JobApplicationInput, JobStatus } from 'resume-builder-shared';
 import { api } from '@/src/lib/api';
 import DataLoader from '@/src/components/DataLoader';
@@ -315,6 +316,7 @@ export default function JobsTrackerClient() {
                   value={form.jdUrl || ''}
                   onChange={(e) => setForm({ ...form, jdUrl: e.target.value })}
                 />
+              <AtsBadge jdUrl={form.jdUrl} />
               <TkxInput label="Location"
                   value={form.location || ''}
                   onChange={(e) => setForm({ ...form, location: e.target.value })}
@@ -407,6 +409,32 @@ function StatCard({ label, value, tone, hint }: { label: string; value: number |
   );
 }
 
+/**
+ * "Employer ATS: Workday" badge, derived purely from the saved job URL's
+ * hostname (see resume-builder-shared/src/ats-detect.ts). Honest v1: we name
+ * the system the resume will pass through; for job boards we say the real
+ * ATS is unknown rather than guessing. Nothing renders when the URL is
+ * missing or unrecognised — no badge beats a wrong badge.
+ */
+function AtsBadge({ jdUrl }: { jdUrl?: string | null }) {
+  const detected = detectAtsFromUrl(jdUrl);
+  if (!detected) return null;
+  return (
+    <div
+      className="muted ats-badge"
+      data-testid="ats-badge"
+      data-ats={detected.ats}
+      title={
+        detected.aggregator
+          ? 'Posted on a job board — the employer’s own ATS is unknown. The original posting URL would reveal it.'
+          : `This employer’s applications go through ${detected.label}. Your resume will be parsed by it — the ATS Check preview shows roughly what it extracts.`
+      }
+    >
+      {detected.aggregator ? `Via ${detected.label}` : `Employer ATS: ${detected.label}`}
+    </div>
+  );
+}
+
 function KanbanColumn({
   status,
   jobs,
@@ -437,6 +465,8 @@ function KanbanColumn({
                 <span className="muted"> — {job.role}</span>
               </div>
               {job.location ? <div className="muted">{job.location}</div> : null}
+              <AtsBadge jdUrl={job.jdUrl} />
+
               {job.nextActionAt ? (
                 <div className="muted">
                   Next action: {new Date(job.nextActionAt).toLocaleDateString()}

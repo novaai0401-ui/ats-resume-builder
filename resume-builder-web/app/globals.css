@@ -3713,6 +3713,9 @@ html, body { max-width: 100%; overflow-x: hidden; }
 .kanban-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: .55rem .7rem; font-size: .9rem; }
 .kanban-card__top { margin-bottom: .2rem; }
 .kanban-card__actions { display: flex; gap: .35rem; margin-top: .5rem; flex-wrap: wrap; }
+/* "Employer ATS: Workday" chip — derived from the JD URL hostname. Token
+   colours only so it reads in both themes. */
+.ats-badge { display: inline-block; margin-top: .25rem; padding: .1rem .5rem; font-size: .78rem; border: 1px solid var(--border); border-radius: 999px; background: var(--card); color: var(--ink-subtle); }
 .kanban-card__actions select { flex: 1; min-width: 120px; }
 .btn.tertiary { background: transparent; border: 1px solid var(--border); color: var(--ink-subtle); padding: .25rem .6rem; font-size: .82rem; border-radius: 6px; cursor: pointer; }
 .btn.tertiary.danger { color: var(--danger); border-color: var(--danger); }
