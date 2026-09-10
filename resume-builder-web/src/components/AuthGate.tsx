@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useState, type ReactNode } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { getAccessToken } from '@/src/lib/api';
+import { buildReturnPath } from '@/src/lib/return-path';
 
 type AuthGateProps = {
   children: ReactNode;
@@ -21,14 +22,20 @@ type AuthGateProps = {
 export default function AuthGate({ children, fallbackMessage }: AuthGateProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [authed, setAuthed] = useState<boolean | null>(null);
 
   useEffect(() => {
     const token = getAccessToken();
     if (!token) {
       try {
-        const target = pathname || '/dashboard';
-        sessionStorage.setItem('rb_return_to', target);
+        // R-107: the return path must keep its QUERY STRING. This stored
+        // pathname only, so a signed-out user arriving from an assistant
+        // at /resume?resumeId=abc landed back on a bare /resume after
+        // logging in — the resume they were sent to open was gone, and
+        // the whole assistant handoff dead-ended at exactly the moment
+        // it had earned a signup.
+        sessionStorage.setItem('rb_return_to', buildReturnPath(pathname, searchParams?.toString()));
       } catch {
         // sessionStorage may be unavailable — fall through.
       }
@@ -37,7 +44,7 @@ export default function AuthGate({ children, fallbackMessage }: AuthGateProps) {
       return;
     }
     setAuthed(true);
-  }, [router, pathname]);
+  }, [router, pathname, searchParams]);
 
   if (authed === null) {
     return (

@@ -127,6 +127,69 @@ test('get_download_link returns a URL that parses, carrying resumeId and utm_sou
   assert.ok(url.searchParams.get('utm_source'), 'the acquisition tag is a real query parameter');
 });
 
+test('R-107: open_in_callbackcv returns a URL that parses correctly', async () => {
+  // The defect: UTM was the literal string '?utm_source=…' concatenated
+  // onto a path that already carried a query, producing
+  // `/resume?resumeId=abc123?utm_source=ai-assistant` — the resume id
+  // parsed as "abc123?utm_source=ai-assistant" and the tag was lost.
+  const mcp = await connect();
+  const res = await mcp.callTool({ name: 'open_in_callbackcv', arguments: { resumeId: 'abc123' } });
+  await mcp.close();
+
+  const url = new URL(JSON.parse(res.content[0].text).url);
+  assert.equal(url.searchParams.get('resumeId'), 'abc123', 'the resume id must round-trip exactly');
+  assert.equal(url.searchParams.get('utm_source'), 'ai-assistant', 'and the acquisition tag must survive');
+  assert.equal(url.pathname, '/resume');
+});
+
+test('R-107: the no-resume link is well-formed too', async () => {
+  const mcp = await connect();
+  const res = await mcp.callTool({ name: 'open_in_callbackcv', arguments: {} });
+  await mcp.close();
+
+  const url = new URL(JSON.parse(res.content[0].text).url);
+  assert.equal(url.pathname, '/resume/start');
+  assert.equal(url.searchParams.get('utm_source'), 'ai-assistant');
+});
+
+test('R-107: resume ids needing escaping survive the round trip', async () => {
+  const mcp = await connect();
+  const tricky = 'a b&c=d?e';
+  const res = await mcp.callTool({ name: 'open_in_callbackcv', arguments: { resumeId: tricky } });
+  await mcp.close();
+
+  const url = new URL(JSON.parse(res.content[0].text).url);
+  assert.equal(url.searchParams.get('resumeId'), tricky, 'searchParams escapes what concatenation would corrupt');
+  assert.equal(url.searchParams.get('utm_source'), 'ai-assistant');
+});
+
+test('R-107: create_resume advertises the fields the API actually requires', async () => {
+  const tools = await listTools();
+  const create = tools.find((t) => t.name === 'create_resume');
+  const experience = create.inputSchema.properties.experience.items;
+  assert.deepEqual(
+    [...(experience.required || [])].sort(),
+    ['company', 'endDate', 'highlights', 'role', 'startDate'],
+    'an assistant must be told about startDate/endDate/highlights before it is rejected for them',
+  );
+
+  // The sections that used to be unreachable through an assistant.
+  for (const section of ['projects', 'certifications', 'languages', 'licenses', 'publications']) {
+    assert.ok(create.inputSchema.properties[section], `create_resume can set ${section}`);
+  }
+});
+
+test('R-107: update_resume can fix contact details', async () => {
+  const tools = await listTools();
+  const update = tools.find((t) => t.name === 'update_resume');
+  // Without this, a typo in an email address could not be corrected
+  // through an assistant at all.
+  assert.ok(update.inputSchema.properties.contact, 'contact is editable');
+  for (const section of ['projects', 'certifications', 'languages', 'licenses', 'publications']) {
+    assert.ok(update.inputSchema.properties[section], `update_resume can change ${section}`);
+  }
+});
+
 test('API failures surface as MCP errors, not as silently empty results', async () => {
   const mcp = await connect({
     downloadChargeConfig: async () => {

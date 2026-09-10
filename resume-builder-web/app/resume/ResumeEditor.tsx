@@ -8,6 +8,7 @@ import { TkxBottomNav, TkxButton, TkxCheckbox, TkxColorPicker, TkxDrawer, TkxInp
 import useFeatureFlags from '@/src/hooks/use-feature-flags';
 import { FONT_OPTIONS, DENSITY_OPTIONS, ACCENT_PRESETS, REORDERABLE_SECTIONS, resolveSectionOrder, getAtsSectionTitle, templateSupportsPhoto, normalizePhotoUrl, isValidEmail, isValidPhone, EMAIL_INVALID_MESSAGE, PHONE_INVALID_MESSAGE } from 'resume-builder-shared';
 import { RESUME_CREATE_RATE_LIMIT_CODE, api, Resume, ResumeImportResult, UploadResumeResponse, getAccessToken, isApiRequestError } from '@/src/lib/api';
+import { buildReturnPath } from '@/src/lib/return-path';
 import { loadByokKey, isPaidPlan } from '@/src/lib/byok-storage';
 import { SUPPORT_EMAIL, supportMailto } from '@/src/lib/support';
 import { splitBulletIntoBullets, canSplitBullet, shortenBulletText, wordCount as bulletWordCount, BULLET_MAX_WORDS as BULLET_LIMIT } from '@/src/lib/bullet-utils';
@@ -1872,7 +1873,10 @@ export default function ResumeEditor() {
     // Case A: Not logged in → redirect to login with return intent
     if (!getAccessToken()) {
       if (typeof window !== 'undefined') {
-        sessionStorage.setItem('rb_return_to', window.location.pathname + window.location.search);
+        sessionStorage.setItem(
+          'rb_return_to',
+          buildReturnPath(window.location.pathname, window.location.search),
+        );
         sessionStorage.setItem('rb_premium_intent', 'PREMIUM_OPTIMIZE');
       }
       showSnackbar('error', 'Sign in to unlock premium optimization.');

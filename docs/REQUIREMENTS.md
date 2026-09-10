@@ -2087,7 +2087,7 @@ ChatGPT/Claude account as CallbackCV's identity. See §7.
 
 ### R-107 · One schema for assistants and API; handoff links that parse
 
-- Status: **PLANNED**
+- Status: **DONE** (this commit)
 - Depends-on: R-104
 - Source: review at `168065c`.
   (a) `server.ts` declares experience `startDate`/`endDate`/`highlights`
@@ -2102,17 +2102,28 @@ ChatGPT/Claude account as CallbackCV's identity. See §7.
   NOT affected: it places UTM first and is correctly formed. Do not
   "fix" it.)
 - Acceptance
-  - [ ] MCP input schemas are derived from the `resume-builder-shared`
-    Zod schemas rather than restated, so required stays required (C-001).
-  - [ ] Every URL is built with `URL` + `searchParams`; `UTM` becomes a
-    parameter pair, not a string fragment. Pinning test parses each
-    returned URL and asserts both `resumeId` and `utm_source`.
-  - [ ] `AuthGate` preserves `search` as well as `pathname` in its return
-    path, so a login redirect does not drop `?resumeId=`.
-  - [ ] `create_resume`/`update_resume` cover the sections the app
+  - [x] Section shapes live in ONE place per side and are held together by
+    `tests/schema-parity.test.mjs`, which imports the real shared schemas
+    and fails on any drift. A runtime import was rejected deliberately:
+    the MCP ships to npm with only the SDK and zod as dependencies, so a
+    workspace import would break `npx @tekivex/callbackcv-mcp`. The two
+    packages are also on different zod majors (3 vs 4), so the test uses
+    only the public API both agree on. Verified by mutation: making
+    `startDate` optional again fails the parity test (C-001).
+  - [x] `create_resume` and `update_resume` now share one field
+    definition, so they cannot drift from each other either.
+  - [x] Every URL is built with `URL` + `searchParams`; `UTM` is a
+    parameter pair, not a string fragment. Tests parse the returned URLs
+    and assert both `resumeId` and `utm_source`, including a resume id
+    containing `&`, `=` and `?` that concatenation would have corrupted.
+  - [x] The post-login return path keeps its query string. Extracted to
+    `buildReturnPath()` because THREE call sites built it by hand and two
+    dropped the query (`AuthGate`, `PremiumGate`); one definition means
+    the next call site cannot invent a fourth variant.
+  - [x] `create_resume`/`update_resume` cover the sections the app
     supports — projects, certifications, languages, licenses,
     publications (C-002) — and `update_resume` can change contact.
-  - [ ] Validation failures return the field and the rule, not a bare
+  - [x] Validation failures return the field and the rule, not a bare
     400.
 
 ---

@@ -1,6 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { ApiError, PocketResumeClient } from './api-client.js';
+import { resumeSectionFields } from './resume-fields.js';
 
 /**
  * R-040 — CallbackCV MCP server.
@@ -61,7 +62,26 @@ export function buildServer(client: PocketResumeClient): McpServer {
   const webBase = () =>
     String(process.env.PUBLIC_WEB_URL || 'https://callbackcv.tekivex.com').replace(/\/+$/, '');
   // Which assistant platform sent the user — measurable acquisition.
-  const UTM = '?utm_source=' + encodeURIComponent(String(process.env.MCP_UTM_SOURCE || 'ai-assistant'));
+  const utmSource = String(process.env.MCP_UTM_SOURCE || 'ai-assistant');
+
+  /**
+   * R-107 — build every outbound link with URL/searchParams.
+   *
+   * UTM used to be the literal string '?utm_source=…' concatenated onto
+   * whatever came before it. On a path that already carried a query
+   * (`/resume?resumeId=X`) that produced `?resumeId=X?utm_source=…`: the
+   * resume id parsed as "X?utm_source=ai-assistant", so the editor could
+   * not find the resume AND the acquisition tag was lost. Concatenation
+   * cannot express "add a parameter"; this can.
+   */
+  const webUrl = (path: string, params: Record<string, string | undefined> = {}) => {
+    const url = new URL(path, webBase() + '/');
+    for (const [key, value] of Object.entries(params)) {
+      if (value) url.searchParams.set(key, value);
+    }
+    url.searchParams.set('utm_source', utmSource);
+    return url.toString();
+  };
 
 
   /**
@@ -86,10 +106,9 @@ export function buildServer(client: PocketResumeClient): McpServer {
     },
     { title: 'Open in CallbackCV', readOnlyHint: true, openWorldHint: false },
     async ({ resumeId }) => {
-      const base = webBase();
       const url = resumeId
-        ? base + '/resume?resumeId=' + encodeURIComponent(resumeId) + UTM
-        : base + '/resume/start' + UTM;
+        ? webUrl('/resume', { resumeId })
+        : webUrl('/resume/start');
       return ok({
         url,
         say: resumeId
@@ -112,46 +131,17 @@ export function buildServer(client: PocketResumeClient): McpServer {
     [
       'Create a NEW resume in the user\'s CallbackCV account from structured',
       'fields. Gather the user\'s details conversationally first, then call',
-      'this once. summary must be at least 20 characters. Returns the new',
-      'resumeId — use it with update_resume, tailor_resume and',
-      'get_download_link.',
+      'this once. summary must be at least 20 characters. Every experience',
+      'entry needs startDate, endDate and at least one highlight, and every',
+      'education entry needs both dates — ask the user for anything missing',
+      'rather than guessing, since an invented date is a fabricated fact on',
+      'a hiring document. Returns the new resumeId — use it with',
+      'update_resume, tailor_resume and get_download_link.',
     ].join(' '),
     {
       title: z.string().min(2).describe('Document title, e.g. "Senior Frontend Engineer Resume"'),
       summary: z.string().min(20).describe('Professional summary, 2-3 sentences with at least one measurable result'),
-      contact: z
-        .object({
-          fullName: z.string().optional(),
-          email: z.string().optional(),
-          phone: z.string().optional(),
-          location: z.string().optional(),
-          links: z.array(z.string()).optional(),
-        })
-        .optional(),
-      skills: z.array(z.string()).optional(),
-      experience: z
-        .array(
-          z.object({
-            role: z.string(),
-            company: z.string(),
-            startDate: z.string().optional(),
-            endDate: z.string().optional(),
-            highlights: z.array(z.string()).optional().describe('Outcome bullets — include numbers'),
-          }),
-        )
-        .optional(),
-      education: z
-        .array(
-          z.object({
-            degree: z.string(),
-            institution: z.string(),
-            startDate: z.string().optional(),
-            endDate: z.string().optional(),
-          }),
-        )
-        .optional(),
-      achievements: z.array(z.string()).optional(),
-      templateId: z.string().optional().describe('Template id, e.g. "classic" (default), "modern", "skills-first"'),
+      ...resumeSectionFields,
     },
     { title: 'Create a resume', readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     async (input) => {
@@ -174,39 +164,18 @@ export function buildServer(client: PocketResumeClient): McpServer {
   server.tool(
     'update_resume',
     [
-      'Update fields on an existing resume (summary, skills, experience,',
-      'education, achievements, title, templateId). Send ONLY the fields to',
-      'change — arrays REPLACE the whole section, so read the resume first',
-      'with get_resume and send the full corrected array.',
+      'Update fields on an existing resume — summary, contact, skills,',
+      'languages, experience, education, projects, certifications, licenses,',
+      'publications, achievements, title or templateId. Send ONLY the fields',
+      'to change: arrays REPLACE the whole section, so read the resume first',
+      'with get_resume and send the full corrected array. The same required',
+      'fields apply as when creating.',
     ].join(' '),
     {
       resumeId: z.string(),
       title: z.string().min(2).optional(),
       summary: z.string().min(20).optional(),
-      skills: z.array(z.string()).optional(),
-      experience: z
-        .array(
-          z.object({
-            role: z.string(),
-            company: z.string(),
-            startDate: z.string().optional(),
-            endDate: z.string().optional(),
-            highlights: z.array(z.string()).optional(),
-          }),
-        )
-        .optional(),
-      education: z
-        .array(
-          z.object({
-            degree: z.string(),
-            institution: z.string(),
-            startDate: z.string().optional(),
-            endDate: z.string().optional(),
-          }),
-        )
-        .optional(),
-      achievements: z.array(z.string()).optional(),
-      templateId: z.string().optional(),
+      ...resumeSectionFields,
     },
     { title: 'Update a resume', readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     async ({ resumeId, ...patch }) => {
@@ -233,10 +202,9 @@ export function buildServer(client: PocketResumeClient): McpServer {
     { title: 'Get the PDF download link', readOnlyHint: true, openWorldHint: false },
     async ({ resumeId }) => {
       try {
-        const webUrl = webBase();
         const cfg = await client.downloadChargeConfig();
         return ok({
-          url: webUrl + '/resume/template' + UTM + '&resumeId=' + encodeURIComponent(resumeId),
+          url: webUrl('/resume/template', { resumeId }),
           paymentRequired: cfg.enabled,
           note: cfg.enabled
             ? 'A one-time charge (Rs 49 in India / ~$0.99 elsewhere) applies at download; CallbackCV Plus includes downloads.'
