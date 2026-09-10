@@ -11,13 +11,21 @@ import { ApiError, PocketResumeClient } from './api-client.js';
  * MCP server it calls, every agent-driven application still feeds the
  * Outcome Graph — agents become a distribution channel, not a threat.
  *
- * Six tools, deliberately mirroring what a human can do in the UI:
+ * Ten tools, deliberately mirroring what a human can do in the UI:
+ *   open_in_callbackcv — the link that ends every conversation
+ *   create_resume      — build a NEW resume from structured fields
+ *   update_resume      — edit an existing one
+ *   get_download_link  — where the PDF is downloaded (never the file itself)
  *   list_resumes       — find the user's resumes
  *   get_resume         — full structured resume JSON
  *   list_versions      — snapshots (tailored variants live here)
  *   tailor_resume      — JD → NEW ResumeVersion (C-007 attribution!)
  *   log_application    — write to the Jobs tracker WITH versionId
  *   get_outcome_stats  — which version actually gets replies
+ *
+ * The authoritative list is TOOL_CONTRACT in tests/server.test.mjs, which
+ * drives a real client over an in-memory transport (R-104). Add a tool
+ * there first; this comment is prose, the test is the contract.
  *
  * Everything delegates to the REST API with the user's own token, so
  * plan gates / AI-token quotas / rate limits apply identically to

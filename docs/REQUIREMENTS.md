@@ -1909,7 +1909,7 @@ ChatGPT/Claude account as CallbackCV's identity. See §7.
 
 ### R-104 · MCP suite matches the shipped tool set, and CI runs it
 
-- Status: **PLANNED**
+- Status: **DONE** (this commit)
 - Depends-on: R-096, R-100, R-101
 - Source: review at `168065c` — `tests/server.test.mjs` asserts "each of
   the 6 tools declares annotations" against `EXPECTED_TOOLS`, while
@@ -1920,14 +1920,20 @@ ChatGPT/Claude account as CallbackCV's identity. See §7.
   nothing, so the drift was invisible. Every entry below needs a pinning
   test per CLAUDE.md, so this lands first.
 - Acceptance
-  - [ ] `EXPECTED_TOOLS` covers all ten tools; annotation counts are
+  - [x] `EXPECTED_TOOLS` covers all ten tools; annotation counts are
     derived from that list rather than hardcoded (`readOnlyHint: true`
     for the six read-only tools, write annotations for the rest).
-  - [ ] Tests assert tool BEHAVIOUR, not source-text regex matches:
-    each tool's declared input schema, and the returned URL shape.
-  - [ ] `.github/workflows/ci.yml` gains an `mcp` job (install, `tsc`
+  - [x] Tests assert tool BEHAVIOUR, not source-text regex matches: the
+    suite drives the real server over `InMemoryTransport` and asserts the
+    names, annotations, descriptions and input schemas a connector
+    actually receives. Verified non-vacuous by mutation: renaming a tool
+    fails 3 assertions, flipping one `readOnlyHint` fails 1.
+  - [x] Per-defect regression tests land WITH their fix (R-105…R-112), not
+    here — a test that fails until a later requirement would leave the new
+    CI job red and train everyone to ignore it.
+  - [x] `.github/workflows/ci.yml` gains an `mcp` job (install, `tsc`
     build, `node --test`) that blocks merge, matching the other jobs.
-  - [ ] Suite green at 10/10 tools; no `.skip`, no advisory step.
+  - [x] Suite green at 10/10 tools; no `.skip`, no advisory step.
 
 ---
 

@@ -46,7 +46,8 @@ Checklist — code side (DONE, keep true):
 - [x] OAuth 2.1 + PKCE + dynamic client registration + discovery.
 - [x] Real sign-in on the authorize page (email/password via /auth/login;
       token-paste fallback for social-login users).
-- [x] Tool annotations on all 6 tools (read-only vs additive-write).
+- [x] Tool annotations on all 10 tools (read-only vs additive-write),
+      asserted per-tool against TOOL_CONTRACT in `tests/server.test.mjs`.
 - [x] Privacy policy at https://callbackcv.tekivex.com/privacy covering the
       MCP data flow AND retention timelines.
 
