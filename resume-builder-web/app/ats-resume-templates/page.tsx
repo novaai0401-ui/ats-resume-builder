@@ -29,7 +29,7 @@ const FAQ = [
   },
   {
     q: 'Which ATS are the templates tested against?',
-    a: 'Workday, Greenhouse, iCIMS, Taleo, and BambooHR. The ATS Simulator additionally shows you the literal text those systems would extract from your file.',
+    a: 'Workday, Greenhouse, iCIMS, Taleo, and BambooHR. The ATS Simulator additionally shows you the plain-text recruiter view your resume reduces to once styling is stripped.',
   },
   {
     q: 'Can I switch templates without losing my content?',

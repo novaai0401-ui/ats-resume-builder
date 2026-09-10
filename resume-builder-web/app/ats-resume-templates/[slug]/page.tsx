@@ -176,7 +176,7 @@ export default async function TemplateDetailPage({
       <p>
         Layout: {template.layout.replace('-', ' ')}. Tested against Workday, Greenhouse, iCIMS,
         Taleo and BambooHR. You can also run it through the{' '}
-        <Link href="/ats-resume-checker">free ATS resume checker</Link> to see the exact text a
+        <Link href="/ats-resume-checker">free ATS resume checker</Link> to see the plain-text recruiter view a
         parser extracts.
       </p>
 

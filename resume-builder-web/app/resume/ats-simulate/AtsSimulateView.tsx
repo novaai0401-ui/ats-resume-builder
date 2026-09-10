@@ -1,7 +1,8 @@
 'use client';
 
 /**
- * ATS Simulator UI — shows the literal text a real ATS will hand to a
+ * ATS Simulator UI — shows the plain-text recruiter view a resume reduces
+ * to once styling is stripped, modelled from the structured fields and handed to a
  * recruiter, plus the parse risks that would degrade that view.
  *
  * UX philosophy: the recruiter view is the centerpiece. Risks are listed

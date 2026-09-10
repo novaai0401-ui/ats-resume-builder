@@ -53,6 +53,16 @@ export interface SimulatedResumeInput {
     description?: string | null;
   }> | null;
   certifications?: Array<{ name?: string | null; issuer?: string | null }> | null;
+  /**
+   * R-077 profession sections + achievements. A licensed nurse's licence
+   * row and an academic's publications are the most load-bearing content
+   * on those resumes; dropping them from the simulated view told exactly
+   * the users with the most at stake that their resume was thinner than
+   * it is.
+   */
+  achievements?: string[] | null;
+  licenses?: Array<{ name?: string | null; issuer?: string | null; number?: string | null }> | null;
+  publications?: Array<{ title?: string | null; publisher?: string | null; date?: string | null }> | null;
 }
 
 export type SimulationRiskKind =
@@ -66,6 +76,9 @@ export type SimulationRiskKind =
   | 'experience-no-dates'
   | 'experience-non-chronological'
   | 'education-no-dates'
+  | 'summary-missing'
+  | 'experience-missing'
+  | 'education-missing'
   | 'skills-too-few'
   | 'skills-too-many'
   | 'creative-date-format';
@@ -281,6 +294,106 @@ export function simulateAts(input: SimulatedResumeInput): SimulationResult {
     }
     pushField(fields, `Education #${i + 1}`, [header, dateRange].filter(Boolean).join('\n'));
   });
+
+  // ----- Projects --------------------------------------------------------
+  // R-105: projects and certifications were part of SimulatedResumeInput
+  // from the start but the body never referenced them, so they were
+  // accepted and silently discarded.
+  const projects = input.projects || [];
+  if (projects.length > 0) {
+    lines.push('');
+    lines.push('PROJECTS');
+  }
+  projects.forEach((project, i) => {
+    const name = clean(project.name);
+    const description = clean(project.description);
+    lines.push(name || '(unnamed project)');
+    if (description) lines.push(description);
+    pushField(fields, `Project #${i + 1}`, [name, description].filter(Boolean).join('\n'));
+  });
+
+  // ----- Certifications --------------------------------------------------
+  const certifications = input.certifications || [];
+  if (certifications.length > 0) {
+    lines.push('');
+    lines.push('CERTIFICATIONS');
+  }
+  certifications.forEach((cert, i) => {
+    const name = clean(cert.name);
+    const issuer = clean(cert.issuer);
+    const row = [name, issuer].filter(Boolean).join(' · ');
+    lines.push(row || '(unnamed certification)');
+    pushField(fields, `Certification #${i + 1}`, row);
+  });
+
+  // ----- Licences --------------------------------------------------------
+  const licenses = input.licenses || [];
+  if (licenses.length > 0) {
+    lines.push('');
+    lines.push('LICENSES');
+  }
+  licenses.forEach((license, i) => {
+    const name = clean(license.name);
+    const issuer = clean(license.issuer);
+    const number = clean(license.number);
+    const row = [name, issuer, number].filter(Boolean).join(' · ');
+    lines.push(row || '(unnamed license)');
+    pushField(fields, `License #${i + 1}`, row);
+  });
+
+  // ----- Publications ----------------------------------------------------
+  const publications = input.publications || [];
+  if (publications.length > 0) {
+    lines.push('');
+    lines.push('PUBLICATIONS');
+  }
+  publications.forEach((publication, i) => {
+    const title = clean(publication.title);
+    const publisher = clean(publication.publisher);
+    const date = clean(publication.date);
+    const row = [title, publisher, date].filter(Boolean).join(' · ');
+    lines.push(row || '(untitled publication)');
+    pushField(fields, `Publication #${i + 1}`, row);
+  });
+
+  // ----- Achievements ----------------------------------------------------
+  const achievements = (input.achievements || []).map(clean).filter(Boolean) as string[];
+  if (achievements.length > 0) {
+    lines.push('');
+    lines.push('ACHIEVEMENTS');
+    achievements.forEach((achievement) => lines.push(`• ${achievement}`));
+    pushField(fields, 'Achievements', achievements.map((a) => `• ${a}`).join('\n'));
+  }
+
+  // ----- Missing content -------------------------------------------------
+  // R-105: confidence is 100 minus a risk penalty, and absent sections
+  // raise no per-item risks — so before this, an EMPTY resume scored 100
+  // while a real one lost points for every imperfection it actually had.
+  // A section that isn't there is the most serious parsing outcome of all.
+  if (!summary) {
+    risks.push({
+      kind: 'summary-missing',
+      severity: 'medium',
+      detail: 'No summary. Recruiters screening in seconds have nothing to read first.',
+      path: 'summary',
+    });
+  }
+  if (experience.length === 0) {
+    risks.push({
+      kind: 'experience-missing',
+      severity: 'high',
+      detail: 'No work experience surfaced. Most ATS filters rank on titles and dates from this section.',
+      path: 'experience',
+    });
+  }
+  if (education.length === 0) {
+    risks.push({
+      kind: 'education-missing',
+      severity: 'medium',
+      detail: 'No education surfaced. Filters that gate on a degree or graduation year will skip this record.',
+      path: 'education',
+    });
+  }
 
   // ----- Confidence ------------------------------------------------------
   const weight: Record<SimulationRisk['severity'], number> = { high: 14, medium: 7, low: 3 };

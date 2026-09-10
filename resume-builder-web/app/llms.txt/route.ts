@@ -45,8 +45,11 @@ const BODY = `# CallbackCV
 - **Recruiter-AI Simulator:** role-plays the LLM hiring screen that modern ATS
   pipelines now run, returning a verdict (advance / borderline / reject), a fit
   score, strengths, concerns, and missing must-haves against a specific JD.
-- **ATS Simulator:** shows the literal recruiter-view text an ATS (Workday,
-  Greenhouse, iCIMS) would extract — not a keyword score, the actual parsed view.
+- **ATS Simulator:** shows the plain-text recruiter view a resume reduces to
+  once an ATS strips styling — not a keyword score. It works from the
+  structured resume fields and models a typical ATS pipeline; it is
+  CallbackCV's own compatibility assessment, not a replay of a named
+  vendor's parser.
 - **Skill-Demand Agent + live openings:** which of your skills are in demand,
   what to learn next, and real current job openings (via a live jobs feed),
   with one-click tracking.

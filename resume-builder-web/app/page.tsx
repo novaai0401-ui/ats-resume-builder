@@ -24,11 +24,11 @@ const FAQ = [
   },
   {
     q: 'How is CallbackCV different from other ATS resume builders?',
-    a: 'Most tools stop at a predicted ATS score. CallbackCV measures your real callback rate per resume version (the Outcome Loop), simulates the AI hiring screen recruiters now run (Recruiter-AI Simulator), and shows the literal recruiter-view text an ATS extracts (ATS Simulator).',
+    a: 'Most tools stop at a predicted ATS score. CallbackCV measures your real callback rate per resume version (the Outcome Loop), simulates the AI hiring screen recruiters now run (Recruiter-AI Simulator), and shows the plain-text recruiter view a resume reduces to once an ATS strips styling (ATS Simulator).',
   },
   {
     q: 'Does CallbackCV check if my resume is ATS-compatible?',
-    a: 'Yes. It scores ATS-friendliness with explainable feedback and the ATS Simulator renders exactly what an applicant tracking system (Workday, Greenhouse, iCIMS) would parse from your file.',
+    a: 'Yes. It scores ATS-friendliness with explainable feedback, and the ATS Simulator shows the plain-text recruiter view your resume reduces to once styling is stripped — so you catch "high score, no callbacks" formatting problems. It works from your resume fields and models a typical ATS pipeline; it is our own compatibility assessment, not a replay of any one vendor\'s parser.',
   },
   {
     q: 'Does the AI make up numbers or achievements on my resume?',

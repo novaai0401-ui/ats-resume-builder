@@ -1939,7 +1939,7 @@ ChatGPT/Claude account as CallbackCV's identity. See §7.
 
 ### R-105 · ATS simulator scores the actual resume
 
-- Status: **PLANNED**
+- Status: **DONE** (this commit)
 - Depends-on: R-104
 - Source: review at `168065c`. `resume.controller.ts` `atsSimulate()`
   reads `summary`, `experience`, `education`, `projects` and
@@ -1949,15 +1949,23 @@ ChatGPT/Claude account as CallbackCV's identity. See §7.
   contact and skills alone. This is not an edge case: the score shown to
   every user today is computed from a resume with no work history.
 - Acceptance
-  - [ ] `atsSimulate()` reads the top-level fields returned by
+  - [x] `atsSimulate()` reads the top-level fields returned by
     `resumeService.get()`; the `sections` indirection is deleted, not
     defaulted.
-  - [ ] Profession sections added by R-077 (`licenses`, `publications`)
+  - [x] Profession sections added by R-077 (`licenses`, `publications`)
     and `achievements` reach the simulator too.
-  - [ ] Pinning unit test: a resume with three experience entries and a
-    summary scores strictly higher than the same resume with those
-    fields emptied. This test fails on the current code.
-  - [ ] Public copy stops implying vendor parsers are executed: the
+  - [x] Pinning unit test in `tests/ats-simulate-endpoint.unit.test.cjs`:
+    drives the CONTROLLER with the shape `resumeService.get()` really
+    returns, so the `sections` mismatch cannot hide. Reverting the
+    controller fails 3 of its 4 cases.
+  - [x] Two further defects found while fixing this and closed here:
+    (a) `projects` and `certifications` were declared in
+    `SimulatedResumeInput` but never referenced in `simulateAts` — data
+    that did arrive was discarded; (b) confidence is `100 - riskPenalty`
+    and absent sections raised no risks, so an EMPTY resume scored 100
+    while a real one lost points for every flaw it actually had. Added
+    `summary-missing` / `experience-missing` / `education-missing` risks.
+  - [x] Public copy stops implying vendor parsers are executed: the
     simulator works from structured fields and never parses the exported
     file, so it is described as CallbackCV's own compatibility preview.
     Vendor names (Workday/Greenhouse/iCIMS) only where documented

@@ -61,16 +61,26 @@ export class ResumeController {
   @Get(':id/ats-simulate')
   async atsSimulate(@Req() req: { user: { userId: string } }, @Param('id') id: string) {
     const resume = await this.resumeService.get(req.user.userId, id);
-    const sections = (resume as { sections?: Record<string, unknown> }).sections || {};
+    // R-105: this used to read summary/experience/education/projects/
+    // certifications out of `resume.sections`. There is no `sections`
+    // column on the Resume model — those are top-level fields — so the
+    // object was always {} and EVERY simulation ran on title, contact and
+    // skills alone. Users were shown a compatibility score for a resume
+    // with no work history. Read the record the service actually returns.
+    type SimInput = Parameters<typeof simulateAts>[0];
+    const r = resume as unknown as SimInput;
     return simulateAts({
-      title: (resume as { title?: string }).title,
-      contact: (resume as { contact?: unknown }).contact as Parameters<typeof simulateAts>[0]['contact'],
-      summary: (sections as { summary?: string }).summary,
-      skills: (resume as { skills?: string[] }).skills,
-      experience: (sections as { experience?: unknown }).experience as Parameters<typeof simulateAts>[0]['experience'],
-      education: (sections as { education?: unknown }).education as Parameters<typeof simulateAts>[0]['education'],
-      projects: (sections as { projects?: unknown }).projects as Parameters<typeof simulateAts>[0]['projects'],
-      certifications: (sections as { certifications?: unknown }).certifications as Parameters<typeof simulateAts>[0]['certifications'],
+      title: r.title,
+      contact: r.contact,
+      summary: r.summary,
+      skills: r.skills,
+      experience: r.experience,
+      education: r.education,
+      projects: r.projects,
+      certifications: r.certifications,
+      achievements: r.achievements,
+      licenses: r.licenses,
+      publications: r.publications,
     });
   }
 
