@@ -5,7 +5,7 @@ import { createServer } from 'node:http';
 import { buildServer } from './server.js';
 import { PocketResumeClient } from './api-client.js';
 import { bearerToken } from './http-auth.js';
-import { handleOAuth, unwrapAccessToken, type OAuthConfig } from './oauth.js';
+import { handleOAuthRequest, unwrapAccessToken, type OAuthConfig } from './oauth.js';
 
 /**
  * Entry point. Two transports per the R-040 acceptance:
@@ -54,7 +54,7 @@ async function main() {
         return;
       }
       // OAuth endpoints (discovery, register, authorize, token) first.
-      if (await handleOAuth(req, res, oauthCfg)) return;
+      if (await handleOAuthRequest(req, res, oauthCfg)) return;
 
       // Multi-tenant + stateless: a fresh server/transport per request,
       // bound to the CALLER's token. No cross-user state can leak because

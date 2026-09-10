@@ -885,6 +885,19 @@ export const api = {
     clearAuthTokens();
   },
 
+  /**
+   * R-106 — mint a one-time code to paste into an assistant's authorize
+   * page, so the connector never asks for a password.
+   */
+  createConnectCode: (label?: string) =>
+    request<{ code: string; expiresAt: string; expiresInSeconds: number }>('/auth/connect-code', {
+      method: 'POST',
+      body: JSON.stringify({ label }),
+    }),
+
+  /** Disconnect every connected assistant (and every other session). */
+  revokeConnectors: () => request<{ ok: boolean }>('/auth/connectors/revoke', { method: 'POST' }),
+
   getGoogleStartUrl: () =>
     requestWithCredentials<{ url: string }>('/auth/google/start', {
       method: 'GET',

@@ -25,7 +25,7 @@
  *   MCP_PUBLIC_URL    — the public https origin of this server (the issuer)
  */
 
-import { createHmac, createHash, createCipheriv, createDecipheriv, randomBytes, timingSafeEqual } from 'node:crypto';
+import { createHmac, createHash, createCipheriv, createDecipheriv, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
 export interface OAuthConfig {
@@ -133,40 +133,110 @@ function html(res: ServerResponse, status: number, body: string): void {
   res.end(body);
 }
 
+/**
+ * R-106 — every OAuth body is a small form or a short JSON registration.
+ * This used to buffer whatever the client sent, so one request could pin
+ * arbitrary memory on a shared service.
+ */
+const MAX_BODY_BYTES = 64 * 1024;
+
+class BodyTooLarge extends Error {}
+
 async function readBody(req: IncomingMessage): Promise<string> {
   const chunks: Buffer[] = [];
-  for await (const chunk of req) chunks.push(chunk as Buffer);
+  let size = 0;
+  for await (const chunk of req) {
+    const buf = chunk as Buffer;
+    size += buf.length;
+    if (size > MAX_BODY_BYTES) throw new BodyTooLarge();
+    chunks.push(buf);
+  }
   return Buffer.concat(chunks).toString('utf8');
+}
+
+/**
+ * R-106 — a small fixed-window limiter for the OAuth paths, keyed by
+ * client IP. The authorize page redeems connect codes and the token
+ * endpoint burns authorization codes; neither should be callable as fast
+ * as a script can loop. In-memory is the right scope here: the MCP is a
+ * single service and the limiter is a speed bump, not the security
+ * boundary — single-use codes are.
+ */
+const RATE_WINDOW_MS = 60_000;
+const RATE_MAX_REQUESTS = 30;
+const rateBuckets = new Map<string, { count: number; resetAt: number }>();
+
+function rateLimited(req: IncomingMessage): boolean {
+  const forwarded = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+  const key = forwarded || req.socket?.remoteAddress || 'unknown';
+  const now = Date.now();
+  const bucket = rateBuckets.get(key);
+  if (!bucket || now > bucket.resetAt) {
+    rateBuckets.set(key, { count: 1, resetAt: now + RATE_WINDOW_MS });
+    // Opportunistic prune so the map cannot grow without bound.
+    if (rateBuckets.size > 5000) {
+      for (const [k, v] of rateBuckets) if (now > v.resetAt) rateBuckets.delete(k);
+    }
+    return false;
+  }
+  bucket.count += 1;
+  return bucket.count > RATE_MAX_REQUESTS;
+}
+
+/**
+ * Compare an RFC 8707 `resource` against our issuer. Compared on origin +
+ * path so a trailing slash or a differing query does not cause a spurious
+ * mismatch, while a different host or port does.
+ */
+function sameResource(resource: string, issuer: string): boolean {
+  try {
+    const a = new URL(resource);
+    const b = new URL(issuer);
+    return a.origin === b.origin && a.pathname.replace(/\/+$/, '') === b.pathname.replace(/\/+$/, '');
+  } catch {
+    return false;
+  }
 }
 
 function esc(s: string): string {
   return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
 }
 
-function authorizeForm(params: URLSearchParams, error = ''): string {
+/**
+ * R-106 — the authorize page asks for a one-time connect code, never a
+ * password.
+ *
+ * This page is hosted by the MCP service, not by CallbackCV. A page on a
+ * different origin asking for first-party credentials is the exact shape
+ * users are trained to distrust, and R-100's acceptance criteria already
+ * claimed the MCP layer "never handles passwords" — it had quietly stopped
+ * being true. The user now mints a 10-minute code inside the signed-in
+ * CallbackCV app and pastes it here.
+ */
+function authorizeForm(params: URLSearchParams, error = '', webBase = 'https://callbackcv.tekivex.com'): string {
   const hidden = ['client_id', 'redirect_uri', 'state', 'code_challenge', 'code_challenge_method', 'response_type']
     .map((k) => `<input type="hidden" name="${k}" value="${esc(params.get(k) || '')}">`)
     .join('\n');
   return `<!doctype html><html><head><meta charset="utf-8"><title>Connect CallbackCV</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <style>body{font-family:system-ui,sans-serif;max-width:460px;margin:48px auto;padding:0 16px;color:#1a1815}
-input[type=password],input[type=email]{width:100%;padding:10px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;margin-bottom:10px}
+input[type=text]{width:100%;padding:10px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;margin-bottom:10px;font-family:ui-monospace,monospace}
 button{margin-top:8px;padding:10px 18px;background:#4f46e5;color:#fff;border:0;border-radius:6px;font-weight:600;cursor:pointer}
 .err{color:#a8412c}.muted{color:#6b6560;font-size:13px}
-details{margin-top:22px}summary{cursor:pointer;color:#4f46e5;font-size:14px}</style></head><body>
+ol{padding-left:20px;font-size:14px;line-height:1.7}a{color:#4f46e5}</style></head><body>
 <h1>Connect CallbackCV</h1>
-<p>Your AI assistant is asking to use your CallbackCV account (resumes, tailoring, job tracking — only what you can do yourself).</p>
+<p>Your AI assistant is asking to use your CallbackCV account — resumes, tailoring and job tracking, only what you can do yourself.</p>
 ${error ? `<p class="err">${esc(error)}</p>` : ''}
 <form method="POST">
 ${hidden}
-<label for="email"><strong>Sign in to allow access</strong></label>
-<p class="muted">Your credentials go directly to the CallbackCV API over HTTPS and are never stored here.</p>
-<input type="email" id="email" name="email" placeholder="Email" autocomplete="username">
-<input type="password" id="password" name="password" placeholder="Password" autocomplete="current-password">
-<details>
-<summary>Signed up with LinkedIn / no password? Use a token instead</summary>
-<p class="muted">Sign in to CallbackCV → <strong>Settings → API access</strong> → Copy token, then paste it here. It is verified and never shown to the assistant.</p>
-<input type="password" id="token" name="token" placeholder="Paste your token">
-</details>
+<label for="code"><strong>Paste your connect code</strong></label>
+<ol>
+<li>Open <a href="${esc(webBase)}/settings" target="_blank" rel="noopener">CallbackCV → Settings → API access</a></li>
+<li>Click <strong>Connect an assistant</strong></li>
+<li>Copy the code and paste it below — it is valid for 10 minutes and works once</li>
+</ol>
+<input type="text" id="code" name="code" placeholder="Connect code" autocomplete="off" spellcheck="false" autofocus>
+<p class="muted">We never ask for your password here. This page is hosted by the CallbackCV connector, not by CallbackCV itself — no page outside callbackcv.tekivex.com should ever ask you for your CallbackCV password.</p>
 <button type="submit">Allow access</button>
 </form></body></html>`;
 }
@@ -184,6 +254,14 @@ export async function handleOAuth(req: IncomingMessage, res: ServerResponse, cfg
   if (!oauthPath) return false;
   if (!cfg) {
     json(res, 404, { error: 'oauth_disabled', message: 'Set MCP_OAUTH_SECRET and MCP_PUBLIC_URL to enable OAuth.' });
+    return true;
+  }
+
+  // R-106 — throttle the write paths. Discovery is cacheable and harmless.
+  const writePath = path === '/oauth/register' || path === '/oauth/authorize' || path === '/oauth/token';
+  if (writePath && rateLimited(req)) {
+    res.writeHead(429, { 'content-type': 'application/json', 'retry-after': '60' });
+    res.end(JSON.stringify({ error: 'slow_down' }));
     return true;
   }
 
@@ -253,51 +331,43 @@ export async function handleOAuth(req: IncomingMessage, res: ServerResponse, cfg
       return true;
     }
     const api = cfg.apiBaseUrl.replace(/\/+$/, '');
-    const email = (params.get('email') || '').trim();
-    const password = params.get('password') || '';
-    let token = (params.get('token') || '').trim();
+    const connectCode = (params.get('code') || '').trim();
+    let token = '';
 
-    if (!token && email && password) {
-      // Primary path: real sign-in. The credentials go straight to the
-      // first-party CallbackCV API and are never stored or logged here; we
-      // keep only the short-lived access token (deliberately NOT the
-      // refresh token — when it expires the user simply reconnects).
-      try {
-        const login = await fetch(`${api}/auth/login`, {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ email, password }),
-        });
-        if (login.ok) {
-          const data = (await login.json()) as { accessToken?: string };
-          token = String(data.accessToken || '');
-        }
-      } catch {
-        token = '';
-      }
-      if (!token) {
-        html(res, 200, authorizeForm(params, 'Sign-in failed — check your email and password, or use a token instead.'));
-        return true;
-      }
-    } else if (token) {
-      // Fallback path: pasted Settings → API access token. Verify it
-      // against the API before issuing a code.
-      let valid = false;
-      try {
-        const check = await fetch(`${api}/resumes`, { headers: { authorization: `Bearer ${token}` } });
-        valid = check.ok;
-      } catch {
-        valid = false;
-      }
-      if (!valid) {
-        html(res, 200, authorizeForm(params, 'That token was rejected by CallbackCV — copy a fresh one from Settings → API access.'));
-        return true;
-      }
-    } else {
-      html(res, 200, authorizeForm(params, 'Enter your email and password, or paste a token.'));
+    if (!connectCode) {
+      html(res, 200, authorizeForm(params, 'Paste the connect code from CallbackCV → Settings → API access.'));
       return true;
     }
-    const code = seal(cfg.secret, { t: token, c: challenge, i: clientId, r: redirectUri, e: Date.now() + CODE_TTL_MS });
+    // Redeem it against the first-party API. A code is single-use and
+    // expires in 10 minutes, so a code left in a chat log or on a shared
+    // screen stops being useful quickly — unlike a password.
+    try {
+      const redeemed = await fetch(`${api}/auth/connect-code/redeem`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ code: connectCode }),
+      });
+      if (redeemed.ok) {
+        const data = (await redeemed.json()) as { accessToken?: string };
+        token = String(data.accessToken || '');
+      }
+    } catch {
+      token = '';
+    }
+    if (!token) {
+      html(res, 200, authorizeForm(params, 'That connect code is invalid, already used, or expired. Generate a fresh one in CallbackCV → Settings → API access.'));
+      return true;
+    }
+    // `j` is the code's unique id. Token exchange burns it against the API,
+    // which is what makes a replayed code fail (R-106).
+    const code = seal(cfg.secret, {
+      t: token,
+      c: challenge,
+      i: clientId,
+      r: redirectUri,
+      j: randomUUID(),
+      e: Date.now() + CODE_TTL_MS,
+    });
     const dest = new URL(redirectUri);
     dest.searchParams.set('code', code);
     const state = params.get('state');
@@ -315,19 +385,63 @@ export async function handleOAuth(req: IncomingMessage, res: ServerResponse, cfg
     }
     const payload = unseal(cfg.secret, params.get('code') || '');
     const verifier = params.get('code_verifier') || '';
+    const redirectUri = params.get('redirect_uri') || '';
+    const clientId = params.get('client_id') || '';
+    // R-106: client_id and redirect_uri are REQUIRED and compared
+    // unconditionally. They used to be checked only `if present`, so
+    // omitting a parameter skipped the very binding it was there to
+    // enforce — a client could exchange a code minted for another client.
+    // Expiry is likewise mandatory rather than checked only when it
+    // happened to be a number.
     if (
       !payload ||
       typeof payload.t !== 'string' ||
       typeof payload.c !== 'string' ||
-      (typeof payload.e === 'number' && Date.now() > payload.e) ||
-      (params.get('redirect_uri') && params.get('redirect_uri') !== payload.r) ||
-      (params.get('client_id') && params.get('client_id') !== payload.i) ||
+      typeof payload.j !== 'string' ||
+      typeof payload.e !== 'number' ||
+      Date.now() > payload.e ||
+      !redirectUri ||
+      redirectUri !== payload.r ||
+      !clientId ||
+      clientId !== payload.i ||
       !verifier ||
       !verifyPkce(verifier, payload.c)
     ) {
       json(res, 400, { error: 'invalid_grant' });
       return true;
     }
+
+    // R-106: the MCP resource/audience, when the client sends one, must be
+    // this server. Per the MCP authorization spec a token minted for one
+    // resource must not be usable at another.
+    const resource = params.get('resource');
+    if (resource && !sameResource(resource, cfg.issuer)) {
+      json(res, 400, { error: 'invalid_target', error_description: 'resource does not match this MCP server' });
+      return true;
+    }
+
+    // R-106: spend the code exactly once. Codes are stateless sealed blobs,
+    // so without this the same code + verifier could be exchanged
+    // repeatedly until its 10-minute TTL expired. The API keys the spend
+    // record on jti and rejects a duplicate insert, which also settles the
+    // concurrent case — two simultaneous exchanges cannot both win.
+    try {
+      const spend = await fetch(`${cfg.apiBaseUrl.replace(/\/+$/, '')}/auth/oauth/consume-code`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${payload.t}` },
+        body: JSON.stringify({ jti: payload.j, expiresAt: new Date(payload.e).toISOString() }),
+      });
+      if (!spend.ok) {
+        json(res, 400, { error: 'invalid_grant', error_description: 'authorization code already used' });
+        return true;
+      }
+    } catch {
+      // Fail closed: if we cannot prove the code is unspent, do not mint a
+      // token. An outage must not silently re-enable replay.
+      json(res, 503, { error: 'temporarily_unavailable' });
+      return true;
+    }
+
     json(res, 200, {
       access_token: wrapAccessToken(cfg.secret, payload.t),
       token_type: 'Bearer',
@@ -339,4 +453,24 @@ export async function handleOAuth(req: IncomingMessage, res: ServerResponse, cfg
 
   json(res, 404, { error: 'not_found' });
   return true;
+}
+
+/**
+ * Wraps handleOAuth so an oversized body becomes a 413 instead of an
+ * unhandled rejection that would take down the request (R-106).
+ */
+export async function handleOAuthRequest(
+  req: IncomingMessage,
+  res: ServerResponse,
+  cfg: OAuthConfig | null,
+): Promise<boolean> {
+  try {
+    return await handleOAuth(req, res, cfg);
+  } catch (err) {
+    if (err instanceof BodyTooLarge) {
+      json(res, 413, { error: 'invalid_request', error_description: 'request body too large' });
+      return true;
+    }
+    throw err;
+  }
 }

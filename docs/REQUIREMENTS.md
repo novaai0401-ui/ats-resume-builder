@@ -1784,9 +1784,18 @@ and every external call still feeds the Outcome Graph.
     encrypted wrapper (`cbcv.…`) around the user's CallbackCV token — the
     raw JWT is never handed to the connector. Rotating `MCP_OAUTH_SECRET`
     revokes everything at once.
+    - **AMENDED by R-106 (2026-09-10):** "no database" was the defect, not
+      the feature. A stateless code cannot be marked spent, so the same
+      code could be exchanged repeatedly inside its TTL. Codes now carry a
+      `jti` burned against the API on exchange.
   - [x] The authorize page asks the user to paste their Settings → API
     access token and validates it live against the API — the MCP layer
     never handles passwords (trust layer intact).
+    - **DRIFTED, then restored by R-106 (2026-09-10):** by `168065c` this
+      page had grown an email + password form posting to `/auth/login`, so
+      the sentence above had quietly stopped being true. It now asks for a
+      one-time connect code minted in the signed-in web app, and the suite
+      asserts no password or email field exists on that page.
   - [x] Opt-in via `MCP_OAUTH_SECRET` + `MCP_PUBLIC_URL`; when unset the
     OAuth paths 404 and plain Bearer auth is unchanged. Wrapped, expired,
     or wrong-secret tokens are refused (forces re-auth); raw bearers still
@@ -1975,7 +1984,7 @@ ChatGPT/Claude account as CallbackCV's identity. See §7.
 
 ### R-106 · Connector grants are single-use, revocable, and password-free
 
-- Status: **PLANNED**
+- Status: **DONE** (this commit) — migration written, NOT applied
 - Depends-on: R-104
 - Source: review at `168065c`, two findings that compound.
   (a) `oauth.ts` `/oauth/token` unseals a stateless authorization code
@@ -1995,27 +2004,35 @@ ChatGPT/Claude account as CallbackCV's identity. See §7.
   a third-party-hosted page collecting first-party passwords is the exact
   shape users are taught to distrust.
 - Acceptance
-  - [ ] Authorization codes are single-use. Second exchange of the same
+  - [x] Authorization codes are single-use. Second exchange of the same
     code returns `invalid_grant`. (Stateless sealing cannot express
     "spent", so this needs a store — a small `OAuthCode` table or the
     existing API — and R-100's "no database" claim is amended here, not
     quietly.)
-  - [ ] `client_id` and `redirect_uri` are REQUIRED and compared
+  - [x] `client_id` and `redirect_uri` are REQUIRED and compared
     unconditionally; a request omitting either is rejected.
-  - [ ] The MCP resource/audience is validated per the MCP authorization
+  - [x] The MCP resource/audience is validated per the MCP authorization
     spec (2025-06-18).
-  - [ ] Access grants are revocable: a `tokenVersion` on the user (or a
+  - [x] Access grants are revocable: a `tokenVersion` on the user (or a
     session/grant record) is checked in `JwtStrategy.validate()`, and
     logout plus an explicit "disconnect this assistant" control bump it.
     Revoking is visible in Settings and takes effect on the next request.
-  - [ ] The authorize page stops collecting passwords. Sign-in is by a
+  - [x] The authorize page stops collecting passwords. Sign-in is by a
     one-time connect code minted in the web app (where the user is
     already authenticated) or a pasted API token — restoring R-100's
     stated trust boundary.
-  - [ ] Request body size limits and rate limiting on `/oauth/*`.
-  - [ ] Privacy and settings copy match the implemented behaviour before
+  - [x] Request body size limits (64 KiB, 413 on overflow — `readBody` used
+    to buffer whatever was sent) and a fixed-window rate limit on the
+    `/oauth/*` write paths.
+  - [x] Migration `20260910120000_add_connector_revocation` is additive
+    (one defaulted column, two new tables) and is committed but NOT
+    applied — this session has no database. Run it on a copy first.
+  - [x] Deploy note: tokens minted before this carry no `tv` and count as
+    version 0, so applying the migration does not sign the userbase out.
+    The first logout after deploy retires them.
+  - [x] Privacy and settings copy match the implemented behaviour before
     merge, not after (C-003).
-  - [ ] Pinning tests: replayed code rejected; missing `client_id`
+  - [x] Pinning tests: replayed code rejected; missing `client_id`
     rejected; token minted before a revocation bump is refused after it.
 
 ---
