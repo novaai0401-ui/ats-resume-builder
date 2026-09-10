@@ -11,10 +11,16 @@ import {
 import { TkxButton } from 'tekivex-ui';
 
 /**
- * One-time training-data notice. Shown to every authenticated user the
- * first time they land in the app after consent v1 ships. Patterns-only
- * + default-on; the user can opt out from the same modal or later from
- * Account Settings.
+ * One-time training-data ASK. Shown to every authenticated user the first
+ * time they land in the app after consent v1 ships.
+ *
+ * R-112 — this used to be a notice about participation that had already
+ * started: consent defaulted to true, so "Got it" simply acknowledged
+ * being enrolled. /privacy promised the opposite ("we do not use your
+ * resume to train AI unless you explicitly opt in"), so the modal is now
+ * a real question with a real default. Dismissing it leaves training OFF;
+ * only the affirmative button opts in, and that is what stamps
+ * trainingConsentAt — the record capture requires.
  *
  * Styling note: the app does NOT use Tailwind — it ships its own CSS in
  * globals.css. This component therefore uses self-contained inline styles
@@ -63,6 +69,10 @@ export default function TrainingConsentModal() {
 
   if (!state) return null;
 
+  /**
+   * Dismiss without opting in. Training stays off — that is the default
+   * now, so dismissing the ask costs the user nothing.
+   */
   const close = async () => {
     setBusy(true);
     try {
@@ -73,10 +83,11 @@ export default function TrainingConsentModal() {
     }
   };
 
-  const optOut = async () => {
+  /** The only path that turns training on, and it stamps the consent time. */
+  const optIn = async () => {
     setBusy(true);
     try {
-      await setTrainingConsent(false);
+      await setTrainingConsent(true);
       await acknowledgeTrainingNotice();
     } finally {
       setState(null);
@@ -94,6 +105,7 @@ export default function TrainingConsentModal() {
       onClick={(e) => {
         // Clicking the dim backdrop acknowledges (same as "Got it") so the
         // user is never trapped — but it does NOT opt them out silently.
+        // Dismissing never opts the user in — training stays off (R-112).
         if (e.target === e.currentTarget && !busy) void close();
       }}
     >
@@ -112,25 +124,25 @@ export default function TrainingConsentModal() {
         <ul style={bulletListStyle}>
           <li style={bulletItemStyle}>We learn from <strong>patterns and structure</strong> only.</li>
           <li style={bulletItemStyle}>Names, emails, phone numbers and links are <strong>stripped before saving</strong>.</li>
-          <li style={bulletItemStyle}>Opt out anytime, or delete every sample with one click.</li>
+          <li style={bulletItemStyle}>Off unless you turn it on here. Change your mind anytime, or delete every sample with one click.</li>
         </ul>
 
         <div style={buttonRowStyle}>
           <TkxButton
             type="button"
-            onClick={optOut}
+            onClick={close}
             disabled={busy}
             style={{ ...secondaryButtonStyle, ...(busy ? disabledStyle : null) }}
           >
-            Opt out
+            No thanks
           </TkxButton>
           <TkxButton
             type="button"
-            onClick={close}
+            onClick={optIn}
             disabled={busy}
             style={{ ...primaryButtonStyle, ...(busy ? disabledStyle : null) }}
           >
-            Got it
+            Yes, use my patterns
           </TkxButton>
         </div>
 

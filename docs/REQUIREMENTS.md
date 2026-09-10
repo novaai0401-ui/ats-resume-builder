@@ -2039,7 +2039,7 @@ ChatGPT/Claude account as CallbackCV's identity. See §7.
 
 ### R-112 · Training data is opt-in in fact, not only in copy
 
-- Status: **PLANNED**
+- Status: **DONE** (this commit) — migration written, NOT applied
 - Depends-on: R-104
 - Note: numbered after R-111 because IDs are never reused (§8), but it is
   placed here because it ships with R-106 — both are trust-layer fixes and
@@ -2056,20 +2056,31 @@ ChatGPT/Claude account as CallbackCV's identity. See §7.
   phones, numbers and URLs but not names, so a captured sample can retain
   the candidate's name.
 - Acceptance
-  - [ ] `trainingConsent` defaults to FALSE, with a migration for existing
+  - [x] `trainingConsent` defaults to FALSE, with a migration for existing
     rows (see the owner decision below).
-  - [ ] Capture requires an affirmative record — `trainingConsent === true`
+  - [x] Capture requires an affirmative record — `trainingConsent === true`
     AND a non-null `trainingConsentAt` at the current `CONSENT_VERSION` —
     not merely a truthy flag.
-  - [ ] The settings UI stops describing participation as default-on.
-  - [ ] Redaction covers personal names, and is pinned by a test using a
+  - [x] The settings UI stops describing participation as default-on.
+  - [x] Redaction covers personal names, and is pinned by a test using a
     synthetic name that must not survive the redactor. Ship the redaction
     the privacy page promises, or narrow the promise (C-003).
-  - [ ] Founder decision required on samples already captured under the
-    default-true flag: purge, or re-consent before further use. This is
-    the owner's call and is recorded in §7 when made — it is not a
-    developer default.
-  - [ ] Pinning test: a user who has never touched the setting produces
+  - [x] Founder decision (2026-09-10): HOLD, do not purge. Samples
+    captured without a recorded opt-in get `consentHold = true` —
+    excluded from exports AND from the corpus loader that actually
+    trains, but not destroyed, so re-consent can clear the flag.
+  - [x] Consent notice bumped to v2. v1 opened with "You are opted in by
+    default", the exact sentence /privacy contradicted; the modal's
+    "Opt out / Got it" became "No thanks / Yes, use my patterns", and
+    dismissing it now leaves training off.
+  - [x] Redaction ordering bug caught by the new tests and fixed: names
+    substituted before the email pattern ran turned
+    `priya.sharma@example.com` into `<NAME>.<NAME>@example.com`, which no
+    longer matched — leaking the domain. Structured patterns run first.
+  - [x] Scope limit stated honestly: this is redaction, not
+    anonymisation. Third-party names in prose (a manager, a co-author)
+    are not detected without real NER, so no surface claims they are.
+  - [x] Pinning test: a user who has never touched the setting produces
     NO captured sample. This test fails on the current code.
 
 ---
@@ -2295,6 +2306,7 @@ do not break it.
 
 | Date | Decision | Reason | Affected IDs |
 |---|---|---|---|
+| 2026-09-10 | **Training samples captured under the default-true flag are HELD, not purged** (R-112): every sample whose user has no recorded `trainingConsentAt` gets `consentHold = true`, which excludes it from admin exports and from the corpus loader that actually trains the model. Nothing is deleted — re-consent clears the flag. Users who explicitly toggled training ON in Settings (the only path that stamps `trainingConsentAt`) keep their samples and stay opted in. | Founder chose hold over purge: purging is irreversible and discards data from users who would have said yes, while continuing to use it would mean training on data gathered under a promise the code did not keep. Holding is the only reversible option that stops the harm now. | R-112, C-003 |
 | 2026-09-10 | **Assistant-account sign-in dropped.** CallbackCV will NOT authenticate users via their ChatGPT or Claude account. In MCP OAuth, CallbackCV is the authorization SERVER and the assistant is the client — the client never asserts who the user is, so "sign in with ChatGPT" is not something the protocol can express, and neither vendor offers OIDC as an identity provider. A CallbackCV account stays required. What R-106 removes instead is PASSWORD entry on the connector page: a one-time connect code minted in the web app replaces it. | Founder asked whether the assistant's user details could carry authentication; reviewed against the MCP authorization spec and both vendors' connector docs — the answer is no, so the idea is closed rather than left as a maybe. | R-106, R-100, R-096 |
 | 2026-09-10 | Connector work re-scoped from "add more AI features" to "make the shipped surface true" (new §5b, R-104…R-111). A code review at `168065c` found the ATS simulator scoring every resume with no work history (reading a `sections` field the Prisma model does not have), authorization codes replayable within their TTL, access tokens surviving logout while `/privacy` promises otherwise, training capture defaulting to on against an "explicit opt-in" promise, the tailored version unreachable from the download link that attributes outcomes to it, rejections counted as replies when ranking the "best" resume, and `llms.txt` telling assistants every template is single-column while the catalogue ships sidebar layouts. Distribution (R-111) is sequenced LAST, behind the correctness and trust fixes. | Four of these are C-003 violations (copy the code does not deliver) and one breaks the C-007 attribution link, so by this file's own definition they are bugs, not backlog. Submitting a connector with known wrong output spends a review cycle on defects we could have fixed first. | R-104, R-105, R-106, R-107, R-108, R-109, R-110, R-111, R-112, C-001, C-002, C-003, C-007 |
 | 2026-08-01 | Free AI re-scoped from per-run to per-RESUME (R-103, supersedes the R-098 metering for resume work): a free user now gets every AI feature UNLIMITED on the first resume they use AI on, and the plan is asked for only when they point those same buttons at a second resume. Bullet rewrite leaves the metered catalogue entirely — it is how a resume gets written, not a feature you sample. Standalone tools with no resume context (mentor, mock interview, skill demand, LinkedIn, recruiter sim) keep one free run each. | Founder: metering per run meant the free run was spent on bullet #1 and the user could never finish a resume — "for one resume we will allow to use AI feature fully, and when user wanted to use same rewrite feature [on another resume] then we will ask for subscription". | R-103, R-098, R-086, C-003, C-004 |

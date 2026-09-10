@@ -32,7 +32,7 @@ export interface CaptureConfirmationInput {
   resumePayload: Parameters<typeof buildStructuredLabel>[0];
 }
 
-const CONSENT_VERSION = 1;
+const CONSENT_VERSION = 2;
 
 /**
  * The exact text the user is shown when training participation is
@@ -41,15 +41,18 @@ const CONSENT_VERSION = 1;
  * this string in the same commit.
  */
 export const TRAINING_CONSENT_NOTICE = {
-  version: 1,
-  title: 'Help improve resume parsing',
+  // R-112 — v2. v1 said "You are opted in by default", which is the exact
+  // sentence /privacy contradicted. The text changed materially, so the
+  // version bumps with it: a consent recorded against v1 was agreement to
+  // different words.
+  version: 2,
+  title: 'Help improve resume parsing?',
   body:
-    'You are opted in by default to help improve our resume parser. ' +
-    'We only learn from PATTERNS and structure — never your personal ' +
-    'details. Names, emails, phone numbers, and links are stripped ' +
-    'before anything is saved for training. You can opt out any time ' +
-    'in Account Settings, or delete every sample we have from your ' +
-    'account with one click.',
+    'Training is OFF unless you turn it on. If you opt in, we learn from ' +
+    'PATTERNS and structure only — never your personal details. Names, ' +
+    'emails, phone numbers, and links are stripped before anything is ' +
+    'saved. You can change your mind any time in Account Settings, or ' +
+    'delete every sample we have from your account with one click.',
 } as const;
 
 @Injectable()
@@ -74,7 +77,7 @@ export class TrainingDatasetService {
       },
     });
     return {
-      enabled: u?.trainingConsent ?? true,
+      enabled: u?.trainingConsent ?? false,
       version: u?.trainingConsentVersion ?? CONSENT_VERSION,
       noticeSeen: u?.trainingConsentNoticeSeen ?? false,
       acceptedAt: u?.trainingConsentAt ?? null,
@@ -116,9 +119,13 @@ export class TrainingDatasetService {
   async captureUpload(input: CaptureUploadInput): Promise<{ id: string } | null> {
     const user = await this.prisma.user.findUnique({
       where: { id: input.userId },
-      select: { trainingConsent: true, trainingConsentVersion: true },
+      select: { trainingConsent: true, trainingConsentVersion: true, trainingConsentAt: true, fullName: true },
     });
-    if (!user?.trainingConsent) return null;
+    // R-112 — a truthy flag is not consent. The column defaulted to true,
+    // so this check enrolled everyone who never opened the setting, while
+    // /privacy promised capture only after an explicit opt-in. Capture now
+    // requires the flag AND the timestamp the settings toggle stamps.
+    if (!hasAffirmativeConsent(user)) return null;
 
     const id = newId();
     const splitGroup: SplitGroup = assignSplit(id, input.sourceFileType);
@@ -129,7 +136,7 @@ export class TrainingDatasetService {
           userId: input.userId,
           sourceFileType: input.sourceFileType,
           sourceFileBytes: input.sourceFileBytes,
-          redactedText: redactPII(input.rawText),
+          redactedText: redactPII(input.rawText, { knownNames: [user.fullName || ''] }),
           layoutHints: (input.layoutHints ?? null) as Prisma.InputJsonValue | undefined,
           status: 'pending',
           splitGroup,
@@ -152,9 +159,9 @@ export class TrainingDatasetService {
   async captureConfirmation(input: CaptureConfirmationInput): Promise<void> {
     const user = await this.prisma.user.findUnique({
       where: { id: input.userId },
-      select: { trainingConsent: true },
+      select: { trainingConsent: true, trainingConsentAt: true },
     });
-    if (!user?.trainingConsent) return;
+    if (!hasAffirmativeConsent(user)) return;
 
     const label = buildStructuredLabel(input.resumePayload);
     if (!isLabelHighEnoughQuality(label)) return;
@@ -205,7 +212,10 @@ export class TrainingDatasetService {
    */
   async exportLabeledJsonl(maxRows = 10_000): Promise<string> {
     const rows = await this.prisma.trainingSample.findMany({
-      where: { status: 'labeled' },
+      // R-112 — samples captured before consent became a recorded,
+      // affirmative choice are held out of every export until the owner
+      // decides to purge or re-consent them.
+      where: { status: 'labeled', consentHold: false },
       orderBy: { createdAt: 'asc' },
       take: maxRows,
       select: {
@@ -257,4 +267,20 @@ export class TrainingDatasetService {
 
 function newId(): string {
   return `ts_${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`;
+}
+
+/**
+ * R-112 — consent is the flag AND a recorded moment. `trainingConsent`
+ * defaulted to true, so treating the boolean alone as permission enrolled
+ * every user who never touched the setting. `trainingConsentAt` is stamped
+ * only by the settings toggle, which makes it the record of an actual
+ * decision.
+ *
+ * Exported so tests and any future capture path share one definition
+ * rather than re-deriving the rule and getting it subtly wrong.
+ */
+export function hasAffirmativeConsent<T extends { trainingConsent?: boolean | null; trainingConsentAt?: Date | null }>(
+  user: T | null | undefined,
+): user is T {
+  return Boolean(user?.trainingConsent && user?.trainingConsentAt);
 }

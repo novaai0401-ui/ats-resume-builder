@@ -78,7 +78,12 @@ model User {
   /// logout and by disconnecting an assistant.
   tokenVersion Int @default(0)
   connectCodes ConnectCode[]
-  trainingConsent Boolean @default(true)
+  /// R-112 — defaults to FALSE. It used to default to true while /privacy
+  /// promised "we do not use your resume to train AI unless you explicitly
+  /// opt in", so participation was on for everyone who never opened the
+  /// setting. Capture additionally requires trainingConsentAt to be set:
+  /// a truthy flag is not a recorded decision.
+  trainingConsent Boolean @default(false)
   trainingConsentAt DateTime?
   /// Which version of the consent copy the user agreed to. Bumped whenever
   /// the wording of the consent surface materially changes so we can prove
@@ -685,6 +690,11 @@ model TrainingSample {
   splitGroup          String   @default("train")
   /// Which consent version applies to this row.
   consentVersion      Int      @default(1)
+  /// R-112 — captured before consent was made a recorded, affirmative
+  /// choice. Held out of every export and training run until the owner
+  /// decides to purge or re-consent. Reversible by design: the row is
+  /// flagged, never destroyed, so re-consent can clear it.
+  consentHold         Boolean  @default(false)
   /// Free-form admin notes for label review.
   notes               String?
   labeledAt           DateTime?
@@ -695,6 +705,7 @@ model TrainingSample {
   @@index([status, splitGroup])
   @@index([userId, createdAt])
   @@index([sourceFileType])
+  @@index([consentHold])
 }
 
 /// Phase 8 — ModelEvaluation. Snapshot of one model version's metrics
