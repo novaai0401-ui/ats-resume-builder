@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Delete, Get, HttpCode, NotFoundException, Param, Patch, Post, Query, Req, Res, UploadedFile, UseFilters, UseGuards, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, HttpCode, NotFoundException, Param, Patch, Post, Query, Req, Res, UploadedFile, UseFilters, UseGuards, UseInterceptors, Optional } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ResumeService } from './resume.service';
@@ -46,7 +46,14 @@ export class ResumeController {
     private readonly versionsService: ResumeVersionsService,
     private readonly outcomesService: OutcomesService,
     private readonly outcomeShareService: OutcomeShareService,
-    private readonly analytics: AnalyticsService,
+    /**
+     * R-110 — @Optional because analytics is best-effort: a missing sink
+     * must never stop a resume from exporting, and test modules that
+     * build this controller should not have to wire the whole analytics
+     * module to exercise resume routes. Injecting it as required broke
+     * 24 existing tests for a counter.
+     */
+    @Optional() private readonly analytics?: AnalyticsService,
   ) {}
 
   @Get(':id/outcomes')
@@ -254,7 +261,7 @@ export class ResumeController {
     // R-110 — the conversion that matters. Tracked AFTER a successful
     // render so a failed export never counts as one, and recording
     // whether the user exported a tailored version or the live resume.
-    this.analytics.track(
+    this.analytics?.track(
       {
         type: 'resume_exported',
         path: '/resumes/:id/pdf',
@@ -286,7 +293,7 @@ export class ResumeController {
     }
     const buffer = await this.resumeService.generateDocx(req.user.userId, id, versionId);
     const filename = await this.resumeService.buildExportFileName(req.user.userId, id, 'docx');
-    this.analytics.track(
+    this.analytics?.track(
       {
         type: 'resume_exported',
         path: '/resumes/:id/docx',
