@@ -19,6 +19,10 @@ export interface JobApplicationRow {
   resumeVersionId?: string | null;
   status: string;
   createdAt: Date | string;
+  /** R-109 — when the user actually applied, so a rate has a window. */
+  appliedAt?: Date | string | null;
+  /** R-109 — self-reported | email-inferred | verified. Null = self-reported. */
+  outcomeSource?: string | null;
 }
 
 export interface VersionMeta {
@@ -34,12 +38,26 @@ export interface VersionStats {
   label: string;
   createdAt: string;
   applied: number;
-  responses: number;        // any status that progressed past "applied"
+  /** Any reply at all, INCLUDING a rejection. */
+  responses: number;
+  /** Explicit rejections. Broken out because a reply is not a result. */
+  rejections: number;
+  /**
+   * R-109 — replies that went the user's way: phone_screen | interview |
+   * offer. This is the number that should decide which resume to reuse.
+   * `responses` counts rejections as replies, which is defensible for an
+   * "did anyone answer" metric and useless for "which resume works".
+   */
+  positiveCallbacks: number;
   interviews: number;       // phone_screen | interview | offer
   offers: number;
-  responseRate: number;     // 0..1
+  responseRate: number;     // 0..1, rejections included
+  positiveCallbackRate: number; // 0..1, rejections excluded
   interviewRate: number;    // 0..1
   offerRate: number;        // 0..1
+  /** Observation window for these applications, so a rate has a period. */
+  firstAppliedAt: string | null;
+  lastAppliedAt: string | null;
   /** ATS score snapshot for this version, if captured. */
   atsScore: number | null;
   /** True when applied >= MIN_SAMPLE; below this, rates are noise. */
@@ -54,10 +72,15 @@ export interface VersionStats {
  */
 export interface OverallStats {
   applied: number;
+  /** Any reply, rejections included. */
   responses: number;
+  rejections: number;
+  /** Replies that were not rejections — the hero metric. */
+  positiveCallbacks: number;
   interviews: number;
   offers: number;
-  callbackRate: number;     // responses / applied, 0..1 — the hero metric
+  callbackRate: number;     // positiveCallbacks / applied, 0..1 — the hero metric
+  replyRate: number;        // responses / applied, rejections included
   interviewRate: number;
   offerRate: number;
   significant: boolean;
@@ -97,6 +120,16 @@ export interface OutcomeReport {
   };
   /** Applications with no version attribution. Surfaced so user knows to backfill. */
   unattributed: number;
+  /**
+   * R-109 — how the outcomes behind these numbers were established.
+   * Shown so a reader can weigh them: almost everything here is the user
+   * telling us what happened, which is useful and is not proof.
+   */
+  provenance: {
+    selfReported: number;
+    emailInferred: number;
+    verified: number;
+  };
 }
 
 export const MIN_SAMPLE_SIZE = 5;
@@ -139,11 +172,35 @@ export function computeOutcomeReport(
   // just the slice they remembered to attribute.
   const overall = buildOverallStats(applications);
 
+  // R-109 — count provenance across the same rows the rates are built
+  // from. Null predates the column and is self-reported by definition.
+  const provenance = { selfReported: 0, emailInferred: 0, verified: 0 };
+  for (const app of applications) {
+    if (app.status === 'wishlist') continue;
+    if (app.outcomeSource === 'verified') provenance.verified += 1;
+    else if (app.outcomeSource === 'email-inferred') provenance.emailInferred += 1;
+    else provenance.selfReported += 1;
+  }
+
   versionStats.sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
 
   const significant = versionStats.filter((v) => v.significant);
+  // R-109 — rank on POSITIVE callbacks, not on any-reply.
+  //
+  // This used to sort by responseRate, which counts rejections as
+  // replies: a version with five rejections outranked one with an
+  // interview and four still pending, and the product then told the user
+  // to reuse the version that was getting them rejected. Ties break on
+  // offers, then interviews, then any-reply — a real result outranks a
+  // conversation.
   const top = significant.length > 0
-    ? [...significant].sort((a, b) => b.responseRate - a.responseRate)[0]
+    ? [...significant].sort(
+        (a, b) =>
+          b.positiveCallbackRate - a.positiveCallbackRate ||
+          b.offerRate - a.offerRate ||
+          b.interviewRate - a.interviewRate ||
+          b.responseRate - a.responseRate,
+      )[0]
     : null;
   const baseline = significant.length >= 2
     ? [...significant].sort((a, b) => +new Date(a.createdAt) - +new Date(b.createdAt))[0]
@@ -153,21 +210,31 @@ export function computeOutcomeReport(
   let deltaPoints: number | null = null;
   let headline = 'Not enough data yet — log applications against each version to compare.';
   if (top && baseline && top.versionId !== baseline.versionId) {
-    deltaPoints = (top.responseRate - baseline.responseRate) * 100;
-    if (baseline.responseRate > 0) {
-      multiplier = top.responseRate / baseline.responseRate;
+    // Compared on positive callbacks, and stated with the denominators —
+    // "2.4× more replies" off 5 applications reads like proof and is not.
+    deltaPoints = (top.positiveCallbackRate - baseline.positiveCallbackRate) * 100;
+    if (baseline.positiveCallbackRate > 0) {
+      multiplier = top.positiveCallbackRate / baseline.positiveCallbackRate;
     }
     const baselineLabel = baseline.label || 'baseline';
     const topLabel = top.label || 'top version';
-    if (multiplier && multiplier >= 1.1) {
-      headline = `${topLabel} got ${multiplier.toFixed(1)}× more replies than ${baselineLabel} (${deltaPoints.toFixed(0)}pp).`;
-    } else if (multiplier && multiplier <= 0.9) {
-      headline = `${topLabel} is underperforming ${baselineLabel} by ${(1 / multiplier).toFixed(1)}×.`;
+    const counts = `${top.positiveCallbacks}/${top.applied} vs ${baseline.positiveCallbacks}/${baseline.applied}`;
+    // Judge on percentage points, not on the multiplier. A baseline of
+    // zero callbacks makes the ratio undefined, and the previous shape
+    // (`multiplier && multiplier >= 1.1`) fell through to "within noise"
+    // for 3/5 vs 0/5 — the single most decisive comparison the product
+    // can show, reported as no difference.
+    const MEANINGFUL_PP = 10;
+    if (deltaPoints >= MEANINGFUL_PP) {
+      const ratio = multiplier ? `${multiplier.toFixed(1)}× more callbacks` : 'callbacks where the other got none';
+      headline = `${topLabel} got ${ratio} than ${baselineLabel} (${counts}). Small samples move around — treat this as a hint, not proof.`;
+    } else if (deltaPoints <= -MEANINGFUL_PP) {
+      headline = `${topLabel} is getting fewer callbacks than ${baselineLabel} (${counts}).`;
     } else {
-      headline = `${topLabel} and ${baselineLabel} perform within noise of each other.`;
+      headline = `${topLabel} and ${baselineLabel} are within noise of each other (${counts}).`;
     }
   } else if (top && !baseline) {
-    headline = `${top.label || 'Top version'} responds at ${(top.responseRate * 100).toFixed(0)}%. Need a second version with ≥${MIN_SAMPLE_SIZE} applications to compare.`;
+    headline = `${top.label || 'Top version'}: ${top.positiveCallbacks} callback${top.positiveCallbacks === 1 ? '' : 's'} from ${top.applied} applications. Need a second version with ≥${MIN_SAMPLE_SIZE} applications to compare.`;
   }
 
   // Score history: chronological (oldest → newest) so the chart reads left to
@@ -194,27 +261,38 @@ export function computeOutcomeReport(
     baseline,
     lift: { multiplier, deltaPoints, headline },
     unattributed,
+    provenance,
   };
 }
 
 function buildOverallStats(applications: JobApplicationRow[]): OverallStats {
   let applied = 0;
   let responses = 0;
+  let rejections = 0;
   let interviews = 0;
   let offers = 0;
   for (const a of applications) {
     if (a.status === 'wishlist') continue;
     applied += 1;
     if (RESPONSE_STATUSES.has(a.status)) responses += 1;
+    if (a.status === 'rejected') rejections += 1;
     if (INTERVIEW_STATUSES.has(a.status)) interviews += 1;
     if (OFFER_STATUSES.has(a.status)) offers += 1;
   }
+  const positiveCallbacks = responses - rejections;
   return {
     applied,
     responses,
+    rejections,
+    positiveCallbacks,
     interviews,
     offers,
-    callbackRate: applied ? responses / applied : 0,
+    // R-109 — `callbackRate` is the hero number on the dashboard, under
+    // the words "Your callback rate". It used to be responses/applied,
+    // which counts rejections: a user with five rejections was shown a
+    // 100% callback rate. A rejection is a reply, not a callback.
+    callbackRate: applied ? positiveCallbacks / applied : 0,
+    replyRate: applied ? responses / applied : 0,
     interviewRate: applied ? interviews / applied : 0,
     offerRate: applied ? offers / applied : 0,
     significant: applied >= MIN_SAMPLE_SIZE,
@@ -224,24 +302,42 @@ function buildOverallStats(applications: JobApplicationRow[]): OverallStats {
 function buildVersionStats(v: VersionMeta, apps: JobApplicationRow[]): VersionStats {
   const applied = apps.length;
   let responses = 0;
+  let rejections = 0;
   let interviews = 0;
   let offers = 0;
+  let first: number | null = null;
+  let last: number | null = null;
   for (const a of apps) {
     if (RESPONSE_STATUSES.has(a.status)) responses += 1;
+    if (a.status === 'rejected') rejections += 1;
     if (INTERVIEW_STATUSES.has(a.status)) interviews += 1;
     if (OFFER_STATUSES.has(a.status)) offers += 1;
+    const when = a.appliedAt ? +new Date(a.appliedAt) : null;
+    if (when && Number.isFinite(when)) {
+      if (first === null || when < first) first = when;
+      if (last === null || when > last) last = when;
+    }
   }
+  // Positive callbacks are replies minus rejections. INTERVIEW_STATUSES
+  // already excludes 'rejected', so they coincide today; computing it by
+  // subtraction keeps them equal if a new positive status is added.
+  const positiveCallbacks = responses - rejections;
   return {
     versionId: v.id,
     label: v.label || dateLabel(v.createdAt),
     createdAt: new Date(v.createdAt).toISOString(),
     applied,
     responses,
+    rejections,
+    positiveCallbacks,
     interviews,
     offers,
     responseRate: applied ? responses / applied : 0,
+    positiveCallbackRate: applied ? positiveCallbacks / applied : 0,
     interviewRate: applied ? interviews / applied : 0,
     offerRate: applied ? offers / applied : 0,
+    firstAppliedAt: first ? new Date(first).toISOString() : null,
+    lastAppliedAt: last ? new Date(last).toISOString() : null,
     atsScore: typeof v.atsScore === 'number' ? v.atsScore : null,
     significant: applied >= MIN_SAMPLE_SIZE,
   };

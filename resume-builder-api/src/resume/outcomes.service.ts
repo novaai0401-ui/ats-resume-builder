@@ -19,7 +19,18 @@ export class OutcomesService {
       }),
       this.prisma.jobApplication.findMany({
         where: { userId, resumeId },
-        select: { resumeVersionId: true, status: true, createdAt: true },
+        // R-109 — appliedAt gives the rates an observation window and
+        // outcomeSource says how each outcome was established. Selecting
+        // them is not optional: without it both arrive undefined and the
+        // report would quietly show an empty window and 100%
+        // self-reported regardless of the truth.
+        select: {
+          resumeVersionId: true,
+          status: true,
+          createdAt: true,
+          appliedAt: true,
+          outcomeSource: true,
+        },
       }),
     ]);
 

@@ -2174,7 +2174,7 @@ ChatGPT/Claude account as CallbackCV's identity. See §7.
 
 ### R-109 · Outcome metric separates replies from callbacks
 
-- Status: **PLANNED**
+- Status: **DONE** (this commit) — migration written, NOT applied
 - Depends-on: R-104
 - Source: review at `168065c`. `outcome-stats.ts` puts `'rejected'` in
   `RESPONSE_STATUSES`, and `top` is chosen by
@@ -2187,16 +2187,28 @@ ChatGPT/Claude account as CallbackCV's identity. See §7.
   `INTERVIEW_STATUSES` and `OFFER_STATUSES` already exist, so this is a
   ranking-key and copy change, not a metrics redesign.
 - Acceptance
-  - [ ] Reply rate, positive-callback rate, interview rate and offer rate
+  - [x] Reply rate, positive-callback rate, interview rate and offer rate
     are computed and displayed separately.
-  - [ ] `top` ranks on positive callbacks, with reply rate shown
+  - [x] `top` ranks on positive callbacks, with reply rate shown
     alongside. Pinning test: 5 rejections does NOT outrank 1 interview.
-  - [ ] Denominators and the observation window are on screen wherever a
+  - [x] Denominators and the observation window are on screen wherever a
     rate is. `MIN_SAMPLE_SIZE` is presented as a display threshold, not
     as evidence of superiority.
-  - [ ] Outcome provenance (self-reported / email-inferred / verified) is
-    stored and shown. A signed share link authenticates that the user
-    reported an outcome, never that the outcome occurred.
+  - [x] Outcome provenance (self-reported / email-inferred / verified) is
+    stored on `JobApplication.outcomeSource`, counted in the report and
+    shown on the dashboard card. Null means self-reported, which is
+    accurate for every row predating the column. Migration
+    `20260918120000_outcome_provenance`, written but NOT applied.
+  - [x] Two further defects found while fixing this:
+    (a) the dashboard hero number, labelled "Your callback rate", was
+    `responses / applied` — a user whose every application was rejected
+    was shown a 100% callback rate. It is now positive callbacks, with
+    the reply rate reported separately.
+    (b) both the API headline and `computeAbInsight` suppressed the
+    comparison when the baseline had zero callbacks, because the ratio
+    is undefined — so "3 callbacks vs 0", the clearest signal the
+    product has, was reported as "within noise" or not at all. Both now
+    judge on percentage points and state the counts.
 
 ---
 

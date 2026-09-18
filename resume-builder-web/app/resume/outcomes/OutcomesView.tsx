@@ -212,7 +212,8 @@ export default function OutcomesView() {
                     <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border, #ddd)' }}>
                       <th style={th}>Version</th>
                       <th style={th}>Applied</th>
-                      <th style={th}>Response rate</th>
+                      <th style={th}>Callback rate</th>
+                      <th style={th}>Reply rate</th>
                       <th style={th}>Interview rate</th>
                       <th style={th}>Offers</th>
                     </tr>
@@ -290,7 +291,7 @@ function AbComparisonCard({ versions }: { versions: OutcomeVersionStats[] }) {
 
   return (
     <TkxCard data-testid="ab-comparison-card">
-      <TkxCardHeader><strong>Which version wins replies?</strong></TkxCardHeader>
+      <TkxCardHeader><strong>Which version wins callbacks?</strong></TkxCardHeader>
       <TkxCardBody>
         {insight ? (
           insight.aboutTheSame ? (
@@ -300,22 +301,26 @@ function AbComparisonCard({ versions }: { versions: OutcomeVersionStats[] }) {
             </p>
           ) : (
             <p style={{ margin: '0 0 14px', fontSize: 15, lineHeight: 1.5 }}>
+              {/* R-109 — a null multiplier means the baseline got zero
+                  callbacks, so the ratio is undefined rather than
+                  infinite. State the counts instead of inventing one. */}
               <span style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.02em' }}>
-                {insight.multiplier}×
+                {insight.multiplier === null ? `${insight.best.positiveCallbacks} vs 0` : `${insight.multiplier}×`}
               </span>{' '}
-              more replies — <strong>{insight.best.label}</strong> out-performs{' '}
+              {insight.multiplier === null ? 'callbacks' : 'more callbacks'} — <strong>{insight.best.label}</strong> out-performs{' '}
               <strong>{insight.baseline.label}</strong>{' '}
-              ({Math.round(insight.best.responseRate * 100)}% vs {Math.round(insight.baseline.responseRate * 100)}% response rate).
+              ({insight.best.positiveCallbacks}/{insight.best.applied} vs{' '}
+              {insight.baseline.positiveCallbacks}/{insight.baseline.applied} — rejections not counted).
             </p>
           )
         ) : (
           <p style={{ margin: '0 0 14px', color: 'var(--muted, #888)', fontSize: 14 }}>
             Once two versions each have 5+ logged applications, this card shows which one actually
-            wins more replies.
+            wins more callbacks.
           </p>
         )}
 
-        <div role="img" aria-label="Response rate by resume version" style={{ display: 'grid', gap: 8 }}>
+        <div role="img" aria-label="Callback rate by resume version" style={{ display: 'grid', gap: 8 }}>
           {bars.map((b) => (
             <div key={b.versionId} style={{ display: 'grid', gridTemplateColumns: 'minmax(90px, 180px) 1fr', gap: 10, alignItems: 'center' }}>
               <span
@@ -335,7 +340,7 @@ function AbComparisonCard({ versions }: { versions: OutcomeVersionStats[] }) {
                   }}
                 />
                 <span style={{ fontSize: 12, color: 'var(--muted, #666)', whiteSpace: 'nowrap' }}>
-                  {Math.round(b.responseRate * 100)}% · {b.applied} applied{b.significant ? '' : ' · low sample'}
+                  {Math.round(b.callbackRate * 100)}% callbacks · {b.applied} applied{b.significant ? '' : ' · low sample'}
                 </span>
               </div>
             </div>
@@ -356,6 +361,10 @@ function VersionRow({ v, isTop }: { v: OutcomeVersionStats; isTop: boolean }) {
         <div style={{ fontSize: 11, color: 'var(--muted, #888)' }}>{new Date(v.createdAt).toLocaleDateString()}</div>
       </td>
       <td style={td}>{v.applied}</td>
+      {/* R-109 — callbacks first (rejections excluded), replies alongside
+          so "someone answered" stays visible without masquerading as a
+          result. */}
+      <td style={td}>{formatRate(v.positiveCallbackRate, v.significant)}</td>
       <td style={td}>{formatRate(v.responseRate, v.significant)}</td>
       <td style={td}>{formatRate(v.interviewRate, v.significant)}</td>
       <td style={td}>{v.offers}</td>

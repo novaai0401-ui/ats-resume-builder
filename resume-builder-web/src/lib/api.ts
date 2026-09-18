@@ -1791,22 +1791,36 @@ export type OutcomeVersionStats = {
   label: string;
   createdAt: string;
   applied: number;
+  /** Any reply, rejections included. */
   responses: number;
+  rejections: number;
+  /** R-109 — replies that went the user's way. This is the one to rank on. */
+  positiveCallbacks: number;
   interviews: number;
   offers: number;
   responseRate: number;
+  positiveCallbackRate: number;
   interviewRate: number;
   offerRate: number;
+  firstAppliedAt: string | null;
+  lastAppliedAt: string | null;
   atsScore: number | null;
   significant: boolean;
 };
 
 export type OutcomeOverallStats = {
   applied: number;
+  /** Any reply, rejections included. */
   responses: number;
+  rejections: number;
+  /** R-109 — replies that were not rejections. The hero number. */
+  positiveCallbacks: number;
   interviews: number;
   offers: number;
+  /** positiveCallbacks / applied — rejections excluded. */
   callbackRate: number;
+  /** responses / applied — rejections included. */
+  replyRate: number;
   interviewRate: number;
   offerRate: number;
   significant: boolean;
@@ -1830,6 +1844,8 @@ export type OutcomeReport = {
   baseline: OutcomeVersionStats | null;
   lift: { multiplier: number | null; deltaPoints: number | null; headline: string };
   unattributed: number;
+  /** R-109 — how these outcomes were established. */
+  provenance: { selfReported: number; emailInferred: number; verified: number };
 };
 
 // "Your response rate vs. platform median" — anonymized aggregate only;

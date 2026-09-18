@@ -319,6 +319,13 @@ model JobApplication {
   notes        String?
   nextActionAt DateTime?                               // follow-up / interview reminder
   appliedAt    DateTime?
+  /// R-109 — where this outcome came from: self-reported (the user set
+  /// the status), email-inferred (we read it from a reply), or verified
+  /// (a confirmed event). Null means self-reported; it is the honest
+  /// default for every row that predates this column. A signed share
+  /// link authenticates that the USER reported an outcome, never that
+  /// the outcome occurred, and the UI must not blur the two.
+  outcomeSource String?
   closedAt     DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt

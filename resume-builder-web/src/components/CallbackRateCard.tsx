@@ -37,7 +37,11 @@ export function CallbackRateCard({ resumeId }: { resumeId?: string }) {
   // The moat, one line: which version actually gets replies. The API computes
   // the lift headline ("v3 gets 2.4× more replies than v1"); show it the
   // moment it exists so the Outcome Loop sells itself from the dashboard.
-  const liftHeadline = hasData && report?.lift?.multiplier ? report.lift.headline : '';
+  // R-109 — show the comparison whenever the API produced one. Gating on
+  // `multiplier` hid exactly the most decisive case: a ratio is undefined
+  // when the baseline got zero callbacks, so "3 callbacks vs 0" never
+  // reached the user.
+  const liftHeadline = hasData && report?.lift?.deltaPoints !== null ? report?.lift?.headline || '' : '';
 
   return (
     <section
@@ -55,12 +59,23 @@ export function CallbackRateCard({ resumeId }: { resumeId?: string }) {
           </div>
           <div className="small" style={{ color: 'var(--muted)' }}>
             {hasData
-              ? `${overall!.applied} application${overall!.applied === 1 ? '' : 's'} · ${overall!.interviews} interview${overall!.interviews === 1 ? '' : 's'}`
+              ? `${overall!.positiveCallbacks} callback${overall!.positiveCallbacks === 1 ? '' : 's'} from ${overall!.applied} application${overall!.applied === 1 ? '' : 's'} · ${overall!.interviews} interview${overall!.interviews === 1 ? '' : 's'} · ${overall!.rejections} rejection${overall!.rejections === 1 ? '' : 's'}`
               : 'Track applications against your resume versions to measure what actually works — no other resume tool can tell you this.'}
           </div>
           {liftHeadline ? (
             <div className="small" style={{ marginTop: 4, color: 'var(--primary)', fontWeight: 600 }}>
               📈 {liftHeadline}
+            </div>
+          ) : null}
+          {hasData ? (
+            <div className="small" style={{ marginTop: 4, color: 'var(--muted)' }}>
+              {/* R-109 — say where these outcomes came from. Almost all of
+                  them are the user telling us what happened, which is
+                  useful and is not independent confirmation. */}
+              {report?.provenance && report.provenance.verified > 0
+                ? `${report.provenance.verified} confirmed, ${report.provenance.selfReported + report.provenance.emailInferred} as you reported them.`
+                : 'Based on the outcomes you recorded.'}
+              {overall && !overall.significant ? ' Too few applications yet to read much into the rate.' : ''}
             </div>
           ) : null}
         </div>
