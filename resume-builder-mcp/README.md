@@ -11,6 +11,28 @@ identically to agents and humans. Tailored versions and logged
 applications feed the same Outcome Graph, so "did the agent's
 tailoring work?" is answerable in your Outcomes dashboard.
 
+> ### ⚠️ Not published to npm yet
+>
+> `@tekivex/callbackcv-mcp` currently returns **404** from the npm
+> registry, so every `npx -y @tekivex/callbackcv-mcp` command below will
+> fail. Until the package is published, install from a local clone:
+>
+> ```bash
+> git clone https://github.com/novaai0401-ui/ats-resume-builder
+> cd ats-resume-builder/resume-builder-mcp
+> npm install && npm run build
+> ```
+>
+> …then use `"command": "node"` with
+> `"args": ["/absolute/path/to/resume-builder-mcp/dist/index.js"]`
+> wherever this README shows `npx`.
+>
+> The hosted connector (ChatGPT/Claude over OAuth) does not need the npm
+> package at all — it is a separate path and is unaffected.
+>
+> Remove this notice once `npm publish` has run and a clean-machine
+> install has been verified (R-111).
+
 ## 1. Get your token
 
 1. Sign in to CallbackCV on the web.
@@ -20,8 +42,17 @@ tailoring work?" is answerable in your Outcomes dashboard.
 That token is a ~7-day access token — the same one the web app uses, not
 a separate long-lived key. When it expires, your assistant will report an
 auth error; come back to Settings and copy a fresh one. Treat it like a
-password: anyone holding it can act as you until it expires, and logging
-out invalidates it.
+password: anyone holding it can act as you until it expires.
+
+Logging out invalidates it immediately, on every device and every
+connected assistant. To disconnect assistants without logging out, use
+**Disconnect assistants** in the same settings card (R-106).
+
+**Connecting over OAuth instead?** The hosted connector never asks for
+your password or your token: you generate a one-time connect code in
+Settings → API access and paste that into the authorize page. No page
+outside `callbackcv.tekivex.com` should ever ask for your CallbackCV
+password.
 
 ## 2. Connect your assistant
 
@@ -110,22 +141,41 @@ Config is env-only (no CLI flags) so tokens never appear in `ps` output.
 
 ## Tools
 
+The authoritative list is `TOOL_CONTRACT` in `tests/server.test.mjs`,
+which drives a real client over an in-memory transport — this table is
+prose, that test is the contract.
+
 | Tool | What it does |
 |---|---|
+| `open_in_callbackcv` | Link into the app, for a user working in CallbackCV. |
+| `create_resume` | Create a new resume from structured fields. |
+| `update_resume` | Edit an existing resume, contact details included. |
 | `list_resumes` | Find your resumes (id + title). |
 | `get_resume` | Full structured resume JSON. |
 | `list_versions` | Saved snapshots, incl. tailored variants. |
-| `tailor_resume` | JD → AI rewrite saved as a NEW version labelled `Tailored: <role> @ <company>`. Live resume untouched. Returns the `versionId`. |
-| `log_application` | Write to the Jobs tracker. Pass `resumeVersionId` from `tailor_resume` so reply rates attribute to the exact variant. |
-| `get_outcome_stats` | Per-version response/interview/offer rates. |
+| `get_resume_version` | Read ONE version, so a tailored variant can be reviewed before it is sent. |
+| `propose_tailoring` | JD → proposed rewrites. **Saves nothing.** Flags every added number and every skill not already on the resume. |
+| `apply_tailoring` | Save the changes the USER approved as a new version. Live resume untouched. Returns the `versionId`. |
+| `get_download_link` | Where the PDF downloads. Pass `versionId` to download the tailored version rather than the original. |
+| `log_application` | Write to the Jobs tracker. Pass `resumeVersionId` so reply rates attribute to the exact variant. |
+| `get_outcome_stats` | Per-version callback / interview / offer rates. |
 
 The intended agent loop:
 
 ```
-get_outcome_stats → pick the best-performing base
-tailor_resume     → version for THIS job
-log_application   → with that versionId
+get_outcome_stats  → pick the best-performing base
+propose_tailoring  → proposed changes for THIS job
+   ↳ show the user, especially anything in needsConfirmation
+apply_tailoring    → save only what they approved  → versionId
+get_download_link  → with that versionId, so they download what they reviewed
+log_application    → with that same versionId
 ```
+
+**v0.4.0 breaking change:** `tailor_resume` is gone, replaced by
+`propose_tailoring` + `apply_tailoring`. The old tool applied every AI
+suggestion with no human in between, which put invented metrics into a
+document users send to employers under their own name. Update any script
+that called it.
 
 ## Transports
 

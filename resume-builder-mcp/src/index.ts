@@ -53,6 +53,43 @@ async function main() {
         res.end(JSON.stringify({ ok: true, oauth: Boolean(oauthCfg) }));
         return;
       }
+
+      /**
+       * R-111 — readiness, which is not the same question as liveness.
+       *
+       * /health answers "is the process up" and returns 200 with
+       * `oauth: false` when the connector cannot actually be connected
+       * to. Every dashboard and uptime check reads that as healthy, so a
+       * misconfigured deploy looks fine while no assistant can reach it —
+       * which is exactly the state this service was found in.
+       *
+       * /ready answers "can a connector use this", and says 503 when it
+       * cannot, with a reason naming the missing variable.
+       */
+      if (req.url === '/ready') {
+        const missing: string[] = [];
+        if (!oauthSecret) missing.push('MCP_OAUTH_SECRET');
+        if (!publicUrl) missing.push('MCP_PUBLIC_URL');
+        const ready = missing.length === 0;
+        res.writeHead(ready ? 200 : 503, { 'content-type': 'application/json' });
+        res.end(
+          JSON.stringify({
+            ready,
+            oauth: Boolean(oauthCfg),
+            issuer: publicUrl || null,
+            apiBaseUrl: baseUrl,
+            ...(ready
+              ? {}
+              : {
+                  reason: 'oauth_not_configured',
+                  missing,
+                  detail:
+                    'Set these on the service and redeploy. Until then the OAuth paths 404 and no assistant can connect, even though /health returns 200.',
+                }),
+          }),
+        );
+        return;
+      }
       // OAuth endpoints (discovery, register, authorize, token) first.
       if (await handleOAuthRequest(req, res, oauthCfg)) return;
 

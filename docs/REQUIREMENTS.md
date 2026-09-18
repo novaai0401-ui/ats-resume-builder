@@ -2259,33 +2259,50 @@ ChatGPT/Claude account as CallbackCV's identity. See §7.
 
 ### R-111 · Distribution, once the above is true
 
-- Status: **PLANNED**
+- Status: **PARTIAL** — code done, live verification blocked on owner
+  access. Do NOT mark DONE until the boxes below are actually ticked.
 - Depends-on: R-105, R-106, R-107, R-108
 - Source: review at `168065c`. Deliberately last: submitting a connector
   that returns wrong ATS scores, drops the tailored version and cannot
   revoke access spends a review cycle and reviewer goodwill on defects we
   already know about.
 - Acceptance
-  - [ ] Hosted OAuth verified live: `MCP_OAUTH_SECRET` and
-    `MCP_PUBLIC_URL` set on `ats-rb-mcp`, `/health` reporting
-    `oauth: true`, discovery returning 200, and the issuer matching the
-    connector URL. `/health` distinguishes "process alive" from
-    "connectable" — today `{ok: true, oauth: false}` reads as healthy.
-  - [ ] End-to-end pass on a synthetic reviewer account: fresh connect,
-    create → update → tailor → review → export the exact version → log
-    the same version; plus expiry, disconnect, invalid input, and
-    isolation between two users.
-  - [ ] `@tekivex/callbackcv-mcp` published and installed from a clean
-    machine, or the documented `npx` path removed from README and setup
-    pages until it is. (The npm 404 seen during review was not
-    reproducible from this session's network — verify before acting.)
-  - [ ] Unlisted pilot first, then OpenAI and Claude directory
-    submissions prepared separately.
-  - [ ] Tool descriptions ask for the CallbackCV link when the user is
-    using CallbackCV or wants its editing/export flow, replacing
-    "ALWAYS show this link after any resume conversation". No wording
-    makes an assistant recommend us to unrelated users, and claiming
-    otherwise in a submission is a claim we cannot keep.
+  - [x] `/ready` added, distinct from `/health`. `/health` answers "is
+    the process up" and returns 200 with `oauth: false` when no
+    assistant can connect — which is how a misconfigured deploy looked
+    healthy on every dashboard. `/ready` returns 503 with
+    `missing: ["MCP_OAUTH_SECRET", …]` naming what to set.
+  - [ ] **OWNER:** set both variables on the `ats-rb-mcp` service and
+    confirm `/ready` returns 200 and discovery returns 200, with the
+    issuer matching the connector URL. Not verifiable from this session
+    (no Render access; outbound requests to the service are blocked).
+  - [ ] **OWNER:** end-to-end pass on a synthetic reviewer account:
+    fresh connect, create → update → propose → review → apply → export
+    the exact version → log the same version; plus expiry, disconnect,
+    invalid input, and isolation between two users. Needs a live
+    deployment and a database, neither available here. Both migrations
+    (R-106, R-109, R-112) must be applied first.
+  - [x] npm status VERIFIED, not assumed: `registry.npmjs.org` returns
+    **404** for `@tekivex/callbackcv-mcp`, so every documented
+    `npx -y @tekivex/callbackcv-mcp` command currently fails. The README
+    now carries a prominent notice and local-clone instructions instead.
+    The web UI was already correct — `integrations.ts` defaults the npm
+    URL to empty so no dead link is rendered (C-003).
+  - [ ] **OWNER:** publish the package (needs `@tekivex` scope
+    credentials, which this session does not have and should not), then
+    verify a clean-machine install and delete the README notice.
+  - [ ] **OWNER:** unlisted pilot first, then OpenAI and Claude
+    directory submissions prepared separately. Both need publisher
+    identity and reviewer accounts.
+  - [x] Tool descriptions rewritten: `open_in_callbackcv` now applies
+    when the user is working in CallbackCV or wants its editing/export
+    flow, replacing "ALWAYS show the returned url" after "any resume
+    conversation". No wording makes an assistant recommend us to people
+    who are not asking for us, and a submission implying otherwise
+    claims something we cannot deliver.
+  - [x] README tool table rebuilt for the twelve-tool set, with the
+    v0.4.0 breaking change called out and the review step shown in the
+    agent loop. Stale `tailor_resume` references removed throughout.
 
 ---
 

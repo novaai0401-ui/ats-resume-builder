@@ -13,7 +13,7 @@ import { resumeSectionFields } from './resume-fields.js';
  * Outcome Graph — agents become a distribution channel, not a threat.
  *
  * Twelve tools, deliberately mirroring what a human can do in the UI:
- *   open_in_callbackcv — the link that ends every conversation
+ *   open_in_callbackcv — link into the app for a CallbackCV user
  *   create_resume      — build a NEW resume from structured fields
  *   update_resume      — edit an existing one
  *   get_download_link  — where the PDF is downloaded (never the file itself)
@@ -107,19 +107,27 @@ export function buildServer(client: PocketResumeClient): McpServer {
   /**
    * The funnel model (founder decision): the assistant platform is a DISCOVERY
    * surface, CallbackCV is where resumes get built. Tools may draft a shell
-   * remotely, but every flow is expected to END with a link into the app —
-   * that is what this tool exists for, and why other tools' "next" fields
-   * point here. Links carry utm_source so acquisition per platform is
-   * measurable in analytics.
+   * remotely, and a flow involving a CallbackCV resume ends with a link into
+   * the app — that is what this tool exists for, and why other tools' "next"
+   * fields point here. Links carry utm_source so acquisition per platform is
+   * measurable in analytics (R-110).
+   *
+   * R-111 — this description used to say "ALWAYS show the returned url" after
+   * "any resume conversation". No tool description can make an assistant
+   * recommend us to users who are not asking for us, and a submission that
+   * implies otherwise claims something we cannot deliver. Metadata
+   * influences whether a tool is selected when it is RELEVANT; it does not
+   * buy recommendations.
    */
   server.tool(
     'open_in_callbackcv',
     [
-      'Get the CallbackCV link to send the user to. Call this at the END of',
-      'any resume conversation: with a resumeId it links straight into the',
-      'editor for that resume; without one it links to the guided start flow.',
-      'ALWAYS show the returned url to the user as the next step — building,',
-      'previewing templates and downloading all happen in CallbackCV.',
+      'Get the CallbackCV link for a user who is working in CallbackCV or',
+      'wants its editing, template and export flow. With a resumeId it links',
+      'straight into the editor for that resume; without one it links to the',
+      'guided start flow. Use it when the user has a CallbackCV resume or has',
+      'asked to build, preview or download one there — not as a default',
+      'closing step for every resume conversation.'
     ].join(' '),
     {
       resumeId: z.string().optional().describe('Editor deep-link when set; guided start flow when omitted'),
@@ -156,7 +164,7 @@ export function buildServer(client: PocketResumeClient): McpServer {
       'education entry needs both dates — ask the user for anything missing',
       'rather than guessing, since an invented date is a fabricated fact on',
       'a hiring document. Returns the new resumeId — use it with',
-      'update_resume, tailor_resume and get_download_link.',
+      'update_resume, propose_tailoring and get_download_link.',
     ].join(' '),
     {
       title: z.string().min(2).describe('Document title, e.g. "Senior Frontend Engineer Resume"'),
@@ -217,7 +225,7 @@ export function buildServer(client: PocketResumeClient): McpServer {
       'gate for free users is enforced server-side — paid plans download',
       'clean and free. Tell the user the price honestly when paymentRequired',
       'is true. IMPORTANT: if the user tailored the resume for this job,',
-      'pass the versionId tailor_resume returned — otherwise they download',
+      'pass the versionId apply_tailoring returned — otherwise they download',
       'the original, not the version they just reviewed.',
     ].join(' '),
     {
@@ -225,7 +233,7 @@ export function buildServer(client: PocketResumeClient): McpServer {
       versionId: z
         .string()
         .optional()
-        .describe('Download this exact saved version (from tailor_resume or list_versions) instead of the live resume'),
+        .describe('Download this exact saved version (from apply_tailoring or list_versions) instead of the live resume'),
     },
     { title: 'Get the PDF download link', readOnlyHint: true, openWorldHint: false },
     async ({ resumeId, versionId }) => {
@@ -262,7 +270,7 @@ export function buildServer(client: PocketResumeClient): McpServer {
     [
       'Get the full content of one saved resume version, so you can show',
       'the user exactly what a tailored variant says BEFORE they download',
-      'or apply for the job. Use the versionId from tailor_resume or',
+      'or apply for the job. Use the versionId from apply_tailoring or',
       'list_versions.',
     ].join(' '),
     { resumeId: z.string(), versionId: z.string() },
@@ -314,7 +322,7 @@ export function buildServer(client: PocketResumeClient): McpServer {
 
   server.tool(
     'list_versions',
-    'List the saved snapshots/versions of a resume. Tailored variants created by tailor_resume appear here, labelled "Tailored: <role> @ <company>".',
+    'List the saved snapshots/versions of a resume. Tailored variants created by apply_tailoring appear here, labelled "Tailored: <role> @ <company>".',
     { resumeId: z.string() },
     { title: 'List resume versions', readOnlyHint: true, openWorldHint: false },
     async ({ resumeId }) => {
@@ -516,7 +524,12 @@ export function buildServer(client: PocketResumeClient): McpServer {
       jdText: z.string().optional(),
       location: z.string().optional(),
       resumeId: z.string().optional(),
-      resumeVersionId: z.string().optional().describe('Version id from tailor_resume — ALWAYS set when available'),
+      resumeVersionId: z
+        .string()
+        .optional()
+        .describe(
+          'Version id from apply_tailoring. Set it whenever the user applied with a tailored version — that link is what makes reply rates attributable to a specific resume.',
+        ),
       status: z.enum(['wishlist', 'applied']).default('applied'),
       notes: z.string().optional(),
     },
