@@ -41,7 +41,7 @@ function friendlyPdfError(error: unknown, fallback: string): string {
 
 const TEMPLATE_OPTIONS = TEMPLATE_CATALOG.map((template) => templateRegistry[template.id]);
 
-type TemplateSelectionApiClient = Pick<typeof api, 'downloadPdf' | 'getResume' | 'ingestResume' | 'updateResume'>
+type TemplateSelectionApiClient = Pick<typeof api, 'downloadPdf' | 'getResume' | 'getResumeVersion' | 'ingestResume' | 'updateResume'>
   & Partial<Pick<typeof api, 'getDownloadChargeConfig'>>;
 
 type RouterLike = {
@@ -92,6 +92,15 @@ export default function TemplateSelectionView({
   const searchParams = searchParamsOverride ?? nextSearchParams ?? new URLSearchParams();
   const requestedResumeId = String(searchParams.get('resumeId') || '').trim();
   const resumeId = resolveCurrentSessionResumeId(requestedResumeId);
+  /**
+   * R-108 — when the link carries a versionId (an assistant's
+   * get_download_link after tailoring, or the versions list), this page
+   * previews and exports THAT version, not the live resume. Without it,
+   * a user could review a tailored variant, log the application against
+   * it, and download the original — the C-007 attribution link breaking
+   * silently.
+   */
+  const versionId = String(searchParams.get('versionId') || '').trim();
   const templateQuery = String(searchParams.get('template') || '').trim();
   const hasTemplateQuery = Boolean(templateQuery);
   const requestedTemplate = resolveTemplateId(templateQuery, 'classic');
@@ -187,7 +196,20 @@ export default function TemplateSelectionView({
     let cancelled = false;
     setLoading(true);
     setError('');
-    apiClient.getResume(resumeId)
+    // Preview the version when one is requested, so what the user reviews
+    // is what they download. Falls back to the live resume if the version
+    // is gone (deleted, or pruned by the version limit).
+    const load = versionId
+      ? apiClient
+          .getResumeVersion(resumeId, versionId)
+          .then(async (version) => {
+            const live = await apiClient.getResume(resumeId);
+            return { ...live, ...(version.snapshot || {}) } as typeof live;
+          })
+          .catch(() => apiClient.getResume(resumeId))
+      : apiClient.getResume(resumeId);
+
+    load
       .then((data) => {
         if (cancelled) return;
         // Always read the latest URL param via ref to avoid stale closures
@@ -321,14 +343,22 @@ export default function TemplateSelectionView({
       // colour dot that was previewed but never applied would silently
       // download in the default navy — the founder's exact report. Persist
       // the override before generating.
-      if (previewAccentRef.current && previewAccentRef.current !== resumeData?.accentColor) {
+      // R-108: exporting a saved VERSION must not write to the live
+      // resume. Persisting the accent override here would edit the
+      // document the user did not ask to change — and the version's own
+      // design settings are in its snapshot anyway.
+      if (
+        !versionId &&
+        previewAccentRef.current &&
+        previewAccentRef.current !== resumeData?.accentColor
+      ) {
         const updated = await apiClient.updateResume(resumeId, {
           templateId: selectedTemplate,
           accentColor: previewAccentRef.current,
         });
         applySavedTemplate(updated, selectedTemplate);
       }
-      await apiClient.downloadPdf(resumeId, selectedTemplate, downloadToken, fileBaseName);
+      await apiClient.downloadPdf(resumeId, selectedTemplate, downloadToken, fileBaseName, versionId || undefined);
       setToast('PDF download started.');
     } catch (err: unknown) {
       setError(friendlyPdfError(err, 'Failed to export PDF.'));

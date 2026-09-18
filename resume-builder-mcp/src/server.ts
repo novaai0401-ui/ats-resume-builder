@@ -12,7 +12,7 @@ import { resumeSectionFields } from './resume-fields.js';
  * MCP server it calls, every agent-driven application still feeds the
  * Outcome Graph — agents become a distribution channel, not a threat.
  *
- * Ten tools, deliberately mirroring what a human can do in the UI:
+ * Twelve tools, deliberately mirroring what a human can do in the UI:
  *   open_in_callbackcv — the link that ends every conversation
  *   create_resume      — build a NEW resume from structured fields
  *   update_resume      — edit an existing one
@@ -20,7 +20,9 @@ import { resumeSectionFields } from './resume-fields.js';
  *   list_resumes       — find the user's resumes
  *   get_resume         — full structured resume JSON
  *   list_versions      — snapshots (tailored variants live here)
- *   tailor_resume      — JD → NEW ResumeVersion (C-007 attribution!)
+ *   propose_tailoring  — JD → proposed changes, saves NOTHING
+ *   apply_tailoring    — save what the USER approved as a NEW version
+ *   get_resume_version — read one version, so it can be reviewed
  *   log_application    — write to the Jobs tracker WITH versionId
  *   get_outcome_stats  — which version actually gets replies
  *
@@ -34,10 +36,28 @@ import { resumeSectionFields } from './resume-fields.js';
  * version id when logging an application — that link IS the moat.
  */
 
+/**
+ * Numbers present in the rewritten text that the original did not contain.
+ *
+ * A tailoring rewrite may legitimately reword a claim; inventing a metric
+ * is different in kind, because the user is the one who has to defend it
+ * in an interview. Deliberately crude — it flags for confirmation rather
+ * than blocking, and a false positive costs one question.
+ */
+export function newNumbers(before: string, after: string): string[] {
+  const numeric = /\d+(?:[.,]\d+)*%?/g;
+  const had = new Set(String(before || '').match(numeric) || []);
+  const added = new Set<string>();
+  for (const token of String(after || '').match(numeric) || []) {
+    if (!had.has(token)) added.add(token);
+  }
+  return [...added];
+}
+
 export function buildServer(client: PocketResumeClient): McpServer {
   const server = new McpServer({
     name: 'callbackcv',
-    version: '0.3.1',
+    version: '0.4.0',
   });
 
   const ok = (data: unknown) => ({
@@ -196,19 +216,67 @@ export function buildServer(client: PocketResumeClient): McpServer {
       'itself: the download happens in the CallbackCV app, where the payment',
       'gate for free users is enforced server-side — paid plans download',
       'clean and free. Tell the user the price honestly when paymentRequired',
-      'is true.',
+      'is true. IMPORTANT: if the user tailored the resume for this job,',
+      'pass the versionId tailor_resume returned — otherwise they download',
+      'the original, not the version they just reviewed.',
     ].join(' '),
-    { resumeId: z.string() },
+    {
+      resumeId: z.string(),
+      versionId: z
+        .string()
+        .optional()
+        .describe('Download this exact saved version (from tailor_resume or list_versions) instead of the live resume'),
+    },
     { title: 'Get the PDF download link', readOnlyHint: true, openWorldHint: false },
-    async ({ resumeId }) => {
+    async ({ resumeId, versionId }) => {
       try {
         const cfg = await client.downloadChargeConfig();
         return ok({
-          url: webUrl('/resume/template', { resumeId }),
+          // R-108: the link now carries the version. Without it, a user
+          // could tailor to a job, log the application against the
+          // tailored version, and download the ORIGINAL — so the outcome
+          // graph recorded a reply against a document the employer never
+          // saw, which is the C-007 attribution link breaking silently.
+          url: webUrl('/resume/template', { resumeId, versionId }),
+          downloading: versionId ? 'the tailored version you selected' : 'the live resume',
           paymentRequired: cfg.enabled,
           note: cfg.enabled
             ? 'A one-time charge (Rs 49 in India / ~$0.99 elsewhere) applies at download; CallbackCV Plus includes downloads.'
             : 'Included in the user\'s plan — the download is free and un-watermarked.',
+        });
+      } catch (err) {
+        return fail(err);
+      }
+    },
+  );
+
+  /**
+   * R-108 — read one saved version so the user can actually REVIEW a
+   * tailored resume before sending it. Previously an assistant could list
+   * versions and log applications against them, but never see what one
+   * contained: "review before you send" was not a thing a connector could
+   * do, which is precisely why auto-accepting every AI edit was dangerous.
+   */
+  server.tool(
+    'get_resume_version',
+    [
+      'Get the full content of one saved resume version, so you can show',
+      'the user exactly what a tailored variant says BEFORE they download',
+      'or apply for the job. Use the versionId from tailor_resume or',
+      'list_versions.',
+    ].join(' '),
+    { resumeId: z.string(), versionId: z.string() },
+    { title: 'Read a saved version', readOnlyHint: true, openWorldHint: false },
+    async ({ resumeId, versionId }) => {
+      try {
+        const version = await client.getVersion(resumeId, versionId);
+        return ok({
+          versionId: version.id,
+          label: version.label,
+          createdAt: version.createdAt,
+          atsScoreSnapshot: version.atsScoreSnapshot,
+          resume: version.snapshot,
+          next: 'Pass this versionId to get_download_link so the user downloads THIS version, and to log_application so the outcome is attributed to it.',
         });
       } catch (err) {
         return fail(err);
@@ -258,53 +326,174 @@ export function buildServer(client: PocketResumeClient): McpServer {
     },
   );
 
+  /**
+   * R-108 — tailoring is now PROPOSE then APPLY, two tools.
+   *
+   * `tailor_resume` used to call propose and then immediately apply every
+   * single change the model suggested, with no human in between. The
+   * prompt tells the AI not to invent facts, and a prompt is a request,
+   * not a guarantee — so an invented metric or an unearned skill went
+   * straight into a saved version. That version is what log_application
+   * attributes outcomes to and what the user sends to an employer, which
+   * makes "the AI made it up" a claim on their resume, under their name.
+   *
+   * Splitting the tools puts the user back in the loop by construction
+   * rather than by instruction: `apply_tailoring` can only apply what it
+   * is explicitly handed, and the proposal flags anything that adds a
+   * skill or a number the resume did not already contain.
+   */
   server.tool(
-    'tailor_resume',
+    'propose_tailoring',
     [
-      'Tailor a resume to a job description. Two-phase under the hood:',
-      'the AI proposes per-bullet rewrites, this tool applies ALL proposed',
-      'changes and saves them as a NEW resume version labelled with the',
-      'company + role. The live resume is NOT modified. Returns the new',
-      'versionId — ALWAYS pass it to log_application when you apply to',
-      'this job, so reply rates can be attributed to this exact variant.',
-      'Costs AI tokens from the user\'s monthly quota.',
+      'Propose (do NOT apply) rewrites tailoring a resume to a job',
+      'description. Returns numbered changes for the user to review.',
+      'SHOW the user the proposed changes — especially anything listed in',
+      'needsConfirmation, which adds a skill or a number the resume did',
+      'not already contain — and get their approval BEFORE calling',
+      'apply_tailoring. Costs AI tokens from the user\'s monthly quota.',
     ].join(' '),
     {
       resumeId: z.string(),
       jdText: z.string().min(80).describe('The full job description text'),
-      company: z.string().optional().describe('Company name for the version label'),
-      role: z.string().optional().describe('Role title for the version label'),
     },
-    { title: 'Tailor resume to a JD', readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
-    async ({ resumeId, jdText, company, role }) => {
+    { title: 'Propose tailoring changes', readOnlyHint: true, openWorldHint: false },
+    async ({ resumeId, jdText }) => {
       try {
-        const proposal = await client.tailorPropose(resumeId, jdText);
+        const [proposal, resume] = await Promise.all([
+          client.tailorPropose(resumeId, jdText),
+          client.getResume(resumeId),
+        ]);
         const changeCount =
           (proposal.summary ? 1 : 0) + proposal.bullets.length + proposal.skillsToAdd.length;
         if (changeCount === 0) {
           return ok({
-            tailored: false,
+            changes: [],
             reason: 'The resume already matches this JD well — no changes proposed.',
           });
         }
+
+        const existingSkills = new Set(
+          (Array.isArray(resume.skills) ? (resume.skills as string[]) : []).map((s) => s.toLowerCase()),
+        );
+        const needsConfirmation: Array<{ id: string; kind: string; detail: string }> = [];
+
+        if (proposal.summary && newNumbers(proposal.summary.before, proposal.summary.after).length > 0) {
+          needsConfirmation.push({
+            id: 'summary',
+            kind: 'new-number',
+            detail: `The rewritten summary introduces ${newNumbers(proposal.summary.before, proposal.summary.after).join(', ')}, which the original did not claim. Confirm with the user that these are true.`,
+          });
+        }
+        proposal.bullets.forEach((bullet, index) => {
+          const added = newNumbers(bullet.before, bullet.after);
+          if (added.length > 0) {
+            needsConfirmation.push({
+              id: `bullet:${index}`,
+              kind: 'new-number',
+              detail: `Bullet ${index} introduces ${added.join(', ')}, which the original did not claim. Confirm with the user that these are true.`,
+            });
+          }
+        });
+        for (const skill of proposal.skillsToAdd) {
+          if (!existingSkills.has(skill.toLowerCase())) {
+            needsConfirmation.push({
+              id: `skill:${skill}`,
+              kind: 'new-skill',
+              detail: `"${skill}" is not currently on the resume. Only add it if the user actually has this skill.`,
+            });
+          }
+        }
+
+        return ok({
+          proposal,
+          summaryChange: proposal.summary,
+          bullets: proposal.bullets.map((b, index) => ({ id: index, ...b })),
+          skillsToAdd: proposal.skillsToAdd,
+          needsConfirmation,
+          next:
+            'Show these to the user. Then call apply_tailoring with the SAME proposal object and an accept list naming only what the user approved. Nothing is saved until you do.',
+        });
+      } catch (err) {
+        return fail(err);
+      }
+    },
+  );
+
+  server.tool(
+    'apply_tailoring',
+    [
+      'Save the tailoring changes the USER APPROVED as a new resume',
+      'version. Pass back the proposal object from propose_tailoring plus',
+      'an accept list naming only the changes the user agreed to — nothing',
+      'else is applied. The live resume is NOT modified. Returns the new',
+      'versionId: pass it to get_download_link so the user downloads THIS',
+      'version, and to log_application so replies are attributed to it.',
+    ].join(' '),
+    {
+      resumeId: z.string(),
+      proposal: z
+        .object({
+          summary: z.object({ before: z.string(), after: z.string() }).nullable().optional(),
+          bullets: z.array(
+            z.object({
+              experienceIndex: z.number(),
+              bulletIndex: z.number(),
+              before: z.string(),
+              after: z.string(),
+            }),
+          ),
+          skillsToAdd: z.array(z.string()),
+        })
+        .describe('The proposal object returned by propose_tailoring, unchanged'),
+      accept: z
+        .object({
+          summary: z.boolean().optional().describe('true if the user approved the rewritten summary'),
+          bulletIds: z.array(z.number()).optional().describe('ids of the bullets the user approved'),
+          skills: z.array(z.string()).optional().describe('only the skills the user confirmed they have'),
+        })
+        .describe('What the user approved. Omitted or empty means nothing is applied.'),
+      company: z.string().optional().describe('Company name for the version label'),
+      role: z.string().optional().describe('Role title for the version label'),
+    },
+    { title: 'Apply approved tailoring', readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+    async ({ resumeId, proposal, accept, company, role }) => {
+      try {
+        const acceptedBulletIds = new Set(accept?.bulletIds ?? []);
+        const bullets = proposal.bullets.filter((_, index) => acceptedBulletIds.has(index));
+        // Only skills that were BOTH proposed and confirmed. A skill the
+        // user named but the proposal never suggested is not ours to add.
+        const proposedSkills = new Set(proposal.skillsToAdd.map((s) => s.toLowerCase()));
+        const skillsToAdd = (accept?.skills ?? []).filter((s) => proposedSkills.has(s.toLowerCase()));
+        const summary = accept?.summary && proposal.summary ? proposal.summary.after : null;
+
+        if (!summary && bullets.length === 0 && skillsToAdd.length === 0) {
+          return ok({
+            applied: false,
+            reason:
+              'Nothing was approved, so nothing was saved. Ask the user which changes they want, then call apply_tailoring again.',
+          });
+        }
+
         const applied = await client.tailorApply(resumeId, {
           jdCompany: company,
           jdRole: role,
-          summary: proposal.summary ? proposal.summary.after : null,
-          bullets: proposal.bullets,
-          skillsToAdd: proposal.skillsToAdd,
+          summary,
+          bullets,
+          skillsToAdd,
           applyToLive: false,
         });
         return ok({
-          tailored: true,
+          applied: true,
           versionId: applied.version.id,
           versionLabel: applied.version.label,
           changesApplied: {
-            summaryRewritten: Boolean(proposal.summary),
+            summaryRewritten: Boolean(summary),
             bulletsRewritten: applied.appliedBullets,
-            skillsAdded: proposal.skillsToAdd,
+            skillsAdded: skillsToAdd,
+            rejectedAsStale: applied.rejectedAsStale,
           },
-          next: 'Pass versionId as resumeVersionId when calling log_application for this job.',
+          next:
+            'Pass versionId to get_download_link (so they download THIS version, not the original) and to log_application as resumeVersionId.',
         });
       } catch (err) {
         return fail(err);

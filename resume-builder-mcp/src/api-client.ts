@@ -91,6 +91,17 @@ export class PocketResumeClient {
     );
   }
 
+  /** R-108 — one saved version, snapshot included. */
+  getVersion(resumeId: string, versionId: string) {
+    return this.request<{
+      id: string;
+      label: string | null;
+      atsScoreSnapshot: number | null;
+      createdAt: string;
+      snapshot: Record<string, unknown> | null;
+    }>(`/resumes/${encodeURIComponent(resumeId)}/versions/${encodeURIComponent(versionId)}`);
+  }
+
   tailorPropose(resumeId: string, jdText: string) {
     return this.request<{
       summary: { before: string; after: string } | null;

@@ -34,7 +34,12 @@ const TOOL_CONTRACT = {
   list_resumes: { readOnly: true, required: [] },
   get_resume: { readOnly: true, required: ['resumeId'] },
   list_versions: { readOnly: true, required: ['resumeId'] },
-  tailor_resume: { readOnly: false, required: ['resumeId', 'jdText'] },
+  // R-108 — tailor_resume is GONE, replaced by a propose/apply pair so a
+  // human approves each change instead of the tool auto-accepting every
+  // AI suggestion into a version that gets sent to employers.
+  propose_tailoring: { readOnly: true, required: ['resumeId', 'jdText'] },
+  apply_tailoring: { readOnly: false, required: ['resumeId', 'proposal', 'accept'] },
+  get_resume_version: { readOnly: true, required: ['resumeId', 'versionId'] },
   log_application: { readOnly: false, required: ['company', 'role'] },
   get_outcome_stats: { readOnly: true, required: ['resumeId'] },
 };

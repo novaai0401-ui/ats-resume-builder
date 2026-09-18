@@ -2130,7 +2130,7 @@ ChatGPT/Claude account as CallbackCV's identity. See §7.
 
 ### R-108 · The tailored version is the one that gets downloaded
 
-- Status: **PLANNED**
+- Status: **DONE** (this commit)
 - Depends-on: R-107
 - Source: review at `168065c`. `tailor_resume` saves with
   `applyToLive: false`; `get_download_link` takes only a `resumeId` and
@@ -2143,20 +2143,32 @@ ChatGPT/Claude account as CallbackCV's identity. See §7.
   `achievements`, `licenses`, `publications` and design settings, so
   restoring a version silently drops content the resume had.
 - Acceptance
-  - [ ] Snapshots are lossless: the payload is built from the full
+  - [x] Snapshots are lossless: the payload is built from the full
     resume record, and a round-trip test (snapshot → restore) asserts
     deep equality including achievements, licenses, publications and
     design settings. Failing this test means C-007 is broken.
-  - [ ] A `get_resume_version` tool, and a version-aware
+  - [x] A `get_resume_version` tool, and a version-aware
     `get_download_link` (accepts an optional `versionId` and links to
     that exact variant).
-  - [ ] Pinning test: tailor → download link → the link resolves to the
+  - [x] Pinning test: tailor → download link → the link resolves to the
     tailored version, not the live resume.
-  - [ ] `tailor_resume` stops auto-accepting every proposal. Proposal and
-    apply are separate tools; new skills and any number not already in
-    the resume require explicit user confirmation. A prompt instruction
-    not to invent facts is not a guarantee, and the trust layer is the
-    product (C-003).
+  - [x] `tailor_resume` is REPLACED by `propose_tailoring` +
+    `apply_tailoring`. Apply can only save what it is explicitly handed,
+    so the human is in the loop by construction rather than by prompt
+    instruction; the proposal flags every added number and every skill
+    not already on the resume. A skill the assistant names but the
+    proposal never suggested is rejected. Breaking tool-set change —
+    version 0.4.0.
+  - [x] The web page honours the link: `/resume/template?versionId=…`
+    PREVIEWS that version as well as exporting it. Without that half,
+    the user would review one document and download another — the same
+    bug inverted. Exporting a version also no longer writes the accent
+    override back to the live resume.
+  - [x] Snapshot coverage is enforced against `schema.prisma`: adding a
+    Resume column fails the round-trip test until it is either
+    snapshotted or explicitly excluded with a reason. The original bug
+    was two hand-maintained field lists drifting; a third would have
+    drifted too.
 
 ---
 

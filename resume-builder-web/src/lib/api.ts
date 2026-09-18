@@ -957,6 +957,12 @@ export const api = {
 
   getResume: (id: string) => request<Resume>(`/resumes/${id}`),
 
+  /** R-108 — one saved version, snapshot included, for preview and export. */
+  getResumeVersion: (resumeId: string, versionId: string) =>
+    request<{ id: string; label: string | null; createdAt: string; snapshot: Record<string, unknown> | null }>(
+      `/resumes/${resumeId}/versions/${versionId}`,
+    ),
+
   createResume: (payload: ResumePayload) =>
     request<Resume>('/resumes', {
       method: 'POST',
@@ -1361,11 +1367,20 @@ export const api = {
   heartbeat: () =>
     request<void>('/auth/heartbeat', { method: 'POST' }).catch(() => undefined),
 
-  downloadPdf: async (id: string, templateId?: string, downloadToken?: string, fileBaseName?: string) => {
+  downloadPdf: async (
+    id: string,
+    templateId?: string,
+    downloadToken?: string,
+    fileBaseName?: string,
+    // R-108: export a saved version (e.g. the one tailored for this job)
+    // rather than the live resume. Omitted means live.
+    versionId?: string,
+  ) => {
     const params = new URLSearchParams();
     const templateQuery = String(templateId || '').trim();
     if (templateQuery) params.set('templateId', templateQuery);
     if (downloadToken) params.set('downloadToken', downloadToken);
+    if (versionId) params.set('versionId', versionId);
     const qs = params.toString();
     const requestUrl = `${baseUrl}/resumes/${id}/pdf${qs ? `?${qs}` : ''}`;
     const res = await fetch(requestUrl, {

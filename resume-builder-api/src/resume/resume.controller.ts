@@ -103,6 +103,21 @@ export class ResumeController {
     );
   }
 
+  /**
+   * R-108 — read one saved version, snapshot included. Without this an
+   * assistant could list versions but never see what was in one, so
+   * "review the tailored version before you send it" was not something a
+   * connector could actually do.
+   */
+  @Get(':id/versions/:versionId')
+  getVersion(
+    @Req() req: { user: { userId: string } },
+    @Param('id') id: string,
+    @Param('versionId') versionId: string,
+  ) {
+    return this.versionsService.get(req.user.userId, id, versionId);
+  }
+
   @Post(':id/versions/:versionId/restore')
   restoreVersion(
     @Req() req: { user: { userId: string } },
@@ -214,6 +229,9 @@ export class ResumeController {
     @Query('templateId') templateId: string | undefined,
     @Query('debug') debug: string | undefined,
     @Query('downloadToken') downloadToken: string | undefined,
+    // R-108: export a saved version instead of the live resume. Omitted
+    // means live, so every existing caller is unaffected.
+    @Query('versionId') versionId: string | undefined,
     @Res() res: Response,
   ) {
     if (debug === 'html') {
@@ -229,7 +247,7 @@ export class ResumeController {
     if (this.downloadCharge.isFeatureEnabled()) {
       await this.downloadCharge.assertDownloadAllowed(String(downloadToken || ''), req.user.userId, id);
     }
-    const pdfBuffer = await this.resumeService.generatePdf(req.user.userId, id, templateId);
+    const pdfBuffer = await this.resumeService.generatePdf(req.user.userId, id, templateId, versionId);
     const filename = await this.resumeService.buildExportFileName(req.user.userId, id, 'pdf');
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
@@ -247,12 +265,13 @@ export class ResumeController {
     @Req() req: { user: { userId: string } },
     @Param('id') id: string,
     @Query('downloadToken') downloadToken: string | undefined,
+    @Query('versionId') versionId: string | undefined,
     @Res() res: Response,
   ) {
     if (this.downloadCharge.isFeatureEnabled()) {
       await this.downloadCharge.assertDownloadAllowed(String(downloadToken || ''), req.user.userId, id);
     }
-    const buffer = await this.resumeService.generateDocx(req.user.userId, id);
+    const buffer = await this.resumeService.generateDocx(req.user.userId, id, versionId);
     const filename = await this.resumeService.buildExportFileName(req.user.userId, id, 'docx');
     res.setHeader(
       'Content-Type',
