@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   title: 'Resume Templates by Industry (ATS-Safe, Free)',
   description:
     `ATS-safe resume templates for ${PROFESSION_INDUSTRIES.length} industries — IT, healthcare, ` +
-    'finance, engineering, sales and more. Single-column layouts tested against Workday, ' +
+    'finance, engineering, sales and more. Parse-clean layouts built for mainstream ATS including Workday, ' +
     'Greenhouse, iCIMS and Taleo, with the sections recruiters in each field screen for.',
   alternates: { canonical: '/resume-templates' },
   openGraph: {

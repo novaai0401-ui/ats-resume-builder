@@ -46,6 +46,7 @@ export type {
 } from 'resume-builder-shared';
 import { getByokHeader } from './byok-storage';
 import type { FreeTrialStatus } from './free-trial';
+import { acquisitionProperties } from './acquisition';
 
 export type AuthResponse = { user: User; accessToken: string; refreshToken: string; expiresAt?: string };
 export type RegisterResponse = AuthResponse;
@@ -860,7 +861,10 @@ export const api = {
   register: async (payload: { fullName: string; email: string; mobile?: string; password?: string; referralCode?: string; otp?: string }) => {
     const auth = await request<AuthResponse>('/auth/register', {
       method: 'POST',
-      body: JSON.stringify(payload),
+      // R-110 — attach first-touch acquisition so the signup event can
+      // answer which assistant platform actually sends users who finish.
+      // Analytics only; the API strips it before writing the account.
+      body: JSON.stringify({ ...payload, acquisition: acquisitionProperties() }),
     });
     setAuthTokens(auth);
     return auth;

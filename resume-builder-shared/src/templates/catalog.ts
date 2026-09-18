@@ -733,3 +733,53 @@ export function resolveTemplateCatalogId(value: string, fallback: TemplateCatalo
   }
   return fallback;
 }
+
+/**
+ * R-110 — template facts, DERIVED.
+ *
+ * `llms.txt` and several landing pages stated "Every template is
+ * single-column with standard section headings", while this catalogue
+ * ships multi-column and sidebar layouts — including Sidebar Bold, whose
+ * own description says most ATS scrapers merge the columns or drop the
+ * sidebar. We were feeding assistants and search engines a claim our own
+ * data contradicted (C-003).
+ *
+ * Copy that quotes numbers should call this rather than hardcode them,
+ * so adding a template updates the claim instead of falsifying it.
+ */
+export interface TemplateFacts {
+  total: number;
+  singleColumn: number;
+  multiColumn: number;
+  sidebar: number;
+  atsSafe: number;
+  /** Templates we explicitly warn against uploading to a job portal. */
+  notAtsSafe: number;
+  /** One accurate sentence, ready to drop into copy. */
+  summarySentence: string;
+}
+
+export function computeTemplateFacts(catalog: readonly TemplateCatalogItem[] = TEMPLATE_CATALOG): TemplateFacts {
+  const total = catalog.length;
+  const singleColumn = catalog.filter((t) => t.layout === 'single-column').length;
+  const multiColumn = catalog.filter((t) => t.layout === 'multi-column').length;
+  const sidebar = catalog.filter((t) => t.layout === 'sidebar').length;
+  const atsSafe = catalog.filter((t) => t.atsSafety === 'high').length;
+  const notAtsSafe = catalog.filter((t) => t.atsSafety === 'low').length;
+  return {
+    total,
+    singleColumn,
+    multiColumn,
+    sidebar,
+    atsSafe,
+    notAtsSafe,
+    // Precise about which count is which: "single-column" and "ATS-safe"
+    // are different properties and do not have the same total. Blurring
+    // them would be a smaller version of the claim this fix removes.
+    summarySentence:
+      `${total} templates. ${atsSafe} are rated ATS-safe for job-portal uploads and ${notAtsSafe} are ` +
+      `explicitly marked as risky to upload; the rest sit in between. ${singleColumn} use a single-column ` +
+      `layout, ${multiColumn + sidebar} are multi-column or sidebar designs meant for sharing directly ` +
+      `with people. Every template states its own ATS-safety rating.`,
+  };
+}

@@ -9,8 +9,19 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://callbackcv.tekivex
  * editor, jobs, settings) are excluded both here and in robots.ts so
  * Google doesn't waste crawl budget chasing 401s.
  */
+/**
+ * R-110 — `lastModified` used to be `new Date()` for every URL on every
+ * request, so the sitemap claimed the entire site changed each time a
+ * crawler fetched it. That is not a ranking trick, it is a credibility
+ * cost: a feed that cries "everything is new" teaches crawlers to ignore
+ * the field. Use the build time — the last moment these pages could
+ * actually have changed — and let genuinely dynamic pages say so through
+ * changeFrequency.
+ */
+const BUILD_TIME = new Date(process.env.NEXT_PUBLIC_BUILD_TIME || '2026-09-18T00:00:00Z');
+
 export default function sitemap(): MetadataRoute.Sitemap {
-  const lastModified = new Date();
+  const lastModified = BUILD_TIME;
   return [
     { url: `${SITE_URL}/`, lastModified, changeFrequency: 'weekly', priority: 1.0 },
     { url: `${SITE_URL}/auth/login`, lastModified, changeFrequency: 'monthly', priority: 0.8 },
@@ -23,7 +34,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${SITE_URL}/ats-resume-checker`, lastModified, changeFrequency: 'weekly', priority: 0.9 },
     { url: `${SITE_URL}/resume-builder-india`, lastModified, changeFrequency: 'weekly', priority: 0.8 },
     { url: `${SITE_URL}/compare`, lastModified, changeFrequency: 'monthly', priority: 0.7 },
-    { url: `${SITE_URL}/career`, lastModified, changeFrequency: 'monthly', priority: 0.7 },
     { url: `${SITE_URL}/mentor`, lastModified, changeFrequency: 'weekly', priority: 0.8 },
     { url: `${SITE_URL}/jd-match`, lastModified, changeFrequency: 'weekly', priority: 0.7 },
     { url: `${SITE_URL}/interview-prep`, lastModified, changeFrequency: 'monthly', priority: 0.6 },
@@ -35,8 +45,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${SITE_URL}/about`, lastModified, changeFrequency: 'yearly', priority: 0.4 },
     { url: `${SITE_URL}/contact`, lastModified, changeFrequency: 'yearly', priority: 0.4 },
     { url: `${SITE_URL}/terms`, lastModified, changeFrequency: 'yearly', priority: 0.3 },
+    // R-110 — /privacy was missing entirely. It is the page that states
+    // what we do with resumes and training data; leaving it out of the
+    // sitemap while listing authenticated tools had it exactly backwards.
+    { url: `${SITE_URL}/privacy`, lastModified, changeFrequency: 'yearly', priority: 0.4 },
     { url: `${SITE_URL}/accessibility`, lastModified, changeFrequency: 'yearly', priority: 0.3 },
-    { url: `${SITE_URL}/skill-demand`, lastModified, changeFrequency: 'weekly', priority: 0.6 },
     { url: `${SITE_URL}/linkedin`, lastModified, changeFrequency: 'monthly', priority: 0.6 },
     // "Build resume in ChatGPT/Claude" — a query space with no incumbent yet.
     { url: `${SITE_URL}/ai-assistants`, lastModified, changeFrequency: 'monthly', priority: 0.7 },

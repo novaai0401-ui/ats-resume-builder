@@ -120,8 +120,16 @@ export default function AiAssistantsPage() {
 
         <TrustCard icon="🔒" title="Privacy">
           <p>
-            The token lives in your assistant&rsquo;s configuration on your device. Revoke it in
-            Settings and the connection is dead instantly. Details in the{' '}
+            {/* R-110 — this said the token lives only on your device, which
+                stopped being true when the hosted connector shipped: an
+                OAuth connection stores an encrypted wrapper on our MCP
+                service. Describing both paths is the difference between a
+                privacy statement and a privacy claim (C-003). */}
+            With the local setup, the token lives in your assistant&rsquo;s configuration on your
+            own machine. With a hosted connector (ChatGPT or Claude connecting over OAuth), our
+            MCP service holds an encrypted wrapper around it so the assistant never sees your
+            raw credentials. Either way, <strong>Disconnect assistants</strong> in Settings
+            revokes access on the next request. Details in the{' '}
             <Link href="/privacy">Privacy Policy</Link>.
           </p>
         </TrustCard>

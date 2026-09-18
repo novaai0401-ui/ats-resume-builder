@@ -32,6 +32,7 @@ import {
   type UploadedResumeFile,
 } from './upload-validation';
 import { z } from 'zod';
+import { AnalyticsService } from '../analytics/analytics.service';
 
 const { memoryStorage } = require('multer');
 
@@ -45,6 +46,7 @@ export class ResumeController {
     private readonly versionsService: ResumeVersionsService,
     private readonly outcomesService: OutcomesService,
     private readonly outcomeShareService: OutcomeShareService,
+    private readonly analytics: AnalyticsService,
   ) {}
 
   @Get(':id/outcomes')
@@ -249,6 +251,17 @@ export class ResumeController {
     }
     const pdfBuffer = await this.resumeService.generatePdf(req.user.userId, id, templateId, versionId);
     const filename = await this.resumeService.buildExportFileName(req.user.userId, id, 'pdf');
+    // R-110 — the conversion that matters. Tracked AFTER a successful
+    // render so a failed export never counts as one, and recording
+    // whether the user exported a tailored version or the live resume.
+    this.analytics.track(
+      {
+        type: 'resume_exported',
+        path: '/resumes/:id/pdf',
+        properties: { format: 'pdf', versioned: Boolean(versionId) },
+      },
+      req as never,
+    );
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(pdfBuffer);
@@ -273,6 +286,14 @@ export class ResumeController {
     }
     const buffer = await this.resumeService.generateDocx(req.user.userId, id, versionId);
     const filename = await this.resumeService.buildExportFileName(req.user.userId, id, 'docx');
+    this.analytics.track(
+      {
+        type: 'resume_exported',
+        path: '/resumes/:id/docx',
+        properties: { format: 'docx', versioned: Boolean(versionId) },
+      },
+      req as never,
+    );
     res.setHeader(
       'Content-Type',
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',

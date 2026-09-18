@@ -208,7 +208,7 @@ function TemplateCard({
           {template.atsSafety === 'high' && (
             <span
               className="pill recommended"
-              title="Plain single-column layout. Tested to parse cleanly across Workday, Greenhouse, iCIMS, Taleo, BambooHR."
+              title="Plain single-column layout, built to the formatting rules mainstream ATS parsers document (Workday, Greenhouse, iCIMS, Taleo, BambooHR)."
             >
               ATS-safe
             </span>

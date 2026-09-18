@@ -99,7 +99,11 @@ export class AuthController {
         type: 'register',
         email: parsed.data.email,
         path: '/auth/register',
-        properties: { method: 'password' },
+        // R-110 — first-touch acquisition, sanitised client-side and
+        // carried on the signup call. Analytics only: never persisted on
+        // the user, and RegisterSchema strips it before anything is
+        // written, so an untrusted field cannot reach the account row.
+        properties: { method: 'password', ...readAcquisition(body) },
       },
       req,
     );
@@ -292,4 +296,24 @@ export class AuthController {
 function extractIp(req: Request): string {
   const fwd = String(req.headers['x-forwarded-for'] || '').split(',')[0]?.trim();
   return fwd || req.ip || (req.socket?.remoteAddress ?? '') || '';
+}
+
+/**
+ * R-110 — pull the acquisition properties off a request body.
+ *
+ * Client-supplied and therefore untrusted: each value is re-clamped here
+ * rather than relying on the browser having sanitised it. Only short,
+ * simple strings survive, and only under known keys.
+ */
+function readAcquisition(body: unknown): Record<string, string> {
+  const raw = (body as { acquisition?: unknown } | null)?.acquisition;
+  if (!raw || typeof raw !== 'object') return {};
+  const out: Record<string, string> = {};
+  for (const key of ['acquisitionSource', 'acquisitionMedium', 'acquisitionCampaign', 'acquisitionLandingPath']) {
+    const value = (raw as Record<string, unknown>)[key];
+    if (typeof value !== 'string') continue;
+    const clean = value.trim().slice(0, 120);
+    if (clean) out[key] = clean;
+  }
+  return out;
 }

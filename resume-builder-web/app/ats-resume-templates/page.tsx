@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
-import { TEMPLATE_CATALOG } from 'resume-builder-shared';
+import { computeTemplateFacts, TEMPLATE_CATALOG } from 'resume-builder-shared';
 import PublicTemplatePreview from '@/src/components/PublicTemplatePreview';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://callbackcv.tekivex.com';
@@ -8,7 +8,7 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://callbackcv.tekivex
 export const metadata: Metadata = {
   title: 'ATS Resume Templates (Free, ATS-safe) — CallbackCV',
   description:
-    'Free ATS-friendly resume templates tested against Workday, Greenhouse, iCIMS, Taleo and BambooHR. Single-column, parse-clean layouts you can fill, score, and export in minutes.',
+    'Free ATS-friendly resume templates built for mainstream applicant tracking systems. Parse-clean layouts you can fill, score, and export in minutes, each with its own honest ATS-safety rating.',
   alternates: { canonical: '/ats-resume-templates' },
   openGraph: {
     title: 'Free ATS Resume Templates — tested across major ATS',
@@ -38,6 +38,7 @@ const FAQ = [
 ];
 
 export default function AtsResumeTemplatesPage() {
+  const templateFacts = computeTemplateFacts();
   const jsonLd = {
     '@context': 'https://schema.org',
     '@graph': [
@@ -76,8 +77,12 @@ export default function AtsResumeTemplatesPage() {
       <section className="hero">
         <h1>ATS resume templates that actually parse</h1>
         <p className="small">
-          Every template is single-column and ATS-safe — tested against Workday, Greenhouse, iCIMS,
-          Taleo, and BambooHR. Pick one, fill your sections, check your ATS score, and export.
+          {/* R-110 — generated from the catalogue. The old copy said every
+              template was single-column and ATS-safe; ten of them are
+              multi-column or sidebar designs, and ten are explicitly rated
+              risky to upload (C-003). */}
+          {templateFacts.summarySentence} Pick one, fill your sections, check your ATS score,
+          and export.
         </p>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 12 }}>
           <Link className="btn" href="/templates/preview">Browse all templates</Link>

@@ -11,7 +11,7 @@
  * Served as text/markdown at the site root. Also linked from robots.txt.
  */
 
-import { TEMPLATE_CATALOG, PROFESSION_INDUSTRIES } from 'resume-builder-shared';
+import { computeTemplateFacts, TEMPLATE_CATALOG, PROFESSION_INDUSTRIES } from 'resume-builder-shared';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://callbackcv.tekivex.com';
 
@@ -73,8 +73,9 @@ const BODY = `# CallbackCV
 
 ## ATS resume templates (${TEMPLATE_CATALOG.length} available, free to use)
 
-Every template is single-column with standard section headings, tested against
-Workday, Greenhouse, iCIMS, Taleo and BambooHR. ATS safety is stated honestly
+${computeTemplateFacts().summarySentence}
+
+ATS safety is stated honestly
 per template rather than claiming all are equally safe: 'high' = plain
 single-column, parses cleanly everywhere; 'medium' = light styling some systems
 drop (never the text); 'low' = visual layouts meant for direct applications and

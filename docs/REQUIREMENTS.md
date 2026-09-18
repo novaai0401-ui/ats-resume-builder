@@ -2214,7 +2214,7 @@ ChatGPT/Claude account as CallbackCV's identity. See §7.
 
 ### R-110 · Public and LLM-facing claims match the product
 
-- Status: **PLANNED**
+- Status: **DONE** (this commit)
 - Depends-on: R-105
 - Source: review at `168065c`. `llms.txt/route.ts` states "Every template
   is single-column", while `templates/catalog.ts` ships
@@ -2227,19 +2227,33 @@ ChatGPT/Claude account as CallbackCV's identity. See §7.
   (`/career`, `/skill-demand`), omits `/privacy`, and stamps every entry
   `lastModified: new Date()`.
 - Acceptance
-  - [ ] Template facts in `llms.txt` and the homepage are GENERATED from
+  - [x] Template facts in `llms.txt` and the homepage are GENERATED from
     `TEMPLATE_CATALOG`, so the claim cannot drift again (C-002, C-003).
-  - [ ] Every public landing page sets its own canonical; verified in
+  - [x] Every public landing page sets its own canonical; verified in
     rendered HTML, not just source.
-  - [ ] Sitemap lists public pages only, includes `/privacy`, and uses
+  - [x] Sitemap lists public pages only, includes `/privacy`, and uses
     real modification dates. Authenticated utilities get `noindex`;
     robots rules are not treated as access control.
-  - [ ] The `/ai-assistants` page stops describing token storage as
+  - [x] The `/ai-assistants` page stops describing token storage as
     device-only now that hosted connectors exist, and the Custom GPT doc
     stops asserting MCP is unavailable on ChatGPT web while the same repo
     documents remote OAuth connectors.
-  - [ ] `utm_source` is captured into signup/export conversion events. A
-    URL tag with nothing reading it is not attribution.
+  - [x] `utm_source` is captured into signup/export conversion events via
+    `src/lib/acquisition.ts` (first-touch, sanitised, path only — never a
+    query string, which can carry whatever the user typed). Mounted in
+    the root layout, because a tagged link lands on any page: an
+    assistant's download link goes straight to `/resume/template`, so
+    capturing only on the login page (where the R-037 referral code is
+    read) would have missed nearly every assistant-referred visit. New
+    `resume_exported` analytics event, recorded after a successful
+    render so a failed export never counts.
+  - [x] Unsupported vendor-testing claims removed from six surfaces.
+    "Tested against Workday, Greenhouse, iCIMS, Taleo and BambooHR"
+    appears nowhere in the repo as an actual test; the copy now says the
+    layouts are BUILT for those parsers, which is what the code
+    supports. If real vendor testing exists, the stronger claim can
+    return with evidence — that is the founder's call, not a
+    developer's.
 
 ---
 

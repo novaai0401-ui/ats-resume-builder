@@ -1,7 +1,15 @@
 # CallbackCV Custom GPT — setup pack
 
-Copy-paste configuration for a Custom GPT ("GPT" in the ChatGPT builder) that
-serves ChatGPT-**web** users, where MCP is unavailable. Model: **handoff, not
+Copy-paste configuration for a Custom GPT ("GPT" in the ChatGPT builder).
+
+> **R-110 correction (2026-09-18):** this used to say MCP "is unavailable" on
+> ChatGPT web. That is no longer accurate — the same repository documents a
+> hosted remote MCP connector over OAuth (R-100/R-101), which ChatGPT can
+> connect to. A Custom GPT remains a *separate, additional* channel: it needs
+> no connector setup and reaches users who have not connected one. Treat the
+> two as alternatives, not as a workaround for a missing capability.
+
+Model: **handoff, not
 remote-build** — the GPT coaches, then sends the user to CallbackCV with a
 UTM-tagged link. No Actions/API needed for v1, which means nothing to secure
 and nothing that can bypass the payment gate.
