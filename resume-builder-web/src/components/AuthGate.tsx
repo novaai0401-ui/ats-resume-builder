@@ -13,12 +13,22 @@ type AuthGateProps = {
 
 /** The "still deciding" panel. Shared so the Suspense fallback and the
  *  pre-check state are visually identical — the boundary below must not
- *  make the page flicker through a different layout. */
+ *  make the page flicker through a different layout.
+ *
+ *  C-005 requires `role="status"` + `aria-live` on loading states. This
+ *  panel is the loading state for all seventeen gated pages, in both of
+ *  the places it renders: the Suspense fallback while `useSearchParams()`
+ *  resolves on a client navigation, and the pre-check state before the
+ *  token read settles. Without the live region a screen-reader user gets
+ *  silence on every gated route — the page changed and nothing announced
+ *  it. `aria-busy` matches the convention in `DataLoader`. */
 function CheckingSession() {
   return (
     <main className="grid">
       <section className="card col-12">
-        <p className="small">Checking your session...</p>
+        <p className="small" role="status" aria-busy="true" aria-live="polite">
+          Checking your session...
+        </p>
       </section>
     </main>
   );
