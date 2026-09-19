@@ -21,12 +21,22 @@ type AuthGateProps = {
  *  resolves on a client navigation, and the pre-check state before the
  *  token read settles. Without the live region a screen-reader user gets
  *  silence on every gated route — the page changed and nothing announced
- *  it. `aria-busy` matches the convention in `DataLoader`. */
+ *  it.
+ *
+ *  Deliberately NO `aria-busy`. On a live region, `aria-busy="true"` tells
+ *  assistive technology to hold announcements until it flips to `false` —
+ *  it means "mid-update, more changes coming". This region never flips:
+ *  when auth resolves, the gate returns a different tree and the paragraph
+ *  unmounts, so a held announcement is simply dropped and the user hears
+ *  nothing. That would defeat the whole point of adding the live region.
+ *  Its content is also a single complete sentence, never incrementally
+ *  built, so there is nothing to batch. C-005 requires `role="status"` +
+ *  `aria-live`; it does not ask for `aria-busy`. */
 function CheckingSession() {
   return (
     <main className="grid">
       <section className="card col-12">
-        <p className="small" role="status" aria-busy="true" aria-live="polite">
+        <p className="small" role="status" aria-live="polite">
           Checking your session...
         </p>
       </section>

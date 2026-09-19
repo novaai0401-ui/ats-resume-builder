@@ -61,7 +61,18 @@ test('the loading fallback is an announced live region (C-005)', () => {
   const html = renderToStaticMarkup(tree.props.fallback as React.ReactElement);
   assert.match(html, /role="status"/, 'loading fallback needs role="status" (C-005)');
   assert.match(html, /aria-live="polite"/, 'loading fallback needs aria-live (C-005)');
-  assert.match(html, /aria-busy="true"/, 'loading fallback should mark itself busy while it waits');
+
+  // And explicitly NOT aria-busy. On a live region that attribute defers
+  // announcements until it flips to false; this region never flips (it
+  // unmounts when auth resolves), so a held announcement would be dropped
+  // and the user would hear nothing — the exact silence the live region is
+  // here to prevent. An earlier version of this file asserted the opposite
+  // and so would have locked the bug in place.
+  assert.doesNotMatch(
+    html,
+    /aria-busy/,
+    'loading fallback must NOT set aria-busy: it never clears, so the announcement would be suppressed',
+  );
 });
 
 test('the gate body is inside the boundary, not the boundary itself', () => {
