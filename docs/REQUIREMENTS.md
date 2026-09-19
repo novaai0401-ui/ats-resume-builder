@@ -2304,6 +2304,45 @@ ChatGPT/Claude account as CallbackCV's identity. See §7.
     v0.4.0 breaking change called out and the review step shown in the
     agent loop. Stale `tailor_resume` references removed throughout.
 
+### R-123 · The web build must survive its own auth gate
+
+- Status: **DONE** (this commit)
+- Depends-on: R-107
+- Note: numbered R-123, not R-113, because R-113–R-122 are reserved for
+  the growth/measurement items already enumerated in the launch plan and
+  IDs are never reused (§8).
+- Source: the Docker web deploy failed on `main` at `beb3428` with
+  `useSearchParams() should be wrapped in a suspense boundary at page
+  "/admin"` → `Error occurred prerendering page "/admin"` →
+  `Dockerfile.web:47 RUN npm run build` exit 1. R-107 added
+  `useSearchParams()` to `AuthGate` so the post-login return path would
+  keep its query string. That hook opts its component out of static
+  prerendering, and Next fails `next build` outright for any statically
+  rendered page that reaches one with no Suspense boundary above it.
+  Seventeen pages wrap themselves in `AuthGate`, so the build died on the
+  first of them to prerender — `/admin` — and no image was produced.
+  The R-107 unit tests passed throughout: they covered `buildReturnPath`'s
+  string handling, which was correct. Nothing exercised the production
+  build, so a green suite shipped an unbuildable tree.
+
+- Acceptance criteria:
+  - [x] `npm run build` in `resume-builder-web` exits 0 and `/admin`,
+    `/admin/pattern-review`, `/admin/settings` all still prerender as
+    static (`○`). Fixing this by forcing the pages dynamic would trade a
+    broken build for 17 pages that can no longer be served from cache;
+    the Suspense boundary keeps them static.
+  - [x] The boundary lives in `AuthGate` itself, not in the pages. A new
+    gated page cannot reintroduce the failure by forgetting to add one.
+  - [x] The Suspense fallback renders the same "Checking your session..."
+    panel as the pre-check state, so no gated page flashes a different
+    layout or blank markup into its prerendered HTML.
+  - [x] R-107's behaviour is unchanged: the return path still carries the
+    query string (`tests/return-path.test.ts` still passes).
+  - [x] Pinning test `tests/auth-gate-suspense.test.tsx` asserts the
+    boundary exists, has a fallback, and sits ABOVE the component that
+    reads the search params — mutation-verified: deleting the wrapper
+    fails all three assertions.
+
 ---
 
 ## §6. Cross-cutting constants
