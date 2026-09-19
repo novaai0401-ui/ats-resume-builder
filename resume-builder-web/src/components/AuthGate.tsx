@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { Suspense, useEffect, useState, type ReactNode } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { getAccessToken } from '@/src/lib/api';
 import { buildReturnPath } from '@/src/lib/return-path';
@@ -11,15 +11,20 @@ type AuthGateProps = {
   fallbackMessage?: string;
 };
 
-/**
- * Client-side auth gate. Redirects unauthenticated users to `/auth/login`
- * and preserves the intended destination in sessionStorage under
- * `rb_return_to` so the login flow can send them back after signing in.
- *
- * Use this to wrap any page that exposes ATS / resume / career features.
- * Public marketing pages (home, login, register) must NOT be wrapped.
- */
-export default function AuthGate({ children, fallbackMessage }: AuthGateProps) {
+/** The "still deciding" panel. Shared so the Suspense fallback and the
+ *  pre-check state are visually identical — the boundary below must not
+ *  make the page flicker through a different layout. */
+function CheckingSession() {
+  return (
+    <main className="grid">
+      <section className="card col-12">
+        <p className="small">Checking your session...</p>
+      </section>
+    </main>
+  );
+}
+
+function AuthGateInner({ children, fallbackMessage }: AuthGateProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -47,13 +52,7 @@ export default function AuthGate({ children, fallbackMessage }: AuthGateProps) {
   }, [router, pathname, searchParams]);
 
   if (authed === null) {
-    return (
-      <main className="grid">
-        <section className="card col-12">
-          <p className="small">Checking your session...</p>
-        </section>
-      </main>
-    );
+    return <CheckingSession />;
   }
 
   if (!authed) {
@@ -69,4 +68,29 @@ export default function AuthGate({ children, fallbackMessage }: AuthGateProps) {
   }
 
   return <>{children}</>;
+}
+
+/**
+ * Client-side auth gate. Redirects unauthenticated users to `/auth/login`
+ * and preserves the intended destination in sessionStorage under
+ * `rb_return_to` so the login flow can send them back after signing in.
+ *
+ * Use this to wrap any page that exposes ATS / resume / career features.
+ * Public marketing pages (home, login, register) must NOT be wrapped.
+ *
+ * The Suspense boundary is load-bearing, not decoration. `useSearchParams()`
+ * opts a component out of static prerendering, and Next fails the
+ * production build outright — "useSearchParams() should be wrapped in a
+ * suspense boundary" — for every statically rendered page that reaches one
+ * without a boundary above it. Seventeen pages wrap themselves in AuthGate,
+ * so without this the whole web build dies on the first of them to
+ * prerender. Keeping the boundary HERE rather than in each page means a
+ * new gated page cannot reintroduce the failure by forgetting it.
+ */
+export default function AuthGate({ children, fallbackMessage }: AuthGateProps) {
+  return (
+    <Suspense fallback={<CheckingSession />}>
+      <AuthGateInner fallbackMessage={fallbackMessage}>{children}</AuthGateInner>
+    </Suspense>
+  );
 }
