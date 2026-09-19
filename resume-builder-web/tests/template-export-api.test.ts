@@ -44,10 +44,18 @@ test('dashboard apply persists templateId before template-route navigation', () 
     path.join(__dirname, '..', 'app', 'dashboard', 'DashboardPageView.tsx'),
     'utf-8',
   );
-  // Same reason as above: pin the call, not the line breaks.
+  // Same reason as above: pin the call, not the line breaks — but pin the
+  // VALUE too, not just the key. An earlier version of this assertion
+  // matched the property name alone, so `{ templateId: 'classic' }` or
+  // `{ templateId: undefined }` would have satisfied it while applying any
+  // other template silently stopped persisting the user's choice. The
+  // shorthand `{ templateId }` (or an explicit `templateId: templateId`) is
+  // the thing that makes the selected value the one saved.
   assert(
-    /apiClient\.updateResume\(\s*activeResume\.id\s*,\s*\{[^)]*?\btemplateId\b/.test(source),
-    'Dashboard apply must persist templateId using updateResume(activeResume.id, { templateId … })',
+    /apiClient\.updateResume\(\s*activeResume\.id\s*,\s*\{[^)]*?\btemplateId\s*(?:,|\}|:\s*templateId\b)/.test(
+      source,
+    ),
+    'Dashboard apply must persist the SELECTED templateId: updateResume(activeResume.id, { templateId })',
   );
   assert(
     source.includes('router.push(buildTemplateSelectionRoute(activeResume.id))'),
