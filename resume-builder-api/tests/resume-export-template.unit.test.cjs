@@ -190,9 +190,30 @@ test("export CSS leads font stack with 'Inter' and never falls back to a serif",
   // The var() fallback list still terminates in sans-serif (now inside the
   // var() close-paren: "...Arial, sans-serif);").
   assert.match(rendered.html, /sans-serif\)?;/);
-  // Ensure no actual serif family slipped into the stack — match on
-  // bare " serif" (not "sans-serif") at end of font-family declaration.
-  assert.doesNotMatch(rendered.html, /font-family:[^;]*(?:^|[\s,])serif\s*;/i);
+  // Ensure no actual serif family slipped into a THEMEABLE stack — the
+  // ones driven by var(--rb-font), which is what a user's font choice and
+  // the no-choice default both flow through. Match on bare " serif", not
+  // "sans-serif".
+  //
+  // Scoped to var(--rb-font, …) declarations on purpose. This previously
+  // scanned the whole document and so forbade the string "serif" anywhere
+  // in the emitted CSS — which the `elegant-serif` template
+  // (resume-builder-shared/src/templates/catalog.ts:644) legitimately
+  // violates with `font-family: Georgia, 'Times New Roman', serif` on its
+  // name and title. That is a deliberately serif TEMPLATE, not a silent
+  // fallback, and its rules ship in the shared stylesheet for every export
+  // regardless of the template actually selected. So the assertion went red
+  // on correct code and stayed red, which is exactly the failure mode the
+  // founder smoke note was written to prevent.
+  const themeableStacks = rendered.html.match(/font-family:\s*var\(--rb-font[^;]*;/gi) || [];
+  assert.ok(themeableStacks.length > 0, 'expected at least one var(--rb-font) stack in the export CSS');
+  for (const decl of themeableStacks) {
+    assert.doesNotMatch(
+      decl,
+      /(?:^|[\s,])serif\s*\)?\s*;/i,
+      `themeable font stack must not fall back to a serif: ${decl}`,
+    );
+  }
 });
 
 test('apply template update persists and export uses the persisted templateId', async () => {
@@ -564,6 +585,12 @@ test('share-links renderPdf requests a watermarked, quota-bypassing export', asy
   svc.analytics = { track: () => {} };
   svc.resolveBySlug = async () => link;
   svc.recordEvent = async () => {};
+  // renderPdf -> ownerIsPlus() reads this.prisma.user.findUnique to decide
+  // whether to watermark. The stub never set `prisma`, so the call died on
+  // "Cannot read properties of undefined (reading 'user')" and the test had
+  // been red since the watermark became plan-dependent — it was failing on
+  // a missing stub, not on the behaviour it claims to check.
+  svc.prisma = { user: { findUnique: async () => ({ plan: 'FREE' }) } };
 
   const pdf = await svc.renderPdf('abc', undefined);
   assert.ok(Buffer.isBuffer(pdf));
@@ -571,6 +598,33 @@ test('share-links renderPdf requests a watermarked, quota-bypassing export', asy
   assert.equal(calls[0].userId, 'u1');
   assert.equal(calls[0].resumeId, 'r1');
   assert.deepEqual(calls[0].options, { watermark: true });
+});
+
+test('share-links renderPdf serves a Plus owner a clean, unwatermarked export', async () => {
+  // The other half of the same contract, and the branch whose introduction
+  // silently broke the test above: a paid owner's shared copy is clean,
+  // because the clean export is part of what the plan sells. Without this,
+  // ownerIsPlus could be inverted or dropped and only the FREE case above
+  // would notice.
+  const calls = [];
+  const { ShareLinksService } = require('../dist/share-links/share-links.service.js');
+  const link = { id: 'l2', slug: 'plus', userId: 'u2', resumeId: 'r2' };
+  const svc = Object.create(ShareLinksService.prototype);
+  svc.resume = {
+    generatePdfBypassingQuota: async (userId, resumeId, templateOverride, options) => {
+      calls.push({ userId, resumeId, templateOverride, options });
+      return Buffer.from('%PDF-fake');
+    },
+  };
+  svc.analytics = { track: () => {} };
+  svc.resolveBySlug = async () => link;
+  svc.recordEvent = async () => {};
+  svc.prisma = { user: { findUnique: async () => ({ plan: 'PLUS' }) } };
+
+  const pdf = await svc.renderPdf('plus', undefined);
+  assert.ok(Buffer.isBuffer(pdf));
+  assert.equal(calls.length, 1);
+  assert.deepEqual(calls[0].options, { watermark: false });
 });
 
 // ---------------------------------------------------------------------------
