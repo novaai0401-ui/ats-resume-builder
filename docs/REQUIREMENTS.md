@@ -2343,6 +2343,57 @@ ChatGPT/Claude account as CallbackCV's identity. See §7.
     reads the search params — mutation-verified: deleting the wrapper
     fails all three assertions.
 
+### R-124 · `main` CI goes green: retire five formatting-coupled tests
+
+- Status: **DONE** (this commit)
+- Depends-on: R-123
+- Note: numbered R-124 for the same reason as R-123 — R-113–R-122 stay
+  reserved for the launch-plan growth items (§8, IDs are never reused).
+- Source: `main` CI had failed on its last nine runs. Five assertions were
+  red, none of them reporting a real defect, so `Lint & Test (Web)` and
+  `Lint & Test (API)` were red on every branch cut from `main` and no PR
+  could show green. A permanently red required check is worse than no
+  check: it cannot gate a merge, and it trains reviewers to merge past red.
+
+- What each one actually was:
+  - `privacy policy … no data sale` asserted `/do not sell your data/i`
+    against page SOURCE. The page says
+    `We do <strong>not sell</strong> your data.` — the promise was intact
+    and an emphasis tag broke the match. A privacy assertion a bold tag can
+    defeat is worse than none.
+  - Two template tests grepped for exact one-line call strings; `fe6ae2b`
+    (Aug 20) wrapped those calls across lines to add `accentColor`. The
+    behaviour never changed.
+  - `export CSS … never falls back to a serif` forbade the substring
+    `serif` anywhere in the emitted CSS, which the catalogued
+    `elegant-serif` template legitimately violates with
+    `font-family: Georgia, 'Times New Roman', serif`. Its rules ship in the
+    shared stylesheet for every export regardless of the template chosen,
+    so the assertion went red on correct code.
+  - `share-links renderPdf …` died with
+    `Cannot read properties of undefined (reading 'user')`: `renderPdf`
+    calls `ownerIsPlus()`, which reads `this.prisma.user`, and the stub
+    never set `prisma`. It was failing on a missing stub, not on the
+    behaviour it claims to check — so the plan-dependent watermark had in
+    fact been shipping with NO passing test at all.
+
+- Acceptance criteria:
+  - [x] Web strict suite 493/493 and API 709/709, both exiting 0.
+  - [x] Every rewritten assertion still fails when the behaviour it
+    describes is removed — mutation-verified one by one: dropping the
+    no-sale sentence, renaming either `updateResume` call, putting a serif
+    in a `var(--rb-font)` stack, and inverting `ownerIsPlus` each fail.
+  - [x] Each one now tests the contract rather than the formatting: prose
+    matched against tag-stripped text, calls matched by receiver and
+    arguments rather than line breaks, the serif rule scoped to themeable
+    stacks rather than the whole stylesheet.
+  - [x] No product code changed. This commit touches test files only.
+  - [x] The Plus branch of the share-link watermark gained the test it
+    never had, so `ownerIsPlus` can no longer be inverted unnoticed.
+  - [ ] **OWNER:** `tests/dashboard-auth-flow.test.tsx` stays quarantined
+    (advisory, R-084) — its jsdom teardown flakiness is a separate problem
+    and is NOT addressed here.
+
 ---
 
 ## §6. Cross-cutting constants

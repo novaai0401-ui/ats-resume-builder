@@ -12,6 +12,19 @@ import path from 'node:path';
 const webRoot = path.join(__dirname, '..');
 const read = (...p: string[]) => readFileSync(path.join(webRoot, ...p), 'utf-8');
 
+/**
+ * Source with JSX tags removed, so a prose assertion matches what the page
+ * SAYS rather than how the sentence happens to be marked up.
+ *
+ * `/do not sell your data/` failed against
+ * `We do <strong>not sell</strong> your data.` — the claim was on the page
+ * and correct, but an emphasis tag in the middle of the sentence broke the
+ * match. A privacy assertion that a bold tag can defeat is worse than none:
+ * it goes red while the promise is intact, and the next person to see it red
+ * learns to ignore it.
+ */
+const readText = (...p: string[]) => read(...p).replace(/<\/?[A-Za-z][^>]*>|<\/?>/g, '');
+
 test('Settings renders the API access card the MCP/extension docs point to', () => {
   const settings = read('app', 'settings', 'SettingsPageView.tsx');
   assert(settings.includes('ApiAccessCard'), 'Settings must render <ApiAccessCard />');
@@ -25,9 +38,10 @@ test('Settings renders the API access card the MCP/extension docs point to', () 
 
 test('privacy policy page exists and covers the extension + MCP data flow', () => {
   const privacy = read('app', 'privacy', 'page.tsx');
-  assert(/extension/i.test(privacy), 'privacy policy covers the browser extension');
-  assert(/MCP/i.test(privacy), 'privacy policy covers the MCP server');
-  assert(/do not sell your data/i.test(privacy), 'privacy policy states no data sale');
+  const prose = readText('app', 'privacy', 'page.tsx');
+  assert(/extension/i.test(prose), 'privacy policy covers the browser extension');
+  assert(/MCP/i.test(prose), 'privacy policy covers the MCP server');
+  assert(/do not sell your data/i.test(prose), 'privacy policy states no data sale');
   assert(privacy.includes("canonical: '/privacy'"), 'privacy page is canonical at /privacy');
 });
 
