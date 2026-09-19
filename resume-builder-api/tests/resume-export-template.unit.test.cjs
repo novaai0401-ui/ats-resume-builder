@@ -600,32 +600,43 @@ test('share-links renderPdf requests a watermarked, quota-bypassing export', asy
   assert.deepEqual(calls[0].options, { watermark: true });
 });
 
-test('share-links renderPdf serves a Plus owner a clean, unwatermarked export', async () => {
-  // The other half of the same contract, and the branch whose introduction
-  // silently broke the test above: a paid owner's shared copy is clean,
-  // because the clean export is part of what the plan sells. Without this,
-  // ownerIsPlus could be inverted or dropped and only the FREE case above
-  // would notice.
-  const calls = [];
-  const { ShareLinksService } = require('../dist/share-links/share-links.service.js');
-  const link = { id: 'l2', slug: 'plus', userId: 'u2', resumeId: 'r2' };
-  const svc = Object.create(ShareLinksService.prototype);
-  svc.resume = {
-    generatePdfBypassingQuota: async (userId, resumeId, templateOverride, options) => {
-      calls.push({ userId, resumeId, templateOverride, options });
-      return Buffer.from('%PDF-fake');
-    },
-  };
-  svc.analytics = { track: () => {} };
-  svc.resolveBySlug = async () => link;
-  svc.recordEvent = async () => {};
-  svc.prisma = { user: { findUnique: async () => ({ plan: 'PLUS' }) } };
+// The paid plan values the product actually stores. `schema.prisma` types
+// User.plan as a bare String defaulting to 'FREE', so nothing at the DB
+// level constrains it — the real vocabulary lives in the billing code,
+// which only ever writes 'FREE', 'PRO' and 'STUDENT'.
+//
+// This list matters more than it looks. An earlier draft of this test used
+// a made-up 'PLUS', which passes ownerIsPlus() (anything non-FREE does) and
+// so looked like it covered the paid branch. It did not: an implementation
+// written as `user.plan === 'PLUS'` would have satisfied the test while
+// every real paid owner's shared PDF came out watermarked. A fixture using
+// a value production never stores cannot protect the branch it names.
+for (const paidPlan of ['PRO', 'STUDENT']) {
+  test(`share-links renderPdf serves a ${paidPlan} owner a clean, unwatermarked export`, async () => {
+    // The other half of the same contract, and the branch whose introduction
+    // silently broke the FREE test above: a paid owner's shared copy is
+    // clean, because the clean export is part of what the plan sells.
+    const calls = [];
+    const { ShareLinksService } = require('../dist/share-links/share-links.service.js');
+    const link = { id: 'l2', slug: 'paid', userId: 'u2', resumeId: 'r2' };
+    const svc = Object.create(ShareLinksService.prototype);
+    svc.resume = {
+      generatePdfBypassingQuota: async (userId, resumeId, templateOverride, options) => {
+        calls.push({ userId, resumeId, templateOverride, options });
+        return Buffer.from('%PDF-fake');
+      },
+    };
+    svc.analytics = { track: () => {} };
+    svc.resolveBySlug = async () => link;
+    svc.recordEvent = async () => {};
+    svc.prisma = { user: { findUnique: async () => ({ plan: paidPlan }) } };
 
-  const pdf = await svc.renderPdf('plus', undefined);
-  assert.ok(Buffer.isBuffer(pdf));
-  assert.equal(calls.length, 1);
-  assert.deepEqual(calls[0].options, { watermark: false });
-});
+    const pdf = await svc.renderPdf('paid', undefined);
+    assert.ok(Buffer.isBuffer(pdf));
+    assert.equal(calls.length, 1);
+    assert.deepEqual(calls[0].options, { watermark: false });
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Achievements — dedicated section renders in the PDF export.
