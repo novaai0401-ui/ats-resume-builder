@@ -1,4 +1,4 @@
-﻿import { BadRequestException, Injectable, Logger, Optional, UnauthorizedException } from '@nestjs/common';
+﻿import { BadRequestException, ConflictException, Injectable, Logger, Optional, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
@@ -16,6 +16,9 @@ import { EmailVerificationService, emailVerificationRequired } from './email-ver
 const ACCESS_TOKEN_TYPE = 'access';
 const REFRESH_TOKEN_TYPE = 'refresh';
 const OTP_SESSION_TTL_SECONDS = 30 * 60;
+/// R-106 — long enough to paste into an assistant, short enough that a code
+/// left on screen or in a chat log stops being useful quickly.
+const CONNECT_CODE_TTL_MS = 10 * 60 * 1000;
 
 type SessionType = 'default' | 'otp';
 
@@ -231,11 +234,97 @@ export class AuthService {
     return this.issueTokensForUser(user);
   }
 
+  /**
+   * R-106 — logout revokes ACCESS tokens too, not just the refresh token.
+   *
+   * Before this, logout cleared refreshTokenHash and nothing else, while
+   * JwtStrategy checked only the signature, type and expiry — so a copied
+   * access token kept working for up to seven days after the user logged
+   * out. /privacy and the API-access card both say "logging out
+   * invalidates active tokens immediately"; bumping tokenVersion is what
+   * makes that sentence true.
+   *
+   * Deliberate consequence: this signs the user out of every device and
+   * every connected assistant at once. That is what the copy promises,
+   * and a per-session revocation list would be a bigger change than the
+   * promise needs.
+   */
   async logout(userId: string) {
     await this.prisma.user.update({
       where: { id: userId },
-      data: { refreshTokenHash: null, refreshTokenExpiresAt: null },
+      data: {
+        refreshTokenHash: null,
+        refreshTokenExpiresAt: null,
+        tokenVersion: { increment: 1 },
+      },
     });
+    return { ok: true };
+  }
+
+  /**
+   * R-106 — mint a one-time connect code for an assistant.
+   *
+   * The user is already authenticated here, in CallbackCV's own UI, which
+   * is the whole point: the connector's authorize page then needs only
+   * this code, never a password. The plaintext is returned once and only
+   * its SHA-256 is stored, so a database leak yields nothing redeemable.
+   */
+  async createConnectCode(userId: string, label?: string) {
+    const code = randomBytes(24).toString('base64url');
+    const expiresAt = new Date(Date.now() + CONNECT_CODE_TTL_MS);
+    await this.prisma.connectCode.create({
+      data: { codeHash: sha256(code), userId, label: label?.slice(0, 60) || null, expiresAt },
+    });
+    return { code, expiresAt: expiresAt.toISOString(), expiresInSeconds: CONNECT_CODE_TTL_MS / 1000 };
+  }
+
+  /**
+   * Redeem a connect code for a normal session. Single-use: the update is
+   * conditioned on usedAt still being null, so two racing redemptions
+   * cannot both succeed.
+   */
+  async redeemConnectCode(code: string) {
+    const row = await this.prisma.connectCode.findUnique({ where: { codeHash: sha256(code) } });
+    if (!row || row.usedAt || row.expiresAt.getTime() < Date.now()) {
+      throw new UnauthorizedException('That connect code is invalid, already used, or expired.');
+    }
+    const claimed = await this.prisma.connectCode.updateMany({
+      where: { id: row.id, usedAt: null },
+      data: { usedAt: new Date() },
+    });
+    if (claimed.count !== 1) {
+      throw new UnauthorizedException('That connect code was already used.');
+    }
+    const user = await this.prisma.user.findUnique({ where: { id: row.userId } });
+    if (!user) throw new UnauthorizedException('Account not found.');
+    return this.issueTokensForUser(user);
+  }
+
+  /**
+   * R-106 — spend an OAuth authorization code exactly once.
+   *
+   * The MCP mints stateless sealed codes; without a spend record the same
+   * code could be exchanged repeatedly until its TTL expired. The primary
+   * key on jti is the lock: a concurrent second exchange loses the insert
+   * and is rejected, so this is safe against parallel attempts, not just
+   * sequential replay.
+   */
+  async consumeOAuthCode(userId: string, jti: string, expiresAt: Date) {
+    try {
+      await this.prisma.consumedOAuthCode.create({ data: { jti, userId, expiresAt } });
+    } catch {
+      throw new ConflictException('This authorization code has already been used.');
+    }
+    return { ok: true };
+  }
+
+  /** Revoke every connected assistant (and every other session) at once. */
+  async revokeConnectors(userId: string) {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { tokenVersion: { increment: 1 } },
+    });
+    await this.prisma.connectCode.deleteMany({ where: { userId, usedAt: null } });
     return { ok: true };
   }
 
@@ -456,6 +545,15 @@ export class AuthService {
     const accessExpires = options.accessExpiresSeconds;
     const refreshExpires = options.refreshExpiresSeconds;
 
+    // R-106: `tv` is the user's revocation counter at issue time.
+    // JwtStrategy refuses a token whose tv is behind the stored value, so
+    // logout and "disconnect assistant" take effect on the next request
+    // instead of waiting out the 7-day expiry.
+    const { tokenVersion } = (await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { tokenVersion: true },
+    })) ?? { tokenVersion: 0 };
+
     const accessToken = await this.jwt.signAsync(
       {
         sub: userId,
@@ -464,6 +562,7 @@ export class AuthService {
         mobile,
         sess: options.sessionType,
         adm: isAdmin,
+        tv: tokenVersion,
       },
       {
         secret: this.config.get<string>('JWT_SECRET', 'dev_secret'),
@@ -530,6 +629,11 @@ function humanizeProvider(provider: string): string {
     case 'email_otp': return 'the email OTP flow';
     default: return 'your original sign-in method';
   }
+}
+
+/** SHA-256 hex. Connect codes are stored hashed, never in plaintext. */
+function sha256(raw: string): string {
+  return createHash('sha256').update(raw).digest('hex');
 }
 
 function fingerprintDevice(ip: string, userAgent: string): string {

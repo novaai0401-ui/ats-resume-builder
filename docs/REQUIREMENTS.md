@@ -1784,9 +1784,18 @@ and every external call still feeds the Outcome Graph.
     encrypted wrapper (`cbcv.…`) around the user's CallbackCV token — the
     raw JWT is never handed to the connector. Rotating `MCP_OAUTH_SECRET`
     revokes everything at once.
+    - **AMENDED by R-106 (2026-09-10):** "no database" was the defect, not
+      the feature. A stateless code cannot be marked spent, so the same
+      code could be exchanged repeatedly inside its TTL. Codes now carry a
+      `jti` burned against the API on exchange.
   - [x] The authorize page asks the user to paste their Settings → API
     access token and validates it live against the API — the MCP layer
     never handles passwords (trust layer intact).
+    - **DRIFTED, then restored by R-106 (2026-09-10):** by `168065c` this
+      page had grown an email + password form posting to `/auth/login`, so
+      the sentence above had quietly stopped being true. It now asks for a
+      one-time connect code minted in the signed-in web app, and the suite
+      asserts no password or email field exists on that page.
   - [x] Opt-in via `MCP_OAUTH_SECRET` + `MCP_PUBLIC_URL`; when unset the
     OAuth paths 404 and plain Bearer auth is unchanged. Wrapped, expired,
     or wrong-secret tokens are refused (forces re-auth); raw bearers still
@@ -1894,6 +1903,409 @@ and every external call still feeds the Outcome Graph.
 
 ---
 
+## §5b. Connector correctness + trust (pre-public-launch)
+
+The R-096/R-100/R-101 connector surface exists and is reachable, but a
+code review at `168065c` found user-facing output that is wrong, promises
+the code does not keep, and an authorization grant the user cannot
+revoke. Nothing in this section adds a feature; every entry closes the
+gap between what a shipped surface claims and what it does. Ordered by
+dependency: the test harness first, then the two defects that produce
+wrong answers or unrevokable access, then honesty, then distribution.
+
+**Explicitly out of scope (founder decision, 2026-09-10):** using the
+ChatGPT/Claude account as CallbackCV's identity. See §7.
+
+### R-104 · MCP suite matches the shipped tool set, and CI runs it
+
+- Status: **DONE** (this commit)
+- Depends-on: R-096, R-100, R-101
+- Source: review at `168065c` — `tests/server.test.mjs` asserts "each of
+  the 6 tools declares annotations" against `EXPECTED_TOOLS`, while
+  `src/server.ts` registers ten (`open_in_callbackcv`, `create_resume`,
+  `update_resume`, `get_download_link`, `list_resumes`, `get_resume`,
+  `list_versions`, `tailor_resume`, `log_application`,
+  `get_outcome_stats`). `grep mcp .github/workflows/*.yml` returns
+  nothing, so the drift was invisible. Every entry below needs a pinning
+  test per CLAUDE.md, so this lands first.
+- Acceptance
+  - [x] `EXPECTED_TOOLS` covers all ten tools; annotation counts are
+    derived from that list rather than hardcoded (`readOnlyHint: true`
+    for the six read-only tools, write annotations for the rest).
+  - [x] Tests assert tool BEHAVIOUR, not source-text regex matches: the
+    suite drives the real server over `InMemoryTransport` and asserts the
+    names, annotations, descriptions and input schemas a connector
+    actually receives. Verified non-vacuous by mutation: renaming a tool
+    fails 3 assertions, flipping one `readOnlyHint` fails 1.
+  - [x] Per-defect regression tests land WITH their fix (R-105…R-112), not
+    here — a test that fails until a later requirement would leave the new
+    CI job red and train everyone to ignore it.
+  - [x] `.github/workflows/ci.yml` gains an `mcp` job (install, `tsc`
+    build, `node --test`) that blocks merge, matching the other jobs.
+  - [x] Suite green at 10/10 tools; no `.skip`, no advisory step.
+
+---
+
+### R-105 · ATS simulator scores the actual resume
+
+- Status: **DONE** (this commit)
+- Depends-on: R-104
+- Source: review at `168065c`. `resume.controller.ts` `atsSimulate()`
+  reads `summary`, `experience`, `education`, `projects` and
+  `certifications` out of `(resume as {sections?}).sections`. The Prisma
+  `Resume` model has no `sections` column — those are top-level fields —
+  so `sections` is always `{}` and **every** simulation runs on title,
+  contact and skills alone. This is not an edge case: the score shown to
+  every user today is computed from a resume with no work history.
+- Acceptance
+  - [x] `atsSimulate()` reads the top-level fields returned by
+    `resumeService.get()`; the `sections` indirection is deleted, not
+    defaulted.
+  - [x] Profession sections added by R-077 (`licenses`, `publications`)
+    and `achievements` reach the simulator too.
+  - [x] Pinning unit test in `tests/ats-simulate-endpoint.unit.test.cjs`:
+    drives the CONTROLLER with the shape `resumeService.get()` really
+    returns, so the `sections` mismatch cannot hide. Reverting the
+    controller fails 3 of its 4 cases.
+  - [x] Two further defects found while fixing this and closed here:
+    (a) `projects` and `certifications` were declared in
+    `SimulatedResumeInput` but never referenced in `simulateAts` — data
+    that did arrive was discarded; (b) confidence is `100 - riskPenalty`
+    and absent sections raised no risks, so an EMPTY resume scored 100
+    while a real one lost points for every flaw it actually had. Added
+    `summary-missing` / `experience-missing` / `education-missing` risks.
+  - [x] Public copy stops implying vendor parsers are executed: the
+    simulator works from structured fields and never parses the exported
+    file, so it is described as CallbackCV's own compatibility preview.
+    Vendor names (Workday/Greenhouse/iCIMS) only where documented
+    testing exists (C-003).
+
+---
+
+### R-106 · Connector grants are single-use, revocable, and password-free
+
+- Status: **DONE** (this commit) — migration written, NOT applied
+- Depends-on: R-104
+- Source: review at `168065c`, two findings that compound.
+  (a) `oauth.ts` `/oauth/token` unseals a stateless authorization code
+  and never consumes it, so the same `code` + `code_verifier` pair can be
+  exchanged repeatedly until the 10-minute TTL expires. The client and
+  redirect bindings are guarded by `params.get('client_id') &&` /
+  `params.get('redirect_uri') &&`, so omitting a parameter skips the
+  check it is supposed to enforce.
+  (b) `auth.service.ts` `logout()` clears only `refreshTokenHash`;
+  `jwt.strategy.ts` `validate()` checks signature, `typ` and expiry and
+  consults no revocation state. A copied access token therefore outlives
+  logout, while the settings card and `/privacy` promise otherwise.
+  Together: a leaked authorization code yields access the user has no way
+  to withdraw. Also: R-100's acceptance says "the MCP layer never handles
+  passwords", but `authorizeForm()` now collects email + password and
+  posts them to `/auth/login` — the acceptance criterion has drifted, and
+  a third-party-hosted page collecting first-party passwords is the exact
+  shape users are taught to distrust.
+- Acceptance
+  - [x] Authorization codes are single-use. Second exchange of the same
+    code returns `invalid_grant`. (Stateless sealing cannot express
+    "spent", so this needs a store — a small `OAuthCode` table or the
+    existing API — and R-100's "no database" claim is amended here, not
+    quietly.)
+  - [x] `client_id` and `redirect_uri` are REQUIRED and compared
+    unconditionally; a request omitting either is rejected.
+  - [x] The MCP resource/audience is validated per the MCP authorization
+    spec (2025-06-18).
+  - [x] Access grants are revocable: a `tokenVersion` on the user (or a
+    session/grant record) is checked in `JwtStrategy.validate()`, and
+    logout plus an explicit "disconnect this assistant" control bump it.
+    Revoking is visible in Settings and takes effect on the next request.
+  - [x] The authorize page stops collecting passwords. Sign-in is by a
+    one-time connect code minted in the web app (where the user is
+    already authenticated) or a pasted API token — restoring R-100's
+    stated trust boundary.
+  - [x] Request body size limits (64 KiB, 413 on overflow — `readBody` used
+    to buffer whatever was sent) and a fixed-window rate limit on the
+    `/oauth/*` write paths.
+  - [x] Migration `20260910120000_add_connector_revocation` is additive
+    (one defaulted column, two new tables) and is committed but NOT
+    applied — this session has no database. Run it on a copy first.
+  - [x] Deploy note: tokens minted before this carry no `tv` and count as
+    version 0, so applying the migration does not sign the userbase out.
+    The first logout after deploy retires them.
+  - [x] Privacy and settings copy match the implemented behaviour before
+    merge, not after (C-003).
+  - [x] Pinning tests: replayed code rejected; missing `client_id`
+    rejected; token minted before a revocation bump is refused after it.
+
+---
+
+### R-112 · Training data is opt-in in fact, not only in copy
+
+- Status: **DONE** (this commit) — migration written, NOT applied
+- Depends-on: R-104
+- Note: numbered after R-111 because IDs are never reused (§8), but it is
+  placed here because it ships with R-106 — both are trust-layer fixes and
+  both change what `/privacy` is allowed to say.
+- Source: review at `168065c`. `prisma/schema.prisma` declares
+  `trainingConsent Boolean @default(true)`, and
+  `training-dataset.service.ts` gates capture on that flag alone — it does
+  not require a recorded affirmative opt-in, and `trainingConsentAt` may
+  be null for a user whose data is being captured. `/privacy` line 61
+  says "We do not use your resume to train AI unless you explicitly opt
+  in". A default-true boolean is not an explicit opt-in, so the code and
+  the promise disagree — a C-003 violation on the most sensitive claim on
+  the page. Separately, `pattern-learner/redact.ts` strips emails,
+  phones, numbers and URLs but not names, so a captured sample can retain
+  the candidate's name.
+- Acceptance
+  - [x] `trainingConsent` defaults to FALSE, with a migration for existing
+    rows (see the owner decision below).
+  - [x] Capture requires an affirmative record — `trainingConsent === true`
+    AND a non-null `trainingConsentAt` at the current `CONSENT_VERSION` —
+    not merely a truthy flag.
+  - [x] The settings UI stops describing participation as default-on.
+  - [x] Redaction covers personal names, and is pinned by a test using a
+    synthetic name that must not survive the redactor. Ship the redaction
+    the privacy page promises, or narrow the promise (C-003).
+  - [x] Founder decision (2026-09-10): HOLD, do not purge. Samples
+    captured without a recorded opt-in get `consentHold = true` —
+    excluded from exports AND from the corpus loader that actually
+    trains, but not destroyed, so re-consent can clear the flag.
+  - [x] Consent notice bumped to v2. v1 opened with "You are opted in by
+    default", the exact sentence /privacy contradicted; the modal's
+    "Opt out / Got it" became "No thanks / Yes, use my patterns", and
+    dismissing it now leaves training off.
+  - [x] Redaction ordering bug caught by the new tests and fixed: names
+    substituted before the email pattern ran turned
+    `priya.sharma@example.com` into `<NAME>.<NAME>@example.com`, which no
+    longer matched — leaking the domain. Structured patterns run first.
+  - [x] Scope limit stated honestly: this is redaction, not
+    anonymisation. Third-party names in prose (a manager, a co-author)
+    are not detected without real NER, so no surface claims they are.
+  - [x] Pinning test: a user who has never touched the setting produces
+    NO captured sample. This test fails on the current code.
+
+---
+
+### R-107 · One schema for assistants and API; handoff links that parse
+
+- Status: **DONE** (this commit)
+- Depends-on: R-104
+- Source: review at `168065c`.
+  (a) `server.ts` declares experience `startDate`/`endDate`/`highlights`
+  as optional and `contact` as wholly optional; `schemas/index.ts`
+  requires `startDate.min(1)`, `endDate.min(1)`, `highlights.min(1)` and
+  `contact.fullName.min(2)`. An assistant that gathers exactly what the
+  tool schema asks for gets a rejection it was never warned about.
+  (b) `UTM` is `'?utm_source=…'`, and `open_in_callbackcv` appends it to
+  a URL that already carries `?resumeId=`, producing
+  `/resume?resumeId=demo?utm_source=ai-assistant` — the parsed resume id
+  swallows the UTM tag and attribution is lost. (`get_download_link` is
+  NOT affected: it places UTM first and is correctly formed. Do not
+  "fix" it.)
+- Acceptance
+  - [x] Section shapes live in ONE place per side and are held together by
+    `tests/schema-parity.test.mjs`, which imports the real shared schemas
+    and fails on any drift. A runtime import was rejected deliberately:
+    the MCP ships to npm with only the SDK and zod as dependencies, so a
+    workspace import would break `npx @tekivex/callbackcv-mcp`. The two
+    packages are also on different zod majors (3 vs 4), so the test uses
+    only the public API both agree on. Verified by mutation: making
+    `startDate` optional again fails the parity test (C-001).
+  - [x] `create_resume` and `update_resume` now share one field
+    definition, so they cannot drift from each other either.
+  - [x] Every URL is built with `URL` + `searchParams`; `UTM` is a
+    parameter pair, not a string fragment. Tests parse the returned URLs
+    and assert both `resumeId` and `utm_source`, including a resume id
+    containing `&`, `=` and `?` that concatenation would have corrupted.
+  - [x] The post-login return path keeps its query string. Extracted to
+    `buildReturnPath()` because THREE call sites built it by hand and two
+    dropped the query (`AuthGate`, `PremiumGate`); one definition means
+    the next call site cannot invent a fourth variant.
+  - [x] `create_resume`/`update_resume` cover the sections the app
+    supports — projects, certifications, languages, licenses,
+    publications (C-002) — and `update_resume` can change contact.
+  - [x] Validation failures return the field and the rule, not a bare
+    400.
+
+---
+
+### R-108 · The tailored version is the one that gets downloaded
+
+- Status: **DONE** (this commit)
+- Depends-on: R-107
+- Source: review at `168065c`. `tailor_resume` saves with
+  `applyToLive: false`; `get_download_link` takes only a `resumeId` and
+  links to the live resume's template page. There is no tool to fetch or
+  export a specific version and no version selector in the link, so the
+  advertised flow — tailor, log the version, download — hands the user
+  the ORIGINAL while `log_application` attributes the outcome to the
+  tailored variant. That breaks the attribution link C-007 exists to
+  protect. Separately, `tailor.service.ts` `snapshotPayload` omits
+  `achievements`, `licenses`, `publications` and design settings, so
+  restoring a version silently drops content the resume had.
+- Acceptance
+  - [x] Snapshots are lossless: the payload is built from the full
+    resume record, and a round-trip test (snapshot → restore) asserts
+    deep equality including achievements, licenses, publications and
+    design settings. Failing this test means C-007 is broken.
+  - [x] A `get_resume_version` tool, and a version-aware
+    `get_download_link` (accepts an optional `versionId` and links to
+    that exact variant).
+  - [x] Pinning test: tailor → download link → the link resolves to the
+    tailored version, not the live resume.
+  - [x] `tailor_resume` is REPLACED by `propose_tailoring` +
+    `apply_tailoring`. Apply can only save what it is explicitly handed,
+    so the human is in the loop by construction rather than by prompt
+    instruction; the proposal flags every added number and every skill
+    not already on the resume. A skill the assistant names but the
+    proposal never suggested is rejected. Breaking tool-set change —
+    version 0.4.0.
+  - [x] The web page honours the link: `/resume/template?versionId=…`
+    PREVIEWS that version as well as exporting it. Without that half,
+    the user would review one document and download another — the same
+    bug inverted. Exporting a version also no longer writes the accent
+    override back to the live resume.
+  - [x] Snapshot coverage is enforced against `schema.prisma`: adding a
+    Resume column fails the round-trip test until it is either
+    snapshotted or explicitly excluded with a reason. The original bug
+    was two hand-maintained field lists drifting; a third would have
+    drifted too.
+
+---
+
+### R-109 · Outcome metric separates replies from callbacks
+
+- Status: **DONE** (this commit) — migration written, NOT applied
+- Depends-on: R-104
+- Source: review at `168065c`. `outcome-stats.ts` puts `'rejected'` in
+  `RESPONSE_STATUSES`, and `top` is chosen by
+  `sort((a,b) => b.responseRate - a.responseRate)`. A version with five
+  rejections therefore outranks one with an interview and four pending,
+  and the headline reads "N× more replies". "Any reply" is a defensible
+  metric; ranking the resume a user should reuse by it is not — and the
+  outcome graph is the moat, so a metric that recommends the worse
+  resume is the most expensive bug in the product.
+  `INTERVIEW_STATUSES` and `OFFER_STATUSES` already exist, so this is a
+  ranking-key and copy change, not a metrics redesign.
+- Acceptance
+  - [x] Reply rate, positive-callback rate, interview rate and offer rate
+    are computed and displayed separately.
+  - [x] `top` ranks on positive callbacks, with reply rate shown
+    alongside. Pinning test: 5 rejections does NOT outrank 1 interview.
+  - [x] Denominators and the observation window are on screen wherever a
+    rate is. `MIN_SAMPLE_SIZE` is presented as a display threshold, not
+    as evidence of superiority.
+  - [x] Outcome provenance (self-reported / email-inferred / verified) is
+    stored on `JobApplication.outcomeSource`, counted in the report and
+    shown on the dashboard card. Null means self-reported, which is
+    accurate for every row predating the column. Migration
+    `20260918120000_outcome_provenance`, written but NOT applied.
+  - [x] Two further defects found while fixing this:
+    (a) the dashboard hero number, labelled "Your callback rate", was
+    `responses / applied` — a user whose every application was rejected
+    was shown a 100% callback rate. It is now positive callbacks, with
+    the reply rate reported separately.
+    (b) both the API headline and `computeAbInsight` suppressed the
+    comparison when the baseline had zero callbacks, because the ratio
+    is undefined — so "3 callbacks vs 0", the clearest signal the
+    product has, was reported as "within noise" or not at all. Both now
+    judge on percentage points and state the counts.
+
+---
+
+### R-110 · Public and LLM-facing claims match the product
+
+- Status: **DONE** (this commit)
+- Depends-on: R-105
+- Source: review at `168065c`. `llms.txt/route.ts` states "Every template
+  is single-column", while `templates/catalog.ts` ships
+  `layout: 'multi-column'` and `layout: 'sidebar'` entries — including
+  Sidebar Bold, whose own description says most ATS scrapers drop the
+  sidebar. We are feeding assistants a claim our own catalogue
+  contradicts. `layout.tsx` sets `alternates: { canonical: '/' }` with no
+  per-page override, so public landers self-canonicalise to the homepage
+  and compete with it. `sitemap.ts` lists authenticated tools
+  (`/career`, `/skill-demand`), omits `/privacy`, and stamps every entry
+  `lastModified: new Date()`.
+- Acceptance
+  - [x] Template facts in `llms.txt` and the homepage are GENERATED from
+    `TEMPLATE_CATALOG`, so the claim cannot drift again (C-002, C-003).
+  - [x] Every public landing page sets its own canonical; verified in
+    rendered HTML, not just source.
+  - [x] Sitemap lists public pages only, includes `/privacy`, and uses
+    real modification dates. Authenticated utilities get `noindex`;
+    robots rules are not treated as access control.
+  - [x] The `/ai-assistants` page stops describing token storage as
+    device-only now that hosted connectors exist, and the Custom GPT doc
+    stops asserting MCP is unavailable on ChatGPT web while the same repo
+    documents remote OAuth connectors.
+  - [x] `utm_source` is captured into signup/export conversion events via
+    `src/lib/acquisition.ts` (first-touch, sanitised, path only — never a
+    query string, which can carry whatever the user typed). Mounted in
+    the root layout, because a tagged link lands on any page: an
+    assistant's download link goes straight to `/resume/template`, so
+    capturing only on the login page (where the R-037 referral code is
+    read) would have missed nearly every assistant-referred visit. New
+    `resume_exported` analytics event, recorded after a successful
+    render so a failed export never counts.
+  - [x] Unsupported vendor-testing claims removed from six surfaces.
+    "Tested against Workday, Greenhouse, iCIMS, Taleo and BambooHR"
+    appears nowhere in the repo as an actual test; the copy now says the
+    layouts are BUILT for those parsers, which is what the code
+    supports. If real vendor testing exists, the stronger claim can
+    return with evidence — that is the founder's call, not a
+    developer's.
+
+---
+
+### R-111 · Distribution, once the above is true
+
+- Status: **PARTIAL** — code done, live verification blocked on owner
+  access. Do NOT mark DONE until the boxes below are actually ticked.
+- Depends-on: R-105, R-106, R-107, R-108
+- Source: review at `168065c`. Deliberately last: submitting a connector
+  that returns wrong ATS scores, drops the tailored version and cannot
+  revoke access spends a review cycle and reviewer goodwill on defects we
+  already know about.
+- Acceptance
+  - [x] `/ready` added, distinct from `/health`. `/health` answers "is
+    the process up" and returns 200 with `oauth: false` when no
+    assistant can connect — which is how a misconfigured deploy looked
+    healthy on every dashboard. `/ready` returns 503 with
+    `missing: ["MCP_OAUTH_SECRET", …]` naming what to set.
+  - [ ] **OWNER:** set both variables on the `ats-rb-mcp` service and
+    confirm `/ready` returns 200 and discovery returns 200, with the
+    issuer matching the connector URL. Not verifiable from this session
+    (no Render access; outbound requests to the service are blocked).
+  - [ ] **OWNER:** end-to-end pass on a synthetic reviewer account:
+    fresh connect, create → update → propose → review → apply → export
+    the exact version → log the same version; plus expiry, disconnect,
+    invalid input, and isolation between two users. Needs a live
+    deployment and a database, neither available here. Both migrations
+    (R-106, R-109, R-112) must be applied first.
+  - [x] npm status VERIFIED, not assumed: `registry.npmjs.org` returns
+    **404** for `@tekivex/callbackcv-mcp`, so every documented
+    `npx -y @tekivex/callbackcv-mcp` command currently fails. The README
+    now carries a prominent notice and local-clone instructions instead.
+    The web UI was already correct — `integrations.ts` defaults the npm
+    URL to empty so no dead link is rendered (C-003).
+  - [ ] **OWNER:** publish the package (needs `@tekivex` scope
+    credentials, which this session does not have and should not), then
+    verify a clean-machine install and delete the README notice.
+  - [ ] **OWNER:** unlisted pilot first, then OpenAI and Claude
+    directory submissions prepared separately. Both need publisher
+    identity and reviewer accounts.
+  - [x] Tool descriptions rewritten: `open_in_callbackcv` now applies
+    when the user is working in CallbackCV or wants its editing/export
+    flow, replacing "ALWAYS show the returned url" after "any resume
+    conversation". No wording makes an assistant recommend us to people
+    who are not asking for us, and a submission implying otherwise
+    claims something we cannot deliver.
+  - [x] README tool table rebuilt for the twelve-tool set, with the
+    v0.4.0 breaking change called out and the review step shown in the
+    agent loop. Stale `tailor_resume` references removed throughout.
+
+---
+
 ## §6. Cross-cutting constants
 
 These are constraints that every requirement must respect. Violations
@@ -1960,6 +2372,9 @@ do not break it.
 
 | Date | Decision | Reason | Affected IDs |
 |---|---|---|---|
+| 2026-09-10 | **Training samples captured under the default-true flag are HELD, not purged** (R-112): every sample whose user has no recorded `trainingConsentAt` gets `consentHold = true`, which excludes it from admin exports and from the corpus loader that actually trains the model. Nothing is deleted — re-consent clears the flag. Users who explicitly toggled training ON in Settings (the only path that stamps `trainingConsentAt`) keep their samples and stay opted in. | Founder chose hold over purge: purging is irreversible and discards data from users who would have said yes, while continuing to use it would mean training on data gathered under a promise the code did not keep. Holding is the only reversible option that stops the harm now. | R-112, C-003 |
+| 2026-09-10 | **Assistant-account sign-in dropped.** CallbackCV will NOT authenticate users via their ChatGPT or Claude account. In MCP OAuth, CallbackCV is the authorization SERVER and the assistant is the client — the client never asserts who the user is, so "sign in with ChatGPT" is not something the protocol can express, and neither vendor offers OIDC as an identity provider. A CallbackCV account stays required. What R-106 removes instead is PASSWORD entry on the connector page: a one-time connect code minted in the web app replaces it. | Founder asked whether the assistant's user details could carry authentication; reviewed against the MCP authorization spec and both vendors' connector docs — the answer is no, so the idea is closed rather than left as a maybe. | R-106, R-100, R-096 |
+| 2026-09-10 | Connector work re-scoped from "add more AI features" to "make the shipped surface true" (new §5b, R-104…R-111). A code review at `168065c` found the ATS simulator scoring every resume with no work history (reading a `sections` field the Prisma model does not have), authorization codes replayable within their TTL, access tokens surviving logout while `/privacy` promises otherwise, training capture defaulting to on against an "explicit opt-in" promise, the tailored version unreachable from the download link that attributes outcomes to it, rejections counted as replies when ranking the "best" resume, and `llms.txt` telling assistants every template is single-column while the catalogue ships sidebar layouts. Distribution (R-111) is sequenced LAST, behind the correctness and trust fixes. | Four of these are C-003 violations (copy the code does not deliver) and one breaks the C-007 attribution link, so by this file's own definition they are bugs, not backlog. Submitting a connector with known wrong output spends a review cycle on defects we could have fixed first. | R-104, R-105, R-106, R-107, R-108, R-109, R-110, R-111, R-112, C-001, C-002, C-003, C-007 |
 | 2026-08-01 | Free AI re-scoped from per-run to per-RESUME (R-103, supersedes the R-098 metering for resume work): a free user now gets every AI feature UNLIMITED on the first resume they use AI on, and the plan is asked for only when they point those same buttons at a second resume. Bullet rewrite leaves the metered catalogue entirely — it is how a resume gets written, not a feature you sample. Standalone tools with no resume context (mentor, mock interview, skill demand, LinkedIn, recruiter sim) keep one free run each. | Founder: metering per run meant the free run was spent on bullet #1 and the user could never finish a resume — "for one resume we will allow to use AI feature fully, and when user wanted to use same rewrite feature [on another resume] then we will ask for subscription". | R-103, R-098, R-086, C-003, C-004 |
 | 2026-08-01 | Anonymous resume parsing opened up (R-102): `POST /public/parse-upload` parses an uploaded file for a signed-out visitor (extraction only, nothing stored, 5/day per IP), and the editor's guest gate now offers sign-in as well as signup with `?next=` back to the same page. Previously the only pre-signup paths were start-from-scratch and the anonymous ATS text check; uploading — the most common first action — returned a bare 401. | Founder: none of the first-run features worked signed-out. Decision: let people edit and parse freely, and ask for login at the moment they use a button that genuinely needs an account. | R-102, R-090, R-089, C-004 |
 | 2026-08-01 | Cron secret is now single-sourced (R-087/R-088): both Render cron services (`ats-rb-cron-nudges`, `ats-rb-cron-job-alerts`) pull `CRON_SECRET` from `ats-rb-api` via `fromService.envVarKey` instead of each declaring its own `sync: false` entry. Three separate manual entries meant a missed one silently killed a cron — which is exactly what happened: every `ats-rb-cron-job-alerts` run exited 1 with "CRON_SECRET env var is not set on THIS cron service". The API keeps the only `sync: false` declaration and is documented as the source of truth. Note: existing dashboard-created services adopt this only on the next Blueprint sync. | Founder: cron job failing in prod. The script's guard was working as designed — the config was the bug, and the shape of the config made the bug likely. | R-087, R-088, R-031 |

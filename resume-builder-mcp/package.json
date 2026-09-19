@@ -1,6 +1,6 @@
 {
   "name": "@tekivex/callbackcv-mcp",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "MCP server for CallbackCV \u2014 lets AI agents read resumes, tailor them per JD, log applications, and query outcome stats. Every agent action feeds the same Outcome Graph as the web app.",
   "license": "MIT",
   "type": "module",
@@ -44,6 +44,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
-    "typescript": "^5.6.0"
+    "typescript": "^5.6.0",
+    "resume-builder-shared": "file:../resume-builder-shared"
   }
 }

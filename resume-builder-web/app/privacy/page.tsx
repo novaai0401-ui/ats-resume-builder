@@ -102,7 +102,9 @@ export default function PrivacyPolicyPage() {
             </li>
             <li>
               <strong>Access tokens:</strong> expire automatically (about 7 days). Logging out
-              invalidates active tokens immediately.
+              invalidates active tokens immediately — on every device and every connected
+              assistant, not just the one you logged out from. You can also disconnect
+              assistants without logging out, from Settings → API access.
             </li>
             <li>
               <strong>Payment records:</strong> retained as required for accounting, tax, and legal

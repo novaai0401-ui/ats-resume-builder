@@ -32,6 +32,8 @@ test('AuthService.issueOtpSessionForUser issues 30 minute access/refresh tokens 
         updates.push(args);
         return { id: args.where.id };
       },
+      // R-106: token issuance reads the revocation counter to stamp `tv`.
+      findUnique: async () => ({ tokenVersion: 3, plan: 'FREE' }),
     },
   };
 
@@ -59,6 +61,8 @@ test('AuthService.issueOtpSessionForUser issues 30 minute access/refresh tokens 
   assert.equal(accessPayload.typ, 'access');
   assert.equal(refreshPayload.typ, 'refresh');
   assert.equal(accessPayload.sub, 'user-otp-1');
+  // R-106 — the access token carries the revocation counter it was minted at.
+  assert.equal(accessPayload.tv, 3);
   assert.equal(refreshPayload.sub, 'user-otp-1');
 
   const accessTtlSeconds = Number(accessPayload.exp) - Number(accessPayload.iat);

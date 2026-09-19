@@ -23,7 +23,7 @@ const FAQ = [
   },
   {
     q: 'What does CallbackCV do that most ATS tools do not?',
-    a: 'Three things are rare or unique: the Outcome Loop (observed callback rate per resume version), the Recruiter-AI Simulator (an LLM hiring-screen verdict against a specific job), and the ATS Simulator (the literal recruiter-view text an ATS extracts).',
+    a: 'Three things are rare or unique: the Outcome Loop (observed callback rate per resume version), the Recruiter-AI Simulator (an LLM hiring-screen verdict against a specific job), and the ATS Simulator (the plain-text recruiter view an ATS reduces your resume to).',
   },
   {
     q: 'Is CallbackCV free?',
@@ -56,7 +56,7 @@ export default function ComparePage() {
   const differentiators = [
     { h: 'Outcome Loop — real callback rate', p: 'Tracks observed response, interview, and offer rates per resume version. You see "v3 got 2.4× more replies than v1" — measured, not predicted. Most tools stop at a score.' },
     { h: 'Recruiter-AI Simulator', p: 'Role-plays the LLM hiring screen many ATS pipelines now run: verdict, fit score, strengths, concerns, and missing must-haves against a specific job description.' },
-    { h: 'ATS Simulator', p: 'Shows the literal recruiter-view text an ATS (Workday, Greenhouse, iCIMS) extracts — catching "high score, no callbacks" formatting problems keyword tools miss.' },
+    { h: 'ATS Simulator', p: 'Shows the plain-text recruiter view your resume reduces to once an ATS strips styling — catching "high score, no callbacks" formatting problems keyword tools miss.' },
     { h: 'Skill-Demand + live openings', p: 'In-demand skills for your stack, what to learn next, and real current job openings with one-click tracking.' },
     { h: 'Privacy & India-first', p: 'Local-first storage with zero-knowledge encrypted backup, ₹ pricing, UPI/Razorpay, and a free forever tier.' },
   ];

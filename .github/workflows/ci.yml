@@ -119,3 +119,42 @@ jobs:
         run: npm test
         env:
           CHROME_EXECUTABLE_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
+
+  # R-104 — the MCP server is the connector contract with Claude and ChatGPT,
+  # and until now nothing in CI ran it. Its suite had drifted to assert six
+  # tools while ten were registered; a blocking job is what keeps that from
+  # happening again.
+  #
+  # R-107 — the MCP still ships with only the SDK and zod as RUNTIME deps
+  # (a workspace import would break `npx @tekivex/callbackcv-mcp`), but its
+  # schema-parity test imports resume-builder-shared as a devDependency to
+  # prove the tool schemas still match what the API accepts. So the shared
+  # package has to be built before the MCP suite runs.
+  lint-and-test-mcp:
+    name: Lint & Test (MCP)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: resume-builder-mcp
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            resume-builder-shared/package-lock.json
+            resume-builder-mcp/package-lock.json
+
+      - name: Install & build shared dependencies
+        run: cd ../resume-builder-shared && npm ci && npm run build
+
+      - name: Install MCP dependencies
+        run: npm ci
+
+      - name: Build MCP
+        run: npm run build
+
+      - name: Run tests
+        run: npm test

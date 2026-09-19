@@ -6,6 +6,8 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ResumeService } from './resume.service';
+import { applySnapshot, buildSnapshotPayload, SNAPSHOT_FIELDS } from './resume-snapshot';
+import type { ResumeSnapshotPayload as SnapshotShape } from './resume-snapshot';
 
 const DEFAULT_VERSION_LIMIT = 25;
 const MAX_LABEL_LENGTH = 120;
@@ -18,18 +20,14 @@ export interface ResumeVersionSummary {
   createdAt: Date;
 }
 
-export interface ResumeSnapshotPayload {
-  title: string;
-  contact: unknown;
-  summary: string;
-  skills: string[];
-  languages: string[];
-  experience: unknown;
-  education: unknown;
-  projects: unknown;
-  certifications: unknown;
-  templateId: string | null;
-}
+/**
+ * R-108 — the snapshot shape now lives in `resume-snapshot.ts` so the two
+ * places that build snapshots (here and the tailoring service) cannot
+ * drift apart again. This interface listed ten fields while the Resume
+ * model had eighteen worth keeping; achievements, licences, publications
+ * and every design setting were silently dropped on restore.
+ */
+export type { ResumeSnapshotPayload } from './resume-snapshot';
 
 @Injectable()
 export class ResumeVersionsService {
@@ -95,18 +93,7 @@ export class ResumeVersionsService {
       }
     }
 
-    const snapshotPayload: ResumeSnapshotPayload = {
-      title: resume.title,
-      contact: resume.contact,
-      summary: resume.summary,
-      skills: Array.isArray(resume.skills) ? resume.skills : [],
-      languages: Array.isArray(resume.languages) ? resume.languages : [],
-      experience: resume.experience,
-      education: resume.education,
-      projects: resume.projects,
-      certifications: resume.certifications,
-      templateId: resume.templateId || null,
-    };
+    const snapshotPayload = buildSnapshotPayload(resume as unknown as Record<string, unknown>);
 
     const created = await this.prisma.resumeVersion.create({
       data: {
@@ -138,7 +125,7 @@ export class ResumeVersionsService {
     });
     if (!version) throw new NotFoundException('Resume version not found');
 
-    const snapshot = version.snapshot as Partial<ResumeSnapshotPayload> | null;
+    const snapshot = version.snapshot as Partial<SnapshotShape> | null;
     if (!snapshot || typeof snapshot !== 'object') {
       throw new BadRequestException('Stored snapshot is malformed and cannot be restored.');
     }
@@ -146,18 +133,19 @@ export class ResumeVersionsService {
     // Auto-snapshot the current state first so a restore is always reversible.
     await this.snapshot(userId, resumeId, `Auto-saved before restore @ ${new Date().toISOString()}`);
 
-    return this.resumeService.update(userId, resumeId, {
-      title: typeof snapshot.title === 'string' ? snapshot.title : undefined,
-      contact: snapshot.contact as never,
-      summary: typeof snapshot.summary === 'string' ? snapshot.summary : undefined,
-      skills: Array.isArray(snapshot.skills) ? snapshot.skills : undefined,
-      languages: Array.isArray(snapshot.languages) ? snapshot.languages : undefined,
-      experience: snapshot.experience as never,
-      education: snapshot.education as never,
-      projects: snapshot.projects as never,
-      certifications: snapshot.certifications as never,
-      templateId: typeof snapshot.templateId === 'string' ? snapshot.templateId : undefined,
-    });
+    // R-108: restore every snapshotted field, not the ten this used to
+    // list. Fields missing from an older snapshot keep their live value —
+    // that snapshot does not know what they were, and writing `undefined`
+    // for them would delete content the user never asked to lose.
+    const live = await this.prisma.resume.findFirst({ where: { id: resumeId, userId } });
+    const restored = applySnapshot((live ?? {}) as Record<string, unknown>, snapshot as Record<string, unknown>);
+    const patch: Record<string, unknown> = {};
+    for (const field of SNAPSHOT_FIELDS) {
+      if (Object.prototype.hasOwnProperty.call(snapshot, field)) {
+        patch[field] = restored[field];
+      }
+    }
+    return this.resumeService.update(userId, resumeId, patch as never);
   }
 
   async remove(userId: string, resumeId: string, versionId: string) {

@@ -56,8 +56,8 @@ export default function AboutPage() {
 
         <TrustCard icon="⚙" title="What it does">
           <ul>
-            <li><strong>33 resume templates</strong> — ATS-safe layouts tested against Workday, Greenhouse, iCIMS, Taleo and BambooHR, plus designer templates for sharing with people.</li>
-            <li>An <strong>ATS simulator</strong> showing the literal text a parser extracts from your file.</li>
+            <li><strong>33 resume templates</strong> — parse-clean layouts built for mainstream ATS, each carrying its own ATS-safety rating, plus designer templates meant for sharing with people rather than uploading.</li>
+            <li>An <strong>ATS simulator</strong> showing the plain-text recruiter view your resume reduces to once styling is stripped.</li>
             <li><strong>Per-version outcome tracking</strong>: response, interview and offer rates.</li>
             <li>A <strong>job tracker</strong> with live openings matched to your profile.</li>
           </ul>

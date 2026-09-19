@@ -13,6 +13,7 @@ import { SettingsService } from '../settings/settings.service';
 import type { AiProvider } from './providers/ai-provider.interface';
 import { GroqProvider } from './providers/groq.provider';
 import { enforceResumeAiFreeDaily, recordResumeAiFreeUsage, resolveResumeAiProvider } from './resume-ai-access';
+import { buildSnapshotPayload } from '../resume/resume-snapshot';
 
 /**
  * R-034 — One-click tailor: JD → tailored ResumeVersion.
@@ -245,17 +246,16 @@ export class TailorService {
       .join(': ')
       .slice(0, 120);
 
+    // R-108: build from the FULL resume record, then overlay only what
+    // tailoring changed. This used to list ten fields by hand, so every
+    // tailored version silently dropped achievements, licences,
+    // publications and all design settings — and that version is exactly
+    // the one log_application attributes outcomes to (C-007).
     const snapshotPayload = {
-      title: resume.title,
-      contact: resume.contact,
+      ...buildSnapshotPayload(resume as unknown as Record<string, unknown>),
       summary: acceptedSummary ?? resume.summary,
       skills,
-      languages: Array.isArray(resume.languages) ? resume.languages : [],
       experience,
-      education: resume.education,
-      projects: resume.projects,
-      certifications: resume.certifications,
-      templateId: resume.templateId || null,
     };
 
     const version = await this.prisma.resumeVersion.create({

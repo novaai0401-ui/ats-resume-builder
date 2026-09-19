@@ -71,7 +71,19 @@ model User {
   /// in the UI explains this, and the user can toggle off in account
   /// settings at any time. Withdrawal stops new captures; existing
   /// samples are purged via a separate explicit action.
-  trainingConsent Boolean @default(true)
+  /// R-106 — revocation counter stamped into every access token as `tv`.
+  /// JwtStrategy refuses a token whose `tv` is behind this value, which is
+  /// what makes "logging out invalidates active tokens immediately" (the
+  /// promise on /privacy and the API-access card) actually true. Bumped by
+  /// logout and by disconnecting an assistant.
+  tokenVersion Int @default(0)
+  connectCodes ConnectCode[]
+  /// R-112 — defaults to FALSE. It used to default to true while /privacy
+  /// promised "we do not use your resume to train AI unless you explicitly
+  /// opt in", so participation was on for everyone who never opened the
+  /// setting. Capture additionally requires trainingConsentAt to be set:
+  /// a truthy flag is not a recorded decision.
+  trainingConsent Boolean @default(false)
   trainingConsentAt DateTime?
   /// Which version of the consent copy the user agreed to. Bumped whenever
   /// the wording of the consent surface materially changes so we can prove
@@ -307,6 +319,13 @@ model JobApplication {
   notes        String?
   nextActionAt DateTime?                               // follow-up / interview reminder
   appliedAt    DateTime?
+  /// R-109 — where this outcome came from: self-reported (the user set
+  /// the status), email-inferred (we read it from a reply), or verified
+  /// (a confirmed event). Null means self-reported; it is the honest
+  /// default for every row that predates this column. A signed share
+  /// link authenticates that the USER reported an outcome, never that
+  /// the outcome occurred, and the UI must not blur the two.
+  outcomeSource String?
   closedAt     DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -678,6 +697,11 @@ model TrainingSample {
   splitGroup          String   @default("train")
   /// Which consent version applies to this row.
   consentVersion      Int      @default(1)
+  /// R-112 — captured before consent was made a recorded, affirmative
+  /// choice. Held out of every export and training run until the owner
+  /// decides to purge or re-consent. Reversible by design: the row is
+  /// flagged, never destroyed, so re-consent can clear it.
+  consentHold         Boolean  @default(false)
   /// Free-form admin notes for label review.
   notes               String?
   labeledAt           DateTime?
@@ -688,6 +712,7 @@ model TrainingSample {
   @@index([status, splitGroup])
   @@index([userId, createdAt])
   @@index([sourceFileType])
+  @@index([consentHold])
 }
 
 /// Phase 8 — ModelEvaluation. Snapshot of one model version's metrics
@@ -791,4 +816,37 @@ model JobAlert {
 
   @@index([userId])
   @@index([active])
+}
+
+/// R-106 — a short-lived, single-use code the user generates while signed
+/// in to CallbackCV and pastes into an assistant's authorize page. It
+/// replaces password entry on the MCP connector: the MCP layer never sees
+/// a password, which is what R-100 always claimed.
+model ConnectCode {
+  id        String   @id @default(cuid())
+  /// SHA-256 of the code. The plaintext is shown once, in the UI, and never
+  /// stored — a leaked database row cannot be redeemed.
+  codeHash  String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label     String?
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+/// R-106 — spent OAuth authorization codes. The MCP mints stateless sealed
+/// codes, so without this an attacker holding a code could exchange it
+/// repeatedly until its TTL expired. Rows are keyed by the code's jti and
+/// are prunable once expiresAt passes.
+model ConsumedOAuthCode {
+  jti       String   @id
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
 }

@@ -143,7 +143,7 @@ export default async function RolePage({
       <p>
         Don&apos;t keyword-stuff: put each term in your skills section once and prove it inside an
         experience bullet. The <Link href="/ats-resume-checker">free ATS checker</Link> shows the
-        literal text a parser extracts from your file.
+        plain-text recruiter view your resume reduces to once styling is stripped.
       </p>
 
       <h2>Recommended templates</h2>

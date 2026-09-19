@@ -99,7 +99,11 @@ export class AuthController {
         type: 'register',
         email: parsed.data.email,
         path: '/auth/register',
-        properties: { method: 'password' },
+        // R-110 — first-touch acquisition, sanitised client-side and
+        // carried on the signup call. Analytics only: never persisted on
+        // the user, and RegisterSchema strips it before anything is
+        // written, so an untrusted field cannot reach the account row.
+        properties: { method: 'password', ...readAcquisition(body) },
       },
       req,
     );
@@ -165,6 +169,59 @@ export class AuthController {
       throw new BadRequestException(parsed.error.flatten());
     }
     return this.authService.refresh(parsed.data.userId, parsed.data.refreshToken);
+  }
+
+  /**
+   * R-106 — mint a one-time code the user pastes into an assistant's
+   * authorize page. Requires an authenticated CallbackCV session, which is
+   * exactly why the MCP connector no longer needs to ask for a password.
+   */
+  @Post('connect-code')
+  @UseGuards(JwtAuthGuard)
+  async createConnectCode(
+    @Req() req: Request & { user: { userId: string } },
+    @Body() body: { label?: string },
+  ) {
+    return this.authService.createConnectCode(req.user.userId, body?.label);
+  }
+
+  /**
+   * Exchange a connect code for a session. Unauthenticated by design, and
+   * therefore throttled like the other public auth routes — a 24-byte code
+   * is not brute-forceable, but the endpoint should not be a free oracle.
+   */
+  @Throttle({ default: { limit: 8, ttl: 60_000 } })
+  @Post('connect-code/redeem')
+  @HttpCode(200)
+  async redeemConnectCode(@Body() body: { code?: string }) {
+    const code = String(body?.code || '').trim();
+    if (!code) throw new BadRequestException('A connect code is required.');
+    return this.authService.redeemConnectCode(code);
+  }
+
+  /**
+   * R-106 — spend an OAuth authorization code exactly once. Called by the
+   * MCP server during token exchange, authenticated as the very user the
+   * sealed code belongs to, so it needs no shared secret: a caller who
+   * cannot present that user's token cannot burn their codes.
+   */
+  @Post('oauth/consume-code')
+  @UseGuards(JwtAuthGuard)
+  async consumeOAuthCode(
+    @Req() req: Request & { user: { userId: string } },
+    @Body() body: { jti?: string; expiresAt?: string },
+  ) {
+    const jti = String(body?.jti || '').trim();
+    if (!jti) throw new BadRequestException('jti is required.');
+    const expiresAt = body?.expiresAt ? new Date(body.expiresAt) : new Date(Date.now() + 10 * 60 * 1000);
+    return this.authService.consumeOAuthCode(req.user.userId, jti, expiresAt);
+  }
+
+  /** Disconnect every connected assistant (and every other session). */
+  @Post('connectors/revoke')
+  @UseGuards(JwtAuthGuard)
+  async revokeConnectors(@Req() req: Request & { user: { userId: string } }) {
+    return this.authService.revokeConnectors(req.user.userId);
   }
 
   @Post('logout')
@@ -239,4 +296,24 @@ export class AuthController {
 function extractIp(req: Request): string {
   const fwd = String(req.headers['x-forwarded-for'] || '').split(',')[0]?.trim();
   return fwd || req.ip || (req.socket?.remoteAddress ?? '') || '';
+}
+
+/**
+ * R-110 — pull the acquisition properties off a request body.
+ *
+ * Client-supplied and therefore untrusted: each value is re-clamped here
+ * rather than relying on the browser having sanitised it. Only short,
+ * simple strings survive, and only under known keys.
+ */
+function readAcquisition(body: unknown): Record<string, string> {
+  const raw = (body as { acquisition?: unknown } | null)?.acquisition;
+  if (!raw || typeof raw !== 'object') return {};
+  const out: Record<string, string> = {};
+  for (const key of ['acquisitionSource', 'acquisitionMedium', 'acquisitionCampaign', 'acquisitionLandingPath']) {
+    const value = (raw as Record<string, unknown>)[key];
+    if (typeof value !== 'string') continue;
+    const clean = value.trim().slice(0, 120);
+    if (clean) out[key] = clean;
+  }
+  return out;
 }

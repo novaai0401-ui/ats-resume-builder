@@ -13,6 +13,7 @@ import FreeTrialLimitModalHost from '@/src/components/FreeTrialLimitModalHost';
 import PwaInstaller from '@/src/components/PwaInstaller';
 import SkipToContent from '@/src/components/SkipToContent';
 import TrainingConsentModal from '@/src/components/TrainingConsentModal';
+import AcquisitionTracker from '@/src/components/AcquisitionTracker';
 import ThemeToggle from '@/src/components/ThemeToggle';
 import { themeNoFlashScript } from '@/src/lib/theme';
 
@@ -201,6 +202,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <MobileBottomNav />
           <PwaInstaller />
           <TrainingConsentModal />
+          {/* R-110 — first-touch acquisition. Tagged links land on any
+              page, so this belongs in the layout, not on one route. */}
+          <AcquisitionTracker />
           {/* R-098: app-wide "you've used your one free AI run" popup. */}
           <FreeTrialLimitModalHost />
         </Providers>

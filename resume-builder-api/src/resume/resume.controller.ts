@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Delete, Get, HttpCode, NotFoundException, Param, Patch, Post, Query, Req, Res, UploadedFile, UseFilters, UseGuards, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, HttpCode, NotFoundException, Param, Patch, Post, Query, Req, Res, UploadedFile, UseFilters, UseGuards, UseInterceptors, Optional } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ResumeService } from './resume.service';
@@ -32,6 +32,7 @@ import {
   type UploadedResumeFile,
 } from './upload-validation';
 import { z } from 'zod';
+import { AnalyticsService } from '../analytics/analytics.service';
 
 const { memoryStorage } = require('multer');
 
@@ -45,6 +46,14 @@ export class ResumeController {
     private readonly versionsService: ResumeVersionsService,
     private readonly outcomesService: OutcomesService,
     private readonly outcomeShareService: OutcomeShareService,
+    /**
+     * R-110 — @Optional because analytics is best-effort: a missing sink
+     * must never stop a resume from exporting, and test modules that
+     * build this controller should not have to wire the whole analytics
+     * module to exercise resume routes. Injecting it as required broke
+     * 24 existing tests for a counter.
+     */
+    @Optional() private readonly analytics?: AnalyticsService,
   ) {}
 
   @Get(':id/outcomes')
@@ -61,16 +70,26 @@ export class ResumeController {
   @Get(':id/ats-simulate')
   async atsSimulate(@Req() req: { user: { userId: string } }, @Param('id') id: string) {
     const resume = await this.resumeService.get(req.user.userId, id);
-    const sections = (resume as { sections?: Record<string, unknown> }).sections || {};
+    // R-105: this used to read summary/experience/education/projects/
+    // certifications out of `resume.sections`. There is no `sections`
+    // column on the Resume model — those are top-level fields — so the
+    // object was always {} and EVERY simulation ran on title, contact and
+    // skills alone. Users were shown a compatibility score for a resume
+    // with no work history. Read the record the service actually returns.
+    type SimInput = Parameters<typeof simulateAts>[0];
+    const r = resume as unknown as SimInput;
     return simulateAts({
-      title: (resume as { title?: string }).title,
-      contact: (resume as { contact?: unknown }).contact as Parameters<typeof simulateAts>[0]['contact'],
-      summary: (sections as { summary?: string }).summary,
-      skills: (resume as { skills?: string[] }).skills,
-      experience: (sections as { experience?: unknown }).experience as Parameters<typeof simulateAts>[0]['experience'],
-      education: (sections as { education?: unknown }).education as Parameters<typeof simulateAts>[0]['education'],
-      projects: (sections as { projects?: unknown }).projects as Parameters<typeof simulateAts>[0]['projects'],
-      certifications: (sections as { certifications?: unknown }).certifications as Parameters<typeof simulateAts>[0]['certifications'],
+      title: r.title,
+      contact: r.contact,
+      summary: r.summary,
+      skills: r.skills,
+      experience: r.experience,
+      education: r.education,
+      projects: r.projects,
+      certifications: r.certifications,
+      achievements: r.achievements,
+      licenses: r.licenses,
+      publications: r.publications,
     });
   }
 
@@ -91,6 +110,21 @@ export class ResumeController {
       typeof body?.label === 'string' ? body.label : undefined,
       typeof body?.atsScoreSnapshot === 'number' ? body.atsScoreSnapshot : undefined,
     );
+  }
+
+  /**
+   * R-108 — read one saved version, snapshot included. Without this an
+   * assistant could list versions but never see what was in one, so
+   * "review the tailored version before you send it" was not something a
+   * connector could actually do.
+   */
+  @Get(':id/versions/:versionId')
+  getVersion(
+    @Req() req: { user: { userId: string } },
+    @Param('id') id: string,
+    @Param('versionId') versionId: string,
+  ) {
+    return this.versionsService.get(req.user.userId, id, versionId);
   }
 
   @Post(':id/versions/:versionId/restore')
@@ -204,6 +238,9 @@ export class ResumeController {
     @Query('templateId') templateId: string | undefined,
     @Query('debug') debug: string | undefined,
     @Query('downloadToken') downloadToken: string | undefined,
+    // R-108: export a saved version instead of the live resume. Omitted
+    // means live, so every existing caller is unaffected.
+    @Query('versionId') versionId: string | undefined,
     @Res() res: Response,
   ) {
     if (debug === 'html') {
@@ -219,8 +256,19 @@ export class ResumeController {
     if (this.downloadCharge.isFeatureEnabled()) {
       await this.downloadCharge.assertDownloadAllowed(String(downloadToken || ''), req.user.userId, id);
     }
-    const pdfBuffer = await this.resumeService.generatePdf(req.user.userId, id, templateId);
+    const pdfBuffer = await this.resumeService.generatePdf(req.user.userId, id, templateId, versionId);
     const filename = await this.resumeService.buildExportFileName(req.user.userId, id, 'pdf');
+    // R-110 — the conversion that matters. Tracked AFTER a successful
+    // render so a failed export never counts as one, and recording
+    // whether the user exported a tailored version or the live resume.
+    this.analytics?.track(
+      {
+        type: 'resume_exported',
+        path: '/resumes/:id/pdf',
+        properties: { format: 'pdf', versioned: Boolean(versionId) },
+      },
+      req as never,
+    );
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(pdfBuffer);
@@ -237,13 +285,22 @@ export class ResumeController {
     @Req() req: { user: { userId: string } },
     @Param('id') id: string,
     @Query('downloadToken') downloadToken: string | undefined,
+    @Query('versionId') versionId: string | undefined,
     @Res() res: Response,
   ) {
     if (this.downloadCharge.isFeatureEnabled()) {
       await this.downloadCharge.assertDownloadAllowed(String(downloadToken || ''), req.user.userId, id);
     }
-    const buffer = await this.resumeService.generateDocx(req.user.userId, id);
+    const buffer = await this.resumeService.generateDocx(req.user.userId, id, versionId);
     const filename = await this.resumeService.buildExportFileName(req.user.userId, id, 'docx');
+    this.analytics?.track(
+      {
+        type: 'resume_exported',
+        path: '/resumes/:id/docx',
+        properties: { format: 'docx', versioned: Boolean(versionId) },
+      },
+      req as never,
+    );
     res.setHeader(
       'Content-Type',
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',

@@ -38,6 +38,11 @@ export type AnalyticsEventType =
   // of these events is the health metric of the Outcome Graph.
   | 'nudge_outcome_recorded'
   | 'nudge_unsubscribed'
+  // R-110: the acquisition funnel. MCP links have always carried
+  // ?utm_source=…, but nothing read it, so "which assistant platform
+  // actually sends users who finish a resume" was unanswerable. These
+  // are the two moments that matter: the account, and the first export.
+  | 'resume_exported'
   // R-037: a referred signup credited the referrer.
   | 'referral_credited'
   // R-032: a forwarded email auto-applied an outcome.

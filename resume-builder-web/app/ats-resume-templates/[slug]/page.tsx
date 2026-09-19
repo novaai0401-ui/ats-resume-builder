@@ -174,9 +174,10 @@ export default async function TemplateDetailPage({
       <h2>ATS compatibility</h2>
       <p>{SAFETY_COPY[template.atsSafety] ?? SAFETY_COPY.medium}</p>
       <p>
-        Layout: {template.layout.replace('-', ' ')}. Tested against Workday, Greenhouse, iCIMS,
+        Layout: {template.layout.replace('-', ' ')}. Built to the formatting rules mainstream ATS
+        parsers document — Workday, Greenhouse, iCIMS,
         Taleo and BambooHR. You can also run it through the{' '}
-        <Link href="/ats-resume-checker">free ATS resume checker</Link> to see the exact text a
+        <Link href="/ats-resume-checker">free ATS resume checker</Link> to see the plain-text recruiter view a
         parser extracts.
       </p>
 

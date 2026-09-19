@@ -7,7 +7,7 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://callbackcv.tekivex
 export const metadata: Metadata = {
   title: 'Free ATS Resume Checker & Scanner — CallbackCV',
   description:
-    'Check if your resume passes applicant tracking systems. Get an explainable ATS score, see the literal recruiter-view text an ATS extracts, and simulate the AI hiring screen against a job description — free.',
+    'Check if your resume passes applicant tracking systems. Get an explainable ATS score, see the plain-text recruiter view an ATS reduces your resume to, and simulate the AI hiring screen against a job description — free.',
   alternates: { canonical: '/ats-resume-checker' },
   openGraph: {
     title: 'ATS Resume Checker — score, simulate, and beat the bots',
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 const FAQ = [
   {
     q: 'How does the ATS resume checker work?',
-    a: 'Upload or build your resume and CallbackCV scores its ATS-friendliness with specific, explainable feedback — missing keywords, weak action verbs, and formatting that breaks parsing. The ATS Simulator then shows the literal text an ATS would extract.',
+    a: 'Upload or build your resume and CallbackCV scores its ATS-friendliness with specific, explainable feedback — missing keywords, weak action verbs, and formatting that breaks parsing. The ATS Simulator then shows the plain-text recruiter view an ATS reduces your resume to.',
   },
   {
     q: 'Is the ATS checker free?',
@@ -28,7 +28,7 @@ const FAQ = [
   },
   {
     q: 'What is the difference between an ATS score and the ATS Simulator?',
-    a: 'The ATS score is a number with reasons. The ATS Simulator is more honest — it renders the actual parsed text a recruiter sees inside Workday or Greenhouse, so you catch "95% score but no callbacks" formatting problems.',
+    a: 'The ATS score is a number with reasons. The ATS Simulator is more concrete — it renders the plain-text recruiter view your resume reduces to once an ATS strips styling, so you catch "95% score but no callbacks" formatting problems. It models a typical ATS pipeline rather than any single vendor\'s parser.',
   },
   {
     q: 'Will it tell me how an AI hiring screen rates me?',
@@ -60,7 +60,7 @@ export default function AtsResumeCheckerPage() {
 
   const steps = [
     { h: '1. Score', p: 'Get an explainable ATS score: missing keywords, weak verbs, and format risks — not a black box.' },
-    { h: '2. Simulate', p: 'The ATS Simulator renders the exact text Workday / Greenhouse / iCIMS would extract from your file.' },
+    { h: '2. Simulate', p: 'The ATS Simulator renders the plain-text recruiter view your resume reduces to once an ATS strips styling.' },
     { h: '3. Screen', p: 'The Recruiter-AI Simulator gives the verdict an AI hiring screen would return against a real job description.' },
     { h: '4. Fix', p: 'Tap a missing must-have to jump into the editor and rewrite the bullet with the AI bullet rewriter.' },
   ];

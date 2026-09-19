@@ -22,6 +22,7 @@ import { looksLikeLinkedInProfile, looksLikeLinkedInFeedDump, normalizeLinkedInP
 import { PatternLearnerService } from '../pattern-learner/pattern-learner.service';
 import { applyLearnedPatterns } from '../pattern-learner/pattern-applier';
 import { TrainingDatasetService } from '../training-dataset/training-dataset.service';
+import { applySnapshot } from './resume-snapshot';
 
 /**
  * Maps the raw file MIME / name to the short tags we store on
@@ -281,6 +282,39 @@ export class ResumeService {
   async get(userId: string, id: string) {
     const resume = await this.getRaw(userId, id);
     return decorateResumeWithSkillCategories(resume);
+  }
+
+  /**
+   * R-108 — the resume to EXPORT: the live document, or a saved version
+   * materialised from its snapshot.
+   *
+   * Without this, `get_download_link` and the export routes could only
+   * ever hand back the live resume. A user could tailor to a job, log the
+   * application against the tailored version, and download the original —
+   * so the outcome graph recorded a reply against a document the employer
+   * never saw. That is the C-007 attribution link breaking silently.
+   *
+   * Nothing is written: exporting a version never mutates the live
+   * resume, so a user can export an old variant without restoring it.
+   */
+  async getForExport(userId: string, id: string, versionId?: string) {
+    const resume = await this.get(userId, id);
+    if (!versionId) return resume;
+
+    // Scoped by userId AND resumeId: a version id alone must never reach
+    // another user's document.
+    const version = await this.prisma.resumeVersion.findFirst({
+      where: { id: versionId, resumeId: id, userId },
+      select: { snapshot: true },
+    });
+    if (!version) {
+      throw new NotFoundException('Resume version not found');
+    }
+    const merged = applySnapshot(
+      resume as unknown as Record<string, unknown>,
+      version.snapshot as Record<string, unknown> | null,
+    );
+    return decorateResumeWithSkillCategories(merged as never);
   }
 
   private async getRaw(userId: string, id: string) {
@@ -628,7 +662,7 @@ export class ResumeService {
     };
   }
 
-  async generatePdf(userId: string, id: string, templateIdOverride?: string) {
+  async generatePdf(userId: string, id: string, templateIdOverride?: string, versionId?: string) {
     const productFlowRestrictionsEnabled = await this.areProductFlowRestrictionsEnabled();
     // Per-minute burst limit — always on. Prevents a runaway script from
     // a paid user from melting Chrome.
@@ -675,7 +709,7 @@ export class ResumeService {
         );
       }
     }
-    const resume = await this.get(userId, id);
+    const resume = await this.getForExport(userId, id, versionId);
     // Mismatch root-cause: preview uses React template components + app CSS, while
     // export used a separate HTML/CSS builder path. Keep export on a single renderer.
     const resolvedTemplateId = resolveExportTemplateId(templateIdOverride, resume.templateId);
@@ -778,7 +812,7 @@ export class ResumeService {
    * styled HTML would balloon to 1MB+ with embedded fonts and trip up
    * ATS parsers. The text-first DOCX builder lives in `./docx-export`.
    */
-  async generateDocx(userId: string, id: string): Promise<Buffer> {
+  async generateDocx(userId: string, id: string, versionId?: string): Promise<Buffer> {
     // DOCX shares the PDF export quota — both are "exports of your
     // finished resume" from the user's perspective and the billing
     // page promises a single "PDF + Word exports / month" counter.
@@ -812,7 +846,7 @@ export class ResumeService {
         );
       }
     }
-    const resume = await this.get(userId, id);
+    const resume = await this.getForExport(userId, id, versionId);
     const docx = await renderResumeDocx(resume as Parameters<typeof renderResumeDocx>[0]);
     // Charge AFTER successful render so a render failure doesn't burn
     // one of the user's allotted exports (or a referral credit).

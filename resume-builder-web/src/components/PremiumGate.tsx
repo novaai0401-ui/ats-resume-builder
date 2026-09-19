@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useState } from 'react';
+import { buildReturnPath } from '@/src/lib/return-path';
 import { useRouter } from 'next/navigation';
 import { getAccessToken, api } from '@/src/lib/api';
 import { TkxButton } from 'tekivex-ui';
@@ -56,7 +57,10 @@ export default function PremiumGate({ feature, children }: PremiumGateProps) {
 
   const checkAccess = useCallback(async () => {
     if (!getAccessToken()) {
-      sessionStorage.setItem('rb_return_to', window.location.pathname);
+      sessionStorage.setItem(
+        'rb_return_to',
+        buildReturnPath(window.location.pathname, window.location.search),
+      );
       router.push('/auth/login');
       return;
     }

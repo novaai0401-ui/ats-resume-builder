@@ -25,6 +25,11 @@ export class PatternModelService {
   private async loadCorpusTexts(): Promise<string[]> {
     const texts: string[] = [];
     const training = await this.prisma.trainingSample.findMany({
+      // R-112 — this is the corpus the model actually trains on, so the
+      // consent hold has to apply HERE above all. Samples captured before
+      // consent was a recorded, affirmative choice are excluded until the
+      // owner purges or re-consents them.
+      where: { consentHold: false },
       orderBy: { createdAt: 'desc' },
       take: MAX_CORPUS_DOCS,
       select: { redactedText: true },
@@ -81,7 +86,7 @@ export class PatternModelService {
       orderBy: { createdAt: 'desc' },
       select: { id: true, docsSeen: true, vocabSize: true, shapes: true, createdAt: true },
     });
-    const corpus = await this.prisma.trainingSample.count();
+    const corpus = await this.prisma.trainingSample.count({ where: { consentHold: false } });
     const failures = await this.prisma.parseFailureSample.count();
     return { latest, corpusSize: corpus, failureSamples: failures };
   }

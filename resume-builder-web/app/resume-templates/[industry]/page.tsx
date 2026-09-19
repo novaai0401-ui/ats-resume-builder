@@ -42,7 +42,7 @@ export async function generateMetadata({
 
   const description =
     `${industry.description || `Resume templates for ${industry.label.toLowerCase()} roles.`} ` +
-    `ATS-safe layouts tested across Workday, Greenhouse, iCIMS and Taleo, with the ` +
+    `ATS-safe layouts built for mainstream parsers such as Workday, Greenhouse, iCIMS and Taleo, with the ` +
     `sections and keywords ${industry.label.toLowerCase()} recruiters screen for.`;
 
   return {

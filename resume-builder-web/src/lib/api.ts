@@ -46,6 +46,7 @@ export type {
 } from 'resume-builder-shared';
 import { getByokHeader } from './byok-storage';
 import type { FreeTrialStatus } from './free-trial';
+import { acquisitionProperties } from './acquisition';
 
 export type AuthResponse = { user: User; accessToken: string; refreshToken: string; expiresAt?: string };
 export type RegisterResponse = AuthResponse;
@@ -860,7 +861,10 @@ export const api = {
   register: async (payload: { fullName: string; email: string; mobile?: string; password?: string; referralCode?: string; otp?: string }) => {
     const auth = await request<AuthResponse>('/auth/register', {
       method: 'POST',
-      body: JSON.stringify(payload),
+      // R-110 — attach first-touch acquisition so the signup event can
+      // answer which assistant platform actually sends users who finish.
+      // Analytics only; the API strips it before writing the account.
+      body: JSON.stringify({ ...payload, acquisition: acquisitionProperties() }),
     });
     setAuthTokens(auth);
     return auth;
@@ -884,6 +888,19 @@ export const api = {
     await request('/auth/logout', { method: 'POST' });
     clearAuthTokens();
   },
+
+  /**
+   * R-106 — mint a one-time code to paste into an assistant's authorize
+   * page, so the connector never asks for a password.
+   */
+  createConnectCode: (label?: string) =>
+    request<{ code: string; expiresAt: string; expiresInSeconds: number }>('/auth/connect-code', {
+      method: 'POST',
+      body: JSON.stringify({ label }),
+    }),
+
+  /** Disconnect every connected assistant (and every other session). */
+  revokeConnectors: () => request<{ ok: boolean }>('/auth/connectors/revoke', { method: 'POST' }),
 
   getGoogleStartUrl: () =>
     requestWithCredentials<{ url: string }>('/auth/google/start', {
@@ -943,6 +960,12 @@ export const api = {
   listResumes: () => request<Resume[]>('/resumes'),
 
   getResume: (id: string) => request<Resume>(`/resumes/${id}`),
+
+  /** R-108 — one saved version, snapshot included, for preview and export. */
+  getResumeVersion: (resumeId: string, versionId: string) =>
+    request<{ id: string; label: string | null; createdAt: string; snapshot: Record<string, unknown> | null }>(
+      `/resumes/${resumeId}/versions/${versionId}`,
+    ),
 
   createResume: (payload: ResumePayload) =>
     request<Resume>('/resumes', {
@@ -1348,11 +1371,20 @@ export const api = {
   heartbeat: () =>
     request<void>('/auth/heartbeat', { method: 'POST' }).catch(() => undefined),
 
-  downloadPdf: async (id: string, templateId?: string, downloadToken?: string, fileBaseName?: string) => {
+  downloadPdf: async (
+    id: string,
+    templateId?: string,
+    downloadToken?: string,
+    fileBaseName?: string,
+    // R-108: export a saved version (e.g. the one tailored for this job)
+    // rather than the live resume. Omitted means live.
+    versionId?: string,
+  ) => {
     const params = new URLSearchParams();
     const templateQuery = String(templateId || '').trim();
     if (templateQuery) params.set('templateId', templateQuery);
     if (downloadToken) params.set('downloadToken', downloadToken);
+    if (versionId) params.set('versionId', versionId);
     const qs = params.toString();
     const requestUrl = `${baseUrl}/resumes/${id}/pdf${qs ? `?${qs}` : ''}`;
     const res = await fetch(requestUrl, {
@@ -1763,22 +1795,36 @@ export type OutcomeVersionStats = {
   label: string;
   createdAt: string;
   applied: number;
+  /** Any reply, rejections included. */
   responses: number;
+  rejections: number;
+  /** R-109 — replies that went the user's way. This is the one to rank on. */
+  positiveCallbacks: number;
   interviews: number;
   offers: number;
   responseRate: number;
+  positiveCallbackRate: number;
   interviewRate: number;
   offerRate: number;
+  firstAppliedAt: string | null;
+  lastAppliedAt: string | null;
   atsScore: number | null;
   significant: boolean;
 };
 
 export type OutcomeOverallStats = {
   applied: number;
+  /** Any reply, rejections included. */
   responses: number;
+  rejections: number;
+  /** R-109 — replies that were not rejections. The hero number. */
+  positiveCallbacks: number;
   interviews: number;
   offers: number;
+  /** positiveCallbacks / applied — rejections excluded. */
   callbackRate: number;
+  /** responses / applied — rejections included. */
+  replyRate: number;
   interviewRate: number;
   offerRate: number;
   significant: boolean;
@@ -1802,6 +1848,8 @@ export type OutcomeReport = {
   baseline: OutcomeVersionStats | null;
   lift: { multiplier: number | null; deltaPoints: number | null; headline: string };
   unattributed: number;
+  /** R-109 — how these outcomes were established. */
+  provenance: { selfReported: number; emailInferred: number; verified: number };
 };
 
 // "Your response rate vs. platform median" — anonymized aggregate only;
