@@ -2394,6 +2394,64 @@ ChatGPT/Claude account as CallbackCV's identity. See §7.
     (advisory, R-084) — its jsdom teardown flakiness is a separate problem
     and is NOT addressed here.
 
+### R-125 · A real person's resumes are not served from `public/`
+
+- Status: **DONE** (this commit) for the code; history scrub is OWNER.
+- Depends-on: none — this is a live exposure, so it sequences ahead of
+  the distribution work it would otherwise follow.
+- Source: whole-project scan requested 2026-09-22.
+  `resume-builder-web/public/assets/templates/` contains eight PDFs named
+  `seemaalmasyunusshaikh_28Feb_44.pdf` … `_51.pdf` (1.2 MB total),
+  committed in `9b1c580` ("fix(ui): unstyled PDF export; tokenise 90 more
+  colours"). They are a named individual's resumes: the PDF `/Title` is
+  `SEEMA ALMAS YUNUS SHAIKH` and the documents carry a `tel:` link with
+  her phone number. Everything under `public/` is served verbatim by
+  Next, so each one was fetchable, unauthenticated, at
+  `/assets/templates/seemaalmasyunusshaikh_28Feb_44.pdf`.
+  Grep across `.ts/.tsx/.css/.json/.js` for the filenames, for
+  `seemaalmas`, and for the string `assets/templates` returns **zero**
+  references — nothing in the product ever linked them. They appear to
+  be test exports from a real user's resume that were staged into
+  `public/` while debugging the unstyled-export bug and never removed.
+- Why this is a bug by this file's own definition: `/privacy` tells
+  users their resume content is stored in their account, encrypted in
+  transit and at rest, and never sold. Serving one user's resumes as
+  anonymous static assets is copy the code does not deliver (C-003),
+  and it is the trust layer §7 calls the moat's foundation.
+
+- Acceptance criteria:
+  - [x] All eight PDFs are deleted from the working tree, so the paths
+    404 on the next deploy.
+  - [x] A pinning test fails if any `.pdf`, `.doc` or `.docx` is ever
+    added under `resume-builder-web/public/` again. The guard is stated
+    as a rule about document formats rather than "unreferenced files":
+    Next serves `public/` by convention, so absence of a grep hit cannot
+    prove an asset is unused, and a guard that cries wolf gets deleted.
+    Resume-shaped documents have no business in a static asset folder
+    either way — real template previews are SVG.
+  - [x] The five SVGs in the same directory are left in place and
+    flagged, not deleted: they are equally unreferenced but contain no
+    personal data, and widening a PII fix into an asset cleanup makes
+    the revert harder if one turns out to be loaded by a path this scan
+    missed. Recorded here so the next reader knows it was a decision,
+    not an oversight.
+  - [ ] **OWNER:** the files remain in git history — this commit removes
+    them from the tip, not from the past. Anyone with the repo URL can
+    still `git show 9b1c580`. Scrubbing needs a history rewrite
+    (`git filter-repo --path resume-builder-web/public/assets/templates
+    --invert-paths`), a force push to `main` with every collaborator
+    re-cloning, and a support request to GitHub to purge cached views of
+    the blobs. That is destructive to shared history and is the owner's
+    call, not a session's.
+  - [ ] **OWNER:** decide whether the person whose resumes these are
+    needs to be told. The exposure window runs from `9b1c580` to this
+    commit, and the data is a name, a phone number and a full work
+    history. Whether that crosses a notification threshold depends on
+    jurisdiction and on whether the file was ever fetched — server logs
+    would answer the second part.
+
+---
+
 ---
 
 ## §6. Cross-cutting constants
