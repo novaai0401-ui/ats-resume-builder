@@ -2514,6 +2514,66 @@ ChatGPT/Claude account as CallbackCV's identity. See §7.
 
 ---
 
+### R-127 · Listed in the MCP Registry, so clients can find the connector
+
+- Status: **PARTIAL** — `server.json` written and validated against the
+  published schema; publication is OWNER and blocked on the same npm
+  credentials as R-111. Do NOT mark DONE until the registry returns the
+  server.
+- Depends-on: R-111 (npm publish), R-126 (the description it points at)
+- Source: whole-project scan requested 2026-09-22. `find` for `server.json`
+  across the repo returned nothing, so CallbackCV appears in no registry.
+  R-126 makes the connector citable to a model reading our own pages; the
+  registry is the index MCP CLIENTS read — it is how a connector shows up
+  in a client's "add a server" list rather than having to be typed in as a
+  custom URL by someone who already knew it existed.
+- What the registry is, precisely, so the acceptance criteria are not
+  mistaken for a marketing claim: `registry.modelcontextprotocol.io` stores
+  METADATA only — a name, a description, and pointers to the npm package
+  and/or the hosted endpoint. It does not host code, it does not rank, and
+  being listed is not an endorsement by any vendor. It is a directory
+  lookup, and that is the whole value: discoverability without a review
+  queue.
+
+- Acceptance criteria:
+  - [x] `resume-builder-mcp/server.json` exists, declaring BOTH ways to run
+    it: the npm package (`stdio`) for local use and the hosted Render
+    service (`streamable-http`) for ChatGPT/Claude connectors. The registry
+    supports both in one entry, and listing only one would hide the mode
+    most users want.
+  - [x] `$schema` pins the dated schema
+    (`https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json`),
+    not a floating "latest" — a schema that changes under us should fail our
+    validation step, not silently alter what we publish.
+  - [x] `mcpName` added to `resume-builder-mcp/package.json`, matching
+    `server.json`'s `name` exactly. This is how the registry verifies we own
+    the npm package; without it, publication is rejected.
+  - [x] The description and the tool list come from the same facts R-126
+    generates, so the registry entry, `llms.txt` and `/ai-assistants` cannot
+    describe three different products.
+  - [x] A test fails if `server.json`'s `name` and `package.json`'s
+    `mcpName` drift apart, or if `server.json`'s version stops matching the
+    package version — both are rejection conditions at publish time, and
+    finding that out from a failed publish wastes a release.
+  - [ ] **OWNER:** choose the namespace. `server.json` is written as
+    `com.tekivex/callbackcv`, which requires proving control of
+    `tekivex.com` by DNS TXT or an HTTPS well-known file. The zero-setup
+    alternative is `io.github.novaai0401-ui/callbackcv`, which needs only a
+    GitHub login as that account. The domain form matches the `@tekivex`
+    npm scope and survives a GitHub rename; the GitHub form can ship today.
+    Changing it is a one-line edit in two files.
+  - [ ] **OWNER:** publish the npm package first (R-111). The registry
+    verifies the package exists and carries the matching `mcpName`, so
+    registry publication cannot precede it.
+  - [ ] **OWNER:** run `mcp-publisher login` for the chosen namespace and
+    `mcp-publisher publish`, then confirm the server resolves from the
+    registry API.
+  - [ ] **OWNER:** `MCP_PUBLIC_URL` must be set and `/ready` returning 200
+    (R-111) BEFORE publishing, or the `remotes` entry points at an endpoint
+    that fails discovery for everyone who finds us through the listing.
+
+---
+
 ---
 
 ## §6. Cross-cutting constants
