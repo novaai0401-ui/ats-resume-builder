@@ -22,6 +22,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import React, { Suspense } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import AuthGate from '../src/components/AuthGate';
 
 test('AuthGate renders a Suspense boundary as its outermost element', () => {
@@ -46,6 +47,31 @@ test('the Suspense boundary has a fallback, so the gate never renders blank', ()
     tree.props.fallback,
     'The boundary needs a fallback — a bare <Suspense> would flash empty ' +
       'markup into the prerendered HTML of all 17 gated pages.',
+  );
+});
+
+test('the loading fallback is an announced live region (C-005)', () => {
+  // C-005: `role="status"` + `aria-live` on loading states. This panel is
+  // the loading state for all seventeen gated pages, so without the live
+  // region a screen-reader user gets silence on every gated route.
+  const tree = AuthGate({ children: React.createElement('div', null, 'gated') }) as React.ReactElement<{
+    fallback?: React.ReactElement;
+  }>;
+
+  const html = renderToStaticMarkup(tree.props.fallback as React.ReactElement);
+  assert.match(html, /role="status"/, 'loading fallback needs role="status" (C-005)');
+  assert.match(html, /aria-live="polite"/, 'loading fallback needs aria-live (C-005)');
+
+  // And explicitly NOT aria-busy. On a live region that attribute defers
+  // announcements until it flips to false; this region never flips (it
+  // unmounts when auth resolves), so a held announcement would be dropped
+  // and the user would hear nothing — the exact silence the live region is
+  // here to prevent. An earlier version of this file asserted the opposite
+  // and so would have locked the bug in place.
+  assert.doesNotMatch(
+    html,
+    /aria-busy/,
+    'loading fallback must NOT set aria-busy: it never clears, so the announcement would be suppressed',
   );
 });
 
