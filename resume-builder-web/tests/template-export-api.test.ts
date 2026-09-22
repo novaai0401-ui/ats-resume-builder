@@ -25,9 +25,17 @@ test('template selection page persists selected templateId on save', () => {
     path.join(__dirname, '..', 'app', 'resume', 'template', 'TemplateSelectionView.tsx'),
     'utf-8',
   );
+  // Matches the CALL, not its formatting: receiver, resume id, and a
+  // templateId set to the chosen template. The previous assertion demanded
+  // the exact one-line string
+  // `apiClient.updateResume(resumeId, { templateId: template })`, so
+  // commit fe6ae2b broke it (Aug 20) merely by wrapping the payload across
+  // lines to add accentColor — the behaviour never changed. A test that
+  // fails on reformatting teaches people to ignore it, which is the whole
+  // reason this suite was red for a month.
   assert(
-    source.includes('apiClient.updateResume(resumeId, { templateId: template })'),
-    'Template selection save must persist templateId via updateResume',
+    /apiClient\.updateResume\(\s*resumeId\s*,\s*\{[^)]*?templateId:\s*template\b/.test(source),
+    'Template selection save must persist templateId via updateResume(resumeId, { templateId: … })',
   );
 });
 
@@ -36,9 +44,18 @@ test('dashboard apply persists templateId before template-route navigation', () 
     path.join(__dirname, '..', 'app', 'dashboard', 'DashboardPageView.tsx'),
     'utf-8',
   );
+  // Same reason as above: pin the call, not the line breaks — but pin the
+  // VALUE too, not just the key. An earlier version of this assertion
+  // matched the property name alone, so `{ templateId: 'classic' }` or
+  // `{ templateId: undefined }` would have satisfied it while applying any
+  // other template silently stopped persisting the user's choice. The
+  // shorthand `{ templateId }` (or an explicit `templateId: templateId`) is
+  // the thing that makes the selected value the one saved.
   assert(
-    source.includes('apiClient.updateResume(activeResume.id, { templateId })'),
-    'Dashboard apply must persist templateId using updateResume',
+    /apiClient\.updateResume\(\s*activeResume\.id\s*,\s*\{[^)]*?\btemplateId\s*(?:,|\}|:\s*templateId\b)/.test(
+      source,
+    ),
+    'Dashboard apply must persist the SELECTED templateId: updateResume(activeResume.id, { templateId })',
   );
   assert(
     source.includes('router.push(buildTemplateSelectionRoute(activeResume.id))'),
