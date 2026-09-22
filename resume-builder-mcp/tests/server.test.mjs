@@ -207,3 +207,51 @@ test('API failures surface as MCP errors, not as silently empty results', async 
   assert.equal(res.isError, true, 'the assistant must be told the call failed');
   assert.match(res.content[0].text, /upstream exploded/);
 });
+
+/**
+ * R-126 — the public description of the connector is generated from
+ * `ASSISTANT_TOOLS` in resume-builder-shared: llms.txt, llms-full.txt and
+ * /ai-assistants all render that catalogue. This test is what keeps the
+ * catalogue honest, the same way `schema-parity.test.mjs` keeps the mirrored
+ * field shapes honest.
+ *
+ * Imported as a dev dependency only — the published npm binary must not
+ * depend on the workspace, or `npx @tekivex/callbackcv-mcp` breaks.
+ *
+ * The failure this prevents: a thirteenth tool ships, the server advertises
+ * it, and every surface an assistant reads still describes twelve — so a
+ * model answers from a list the product no longer has.
+ */
+test('the shared assistant catalogue matches the tools the server registers', async () => {
+  const { ASSISTANT_TOOL_NAMES, ASSISTANT_TOOLS } = await import('resume-builder-shared');
+  const mcp = await connect();
+  const { tools } = await mcp.listTools();
+  await mcp.close();
+
+  const registered = tools.map((t) => t.name).sort();
+  assert.deepEqual(
+    [...ASSISTANT_TOOL_NAMES],
+    registered,
+    'resume-builder-shared/src/assistant-tools.ts must list exactly the tools the server registers — ' +
+      'it is what llms.txt tells ChatGPT and Claude this connector can do.',
+  );
+
+  // And the contract this file already asserts against must cover the same
+  // set, so there is one tool list in the repo, not two that drift apart.
+  assert.deepEqual(
+    Object.keys(TOOL_CONTRACT).sort(),
+    [...ASSISTANT_TOOL_NAMES],
+    'TOOL_CONTRACT and the shared catalogue must describe the same tools',
+  );
+
+  // Read-only in the annotation means read-only in the public description.
+  for (const tool of tools) {
+    const shared = ASSISTANT_TOOLS.find((t) => t.name === tool.name);
+    const expected = tool.annotations?.readOnlyHint ? 'read' : 'write';
+    assert.equal(
+      shared.kind,
+      expected,
+      `${tool.name}: the catalogue calls it "${shared.kind}" but the server annotates it "${expected}"`,
+    );
+  }
+});

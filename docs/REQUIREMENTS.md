@@ -2452,6 +2452,68 @@ ChatGPT/Claude account as CallbackCV's identity. See §7.
 
 ---
 
+### R-126 · The connector is findable in the surfaces assistants actually read
+
+- Status: **DONE** (this commit)
+- Depends-on: R-110 (claims match the product), R-100, R-101
+- Source: whole-project scan requested 2026-09-22. R-096 through R-101
+  built the assistant surface — twelve MCP tools, OAuth 2.1 with PKCE,
+  dynamic client registration, discovery documents — and R-110 made the
+  public claims true. Nothing told an assistant it exists. Grepping
+  `app/llms.txt/route.ts` for `mcp|MCP|connector` returns zero matches,
+  and `/ai-assistants` — the page that explains how to connect — is in
+  `sitemap.ts` but absent from the llms.txt "Key links" block. So a user
+  asking ChatGPT or Claude "which resume tool can I connect to you?" gets
+  nothing citable, about the one capability that answers the question
+  exactly.
+- Scope note: this requirement is about DISCOVERY, not ranking. It makes
+  the connector citable when a model is already looking at our surfaces.
+  Whether an assistant recommends us is a function of the product and of
+  each vendor's retrieval, and no line in a text file changes that. No
+  acceptance criterion here promises placement, and none should: R-111
+  already records that no wording may make an assistant recommend us to
+  people who are not asking for us.
+
+- Acceptance criteria:
+  - [x] `llms.txt` carries an "Use it from ChatGPT / Claude" section
+    describing the connector in the terms a model needs to answer with:
+    that it is an MCP server, that it uses OAuth so no API key is pasted,
+    that the agent can read, tailor, export and log outcomes, and that
+    every agent action lands in the same Outcome Graph as the web app.
+  - [x] `/ai-assistants` is in the llms.txt "Key links" block.
+  - [x] The tool list in `llms.txt` is GENERATED from the same
+    `TOOL_CONTRACT` the MCP test suite asserts against, not typed out —
+    the same treatment R-110 gave the template facts, and for the same
+    reason: a hand-written list rots on the next tool change. A test
+    fails if the two ever disagree.
+  - [x] No claim in the new section outruns the code. The npm package is
+    still unpublished (R-111), so llms.txt describes the hosted connector
+    and links `/ai-assistants` rather than printing an `npx` command that
+    currently fails (C-003).
+  - [x] `/llms-full.txt` is served: the long-form companion convention,
+    same generated facts, with the per-tool detail that does not belong
+    in the index file. Linked from `llms.txt` and from `robots.txt`.
+  - [x] `robots.ts` names the assistant crawlers explicitly — GPTBot,
+    OAI-SearchBot, ChatGPT-User, ClaudeBot, Claude-SearchBot,
+    Claude-User, PerplexityBot, Google-Extended — with the same
+    allow/disallow split the wildcard rule already applies. The effective
+    policy is unchanged for every one of them; what changes is that it is
+    now stated. An operator who later adds a blanket `Disallow: /` for
+    one bot has to do it deliberately, and a reviewer can read the file
+    and see which assistants are welcome instead of inferring it.
+  - [x] Authenticated routes stay disallowed for the named crawlers too.
+    Robots rules are not access control (R-110 says so), but a crawler
+    that follows them should not be pulling `/dashboard`.
+  - [x] Pinning tests: llms.txt mentions the connector and links
+    `/ai-assistants`; the generated tool list matches `TOOL_CONTRACT`
+    exactly; `llms-full.txt` responds with `text/markdown`; robots names
+    every crawler in the list above and keeps `/dashboard`, `/settings`,
+    `/admin` and `/api/` disallowed for each. Mutation-verified:
+    dropping a crawler, dropping the connector section, or adding a
+    thirteenth tool without updating the contract each fail.
+
+---
+
 ---
 
 ## §6. Cross-cutting constants
