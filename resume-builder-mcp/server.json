@@ -1,0 +1,42 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.novaai0401-ui/callbackcv",
+  "title": "CallbackCV",
+  "description": "Read and tailor resumes, export the exact tailored version, and log job applications against it — so callback rates are measured per resume version, not predicted.",
+  "version": "0.4.0",
+  "websiteUrl": "https://callbackcv.tekivex.com/ai-assistants",
+  "repository": {
+    "url": "https://github.com/novaai0401-ui/ats-resume-builder",
+    "source": "github",
+    "subfolder": "resume-builder-mcp"
+  },
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "@tekivex/callbackcv-mcp",
+      "version": "0.4.0",
+      "transport": { "type": "stdio" },
+      "environmentVariables": [
+        {
+          "name": "POCKET_RESUME_TOKEN",
+          "description": "CallbackCV API token, minted in Settings → API access. Expires after ~7 days. Not needed when connecting over OAuth to the hosted endpoint below.",
+          "isRequired": true,
+          "isSecret": true
+        },
+        {
+          "name": "POCKET_RESUME_API_URL",
+          "description": "CallbackCV API base URL. Defaults to the hosted API; override only when pointing at a self-hosted instance.",
+          "isRequired": false,
+          "isSecret": false
+        }
+      ]
+    }
+  ],
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://mcp.tekivex.com"
+    }
+  ]
+}

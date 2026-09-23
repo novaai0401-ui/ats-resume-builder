@@ -2394,6 +2394,189 @@ ChatGPT/Claude account as CallbackCV's identity. See §7.
     (advisory, R-084) — its jsdom teardown flakiness is a separate problem
     and is NOT addressed here.
 
+### R-125 · A real person's resumes are not served from `public/`
+
+- Status: **DONE** (this commit) for the code; history scrub is OWNER.
+- Depends-on: none — this is a live exposure, so it sequences ahead of
+  the distribution work it would otherwise follow.
+- Source: whole-project scan requested 2026-09-22.
+  `resume-builder-web/public/assets/templates/` contains eight PDFs named
+  `seemaalmasyunusshaikh_28Feb_44.pdf` … `_51.pdf` (1.2 MB total),
+  committed in `9b1c580` ("fix(ui): unstyled PDF export; tokenise 90 more
+  colours"). They are a named individual's resumes: the PDF `/Title` is
+  `SEEMA ALMAS YUNUS SHAIKH` and the documents carry a `tel:` link with
+  her phone number. Everything under `public/` is served verbatim by
+  Next, so each one was fetchable, unauthenticated, at
+  `/assets/templates/seemaalmasyunusshaikh_28Feb_44.pdf`.
+  Grep across `.ts/.tsx/.css/.json/.js` for the filenames, for
+  `seemaalmas`, and for the string `assets/templates` returns **zero**
+  references — nothing in the product ever linked them. They appear to
+  be test exports from a real user's resume that were staged into
+  `public/` while debugging the unstyled-export bug and never removed.
+- Why this is a bug by this file's own definition: `/privacy` tells
+  users their resume content is stored in their account, encrypted in
+  transit and at rest, and never sold. Serving one user's resumes as
+  anonymous static assets is copy the code does not deliver (C-003),
+  and it is the trust layer §7 calls the moat's foundation.
+
+- Acceptance criteria:
+  - [x] All eight PDFs are deleted from the working tree, so the paths
+    404 on the next deploy.
+  - [x] A pinning test fails if any `.pdf`, `.doc` or `.docx` is ever
+    added under `resume-builder-web/public/` again. The guard is stated
+    as a rule about document formats rather than "unreferenced files":
+    Next serves `public/` by convention, so absence of a grep hit cannot
+    prove an asset is unused, and a guard that cries wolf gets deleted.
+    Resume-shaped documents have no business in a static asset folder
+    either way — real template previews are SVG.
+  - [x] The five SVGs in the same directory are left in place and
+    flagged, not deleted: they are equally unreferenced but contain no
+    personal data, and widening a PII fix into an asset cleanup makes
+    the revert harder if one turns out to be loaded by a path this scan
+    missed. Recorded here so the next reader knows it was a decision,
+    not an oversight.
+  - [ ] **OWNER:** the files remain in git history — this commit removes
+    them from the tip, not from the past. Anyone with the repo URL can
+    still `git show 9b1c580`. Scrubbing needs a history rewrite
+    (`git filter-repo --path resume-builder-web/public/assets/templates
+    --invert-paths`), a force push to `main` with every collaborator
+    re-cloning, and a support request to GitHub to purge cached views of
+    the blobs. That is destructive to shared history and is the owner's
+    call, not a session's.
+  - [ ] **OWNER:** decide whether the person whose resumes these are
+    needs to be told. The exposure window runs from `9b1c580` to this
+    commit, and the data is a name, a phone number and a full work
+    history. Whether that crosses a notification threshold depends on
+    jurisdiction and on whether the file was ever fetched — server logs
+    would answer the second part.
+
+---
+
+### R-126 · The connector is findable in the surfaces assistants actually read
+
+- Status: **DONE** (this commit)
+- Depends-on: R-110 (claims match the product), R-100, R-101
+- Source: whole-project scan requested 2026-09-22. R-096 through R-101
+  built the assistant surface — twelve MCP tools, OAuth 2.1 with PKCE,
+  dynamic client registration, discovery documents — and R-110 made the
+  public claims true. Nothing told an assistant it exists. Grepping
+  `app/llms.txt/route.ts` for `mcp|MCP|connector` returns zero matches,
+  and `/ai-assistants` — the page that explains how to connect — is in
+  `sitemap.ts` but absent from the llms.txt "Key links" block. So a user
+  asking ChatGPT or Claude "which resume tool can I connect to you?" gets
+  nothing citable, about the one capability that answers the question
+  exactly.
+- Scope note: this requirement is about DISCOVERY, not ranking. It makes
+  the connector citable when a model is already looking at our surfaces.
+  Whether an assistant recommends us is a function of the product and of
+  each vendor's retrieval, and no line in a text file changes that. No
+  acceptance criterion here promises placement, and none should: R-111
+  already records that no wording may make an assistant recommend us to
+  people who are not asking for us.
+
+- Acceptance criteria:
+  - [x] `llms.txt` carries an "Use it from ChatGPT / Claude" section
+    describing the connector in the terms a model needs to answer with:
+    that it is an MCP server, that it uses OAuth so no API key is pasted,
+    that the agent can read, tailor, export and log outcomes, and that
+    every agent action lands in the same Outcome Graph as the web app.
+  - [x] `/ai-assistants` is in the llms.txt "Key links" block.
+  - [x] The tool list in `llms.txt` is GENERATED from the same
+    `TOOL_CONTRACT` the MCP test suite asserts against, not typed out —
+    the same treatment R-110 gave the template facts, and for the same
+    reason: a hand-written list rots on the next tool change. A test
+    fails if the two ever disagree.
+  - [x] No claim in the new section outruns the code. The npm package is
+    still unpublished (R-111), so llms.txt describes the hosted connector
+    and links `/ai-assistants` rather than printing an `npx` command that
+    currently fails (C-003).
+  - [x] `/llms-full.txt` is served: the long-form companion convention,
+    same generated facts, with the per-tool detail that does not belong
+    in the index file. Linked from `llms.txt` and from `robots.txt`.
+  - [x] `robots.ts` names the assistant crawlers explicitly — GPTBot,
+    OAI-SearchBot, ChatGPT-User, ClaudeBot, Claude-SearchBot,
+    Claude-User, PerplexityBot, Google-Extended — with the same
+    allow/disallow split the wildcard rule already applies. The effective
+    policy is unchanged for every one of them; what changes is that it is
+    now stated. An operator who later adds a blanket `Disallow: /` for
+    one bot has to do it deliberately, and a reviewer can read the file
+    and see which assistants are welcome instead of inferring it.
+  - [x] Authenticated routes stay disallowed for the named crawlers too.
+    Robots rules are not access control (R-110 says so), but a crawler
+    that follows them should not be pulling `/dashboard`.
+  - [x] Pinning tests: llms.txt mentions the connector and links
+    `/ai-assistants`; the generated tool list matches `TOOL_CONTRACT`
+    exactly; `llms-full.txt` responds with `text/markdown`; robots names
+    every crawler in the list above and keeps `/dashboard`, `/settings`,
+    `/admin` and `/api/` disallowed for each. Mutation-verified:
+    dropping a crawler, dropping the connector section, or adding a
+    thirteenth tool without updating the contract each fail.
+
+---
+
+### R-127 · Listed in the MCP Registry, so clients can find the connector
+
+- Status: **PARTIAL** — `server.json` written and validated against the
+  published schema; publication is OWNER and blocked on the same npm
+  credentials as R-111. Do NOT mark DONE until the registry returns the
+  server.
+- Depends-on: R-111 (npm publish), R-126 (the description it points at)
+- Source: whole-project scan requested 2026-09-22. `find` for `server.json`
+  across the repo returned nothing, so CallbackCV appears in no registry.
+  R-126 makes the connector citable to a model reading our own pages; the
+  registry is the index MCP CLIENTS read — it is how a connector shows up
+  in a client's "add a server" list rather than having to be typed in as a
+  custom URL by someone who already knew it existed.
+- What the registry is, precisely, so the acceptance criteria are not
+  mistaken for a marketing claim: `registry.modelcontextprotocol.io` stores
+  METADATA only — a name, a description, and pointers to the npm package
+  and/or the hosted endpoint. It does not host code, it does not rank, and
+  being listed is not an endorsement by any vendor. It is a directory
+  lookup, and that is the whole value: discoverability without a review
+  queue.
+
+- Acceptance criteria:
+  - [x] `resume-builder-mcp/server.json` exists, declaring BOTH ways to run
+    it: the npm package (`stdio`) for local use and the hosted Render
+    service (`streamable-http`) for ChatGPT/Claude connectors. The registry
+    supports both in one entry, and listing only one would hide the mode
+    most users want.
+  - [x] `$schema` pins the dated schema
+    (`https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json`),
+    not a floating "latest" — a schema that changes under us should fail our
+    validation step, not silently alter what we publish.
+  - [x] `mcpName` added to `resume-builder-mcp/package.json`, matching
+    `server.json`'s `name` exactly. This is how the registry verifies we own
+    the npm package; without it, publication is rejected.
+  - [x] The description and the tool list come from the same facts R-126
+    generates, so the registry entry, `llms.txt` and `/ai-assistants` cannot
+    describe three different products.
+  - [x] A test fails if `server.json`'s `name` and `package.json`'s
+    `mcpName` drift apart, or if `server.json`'s version stops matching the
+    package version — both are rejection conditions at publish time, and
+    finding that out from a failed publish wastes a release.
+  - [x] Namespace chosen: `io.github.novaai0401-ui/callbackcv`. The owner
+    picked the GitHub form over `com.tekivex/callbackcv` on 2026-09-23
+    because it authenticates with a GitHub login alone, where the domain
+    form would have blocked publication on a DNS TXT record or an HTTPS
+    well-known file on the `tekivex.com` apex. The registry namespace is
+    independent of the npm package name, so the package stays
+    `@tekivex/callbackcv-mcp` and the `@tekivex` scope is unaffected. The
+    cost is that the listing is tied to the GitHub account name: renaming
+    that account means re-publishing under a new registry name, since a
+    server name is immutable once published.
+  - [ ] **OWNER:** publish the npm package first (R-111). The registry
+    verifies the package exists and carries the matching `mcpName`, so
+    registry publication cannot precede it.
+  - [ ] **OWNER:** run `mcp-publisher login` for the chosen namespace and
+    `mcp-publisher publish`, then confirm the server resolves from the
+    registry API.
+  - [ ] **OWNER:** `MCP_PUBLIC_URL` must be set and `/ready` returning 200
+    (R-111) BEFORE publishing, or the `remotes` entry points at an endpoint
+    that fails discovery for everyone who finds us through the listing.
+
+---
+
 ---
 
 ## §6. Cross-cutting constants
@@ -2462,6 +2645,7 @@ do not break it.
 
 | Date | Decision | Reason | Affected IDs |
 |---|---|---|---|
+| 2026-09-23 | **MCP Registry namespace is `io.github.novaai0401-ui/callbackcv`**, not `com.tekivex/callbackcv` (R-127). `server.json` `name` and `package.json` `mcpName` both changed; the npm package name `@tekivex/callbackcv-mcp` is unchanged, because the registry namespace and the npm scope are separate identifiers. | The domain form requires proving control of the `tekivex.com` apex by DNS TXT or an HTTPS well-known file before `mcp-publisher login` will issue a token; the GitHub form needs only a login as the account that owns this repository, so publication stops being blocked on DNS. Accepted cost: the listing is tied to the GitHub account name, and a published server name cannot be renamed. | R-127 |
 | 2026-09-10 | **Training samples captured under the default-true flag are HELD, not purged** (R-112): every sample whose user has no recorded `trainingConsentAt` gets `consentHold = true`, which excludes it from admin exports and from the corpus loader that actually trains the model. Nothing is deleted — re-consent clears the flag. Users who explicitly toggled training ON in Settings (the only path that stamps `trainingConsentAt`) keep their samples and stay opted in. | Founder chose hold over purge: purging is irreversible and discards data from users who would have said yes, while continuing to use it would mean training on data gathered under a promise the code did not keep. Holding is the only reversible option that stops the harm now. | R-112, C-003 |
 | 2026-09-10 | **Assistant-account sign-in dropped.** CallbackCV will NOT authenticate users via their ChatGPT or Claude account. In MCP OAuth, CallbackCV is the authorization SERVER and the assistant is the client — the client never asserts who the user is, so "sign in with ChatGPT" is not something the protocol can express, and neither vendor offers OIDC as an identity provider. A CallbackCV account stays required. What R-106 removes instead is PASSWORD entry on the connector page: a one-time connect code minted in the web app replaces it. | Founder asked whether the assistant's user details could carry authentication; reviewed against the MCP authorization spec and both vendors' connector docs — the answer is no, so the idea is closed rather than left as a maybe. | R-106, R-100, R-096 |
 | 2026-09-10 | Connector work re-scoped from "add more AI features" to "make the shipped surface true" (new §5b, R-104…R-111). A code review at `168065c` found the ATS simulator scoring every resume with no work history (reading a `sections` field the Prisma model does not have), authorization codes replayable within their TTL, access tokens surviving logout while `/privacy` promises otherwise, training capture defaulting to on against an "explicit opt-in" promise, the tailored version unreachable from the download link that attributes outcomes to it, rejections counted as replies when ranking the "best" resume, and `llms.txt` telling assistants every template is single-column while the catalogue ships sidebar layouts. Distribution (R-111) is sequenced LAST, behind the correctness and trust fixes. | Four of these are C-003 violations (copy the code does not deliver) and one breaks the C-007 attribution link, so by this file's own definition they are bugs, not backlog. Submitting a connector with known wrong output spends a review cycle on defects we could have fixed first. | R-104, R-105, R-106, R-107, R-108, R-109, R-110, R-111, R-112, C-001, C-002, C-003, C-007 |
