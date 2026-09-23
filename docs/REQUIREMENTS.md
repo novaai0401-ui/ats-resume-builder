@@ -2555,13 +2555,16 @@ ChatGPT/Claude account as CallbackCV's identity. See §7.
     `mcpName` drift apart, or if `server.json`'s version stops matching the
     package version — both are rejection conditions at publish time, and
     finding that out from a failed publish wastes a release.
-  - [ ] **OWNER:** choose the namespace. `server.json` is written as
-    `com.tekivex/callbackcv`, which requires proving control of
-    `tekivex.com` by DNS TXT or an HTTPS well-known file. The zero-setup
-    alternative is `io.github.novaai0401-ui/callbackcv`, which needs only a
-    GitHub login as that account. The domain form matches the `@tekivex`
-    npm scope and survives a GitHub rename; the GitHub form can ship today.
-    Changing it is a one-line edit in two files.
+  - [x] Namespace chosen: `io.github.novaai0401-ui/callbackcv`. The owner
+    picked the GitHub form over `com.tekivex/callbackcv` on 2026-09-23
+    because it authenticates with a GitHub login alone, where the domain
+    form would have blocked publication on a DNS TXT record or an HTTPS
+    well-known file on the `tekivex.com` apex. The registry namespace is
+    independent of the npm package name, so the package stays
+    `@tekivex/callbackcv-mcp` and the `@tekivex` scope is unaffected. The
+    cost is that the listing is tied to the GitHub account name: renaming
+    that account means re-publishing under a new registry name, since a
+    server name is immutable once published.
   - [ ] **OWNER:** publish the npm package first (R-111). The registry
     verifies the package exists and carries the matching `mcpName`, so
     registry publication cannot precede it.
@@ -2642,6 +2645,7 @@ do not break it.
 
 | Date | Decision | Reason | Affected IDs |
 |---|---|---|---|
+| 2026-09-23 | **MCP Registry namespace is `io.github.novaai0401-ui/callbackcv`**, not `com.tekivex/callbackcv` (R-127). `server.json` `name` and `package.json` `mcpName` both changed; the npm package name `@tekivex/callbackcv-mcp` is unchanged, because the registry namespace and the npm scope are separate identifiers. | The domain form requires proving control of the `tekivex.com` apex by DNS TXT or an HTTPS well-known file before `mcp-publisher login` will issue a token; the GitHub form needs only a login as the account that owns this repository, so publication stops being blocked on DNS. Accepted cost: the listing is tied to the GitHub account name, and a published server name cannot be renamed. | R-127 |
 | 2026-09-10 | **Training samples captured under the default-true flag are HELD, not purged** (R-112): every sample whose user has no recorded `trainingConsentAt` gets `consentHold = true`, which excludes it from admin exports and from the corpus loader that actually trains the model. Nothing is deleted — re-consent clears the flag. Users who explicitly toggled training ON in Settings (the only path that stamps `trainingConsentAt`) keep their samples and stay opted in. | Founder chose hold over purge: purging is irreversible and discards data from users who would have said yes, while continuing to use it would mean training on data gathered under a promise the code did not keep. Holding is the only reversible option that stops the harm now. | R-112, C-003 |
 | 2026-09-10 | **Assistant-account sign-in dropped.** CallbackCV will NOT authenticate users via their ChatGPT or Claude account. In MCP OAuth, CallbackCV is the authorization SERVER and the assistant is the client — the client never asserts who the user is, so "sign in with ChatGPT" is not something the protocol can express, and neither vendor offers OIDC as an identity provider. A CallbackCV account stays required. What R-106 removes instead is PASSWORD entry on the connector page: a one-time connect code minted in the web app replaces it. | Founder asked whether the assistant's user details could carry authentication; reviewed against the MCP authorization spec and both vendors' connector docs — the answer is no, so the idea is closed rather than left as a maybe. | R-106, R-100, R-096 |
 | 2026-09-10 | Connector work re-scoped from "add more AI features" to "make the shipped surface true" (new §5b, R-104…R-111). A code review at `168065c` found the ATS simulator scoring every resume with no work history (reading a `sections` field the Prisma model does not have), authorization codes replayable within their TTL, access tokens surviving logout while `/privacy` promises otherwise, training capture defaulting to on against an "explicit opt-in" promise, the tailored version unreachable from the download link that attributes outcomes to it, rejections counted as replies when ranking the "best" resume, and `llms.txt` telling assistants every template is single-column while the catalogue ships sidebar layouts. Distribution (R-111) is sequenced LAST, behind the correctness and trust fixes. | Four of these are C-003 violations (copy the code does not deliver) and one breaks the C-007 attribution link, so by this file's own definition they are bugs, not backlog. Submitting a connector with known wrong output spends a review cycle on defects we could have fixed first. | R-104, R-105, R-106, R-107, R-108, R-109, R-110, R-111, R-112, C-001, C-002, C-003, C-007 |

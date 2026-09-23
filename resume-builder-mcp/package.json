@@ -1,7 +1,7 @@
 {
   "name": "@tekivex/callbackcv-mcp",
   "version": "0.4.0",
-  "mcpName": "com.tekivex/callbackcv",
+  "mcpName": "io.github.novaai0401-ui/callbackcv",
   "description": "MCP server for CallbackCV \u2014 lets AI agents read resumes, tailor them per JD, log applications, and query outcome stats. Every agent action feeds the same Outcome Graph as the web app.",
   "license": "MIT",
   "type": "module",
